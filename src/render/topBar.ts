@@ -2,6 +2,7 @@
 
 import type { GameState } from '../core/state';
 import { THEME } from './theme';
+import { GAME_VERSION } from '../data/changelog';
 import { hasNewItems } from '../systems/items';
 import { drawNewItemHint } from './hud';
 import { drawText } from './ui';
@@ -35,6 +36,6 @@ export function drawTopBar(ctx: CanvasRenderingContext2D, state: GameState, widt
     ctx.font = `bold 16px ${THEME.font}`;
     x += lw + 6 + ctx.measureText(value).width + 26;
   }
-  drawText(ctx, `seed ${state.seed}`, width - 16, y, { size: 13, color: THEME.textMuted, align: 'right' });
-  if (hasNewItems(state.hero)) drawNewItemHint(ctx, width - 90, y, time, 'right');
+  drawText(ctx, `v${GAME_VERSION} · seed ${state.seed}`, width - 16, y, { size: 13, color: THEME.textMuted, align: 'right' });
+  if (hasNewItems(state.hero)) drawNewItemHint(ctx, width - 150, y, time, 'right');
 }

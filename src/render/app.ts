@@ -30,6 +30,9 @@ import { createCombatScreen } from './combatView';
 import { type DebugPanel, createDebugPanel } from './debugPanel';
 import { createDeathScreen, createGameOverScreen, createRewardScreen, createVictoryScreen } from './endScreens';
 import { createHelpModal } from './help';
+import { createChangelogModal } from './changelog';
+import { CHANGELOG, CHANGELOG_BASE_VERSION, GAME_VERSION } from '../data/changelog';
+import { unseenUpdates } from '../core/version';
 import { createInventoryModal } from './inventory';
 import { createMerchantModal } from './merchant';
 import { createSkillPickModal } from './skillPick';
@@ -38,6 +41,12 @@ import { createCardChoiceModal, createClassChoiceModal } from './modals';
 import { THEME } from './theme';
 import { createTownScreen } from './townView';
 import { createWaveStartModal } from './waveStart';
+
+/** Where the last seen game version is kept between visits (localStorage in the browser). */
+export interface VersionStore {
+  load(): string | null;
+  save(version: string): void;
+}
 
 export class App {
   readonly screens = new ScreenManager<CanvasRenderingContext2D>();
@@ -54,7 +63,7 @@ export class App {
     readonly view: View,
     readonly input: Input,
     seed: number,
-    opts: { dev: boolean; reducedMotion: boolean },
+    opts: { dev: boolean; reducedMotion: boolean; versions?: VersionStore },
   ) {
     this.reducedMotion = opts.reducedMotion;
     this.state = createGameState(seed);
@@ -78,6 +87,23 @@ export class App {
     );
     this.screens.go('town');
     this.showHelp();
+    // Returning players first see what changed since their last visit (on top of the help).
+    const store = opts.versions;
+    const fresh = unseenUpdates(CHANGELOG, store ? store.load() : GAME_VERSION, CHANGELOG_BASE_VERSION);
+    if (fresh.length > 0) {
+      this.screens.pushModal(
+        createChangelogModal(this, fresh, () => {
+          store?.save(GAME_VERSION);
+          this.screens.popModal();
+        }),
+      );
+    } else store?.save(GAME_VERSION);
+  }
+
+  /** Town "Що нового": the whole update list. */
+  showChangelog(): void {
+    if (this.screens.topModal) return;
+    this.screens.pushModal(createChangelogModal(this, CHANGELOG, () => this.screens.popModal()));
   }
 
   /** Town merchant window. */

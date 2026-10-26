@@ -12,7 +12,7 @@ const TOWN_REST_FLASH = 2.5;
 
 export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
   const W = app.view.width;
-  const panel = { x: W / 2 - 220, y: 80, w: 440, h: 380 };
+  const panel = { x: W / 2 - 220, y: 70, w: 440, h: 430 };
   let restedFlash = 0;
   const buttons = new ButtonGroup([
     new Button({
@@ -32,6 +32,13 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
       rect: { x: panel.x + 60, y: panel.y + 280, w: 320, h: 46 },
       hotkey: 'Digit3',
       onClick: () => app.goMap(),
+    }),
+    new Button({
+      label: 'Що нового',
+      rect: { x: panel.x + 120, y: panel.y + 336, w: 200, h: 36 },
+      hotkey: 'Digit4',
+      fontSize: 14,
+      onClick: () => app.showChangelog(),
     }),
   ]);
 
@@ -75,7 +82,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
         ctx.restore();
       }
       buttons.draw(ctx);
-      drawText(ctx, '1 / Tab — спорядження · 2 — торговець · 3 — вирушити', W / 2, panel.y + panel.h - 20, {
+      drawText(ctx, '1 / Tab — спорядження · 2 — торговець · 3 — вирушити · 4 — що нового', W / 2, panel.y + panel.h - 20, {
         size: 12,
         align: 'center',
         color: THEME.textMuted,
