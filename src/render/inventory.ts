@@ -30,7 +30,7 @@ import type { App } from './app';
 import { drawConsumableIcon, drawItemIcon } from './icons';
 import { drawItem } from './itemArt';
 import { THEME } from './theme';
-import { type Rect, drawPanel, drawText, drawTooltip, inRect, roundRect } from './ui';
+import { type Rect, drawPanel, drawText, drawTooltip, drawTooltipBox, inRect, roundRect, tooltipSize } from './ui';
 
 const PANEL: Rect = { x: 50, y: 30, w: 860, h: 480 };
 const FIG_X = 250;
@@ -100,11 +100,17 @@ function slotName(slot: ItemSlot): string {
   return ITEM_SLOTS.find((s) => s.id === slot)?.name ?? '';
 }
 
+interface Tooltip {
+  lines: string[];
+  colors: (string | undefined)[];
+}
+
 /**
- * Item tooltip: name in its rarity colour, stats, and — for an item not worn — how it
- * compares with what the hero wears in that slot (green better, red worse).
+ * Item tooltip: name in its rarity colour and stats. For an item not worn, with
+ * `compare` (Shift held) — the stat difference with what the hero wears in that slot
+ * (green better, red worse); without it — a hint to hold Shift.
  */
-export function itemTooltip(item: Item, extra: string[], hero?: Hero): { lines: string[]; colors: (string | undefined)[] } {
+export function itemTooltip(item: Item, extra: string[], hero?: Hero, compare = false): Tooltip {
   const lines: string[] = [];
   const colors: (string | undefined)[] = [];
   const add = (text: string, color?: string): void => {
@@ -123,6 +129,7 @@ export function itemTooltip(item: Item, extra: string[], hero?: Hero): { lines: 
   const worn = hero?.equipment[item.slot];
   if (hero && worn !== item) {
     if (!worn) add('Слот вільний — лише плюси', THEME.good);
+    else if (item.identified && !compare) add('Shift — порівняти з одягненим', THEME.textDim);
     else if (item.identified) {
       add(`Порівняно з «${displayName(worn)}»:`, RARITIES[worn.rarity].color);
       const diff = compareItems(item, worn);
@@ -138,6 +145,35 @@ export function itemTooltip(item: Item, extra: string[], hero?: Hero): { lines: 
   add(`Ціна продажу: ${sellPrice(item)} зол.`, THEME.textDim);
   for (const e of extra) add(e, THEME.textDim);
   return { lines, colors };
+}
+
+/**
+ * Tooltip of a bag item at the mouse. With Shift held (as in WoW) the worn item of the
+ * same slot is shown beside it, and the item's tooltip lists the difference.
+ */
+export function drawBagItemTooltip(ctx: CanvasRenderingContext2D, app: App, item: Item, extra: string[], hero: Hero, m: { x: number; y: number }): void {
+  const W = app.view.width;
+  const H = app.view.height;
+  const held = app.input.held;
+  const compare = held.has('ShiftLeft') || held.has('ShiftRight');
+  const tip = itemTooltip(item, extra, hero, compare);
+  const worn = hero.equipment[item.slot];
+  if (!compare || !worn || worn === item || !item.identified) {
+    drawTooltip(ctx, tip.lines, m.x, m.y, W, H, tip.colors);
+    return;
+  }
+  const wornTip = itemTooltip(worn, [], undefined);
+  wornTip.lines.unshift('Одягнено');
+  wornTip.colors.unshift(THEME.textDim);
+  const gap = 6;
+  const a = tooltipSize(ctx, tip.lines);
+  const b = tooltipSize(ctx, wornTip.lines);
+  let x = m.x + 16;
+  if (x + a.w + gap + b.w > W - 4) x = m.x - 12 - a.w - gap - b.w;
+  x = Math.max(4, x);
+  const place = (h: number): number => Math.max(4, Math.min(m.y + 16, H - h - 4));
+  drawTooltipBox(ctx, tip.lines, x, place(a.h), tip.colors);
+  drawTooltipBox(ctx, wornTip.lines, x + a.w + gap, place(b.h), wornTip.colors);
 }
 
 export function createInventoryModal(app: App, onClose: () => void): Modal<CanvasRenderingContext2D> {
@@ -428,8 +464,7 @@ function drawHoverTooltip(ctx: CanvasRenderingContext2D, app: App, m: { x: numbe
   for (let i = 0; i < h.bag.length && i < BAG_COLS * BAG_ROWS; i++) {
     const item = h.bag[i]!;
     if (!inRect(bagCell(i), m.x, m.y)) continue;
-    const tip = itemTooltip(item, ['ПКМ — меню · перетягніть на фігуру'], h);
-    drawTooltip(ctx, tip.lines, m.x, m.y, W, H, tip.colors);
+    drawBagItemTooltip(ctx, app, item, ['ПКМ — меню · перетягніть на фігуру'], h, m);
     return;
   }
   CONSUMABLE_ORDER.forEach((id, i) => {

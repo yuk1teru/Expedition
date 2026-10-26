@@ -240,24 +240,30 @@ export function drawTooltip(
   lineColors?: (string | undefined)[],
 ): void {
   if (lines.length === 0) return;
-  const size = 14;
-  const lh = 19;
-  const pad = 10;
-  ctx.font = font(size);
-  let w = 0;
-  for (const l of lines) w = Math.max(w, ctx.measureText(l).width);
-  w += pad * 2;
-  const h = lines.length * lh + pad * 2 - 4;
+  const { w, h } = tooltipSize(ctx, lines);
   let tx = x + 16;
   let ty = y + 16;
   if (tx + w > screenW - 4) tx = x - w - 12;
   if (ty + h > screenH - 4) ty = screenH - h - 4;
-  tx = Math.max(4, tx);
-  ty = Math.max(4, ty);
+  drawTooltipBox(ctx, lines, Math.max(4, tx), Math.max(4, ty), lineColors);
+}
+
+const TIP = { size: 14, lh: 19, pad: 10 };
+
+export function tooltipSize(ctx: CanvasRenderingContext2D, lines: string[]): { w: number; h: number } {
+  ctx.font = font(TIP.size);
+  let w = 0;
+  for (const l of lines) w = Math.max(w, ctx.measureText(l).width);
+  return { w: w + TIP.pad * 2, h: lines.length * TIP.lh + TIP.pad * 2 - 4 };
+}
+
+/** A tooltip panel with its top-left corner at (tx, ty). */
+export function drawTooltipBox(ctx: CanvasRenderingContext2D, lines: string[], tx: number, ty: number, lineColors?: (string | undefined)[]): void {
+  const { w, h } = tooltipSize(ctx, lines);
   drawPanel(ctx, { x: tx, y: ty, w, h }, 'rgba(10, 12, 18, 0.95)');
   lines.forEach((l, i) => {
-    drawText(ctx, l, tx + pad, ty + pad + i * lh + 6, {
-      size,
+    drawText(ctx, l, tx + TIP.pad, ty + TIP.pad + i * TIP.lh + 6, {
+      size: TIP.size,
       color: lineColors?.[i] ?? (i === 0 ? THEME.accent : THEME.text),
       bold: i === 0,
     });

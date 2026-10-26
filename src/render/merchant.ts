@@ -8,10 +8,10 @@ import { ITEM_SLOTS, MERCHANT_ITEMS, RARITIES } from '../data/items';
 import { buyConsumable, buyItem, canBuy, displayName, equipFromBag, identifyItem, sellItem, sellPrice } from '../systems/items';
 import type { App } from './app';
 import { drawConsumableIcon } from './icons';
-import { MENU_ROW, MENU_W, type MenuOption, drawMenu, itemTooltip } from './inventory';
+import { MENU_ROW, MENU_W, type MenuOption, drawBagItemTooltip, drawMenu } from './inventory';
 import { drawItem } from './itemArt';
 import { THEME } from './theme';
-import { Button, ButtonGroup, type Rect, drawPanel, drawText, drawTooltip, inRect, roundRect } from './ui';
+import { Button, ButtonGroup, type Rect, drawPanel, drawText, inRect, roundRect } from './ui';
 
 const PANEL: Rect = { x: 70, y: 40, w: 820, h: 460 };
 const GOODS: ConsumableId[] = ['magnifier', 'potionSmall', 'potionMedium', 'potionLarge'];
@@ -215,8 +215,7 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
       else {
         for (let i = 0; i < st.hero.bag.length && i < COLS * ROWS; i++) {
           if (!inRect(sellCell(i), m.x, m.y)) continue;
-          const tip = itemTooltip(st.hero.bag[i]!, ['Клік — меню: розпізнати, вдягнути або продати'], st.hero);
-          drawTooltip(ctx, tip.lines, m.x, m.y, app.view.width, app.view.height, tip.colors);
+          drawBagItemTooltip(ctx, app, st.hero.bag[i]!, ['Клік — меню: розпізнати, вдягнути або продати'], st.hero, m);
         }
       }
     },
