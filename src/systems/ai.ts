@@ -145,23 +145,34 @@ function tryShoot(b: Battle, hero: Hero, target: Enemy): void {
   shootAlong(b, hero, angleOf({ x: target.pos.x - hero.pos.x, y: target.pos.y - hero.pos.y }));
 }
 
+/** One basic shot of a ranged class (Mage bolt, Archer arrow) along `angle`. */
 function shootAlong(b: Battle, hero: Hero, angle: number): void {
-  const r = HERO.ranged;
+  const attack = basicAttackOf(hero);
+  const def = attack.kind === 'ranged' ? attack : null;
+  const speed = def?.speed ?? HERO.ranged.projectileSpeed;
   hero.attackTimer = 1 / heroAttackSpeed(hero);
   b.events.emit({ type: 'heroAttack', pos: { ...hero.pos }, angle, reach: hero.radius * 2, arc: 0, ranged: true, targets: 1 });
   const dir = { x: Math.cos(angle), y: Math.sin(angle) };
   const roll = heroDamage(b, 1, 'basic');
+  const kind = def?.projectile ?? 'hero';
+  let pierceBonus = 0;
+  for (const buff of hero.buffs) pierceBonus += buff.pierceBonus ?? 0;
   spawnProjectile(b, {
     pos: { ...hero.pos },
-    vel: { x: dir.x * r.projectileSpeed, y: dir.y * r.projectileSpeed },
-    radius: r.projectileRadius,
+    vel: { x: dir.x * speed, y: dir.y * speed },
+    radius: def?.radius ?? HERO.ranged.projectileRadius,
     damage: roll.amount,
     team: 'hero',
-    life: hero.stats.range / r.projectileSpeed + r.projectileLifePad,
-    pierce: 0,
+    life: hero.stats.range / speed + HERO.ranged.projectileLifePad,
+    pierce: (def?.pierce ?? 0) + hero.stats.pierce + pierceBonus,
+    pierceMult: def?.pierceMult,
     ricochet: 0,
-    kind: roll.crit ? 'heroCrit' : 'hero',
+    kind: roll.crit ? `${kind}Crit` : kind,
     melee: false,
+    explode:
+      def && def.splash > 0
+        ? { kind: 'boltSplash', radius: def.splashRadius, damage: roll.amount * def.splash, excludeHit: true }
+        : undefined,
   });
 }
 

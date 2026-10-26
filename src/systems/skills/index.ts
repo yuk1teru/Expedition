@@ -10,10 +10,14 @@ import type { Battle } from '../battle';
 import { hasStatus, isDisabled } from '../combat';
 import { skillInSlot } from '../hero';
 import type { SkillImpl } from './types';
+import { ARCHER_SKILLS } from './archer';
+import { MAGE_SKILLS } from './mage';
 import { WARRIOR_SKILLS } from './warrior';
 
 export const SKILL_IMPLS: Record<string, SkillImpl> = {
   ...WARRIOR_SKILLS,
+  ...MAGE_SKILLS,
+  ...ARCHER_SKILLS,
 };
 
 export type SkillUseResult = 'cast' | 'cooldown' | 'noTarget' | 'busy' | 'empty';

@@ -46,11 +46,18 @@ export const FX = {
     levelUp: { count: 24, speed: 140, life: 0.8, size: 3 },
     battleCry: { count: 20, speed: 160, life: 0.5, size: 3 },
     trail: { count: 2, speed: 40, life: 0.4, size: 3 },
+    fire: { count: 22, speed: 210, life: 0.5, size: 4 },
+    frost: { count: 20, speed: 180, life: 0.55, size: 3.5 },
+    arcane: { count: 14, speed: 150, life: 0.45, size: 3 },
+    spark: { count: 6, speed: 120, life: 0.3, size: 2.5 },
+    rain: { count: 3, speed: 60, life: 0.25, size: 2.5 },
   },
   shake: {
     whirlwind: { strength: 2.5, duration: 0.12 },
     charge: { strength: 6, duration: 0.2 },
     groundSlam: { strength: 8, duration: 0.25 },
+    fireball: { strength: 5, duration: 0.18 },
+    trap: { strength: 4, duration: 0.15 },
     cleave: { strength: 1.5, duration: 0.08 },
     heroHurtBig: { strength: 3, duration: 0.12 },
     telegraph: { strength: 5, duration: 0.2 },
@@ -83,6 +90,8 @@ export const FX = {
   slamCone: { life: 0.3, color: '#f2c14e' },
   battleCryRing: { life: 0.5, color: '#ff7a3c' },
   chargeRing: { life: 0.35, color: '#ffb347' },
+  /** Mage / Archer skill colours. */
+  classColors: { fire: '#ffb347', frost: '#9fd8ff', arcane: '#c9a6ff', lightning: '#bfe6ff', nature: '#9fdf7a', steel: '#d8d2c0', blood: '#ff6b5e' },
   /** Fraction of fire-trail ticks that emit a spark. */
   trailSparkChance: 0.3,
   banner: { life: 1.6, fade: 0.35 },

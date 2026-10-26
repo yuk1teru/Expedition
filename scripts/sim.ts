@@ -4,6 +4,7 @@
 //   npm run sim                  — 200 runs, bot uses skills as soon as they are ready
 //   npm run sim -- --no-skills   — bot never uses skills
 //   npm run sim -- --runs 500 --passes 6 --seed 1
+//   npm run sim -- --class mage   — the bot takes this class at level 3
 
 import { Rng } from '../src/core/rng';
 import { SIM } from '../src/data/balance';
@@ -16,6 +17,7 @@ interface Args {
   passes: number;
   seed: number;
   useSkills: boolean;
+  classId: string;
 }
 
 function parseArgs(argv: string[]): Args {
@@ -29,6 +31,7 @@ function parseArgs(argv: string[]): Args {
     passes: get('--passes', SIM.grovePasses),
     seed: get('--seed', SIM.baseSeed),
     useSkills: !argv.includes('--no-skills'),
+    classId: argv.includes('--class') ? (argv[argv.indexOf('--class') + 1] ?? 'warrior') : 'warrior',
   };
 }
 
@@ -44,7 +47,7 @@ interface RunResult {
 function simulateRun(seed: number, args: Args): RunResult {
   const state = createGameState(seed, 'slice');
   const rng = new Rng(seed).fork('bot');
-  const opts = { useSkills: args.useSkills, rng, maxBattleTime: SIM.maxBattleTime };
+  const opts = { useSkills: args.useSkills, rng, maxBattleTime: SIM.maxBattleTime, classId: args.classId };
   const groveTimes: number[] = [];
   const groveHpLeft: number[] = [];
   for (let p = 0; p < args.passes; p++) {
@@ -85,7 +88,7 @@ function main(): void {
   for (const r of results) if (r.diedInGrove !== null) groveDeaths.set(r.diedInGrove, (groveDeaths.get(r.diedInGrove) ?? 0) + 1);
 
   console.log(`Експедиція — міні-симуляція зрізу`);
-  console.log(`Прогонів: ${args.runs} · проходжень гаю: ${args.passes} · скіли: ${args.useSkills ? 'так' : 'ні'} · seed від ${args.seed}`);
+  console.log(`Прогонів: ${args.runs} · проходжень гаю: ${args.passes} · скіли: ${args.useSkills ? 'так' : 'ні'} · клас: ${args.classId} · seed від ${args.seed}`);
   console.log('');
   console.table({
     'Дійшли до боса': `${reachedBoss.length} (${pct(reachedBoss.length, args.runs)})`,

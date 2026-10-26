@@ -34,6 +34,10 @@ export type GameEvent =
   | { type: 'heroDeath'; pos: Vec }
   | { type: 'skillCast'; skillId: string; rank: number; pos: Vec; target: Vec | null }
   | { type: 'skillTick'; skillId: string; pos: Vec; radius: number }
+  /** A jumping effect (Chain Lightning): the hero and every target in order. */
+  | { type: 'chain'; skillId: string; points: Vec[] }
+  /** A barrier absorbed a hit. */
+  | { type: 'shieldHit'; pos: Vec; amount: number; broken: boolean }
   /** A skill could not be used: no target, or the hero is rooted. */
   | { type: 'noTarget'; slot: number; reason?: 'rooted' }
   | { type: 'bossPhase'; phase: number; pos: Vec }

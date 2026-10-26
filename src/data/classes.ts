@@ -1,15 +1,27 @@
-// Hero classes. Mage and Archer are visible but locked in the slice.
+// Hero classes: Warrior, Mage, Archer (8 skills and 3 passives each).
 
 export type ClassIcon = 'shield' | 'orb' | 'bow';
 
 /**
  * Basic (auto) attack of a class. `melee`: hits the nearest enemy in an arc
  * towards the aim; others in the arc take `splash` × damage.
- * `ranged`: described for Mage/Archer, not implemented in the slice yet.
+ * `ranged`: a projectile towards the aim (when an enemy is in the aim cone); it passes
+ * through `pierce` enemies (damage × `pierceMult` after each), and may burst on hit:
+ * everyone else within `splashRadius` takes `splash` × damage.
  */
 export type BasicAttackDef =
   | { kind: 'melee'; arcDeg: number; splash: number; description: string }
-  | { kind: 'ranged'; description: string };
+  | {
+      kind: 'ranged';
+      projectile: 'bolt' | 'arrow';
+      speed: number;
+      radius: number;
+      pierce: number;
+      pierceMult: number;
+      splash: number;
+      splashRadius: number;
+      description: string;
+    };
 
 /** Hero before the class choice. */
 export const NOVICE_ATTACK: BasicAttackDef = {
@@ -73,20 +85,25 @@ export const CLASSES: Record<string, ClassDef> = {
     name: 'Маг',
     role: 'Дальній бій, мало HP',
     description: 'Вогонь, лід і блискавки здалеку.',
-    locked: true,
-    hpMult: 0.8,
+    locked: false,
+    hpMult: 0.9,
     attackSpeedMult: 1,
     skillDamageMult: 1.25,
     ranged: true,
     range: 260,
-    defaultPicks: [],
-    skills: [],
-    passives: [],
-    basicAttack: { kind: 'ranged', description: 'Вогняний снаряд; вороги впритул обпікаються (мале AoE).' },
-    preview: {
-      skills: ['Вогняна куля', 'Крижане кільце', 'Ланцюгова блискавка', 'Телепорт'],
-      passives: ['Сила чар', 'Зосередження', "Магічний бар'єр"],
-      passiveMaxStacks: 5,
+    defaultPicks: ['fireball', 'frostRing', 'iceBarrier'],
+    skills: ['fireball', 'frostRing', 'chainLightning', 'teleport', 'magicMissiles', 'iceBarrier', 'flameWall', 'vortex'],
+    passives: ['spellPower', 'focus', 'arcaneBarrier'],
+    basicAttack: {
+      kind: 'ranged',
+      projectile: 'bolt',
+      speed: 480,
+      radius: 6,
+      pierce: 0,
+      pierceMult: 1,
+      splash: 0.35,
+      splashRadius: 40,
+      description: 'Вогняний снаряд: ціль — повна шкода, вороги поруч — 35%.',
     },
     color: '#3b7dd8',
     icon: 'orb',
@@ -96,20 +113,25 @@ export const CLASSES: Record<string, ClassDef> = {
     name: 'Лучник',
     role: 'Дальній бій, швидкі атаки',
     description: 'Злива стріл і пастки.',
-    locked: true,
+    locked: false,
     hpMult: 1,
     attackSpeedMult: 1.4,
     skillDamageMult: 1,
     ranged: true,
     range: 300,
-    defaultPicks: [],
-    skills: [],
-    passives: [],
-    basicAttack: { kind: 'ranged', description: 'Стріла прошиває першого ворога й ранить того, хто позаду.' },
-    preview: {
-      skills: ['Мультипостріл', 'Пастка', 'Дощ стріл', 'Відскок'],
-      passives: ['Влучність', 'Спритність', 'Пробиття'],
-      passiveMaxStacks: 5,
+    defaultPicks: ['multishot', 'arrowRain', 'piercingShot'],
+    skills: ['multishot', 'hunterTrap', 'arrowRain', 'vault', 'piercingShot', 'hunterMark', 'net', 'barrage'],
+    passives: ['precision', 'agility', 'piercing'],
+    basicAttack: {
+      kind: 'ranged',
+      projectile: 'arrow',
+      speed: 640,
+      radius: 4,
+      pierce: 1,
+      pierceMult: 0.6,
+      splash: 0,
+      splashRadius: 0,
+      description: 'Стріла прошиває першого ворога; той, хто позаду, — 60%.',
     },
     color: '#3fa34d',
     icon: 'bow',

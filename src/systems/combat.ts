@@ -3,7 +3,7 @@
 import { ENEMY_COMMON, HERO, HERO_DEBUFFS } from '../data/balance';
 import type { Rng } from '../core/rng';
 import type { Battle } from './battle';
-import type { Body, Enemy, Hero, StatusId, Vec } from './entities';
+import type { Blast, Body, Enemy, Hero, StatusId, Vec } from './entities';
 import { normalize } from './entities';
 import type { HitSource } from './gameEvents';
 import { getBoss } from '../data/bosses';
@@ -123,6 +123,8 @@ export function damageHero(b: Battle, rawAmount: number, opts: HeroHitOptions): 
   if (opts.melee && opts.attacker && !opts.attacker.dead && hero.stats.thorns > 0) {
     damageEnemy(b, opts.attacker, { amount: rawAmount * hero.stats.thorns, crit: false }, { source: 'thorns' });
   }
+  amount = absorbWithShields(b, amount, opts);
+  if (amount <= 0) return 0;
   if (hero.immortal) amount = Math.min(amount, Math.max(0, hero.hp - 1));
   hero.hp -= amount;
   b.stats.damageTaken += amount;
@@ -133,6 +135,36 @@ export function damageHero(b: Battle, rawAmount: number, opts: HeroHitOptions): 
     b.events.emit({ type: 'heroDeath', pos: { ...hero.pos } });
   }
   return amount;
+}
+
+/**
+ * Barriers (buffs with `shield`) take the hit first. A barrier used up ends and may
+ * burst (`breakBlast`); while it holds, melee attackers may freeze. Returns what is left.
+ */
+function absorbWithShields(b: Battle, amount: number, opts: HeroHitOptions): number {
+  const hero = b.hero;
+  for (const buff of hero.buffs) {
+    if (!buff.shield || buff.shield <= 0 || amount <= 0) continue;
+    const absorbed = Math.min(buff.shield, amount);
+    buff.shield -= absorbed;
+    amount -= absorbed;
+    const broken = buff.shield <= 0;
+    b.events.emit({ type: 'shieldHit', pos: { ...hero.pos }, amount: absorbed, broken });
+    if (!broken && buff.freezeAttackers && opts.melee && opts.attacker && !opts.attacker.dead && !opts.attacker.boss) {
+      addStatus(opts.attacker, 'freeze', buff.freezeAttackers);
+    }
+    if (broken) {
+      buff.time = 0;
+      if (buff.breakBlast) blastAround(b, hero.pos, buff.breakBlast);
+    }
+  }
+  return amount;
+}
+
+/** Hook for barrier bursts (set by effects.ts to avoid an import cycle at load time). */
+let blastAround: (b: Battle, pos: Vec, spec: Blast) => void = () => {};
+export function setBlastHandler(fn: (b: Battle, pos: Vec, spec: Blast) => void): void {
+  blastAround = fn;
 }
 
 /** The hero ignores slows, roots and stuns (e.g. Iron Skin rank 5). */

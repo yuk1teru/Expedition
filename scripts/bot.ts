@@ -19,14 +19,16 @@ export interface BotOptions {
   rng: Rng;
   /** Safety cap for a single battle, seconds. */
   maxBattleTime: number;
+  /** Class to take at level 3 (default: the first one). */
+  classId?: string;
 }
 
-/** Resolves pending level-up choices: first unlocked class, random cards. */
-export function resolveModals(state: GameState, rng: Rng): void {
+/** Resolves pending level-up choices: the given (or first unlocked) class, random cards. */
+export function resolveModals(state: GameState, rng: Rng, classId?: string): void {
   while (state.modalQueue.length > 0) {
     const req = state.modalQueue.shift()!;
     if (req.kind === 'classChoice') {
-      const id = CLASS_ORDER.find((c) => !getClass(c).locked);
+      const id = classId ?? CLASS_ORDER.find((c) => !getClass(c).locked);
       if (id) chooseClass(state, id, getClass(id).defaultPicks);
     } else if (state.hero.classId) {
       const offer = nextCardOffer(state);
@@ -73,7 +75,7 @@ export function runBattle(state: GameState, nodeId: string, opts: BotOptions): B
     if (b.portal) enterPortal(b);
     dodgeTelegraphs(b);
     stepBattle(b, LOOP.step);
-    resolveModals(state, opts.rng);
+    resolveModals(state, opts.rng, opts.classId);
   }
   if (!b.finished) {
     // Timed out: count as a loss.

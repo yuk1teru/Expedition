@@ -3,9 +3,9 @@
 
 import { ARENA } from '../data/balance';
 import type { Battle } from './battle';
-import { addStatus, damageEnemy, pull, rollCrit } from './combat';
-import type { Hero, HeroBuff, Vec, Zone } from './entities';
-import { dist } from './entities';
+import { addStatus, damageEnemy, pull, rollCrit, setBlastHandler } from './combat';
+import type { Blast, Enemy, Hero, HeroBuff, Vec, Zone } from './entities';
+import { dist, distToSegment } from './entities';
 
 export interface ZoneSpec {
   kind: string;
@@ -20,6 +20,14 @@ export interface ZoneSpec {
   stun?: number;
   slow?: number;
   slowTime?: number;
+  /** Burn per tick: damage per second and seconds. */
+  burn?: number;
+  burnTime?: number;
+  /** Hero trap: fires `finale` when an enemy comes within this radius, then ends. */
+  trigger?: number;
+  finale?: Blast;
+  /** A wall along a–b instead of a circle (`radius` = half its thickness). */
+  line?: { a: Vec; b: Vec };
   /** Tick immediately on creation. */
   tickNow?: boolean;
 }
@@ -41,6 +49,11 @@ export function addZone(b: Battle, spec: ZoneSpec): Zone {
     stun: spec.stun ?? 0,
     slow: spec.slow ?? 0,
     slowTime: spec.slowTime ?? 0,
+    burn: spec.burn ?? 0,
+    burnTime: spec.burnTime ?? 0,
+    trigger: spec.trigger ?? 0,
+    finale: spec.finale ?? null,
+    line: spec.line ? { a: { ...spec.line.a }, b: { ...spec.line.b } } : null,
     dead: false,
   };
   b.zones.push(z);
@@ -56,24 +69,82 @@ export function updateZones(b: Battle, dt: number): void {
       z.pos.y = hero.pos.y;
     }
     z.time += dt;
+    if (z.trigger > 0) {
+      // A trap: fires when an enemy steps close, or fizzles at the end of its life.
+      if (b.enemies.some((e) => !e.dead && dist(e.pos, z.pos) <= z.trigger + e.radius)) {
+        z.dead = true;
+        if (z.finale) blast(b, z.pos, z.finale);
+      } else if (z.time >= z.duration) z.dead = true;
+      continue;
+    }
     z.tickTimer -= dt;
     while (z.tickTimer <= 0 && z.time <= z.duration + 1e-9) {
       z.tickTimer += z.tickInterval;
       tickZone(b, z);
     }
-    if (z.time >= z.duration) z.dead = true;
+    if (z.time >= z.duration) {
+      z.dead = true;
+      if (z.finale) blast(b, z.pos, z.finale);
+    }
   }
+}
+
+/**
+ * Damage and effects to every enemy within the blast radius (crits rolled per target);
+ * `exclude`: enemies spared (e.g. the one a projectile already hit).
+ */
+export function blast(b: Battle, pos: Vec, spec: Blast, exclude: readonly number[] = []): Enemy[] {
+  const s = b.hero.stats;
+  const hit: Enemy[] = [];
+  for (const e of b.enemies) {
+    if (e.dead || exclude.includes(e.id) || dist(e.pos, pos) > spec.radius + e.radius) continue;
+    hit.push(e);
+    if (spec.damage > 0) {
+      damageEnemy(b, e, rollCrit(b.rng, spec.damage, s.critChance, s.critMult), {
+        source: 'skill',
+        knockFrom: spec.knockback ? pos : undefined,
+        knockback: spec.knockback,
+      });
+    }
+    if (e.dead) continue;
+    applyBlastStatuses(e, spec);
+  }
+  if (spec.zone) {
+    const z = spec.zone;
+    addZone(b, { kind: z.kind, pos, radius: z.radius, duration: z.duration, tickInterval: z.tickInterval, damage: z.damage, slow: z.slow, slowTime: z.slowTime, burn: z.burn, burnTime: z.burnTime });
+  }
+  b.events.emit({ type: 'skillTick', skillId: spec.kind, pos: { ...pos }, radius: spec.radius });
+  return hit;
+}
+
+setBlastHandler((b, pos, spec) => {
+  blast(b, pos, spec);
+});
+
+/** Statuses of a blast (or a projectile / zone hit) on one enemy. */
+export function applyBlastStatuses(e: Enemy, spec: Pick<Blast, 'stun' | 'slow' | 'slowTime' | 'burn' | 'burnTime' | 'vuln' | 'vulnTime' | 'freeze'>): void {
+  if (spec.stun) addStatus(e, 'stun', spec.stun);
+  if (spec.freeze) addStatus(e, 'freeze', spec.freeze);
+  if (spec.slow && spec.slowTime) addStatus(e, 'slow', spec.slowTime, spec.slow);
+  if (spec.burn && spec.burnTime) addStatus(e, 'burn', spec.burnTime, spec.burn);
+  if (spec.vuln && spec.vulnTime) addStatus(e, 'vuln', spec.vulnTime, spec.vuln);
+}
+
+/** Whether a body of radius `r` at `p` touches the zone (circle or wall). */
+export function inZone(z: Zone, p: Vec, r: number): boolean {
+  return (z.line ? distToSegment(p, z.line.a, z.line.b) : dist(p, z.pos)) <= z.radius + r;
 }
 
 function tickZone(b: Battle, z: Zone): void {
   const s = b.hero.stats;
   for (const e of b.enemies) {
-    if (e.dead || dist(e.pos, z.pos) > z.radius + e.radius) continue;
+    if (e.dead || !inZone(z, e.pos, e.radius)) continue;
     if (z.damage > 0) damageEnemy(b, e, rollCrit(b.rng, z.damage, s.critChance, s.critMult), { source: 'zone' });
     if (e.dead) continue;
     if (z.pull > 0) pull(e, z.pos, z.pull);
     if (z.stun > 0) addStatus(e, 'stun', z.stun);
     if (z.slow > 0) addStatus(e, 'slow', z.slowTime, z.slow);
+    if (z.burn > 0) addStatus(e, 'burn', z.burnTime, z.burn);
   }
   b.events.emit({ type: 'skillTick', skillId: z.kind, pos: { ...z.pos }, radius: z.radius });
 }

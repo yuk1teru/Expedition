@@ -10,11 +10,11 @@ import { isBossDefeated, onBossDefeated, setupBossBattle, updateBoss, updateTele
 import './bosses';
 import { type Pickup, updatePickups } from './pickups';
 import { clampToArena, insideArena, separateBodies } from './collision';
-import { damageEnemy, damageHero, debuffHero, decayKnockback, killEnemy, updateHeroHealing, updateStatuses } from './combat';
+import { addStatus, damageEnemy, damageHero, debuffHero, decayKnockback, killEnemy, updateHeroHealing, updateStatuses } from './combat';
 import type { Body, Enemy, Hero, Projectile, Telegraph, Vec, Zone } from './entities';
 import { dist, normalize } from './entities';
 import { nearestEnemy } from './targeting';
-import { updateBuffs, updateDash, updateZones } from './effects';
+import { blast, updateBuffs, updateDash, updateZones } from './effects';
 import type { Item } from './items';
 import type { GameEvent } from './gameEvents';
 import { type MapNode, getNode } from './mapgen';
@@ -232,11 +232,14 @@ function yankStep(e: Enemy, dt: number): void {
 function updateProjectiles(b: Battle, dt: number): void {
   for (const p of b.projectiles) {
     if (p.dead) continue;
+    if (p.homingId !== undefined) steer(b, p);
     p.pos.x += p.vel.x * dt;
     p.pos.y += p.vel.y * dt;
     p.life -= dt;
     if (p.life <= 0 || !insideArena(p.pos.x, p.pos.y, p.radius)) {
       p.dead = true;
+      // An exploding projectile that hit nothing bursts where it stops.
+      if (p.explode && b.outcome === 'running') blast(b, p.pos, p.explode, p.explode.excludeHit ? p.hit : []);
       continue;
     }
     if (b.outcome !== 'running') continue;
@@ -253,9 +256,16 @@ function updateProjectiles(b: Battle, dt: number): void {
         if (e.dead || p.hit.includes(e.id)) continue;
         if (dist(p.pos, e.pos) > p.radius + e.radius) continue;
         p.hit.push(e.id);
-        damageEnemy(b, e, { amount: p.damage, crit: p.kind.endsWith('Crit') }, { source: 'basic' });
+        if (p.damage > 0) damageEnemy(b, e, { amount: p.damage, crit: p.kind.endsWith('Crit') }, { source: p.source ?? 'basic' });
+        if (p.onHit && !e.dead) addStatus(e, p.onHit.id, p.onHit.time, p.onHit.value);
+        if (p.explode) {
+          p.dead = true;
+          blast(b, p.pos, p.explode, p.explode.excludeHit ? p.hit : []);
+          break;
+        }
         if (p.pierce > 0) {
           p.pierce -= 1;
+          if (p.pierceMult !== undefined) p.damage *= p.pierceMult;
           continue;
         }
         if (p.ricochet > 0 && ricochet(b, p)) break;
@@ -264,6 +274,18 @@ function updateProjectiles(b: Battle, dt: number): void {
       }
     }
   }
+}
+
+/** A homing projectile turns towards its target while the target lives. */
+function steer(b: Battle, p: Projectile): void {
+  const t = b.enemies.find((e) => e.id === p.homingId && !e.dead);
+  if (!t) {
+    p.homingId = undefined;
+    return;
+  }
+  const speed = Math.hypot(p.vel.x, p.vel.y);
+  const d = normalize({ x: t.pos.x - p.pos.x, y: t.pos.y - p.pos.y });
+  p.vel = { x: d.x * speed, y: d.y * speed };
 }
 
 /** Redirects a projectile to the nearest enemy it has not hit yet. */
@@ -278,6 +300,7 @@ function ricochet(b: Battle, p: Projectile): boolean {
   const d = normalize({ x: next.pos.x - p.pos.x, y: next.pos.y - p.pos.y });
   p.vel = { x: d.x * speed, y: d.y * speed };
   p.ricochet -= 1;
+  if (p.homingId !== undefined) p.homingId = next.id;
   p.life = Math.max(p.life, PROJECTILES.ricochetRange / Math.max(speed, 1));
   return true;
 }

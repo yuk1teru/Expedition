@@ -2,6 +2,7 @@
 
 import type { ConsumableId, HealId } from '../data/consumables';
 import type { ItemSlot } from '../data/items';
+import type { HitSource } from './gameEvents';
 import type { Item } from './items';
 
 export interface Vec {
@@ -67,6 +68,38 @@ export interface HeroBuff {
   regen?: number;
   /** Immune to slows, roots and stuns while active. */
   ccImmune?: boolean;
+  /** Damage this buff still absorbs (a barrier); the buff ends when it is used up. */
+  shield?: number;
+  /** Burst around the hero when the shield breaks. */
+  breakBlast?: Blast;
+  /** While the shield holds, melee attackers freeze for this long. */
+  freezeAttackers?: number;
+  /** Extra enemies the hero's basic projectiles pass through. */
+  pierceBonus?: number;
+}
+
+/**
+ * A burst of damage and effects around a point (exploding projectiles, traps, the end
+ * of a zone, a broken barrier). Damage is absolute (attack and multipliers included).
+ */
+export interface Blast {
+  /** Render key (skill id or effect name). */
+  kind: string;
+  radius: number;
+  damage: number;
+  stun?: number;
+  knockback?: number;
+  slow?: number;
+  slowTime?: number;
+  /** Burn: damage per second, seconds. */
+  burn?: number;
+  burnTime?: number;
+  /** Takes +vuln damage for vulnTime seconds. */
+  vuln?: number;
+  vulnTime?: number;
+  freeze?: number;
+  /** A zone left behind (burning ground, frost field). */
+  zone?: { kind: string; radius: number; duration: number; tickInterval: number; damage: number; slow?: number; slowTime?: number; burn?: number; burnTime?: number };
 }
 
 export interface HeroStats {
@@ -92,6 +125,8 @@ export interface HeroStats {
   cooldownMult: number;
   /** Seconds taken off every skill cooldown per kill. */
   killCdr: number;
+  /** Extra enemies the basic projectiles pass through (Archer: Piercing). */
+  pierce: number;
 }
 
 export interface Dash {
@@ -198,6 +233,16 @@ export interface Projectile {
   melee: boolean;
   /** Slows the hero on hit. */
   slow?: { value: number; time: number };
+  /** Hero projectiles: damage × this after each enemy passed (falloff < 1, growth > 1). */
+  pierceMult?: number;
+  /** Explodes on its first hit, or where its flight ends. `excludeHit`: the blast spares the enemy hit directly. */
+  explode?: Blast & { excludeHit?: boolean };
+  /** Status put on every enemy it hits. */
+  onHit?: { id: StatusId; time: number; value: number };
+  /** Damage source for events and multipliers (default 'basic'). */
+  source?: HitSource;
+  /** Steers towards this enemy while it lives (Magic Missiles). */
+  homingId?: number;
   dead: boolean;
 }
 
@@ -222,6 +267,15 @@ export interface Zone {
   /** Slow applied per tick (fraction) and its duration. */
   slow: number;
   slowTime: number;
+  /** Burn applied per tick: damage per second and seconds. */
+  burn: number;
+  burnTime: number;
+  /** Hero trap: no ticks; fires its finale when an enemy comes within this radius (0: not a trap). */
+  trigger: number;
+  /** Burst when the zone ends (or its trap fires). */
+  finale: Blast | null;
+  /** A wall: the zone covers the segment a–b (`radius` = half its thickness) instead of a circle. */
+  line: { a: Vec; b: Vec } | null;
   dead: boolean;
 }
 

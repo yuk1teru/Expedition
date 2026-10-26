@@ -63,6 +63,7 @@ function baseStats(level: number): HeroStats {
     skillDamageMult: 1,
     cooldownMult: 1,
     killCdr: 0,
+    pierce: 0,
   };
 }
 
@@ -131,6 +132,9 @@ export function recomputeHeroStats(hero: Hero): void {
       case 'killCdr':
         s.killCdr += v;
         break;
+      case 'pierce':
+        s.pierce += v;
+        break;
     }
   }
   // Equipment.
@@ -159,6 +163,13 @@ export function heroMoveSpeed(hero: Hero): number {
   let v = hero.stats.moveSpeed;
   for (const b of hero.buffs) v *= b.moveSpeedMult ?? 1;
   return v;
+}
+
+/** Damage the hero's barriers can still absorb. */
+export function heroShield(hero: Hero): number {
+  let s = 0;
+  for (const b of hero.buffs) s += b.shield && b.shield > 0 ? b.shield : 0;
+  return s;
 }
 
 /** Regeneration per second including temporary buffs. */

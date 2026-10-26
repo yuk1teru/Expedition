@@ -1,5 +1,7 @@
 // Combat screen: arena, entities, effects, HUD; drives the battle simulation.
 
+import { drawClassProjectile, drawClassZone, drawElementalStatus, drawShieldBubble } from './classFx';
+import { heroShield } from '../systems/hero';
 import type { InputEvent } from '../core/input';
 import { Rng } from '../core/rng';
 import type { Screen } from '../core/screens';
@@ -81,7 +83,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
     const b = battle;
     if (!b) return;
     if (e.type === 'noTarget') hud.noTarget(e.slot, e.reason);
-    else if (e.type === 'skillCast' || e.type === 'skillTick') skillFx(fx, e);
+    else if (e.type === 'skillCast' || e.type === 'skillTick' || e.type === 'chain' || e.type === 'shieldHit') skillFx(fx, e);
     else handleEvent(b, fx, e);
   }
 
@@ -163,7 +165,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       if (b.portal) drawPortal(ctx, b.portal.pos, b.portal.radius, app.time, portalActive(b));
       for (const p of b.pickups) drawPickup(ctx, p, b, app.time);
       for (const tr of b.traps) drawTrap(ctx, tr, b);
-      for (const p of b.projectiles) drawProjectile(ctx, p);
+      for (const p of b.projectiles) drawProjectile(ctx, p, app.time);
       for (const e of b.enemies) {
         if (e.boss) drawBoss(ctx, e, b, app.time);
         else drawEnemy(ctx, e, b, app.time);
@@ -174,6 +176,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       fx.drawCones(ctx);
       fx.drawSlashes(ctx);
       fx.drawRings(ctx);
+      fx.drawBolts(ctx);
       fx.drawParticles(ctx);
       drawWeather(ctx, b, app.time);
       // Telegraphs always above effects (and weather) so they stay readable.
@@ -555,6 +558,7 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, b: Battle, t: number
 }
 
 export function drawStatusMarks(ctx: CanvasRenderingContext2D, e: Enemy, t: number): void {
+  drawElementalStatus(ctx, e, t);
   if ((e.statuses.stun?.time ?? 0) > 0) {
     ctx.fillStyle = '#ffe066';
     for (let i = 0; i < 3; i++) {
@@ -597,6 +601,7 @@ function drawHero(ctx: CanvasRenderingContext2D, h: Hero, b: Battle, t: number, 
     ctx.stroke();
   }
   drawHealing(ctx, h, t);
+  drawShieldBubble(ctx, h, t);
   for (const buff of h.buffs) {
     if (buff.attackSpeedMult > 1) {
       ctx.strokeStyle = 'rgba(255, 120, 60, 0.7)';
@@ -669,7 +674,8 @@ function drawHero(ctx: CanvasRenderingContext2D, h: Hero, b: Battle, t: number, 
   ctx.restore();
 }
 
-function drawProjectile(ctx: CanvasRenderingContext2D, p: Projectile): void {
+function drawProjectile(ctx: CanvasRenderingContext2D, p: Projectile, t: number): void {
+  if (p.team === 'hero' && drawClassProjectile(ctx, p, t)) return;
   if (p.team === 'enemy') {
     ctx.fillStyle = p.kind === 'gale' ? '#9fe3ff' : '#d86bf0';
     ctx.beginPath();
@@ -709,6 +715,7 @@ function drawProjectile(ctx: CanvasRenderingContext2D, p: Projectile): void {
 }
 
 function drawZone(ctx: CanvasRenderingContext2D, z: Zone, b: Battle, t: number): void {
+  if (drawClassZone(ctx, z, t)) return;
   const life = 1 - z.time / z.duration;
   ctx.save();
   ctx.translate(z.pos.x, z.pos.y);
@@ -856,7 +863,13 @@ function drawHeroBar(ctx: CanvasRenderingContext2D, h: Hero): void {
   ctx.fillRect(x - 1, y - 1, B.width + 2, B.height + 2);
   ctx.fillStyle = frac <= B.low ? '#ff3b30' : '#d64545';
   ctx.fillRect(x, y, B.width * frac, B.height);
-  drawText(ctx, `${Math.ceil(h.hp)}/${h.maxHp}`, h.pos.x, y + B.height + 8, { size: 10, bold: true, align: 'center', color: frac <= B.low ? '#ff6b5e' : THEME.text });
+  // Barrier: a light band over the bar (its length = absorb / max HP).
+  const shield = heroShield(h);
+  if (shield > 0) {
+    ctx.fillStyle = 'rgba(200, 235, 255, 0.85)';
+    ctx.fillRect(x, y, B.width * Math.min(1, shield / h.maxHp), B.height / 2);
+  }
+  drawText(ctx, `${Math.ceil(h.hp)}/${h.maxHp}${shield > 0 ? ` +${Math.ceil(shield)}` : ''}`, h.pos.x, y + B.height + 8, { size: 10, bold: true, align: 'center', color: frac <= B.low ? '#ff6b5e' : THEME.text });
 }
 
 /** Ring that fills up until the next basic attack; full and pulsing when ready. */

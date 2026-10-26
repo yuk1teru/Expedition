@@ -58,6 +58,14 @@ interface Slash {
   life: number;
 }
 
+/** A jagged flash along points (Chain Lightning). */
+interface Bolt {
+  points: Vec[];
+  color: string;
+  life: number;
+  maxLife: number;
+}
+
 interface Banner {
   text: string;
   color: string;
@@ -72,6 +80,7 @@ export class Fx {
   rings: Ring[] = [];
   cones: Cone[] = [];
   slashes: Slash[] = [];
+  bolts: Bolt[] = [];
   banner: Banner | null = null;
   shakeTime = 0;
   shakeDuration = 0;
@@ -97,6 +106,7 @@ export class Fx {
     this.rings = [];
     this.cones = [];
     this.slashes = [];
+    this.bolts = [];
     this.banner = null;
     this.shakeTime = 0;
     this.hitStop = 0;
@@ -187,6 +197,10 @@ export class Fx {
     this.rings.push({ x: pos.x, y: pos.y, radius, color, life, maxLife: life, width });
   }
 
+  bolt(points: Vec[], color: string, life: number): void {
+    this.bolts.push({ points: points.map((p) => ({ ...p })), color, life, maxLife: life });
+  }
+
   cone(pos: Vec, angle: number, width: number, range: number, color: string, life: number): void {
     this.cones.push({ x: pos.x, y: pos.y, angle, width, range, color, life, maxLife: life });
   }
@@ -232,6 +246,8 @@ export class Fx {
     for (const sl of this.slashes) sl.life -= dt;
     this.lungeTime = Math.max(0, this.lungeTime - dt);
     this.slashes = this.slashes.filter((sl) => sl.life > 0);
+    for (const bo of this.bolts) bo.life -= dt;
+    this.bolts = this.bolts.filter((bo) => bo.life > 0);
     for (const c of this.cones) c.life -= dt;
     this.cones = this.cones.filter((c) => c.life > 0);
     if (this.banner) {
@@ -266,6 +282,38 @@ export class Fx {
       ctx.beginPath();
       ctx.arc(r.x, r.y, r.radius * (0.3 + 0.7 * t), 0, Math.PI * 2);
       ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /** Lightning: every segment is redrawn with fresh jitter each frame, so it crackles. */
+  drawBolts(ctx: CanvasRenderingContext2D): void {
+    for (const bo of this.bolts) {
+      const k = bo.life / bo.maxLife;
+      for (const [width, alpha, color] of [
+        [6, 0.35 * k, bo.color],
+        [2, k, '#ffffff'],
+      ] as const) {
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.beginPath();
+        for (let i = 0; i + 1 < bo.points.length; i++) {
+          const a = bo.points[i]!;
+          const b = bo.points[i + 1]!;
+          if (i === 0) ctx.moveTo(a.x, a.y);
+          const steps = 5;
+          for (let s = 1; s <= steps; s++) {
+            const t = s / steps;
+            const j = s === steps ? 0 : (this.rand() - 0.5) * 18;
+            const nx = -(b.y - a.y);
+            const ny = b.x - a.x;
+            const len = Math.hypot(nx, ny) || 1;
+            ctx.lineTo(a.x + (b.x - a.x) * t + (nx / len) * j, a.y + (b.y - a.y) * t + (ny / len) * j);
+          }
+        }
+        ctx.stroke();
+      }
     }
     ctx.globalAlpha = 1;
   }

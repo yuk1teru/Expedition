@@ -3,6 +3,7 @@
 import { CONSUMABLES } from '../data/consumables';
 import type { ClassIcon } from '../data/classes';
 import type { SkillIcon } from '../data/skills';
+import { drawClassPassiveIcon, drawClassSkillIcon } from './classIcons';
 
 export function drawSkillIcon(ctx: CanvasRenderingContext2D, icon: SkillIcon, x: number, y: number, size: number, color: string): void {
   const r = size / 2;
@@ -124,6 +125,8 @@ export function drawSkillIcon(ctx: CanvasRenderingContext2D, icon: SkillIcon, x:
       ctx.closePath();
       ctx.fill();
       break;
+    default:
+      drawClassSkillIcon(ctx, icon, r);
   }
   ctx.restore();
 }
@@ -170,7 +173,7 @@ export function drawPassiveIcon(ctx: CanvasRenderingContext2D, stat: string, x: 
     }
     ctx.closePath();
     ctx.fill();
-  } else {
+  } else if (!drawClassPassiveIcon(ctx, stat, r)) {
     ctx.beginPath();
     ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2);
     ctx.fill();
