@@ -1,5 +1,5 @@
-// Town merchant: buy magnifiers, potions and random items for a chosen slot; identify,
-// wear or sell bag items right here; the full equipment window opens on top (Tab).
+// Town merchant: buy magnifiers, potions and random items for a chosen slot. A click on a
+// bag item opens a dropdown: identify, wear or sell. The full equipment window opens on top (Tab).
 
 import type { InputEvent } from '../core/input';
 import type { Modal } from '../core/screens';
@@ -8,7 +8,7 @@ import { ITEM_SLOTS, MERCHANT_ITEMS, RARITIES } from '../data/items';
 import { buyConsumable, buyItem, canBuy, displayName, equipFromBag, identifyItem, sellItem, sellPrice } from '../systems/items';
 import type { App } from './app';
 import { drawConsumableIcon } from './icons';
-import { itemTooltip } from './inventory';
+import { MENU_ROW, MENU_W, type MenuOption, drawMenu, itemTooltip } from './inventory';
 import { drawItem } from './itemArt';
 import { THEME } from './theme';
 import { Button, ButtonGroup, type Rect, drawPanel, drawText, drawTooltip, inRect, roundRect } from './ui';
@@ -19,7 +19,7 @@ const GOODS_Y = 90;
 const GOODS_ROW = 64;
 const CELL = 58;
 const COLS = 6;
-const ROWS = 3;
+const ROWS = 4;
 const SELL_X = 470;
 const SELL_Y = 120;
 
@@ -28,7 +28,9 @@ function sellCell(i: number): Rect {
 }
 
 export function createMerchantModal(app: App, onClose: () => void): Modal<CanvasRenderingContext2D> {
+  /** Bag item whose dropdown is open (-1: none). */
   let selected = -1;
+  let menu: { x: number; y: number; options: MenuOption[] } | null = null;
   let flash = '';
   let flashTime = 0;
   const buyButtons = GOODS.map(
@@ -49,44 +51,41 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
     flash = text;
     flashTime = 1.8;
   };
-  const ACT_Y = SELL_Y + ROWS * CELL + 24;
-  const ACT_W = 108;
-  const identifyBtn = new Button({
-    label: 'Розпізнати',
-    rect: { x: SELL_X, y: ACT_Y, w: ACT_W, h: 36 },
-    hotkey: 'KeyR',
-    fontSize: 13,
-    onClick: () => {
-      const item = app.state.hero.bag[selected];
-      if (item && identifyItem(app.state.hero, selected)) say(`Розпізнано: ${displayName(item)}`);
-    },
-  });
-  const equipBtn = new Button({
-    label: 'Вдягнути',
-    rect: { x: SELL_X + ACT_W + 8, y: ACT_Y, w: ACT_W, h: 36 },
-    hotkey: 'KeyE',
-    fontSize: 13,
-    onClick: () => {
-      const item = app.state.hero.bag[selected];
-      if (!item || !equipFromBag(app.state.hero, selected)) return;
-      say(`Вдягнуто: ${displayName(item)}`);
-      selected = -1;
-    },
-  });
-  const sellBtn = new Button({
-    label: 'Продати',
-    rect: { x: SELL_X + 2 * (ACT_W + 8), y: ACT_Y, w: ACT_W, h: 36 },
-    fontSize: 13,
-    onClick: () => {
-      if (selected < 0) return;
-      const item = app.state.hero.bag[selected];
-      if (!item) return;
-      const price = sellItem(app.state, selected);
-      say(`Продано «${displayName(item)}» за ${price} зол.`);
-      selected = -1;
-    },
-  });
-  const ITEM_Y = ACT_Y + 74;
+  /** Dropdown for a bag item: identify (if needed), wear, sell. */
+  const openMenu = (index: number, x: number, y: number): void => {
+    const hero = app.state.hero;
+    const item = hero.bag[index];
+    if (!item) return;
+    selected = index;
+    const options: MenuOption[] = [];
+    if (!item.identified) {
+      options.push({
+        label: `Розпізнати (лупа: ${hero.consumables.magnifier})`,
+        enabled: hero.consumables.magnifier > 0,
+        run: () => {
+          if (identifyItem(hero, index)) say(`Розпізнано: ${displayName(item)}`);
+        },
+      });
+    }
+    options.push({
+      label: 'Вдягнути',
+      enabled: item.identified,
+      run: () => {
+        if (equipFromBag(hero, index)) say(`Вдягнуто: ${displayName(item)}`);
+      },
+    });
+    options.push({
+      label: `Продати за ${sellPrice(item)} зол.`,
+      enabled: true,
+      run: () => say(`Продано «${displayName(item)}» за ${sellItem(app.state, index)} зол.`),
+    });
+    menu = {
+      x: Math.min(x, PANEL.x + PANEL.w - MENU_W - 8),
+      y: Math.min(y, PANEL.y + PANEL.h - options.length * MENU_ROW - 8),
+      options,
+    };
+  };
+  const ITEM_Y = SELL_Y + ROWS * CELL + 30;
   const itemButtons = ITEM_SLOTS.map(
     (slot, i) =>
       new Button({
@@ -112,21 +111,14 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
     fontSize: 15,
     onClick: onClose,
   });
-  const buttons = new ButtonGroup([...buyButtons, identifyBtn, equipBtn, sellBtn, ...itemButtons, gearBtn, closeBtn]);
+  const buttons = new ButtonGroup([...buyButtons, ...itemButtons, gearBtn, closeBtn]);
 
   return {
     id: 'merchant',
     update(dt) {
       flashTime = Math.max(0, flashTime - dt);
       GOODS.forEach((id, i) => (buyButtons[i]!.enabled = canBuy(app.state, id)));
-      const hero = app.state.hero;
-      const item = selected >= 0 ? hero.bag[selected] : undefined;
-      if (!item) selected = -1;
-      identifyBtn.enabled = !!item && !item.identified && hero.consumables.magnifier > 0;
-      identifyBtn.label = `Лупа (×${hero.consumables.magnifier})`;
-      equipBtn.enabled = !!item && item.identified;
-      sellBtn.enabled = !!item;
-      sellBtn.label = item ? `Продати ${sellPrice(item)}` : 'Продати';
+      if (!menu) selected = -1;
       for (const b of itemButtons) b.enabled = app.state.gold >= MERCHANT_ITEMS.price;
     },
     onInput(e: InputEvent) {
@@ -134,10 +126,27 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
         app.openInventoryOver();
         return;
       }
+      if (menu) {
+        if (e.type === 'key' && e.code === 'Escape') {
+          menu = null;
+          return;
+        }
+        if (e.type === 'mousedown') {
+          const m = menu;
+          const i = Math.floor((e.y - m.y) / MENU_ROW);
+          const inside = e.x >= m.x && e.x <= m.x + MENU_W && i >= 0 && i < m.options.length;
+          menu = null;
+          if (inside) {
+            const opt = m.options[i]!;
+            if (opt.enabled) opt.run();
+            return;
+          }
+        }
+      }
       if (e.type === 'mousedown') {
         for (let i = 0; i < app.state.hero.bag.length && i < COLS * ROWS; i++) {
           if (inRect(sellCell(i), e.x, e.y)) {
-            selected = i;
+            openMenu(i, e.x, e.y);
             return;
           }
         }
@@ -169,7 +178,7 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
         color: THEME.textDim,
       });
 
-      drawText(ctx, 'Ваша сумка (клік — обрати річ)', SELL_X, SELL_Y - 22, { size: 16, bold: true, color: THEME.accent });
+      drawText(ctx, 'Ваша сумка (клік по речі — меню)', SELL_X, SELL_Y - 22, { size: 16, bold: true, color: THEME.accent });
       for (let i = 0; i < COLS * ROWS; i++) {
         const r = sellCell(i);
         const item = st.hero.bag[i];
@@ -195,12 +204,6 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
       if (st.hero.bag.length === 0) {
         drawText(ctx, 'Сумка порожня', SELL_X + (COLS * CELL) / 2, SELL_Y + 100, { size: 14, align: 'center', color: THEME.textDim });
       }
-      const chosen = selected >= 0 ? st.hero.bag[selected] : undefined;
-      drawText(ctx, chosen ? displayName(chosen) : 'Оберіть річ: розпізнати лупою, вдягнути або продати', SELL_X, ACT_Y - 10, {
-        size: 12,
-        bold: !!chosen,
-        color: chosen ? RARITIES[chosen.rarity].color : THEME.textDim,
-      });
       buttons.draw(ctx);
       if (flashTime > 0) {
         ctx.globalAlpha = Math.min(1, flashTime);
@@ -208,8 +211,11 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
         ctx.globalAlpha = 1;
       }
       const m = app.input.mouse;
-      for (let i = 0; i < st.hero.bag.length && i < COLS * ROWS; i++) {
-        if (inRect(sellCell(i), m.x, m.y)) drawTooltip(ctx, itemTooltip(st.hero.bag[i]!, ['Клік — обрати: розпізнати (R), вдягнути (E) або продати']), m.x, m.y, app.view.width, app.view.height);
+      if (menu) drawMenu(ctx, menu, m);
+      else {
+        for (let i = 0; i < st.hero.bag.length && i < COLS * ROWS; i++) {
+          if (inRect(sellCell(i), m.x, m.y)) drawTooltip(ctx, itemTooltip(st.hero.bag[i]!, ['Клік — меню: розпізнати, вдягнути або продати']), m.x, m.y, app.view.width, app.view.height);
+        }
       }
     },
   };

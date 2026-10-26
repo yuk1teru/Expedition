@@ -19,6 +19,7 @@ import {
   itemPerks,
   identifyItem,
   markItemsSeen,
+  sellItem,
   sellPrice,
   unequip,
 } from '../systems/items';
@@ -46,8 +47,8 @@ const CONS_STEP = 50;
 const QUICK_Y = CONS_Y + 58;
 const QUICK_X = BAG_X + 150;
 const QUICK_STEP = 56;
-const MENU_W = 200;
-const MENU_ROW = 28;
+export const MENU_W = 200;
+export const MENU_ROW = 28;
 const DRAG_THRESHOLD = 5;
 const MESSAGE_TIME = 2.2;
 
@@ -65,7 +66,7 @@ type DragSource =
   | { kind: 'consumable'; id: ConsumableId }
   | { kind: 'quick'; slot: number };
 
-interface MenuOption {
+export interface MenuOption {
   label: string;
   enabled: boolean;
   run: () => void;
@@ -150,6 +151,10 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
         });
       }
       options.push({ label: 'Вдягнути', enabled: item.identified, run: () => tryEquip(bi) });
+      // Opened on top of the merchant: items can be sold right here.
+      if (app.screens.hasModal('merchant')) {
+        options.push({ label: `Продати за ${sellPrice(item)} зол.`, enabled: true, run: () => void sellItem(app.state, bi) });
+      }
     } else if (slot && hero().equipment[slot]) {
       options.push({ label: 'Зняти в сумку', enabled: true, run: () => unequip(hero(), slot) });
     } else {
@@ -409,7 +414,7 @@ function drawHoverTooltip(ctx: CanvasRenderingContext2D, app: App, m: { x: numbe
   });
 }
 
-function drawMenu(ctx: CanvasRenderingContext2D, menu: { x: number; y: number; options: MenuOption[] }, m: { x: number; y: number }): void {
+export function drawMenu(ctx: CanvasRenderingContext2D, menu: { x: number; y: number; options: MenuOption[] }, m: { x: number; y: number }): void {
   const h = menu.options.length * MENU_ROW;
   roundRect(ctx, menu.x, menu.y, MENU_W, h, 6);
   ctx.fillStyle = 'rgba(12, 14, 20, 0.97)';

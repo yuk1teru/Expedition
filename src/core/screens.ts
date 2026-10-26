@@ -57,6 +57,11 @@ export class ScreenManager<R> {
     while (this.modals.length > 0) this.popModal();
   }
 
+  /** A modal with this id is open (anywhere in the stack). */
+  hasModal(id: ModalId): boolean {
+    return this.modals.some((m) => m.id === id);
+  }
+
   get topModal(): Modal<R> | null {
     return this.modals[this.modals.length - 1] ?? null;
   }
