@@ -78,7 +78,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
         align: 'center',
         color: THEME.textMuted,
       });
-      drawTopBar(ctx, state, W, app.totalBosses());
+      drawTopBar(ctx, state, W, app.totalBosses(), app.time);
     },
   };
 }

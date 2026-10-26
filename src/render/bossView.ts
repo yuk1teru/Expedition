@@ -16,6 +16,7 @@ const painters: Record<string, BossPainter> = {
 
 export function drawBoss(ctx: CanvasRenderingContext2D, e: Enemy, b: Battle, t: number): void {
   const flash = b.time - e.hitAt < FX.hitFlash;
+  drawBossMarker(ctx, e, t);
   const paint = painters[e.defId] ?? drawGenericBoss;
   paint(ctx, e, b, t, flash);
   drawStatusMarks(ctx, e, t);
@@ -136,6 +137,44 @@ function drawAlpha(ctx: CanvasRenderingContext2D, e: Enemy, b: Battle, t: number
   ctx.arc(r * 0.55, r * 0.18, r * 0.1, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
+}
+
+function markerColor(e: Enemy): string {
+  return bossDefOf(e)?.miniboss ? FX.bossMarker.miniColor : FX.bossMarker.bossColor;
+}
+
+/** Pulsing ring on the ground so the boss stands out in the crowd. */
+function drawBossMarker(ctx: CanvasRenderingContext2D, e: Enemy, t: number): void {
+  const M = FX.bossMarker;
+  const pulse = 1 + M.pulse * Math.sin(t * M.speed);
+  ctx.save();
+  ctx.translate(e.pos.x, e.pos.y);
+  ctx.globalAlpha = 0.2;
+  ctx.fillStyle = markerColor(e);
+  ctx.beginPath();
+  ctx.ellipse(0, e.radius * 0.35, e.radius * M.scale * pulse, e.radius * M.scale * 0.6 * pulse, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 0.85;
+  ctx.strokeStyle = markerColor(e);
+  ctx.lineWidth = 3;
+  ctx.setLineDash([10, 6]);
+  ctx.lineDashOffset = -t * 30;
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** Name and a short HP bar floating above a boss / miniboss. */
+export function drawBossPlate(ctx: CanvasRenderingContext2D, e: Enemy): void {
+  if (e.dead) return;
+  const P = FX.bossPlate;
+  const w = Math.max(P.minWidth, e.radius * 2.6);
+  const x = e.pos.x - w / 2;
+  const y = e.pos.y - e.radius - P.gap;
+  ctx.fillStyle = 'rgba(0,0,0,0.75)';
+  ctx.fillRect(x - 1, y - 1, w + 2, P.height + 2);
+  ctx.fillStyle = markerColor(e);
+  ctx.fillRect(x, y, w * Math.max(0, e.hp / e.maxHp), P.height);
+  drawText(ctx, e.name, e.pos.x, y - 9, { size: 12, bold: true, align: 'center', color: markerColor(e) });
 }
 
 /** Boss / miniboss HP bar for the HUD: name inside, phase-2 mark, "Мінібос" tag. */

@@ -72,6 +72,10 @@ export const FX = {
   impact: { life: 0.16, extra: 6, width: 3 },
   /** Cleave hitting at least this many enemies gives a tiny shake. */
   cleaveShakeTargets: 3,
+  /** Ground marker under bosses and minibosses. */
+  bossMarker: { bossColor: '#ff4d3a', miniColor: '#ffa53d', scale: 1.45, pulse: 0.06, speed: 4 },
+  /** Name + HP bar above bosses and minibosses. */
+  bossPlate: { minWidth: 70, height: 6, gap: 14 },
   /** HP bar under the hero. */
   heroBar: { width: 54, height: 7, gap: 12, low: 0.3 },
   /** Ring around the hero that fills up until the next basic attack. */

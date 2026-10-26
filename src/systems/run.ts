@@ -115,6 +115,8 @@ export interface BattleSummary {
   bonusWaves: number;
   /** Items found in this battle. */
   loot: Item[];
+  /** This battle defeated the last remaining boss (show the victory screen once). */
+  runCompleted: boolean;
 }
 
 /** Applies the result of a finished battle to the run. */
@@ -124,6 +126,7 @@ export function completeBattle(state: GameState, b: Battle): BattleSummary {
   s.damageDealt += b.stats.damageDealt;
   s.damageTaken += b.stats.damageTaken;
   const won = b.outcome === 'won';
+  const wasWon = isRunWon(state);
   let clearBonus = 0;
   if (won) {
     clearBonus = clearBonusGold(b.tier);
@@ -132,6 +135,8 @@ export function completeBattle(state: GameState, b: Battle): BattleSummary {
     s.locationsCleared += 1;
     state.day += 1;
     if (b.node.isBoss && !state.bossesDefeated.includes(b.node.id)) state.bossesDefeated.push(b.node.id);
+    // A boss victory is a milestone: dying later must not roll it back.
+    if (b.node.isBoss) saveCheckpoint(state);
   }
   return {
     won,
@@ -145,6 +150,7 @@ export function completeBattle(state: GameState, b: Battle): BattleSummary {
     damageTaken: b.stats.damageTaken,
     bonusWaves: b.waves ? Math.max(0, b.waves.cleared - b.waves.total) : 0,
     loot: [...b.stats.loot],
+    runCompleted: won && !wasWon && isRunWon(state),
   };
 }
 
@@ -166,7 +172,3 @@ export function chooseCard(state: GameState, card: Card): void {
   applyCard(state.hero, card);
 }
 
-/** Play time stops while the hero lies dead and once every boss is defeated. */
-export function isRunOver(state: GameState): boolean {
-  return state.hero.dead || isRunWon(state);
-}

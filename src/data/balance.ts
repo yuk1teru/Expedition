@@ -99,8 +99,8 @@ export const WAVES = {
   minibossWave: 3,
   /** Bonus waves after the portal opens, while the hero stays. */
   bonus: {
-    /** Seconds before each bonus wave. */
-    delay: 5,
+    /** Break before each bonus wave, s; the portal is usable only during it. */
+    delay: 10,
     /** Extra enemies per bonus level. */
     extraPerWave: 3,
     /** HP, damage, XP and gold +8% per bonus level. */

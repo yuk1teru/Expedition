@@ -11,18 +11,21 @@ import { RARITIES } from '../data/items';
 import { heroAttackSpeed } from '../systems/ai';
 import { basicAttackOf } from '../systems/hero';
 import { type Battle, stepBattle } from '../systems/battle';
-import { portalInReach, requestPortalEntry } from '../systems/waves';
+import { portalActive, portalInReach, requestPortalEntry } from '../systems/waves';
 import type { Enemy, Hero, Projectile, Telegraph, Zone } from '../systems/entities';
 import type { GameEvent } from '../systems/gameEvents';
 import type { App } from './app';
 import { syncBattleInput } from './battleInput';
-import { drawBoss } from './bossView';
+import { drawBoss, drawBossPlate } from './bossView';
 import { Fx } from './fx';
 import { drawControls } from './help';
 import { createHud } from './hud';
 import { skillFx } from './skillFx';
 import { THEME } from './theme';
-import { type Rect, drawPanel, drawText, inRect, roundRect } from './ui';
+import { Button, ButtonGroup, type Rect, drawPanel, drawText, inRect, roundRect } from './ui';
+
+/** Seconds to confirm abandoning the run. */
+const PAUSE_CONFIRM_TIME = 3;
 
 interface Decor {
   x: number;
@@ -45,6 +48,26 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
   let decor: Decor[] = [];
   let patches: Patch[] = [];
   let battle: Battle | null = null;
+  /** Abandon-run needs a second click within this time. */
+  let confirmUntil = 0;
+  const W = app.view.width;
+  const PAUSE_PANEL = { x: W / 2 - 330, y: ARENA.y + 10, w: 660, h: 392 };
+  const resumeBtn = new Button({
+    label: 'Продовжити (Esc)',
+    rect: { x: W / 2 - 250, y: PAUSE_PANEL.y + PAUSE_PANEL.h - 62, w: 230, h: 44 },
+    fontSize: 15,
+    onClick: () => (app.loop.paused = false),
+  });
+  const abandonBtn = new Button({
+    label: 'Завершити забіг (поразка)',
+    rect: { x: W / 2 + 20, y: PAUSE_PANEL.y + PAUSE_PANEL.h - 62, w: 230, h: 44 },
+    fontSize: 14,
+    onClick: () => {
+      if (app.time < confirmUntil) app.abandonRun();
+      else confirmUntil = app.time + PAUSE_CONFIRM_TIME;
+    },
+  });
+  const pauseButtons = new ButtonGroup([resumeBtn, abandonBtn]);
 
   function onEvent(e: GameEvent): void {
     const b = battle;
@@ -92,6 +115,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
 
     onInput(e: InputEvent) {
       const b0 = battle;
+      if (app.loop.paused && pauseButtons.handle(e)) return;
       if (b0 && !app.loop.paused && portalInReach(b0)) {
         const btn = portalButtonRect(b0);
         if ((e.type === 'key' && e.code === 'KeyE') || (e.type === 'mousedown' && inRect(btn, e.x, e.y))) {
@@ -101,19 +125,24 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       }
       if (hud.handle(e)) return;
       if (e.type !== 'key') return;
-      if (e.code === 'Escape') app.loop.paused = !app.loop.paused;
+      if (e.code === 'Escape') {
+        app.loop.paused = !app.loop.paused;
+        confirmUntil = 0;
+      }
       else if (/^Digit[1-4]$/.test(e.code) && battle && !app.loop.paused) hud.useSlot(Number(e.code.slice(5)) - 1);
     },
 
     render(ctx) {
       const b = battle;
       if (!b) return;
-      const off = fx.shakeOffset();
+      // No shake while the game is paused or a choice window is open.
+      const frozen = app.loop.paused || app.screens.isPaused;
+      const off = frozen ? { x: 0, y: 0 } : fx.shakeOffset();
       ctx.save();
       ctx.translate(off.x, off.y);
       drawArena(ctx, b.biome, patches, decor);
       for (const z of b.zones) drawZone(ctx, z, b, app.time);
-      if (b.portal) drawPortal(ctx, b.portal.pos, b.portal.radius, app.time);
+      if (b.portal) drawPortal(ctx, b.portal.pos, b.portal.radius, app.time, portalActive(b));
       for (const p of b.projectiles) drawProjectile(ctx, p);
       for (const e of b.enemies) {
         if (e.boss) drawBoss(ctx, e, b, app.time);
@@ -128,7 +157,10 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       fx.drawParticles(ctx);
       // Telegraphs always above effects so they stay readable.
       for (const t of b.telegraphs) drawTelegraph(ctx, t);
-      for (const e of b.enemies) drawEnemyBar(ctx, e);
+      for (const e of b.enemies) {
+        if (e.boss) drawBossPlate(ctx, e);
+        else drawEnemyBar(ctx, e);
+      }
       drawHeroBar(ctx, b.hero);
       fx.drawTexts(ctx);
       if (b.input.aim) drawCrosshair(ctx, b.input.aim);
@@ -140,11 +172,14 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       if (app.loop.paused && !app.screens.isPaused) {
         ctx.fillStyle = 'rgba(0,0,0,0.45)';
         ctx.fillRect(0, ARENA.y, app.view.width, ARENA.h);
-        drawPanel(ctx, { x: app.view.width / 2 - 330, y: ARENA.y + 14, w: 660, h: 330 }, 'rgba(14, 16, 24, 0.94)');
-        drawText(ctx, 'Пауза', app.view.width / 2, ARENA.y + 44, { size: 38, bold: true, align: 'center' });
-        drawText(ctx, 'Esc — продовжити', app.view.width / 2, ARENA.y + 80, { size: 15, align: 'center', color: THEME.textDim });
-        drawControls(ctx, app.view.width / 2 - 20, ARENA.y + 130);
+        drawPanel(ctx, PAUSE_PANEL, 'rgba(14, 16, 24, 0.96)');
+        drawText(ctx, 'Пауза', W / 2, PAUSE_PANEL.y + 32, { size: 34, bold: true, align: 'center' });
+        drawControls(ctx, W / 2 - 20, PAUSE_PANEL.y + 82);
+        const confirming = app.time < confirmUntil;
+        abandonBtn.label = confirming ? 'Точно? Клацніть ще раз' : 'Завершити забіг (поразка)';
+        pauseButtons.draw(ctx);
       }
+      hud.drawOverlay(ctx, b);
     },
   };
 }
@@ -208,7 +243,7 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
       break;
     case 'loot': {
       const color = RARITIES[e.rarity].color;
-      fx.showBanner(`Здобич: ${e.name}${e.equipped ? ' (вдягнуто)' : ' (у сумці)'}`, color);
+      fx.showBanner(`Здобич: ${e.name} — у сумці (Tab)`, color);
       const at = {
         x: Math.max(ARENA.x + 120, Math.min(ARENA.x + ARENA.w - 120, e.pos.x)),
         y: Math.max(ARENA.y + 40, Math.min(ARENA.y + ARENA.h - 20, e.pos.y - 40)),
@@ -592,9 +627,14 @@ function drawPortalButton(ctx: CanvasRenderingContext2D, r: Rect, hover: boolean
   drawText(ctx, 'Увійти в портал [E]', r.x + r.w / 2, r.y + r.h / 2 + 1, { size: 14, bold: true, align: 'center' });
 }
 
-function drawPortal(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, r: number, t: number): void {
+function drawPortal(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, r: number, t: number, active: boolean): void {
   ctx.save();
   ctx.translate(p.x, p.y);
+  // Closed during a wave: dim and slow.
+  if (!active) {
+    ctx.globalAlpha = 0.3;
+    t *= 0.2;
+  }
   const g = ctx.createRadialGradient(0, 0, 2, 0, 0, r * 1.6);
   g.addColorStop(0, 'rgba(230, 210, 255, 0.95)');
   g.addColorStop(0.45, 'rgba(150, 90, 255, 0.7)');

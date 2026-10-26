@@ -15,7 +15,7 @@ export type GameEvent =
   | { type: 'wave'; index: number; total: number; bonus: number }
   | { type: 'miniboss'; name: string; pos: Vec }
   | { type: 'portalOpen'; pos: Vec }
-  | { type: 'loot'; pos: Vec; name: string; rarity: Rarity; equipped: boolean }
+  | { type: 'loot'; pos: Vec; name: string; rarity: Rarity }
   | { type: 'levelUp'; level: number; hp: number; attack: number }
   | { type: 'heroDeath'; pos: Vec }
   | { type: 'skillCast'; skillId: string; rank: number; pos: Vec; target: Vec | null }

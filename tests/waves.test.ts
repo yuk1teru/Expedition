@@ -4,7 +4,7 @@ import { type Battle, createBattle, killAll, stepBattle } from '../src/systems/b
 import { SLICE_GROVE_ID } from '../src/systems/mapgen';
 import { createGameState, teleport } from '../src/systems/run';
 import { dist } from '../src/systems/entities';
-import { portalInReach, requestPortalEntry, waveSize, waveStatMult } from '../src/systems/waves';
+import { portalActive, portalInReach, requestPortalEntry, waveSize, waveStatMult } from '../src/systems/waves';
 
 function grove(): { b: Battle } {
   const s = createGameState(21);
@@ -68,5 +68,16 @@ describe('waves and portal', () => {
     expect(requestPortalEntry(b)).toBe(true);
     stepBattle(b, LOOP.step);
     expect(b.outcome).toBe('won');
+  });
+
+  it('the portal is closed while a bonus wave is running', () => {
+    const { b } = grove();
+    clearWaves(b, WAVES.count);
+    expect(portalActive(b)).toBe(true);
+    for (let t = 0; t < WAVES.bonus.delay + 1; t += LOOP.step) stepBattle(b, LOOP.step);
+    expect(b.waves!.started).toBe(true);
+    expect(portalActive(b)).toBe(false);
+    b.hero.pos = { ...b.portal!.pos };
+    expect(requestPortalEntry(b)).toBe(false);
   });
 });

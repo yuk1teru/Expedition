@@ -8,8 +8,9 @@ import { heroAttackSpeed } from '../systems/ai';
 import type { Battle } from '../systems/battle';
 import { isMaxLevel, xpFraction } from '../systems/leveling';
 import { xpToNext } from '../systems/scaling';
-import { bonusLevel, nextWaveIn } from '../systems/waves';
+import { bonusLevel, nextWaveIn, portalActive } from '../systems/waves';
 import { moveSkill, skillInSlot } from '../systems/hero';
+import { hasNewItems } from '../systems/items';
 import { slotCooldown, useSkill } from '../systems/skills';
 import type { App } from './app';
 import { syncBattleInput } from './battleInput';
@@ -26,6 +27,8 @@ export interface Hud {
   /** Returns true if the HUD consumed the input. */
   handle(e: InputEvent): boolean;
   draw(ctx: CanvasRenderingContext2D, b: Battle): void;
+  /** Tooltips; drawn last so they sit above the pause panel. */
+  drawOverlay(ctx: CanvasRenderingContext2D, b: Battle): void;
   useSlot(slot: number): void;
   noTarget(slot: number): void;
 }
@@ -143,13 +146,14 @@ export function createHud(app: App, _fx: Fx): Hud {
         const w = b.waves;
         const bonus = bonusLevel(w.index);
         const title =
-          b.portal && !w.started ? 'Портал відкрито' : bonus > 0 ? `Додаткова хвиля ${bonus}` : `Хвиля ${Math.min(w.total, w.index + 1)}/${w.total}`;
+          b.portal && !w.started ? 'Перерва — портал відкрито' : bonus > 0 ? `Додаткова хвиля ${bonus}` : `Хвиля ${Math.min(w.total, w.index + 1)}/${w.total}`;
         drawText(ctx, title, CENTER_X, 20, { size: 17, bold: true, align: 'center', color: bonus > 0 || b.portal ? THEME.accent : THEME.text });
         const next = nextWaveIn(w);
         const sub = b.portal && next !== null && next > 0 ? `Наступна хвиля через ${Math.ceil(next)} с` : b.node.name;
         drawText(ctx, sub, CENTER_X, 41, { size: 12, align: 'center', color: b.portal ? '#c9a8ff' : THEME.textDim });
-        if (b.portal && b.outcome === 'running') {
-          drawText(ctx, 'Портал на краю арени: підійдіть і натисніть «Увійти» (E), щоб забрати нагороду. Залишитесь — прийдуть сильніші хвилі.', W / 2, ARENA.y + ARENA.h - 14, {
+        if (portalActive(b)) {
+          const left = Math.ceil(nextWaveIn(w) ?? 0);
+          drawText(ctx, `Портал відкритий ще ${left} с: підійдіть і натисніть «Увійти» (E). Залишитесь — прийде сильніша хвиля.`, W / 2, ARENA.y + ARENA.h - 14, {
             size: 13,
             bold: true,
             align: 'center',
@@ -166,9 +170,13 @@ export function createHud(app: App, _fx: Fx): Hud {
       buttons.draw(ctx);
 
       drawSkillBar(ctx, b, slots, noTargetT, hoverSlot);
+      if (hasNewItems(hero)) drawNewItemHint(ctx, W - 14, ARENA.y + ARENA.h + 40, app.time, 'right');
       drawLevelAndXp(ctx, hero.level, hero.xp, slots, ARENA.y + ARENA.h + XP_BAR.top);
       if (dragFrom >= 0 && dragMoved) drawDragGhost(ctx, b, dragFrom, slots, app.input.mouse);
 
+    },
+    drawOverlay(ctx, b) {
+      const hero = app.state.hero;
       const hs = hoverSlot >= 0 ? skillInSlot(hero, hoverSlot) : undefined;
       if (hs) {
         const def = getSkill(hs.id);
@@ -185,6 +193,13 @@ export function createHud(app: App, _fx: Fx): Hud {
     },
   };
   return hud;
+}
+
+/** Blinking "new item" reminder. */
+export function drawNewItemHint(ctx: CanvasRenderingContext2D, x: number, y: number, t: number, align: CanvasTextAlign): void {
+  ctx.globalAlpha = 0.45 + 0.55 * Math.abs(Math.sin(t * 3.5));
+  drawText(ctx, '★ Нова річ — Tab, щоб вдягнути', x, y, { size: 13, bold: true, align, color: THEME.accent });
+  ctx.globalAlpha = 1;
 }
 
 /** Level badge left of the skill bar and the XP bar above it. */

@@ -2,11 +2,13 @@
 
 import type { GameState } from '../core/state';
 import { THEME } from './theme';
+import { hasNewItems } from '../systems/items';
+import { drawNewItemHint } from './hud';
 import { drawText } from './ui';
 
 export const TOP_BAR_H = 44;
 
-export function drawTopBar(ctx: CanvasRenderingContext2D, state: GameState, width: number, totalBosses: number): void {
+export function drawTopBar(ctx: CanvasRenderingContext2D, state: GameState, width: number, totalBosses: number, time = 0): void {
   ctx.fillStyle = 'rgba(10, 12, 18, 0.85)';
   ctx.fillRect(0, 0, width, TOP_BAR_H);
   ctx.strokeStyle = THEME.panelBorder;
@@ -34,4 +36,5 @@ export function drawTopBar(ctx: CanvasRenderingContext2D, state: GameState, widt
     x += lw + 6 + ctx.measureText(value).width + 26;
   }
   drawText(ctx, `seed ${state.seed}`, width - 16, y, { size: 13, color: THEME.textMuted, align: 'right' });
+  if (hasNewItems(state.hero)) drawNewItemHint(ctx, width - 90, y, time, 'right');
 }

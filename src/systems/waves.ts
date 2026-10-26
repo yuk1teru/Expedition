@@ -129,10 +129,15 @@ export function openPortal(b: Battle): void {
   b.events.emit({ type: 'portalOpen', pos: { ...best } });
 }
 
-/** The hero is close enough to use the portal (the "Увійти" button shows up). */
+/** The portal works only during the break between waves (wave cleared, next one not started). */
+export function portalActive(b: Battle): boolean {
+  return !!b.portal && !b.portal.entered && !!b.waves && !b.waves.started && b.outcome === 'running';
+}
+
+/** The portal is active and the hero is close enough (the "Увійти" button shows up). */
 export function portalInReach(b: Battle): boolean {
   const p = b.portal;
-  return !!p && !p.entered && b.outcome === 'running' && dist(b.hero.pos, p.pos) <= p.radius + b.hero.radius + WAVES.portal.useRange;
+  return !!p && portalActive(b) && dist(b.hero.pos, p.pos) <= p.radius + b.hero.radius + WAVES.portal.useRange;
 }
 
 /** Player pressed "Увійти": leaves only when in reach, never by walking or being pushed in. */
@@ -142,10 +147,10 @@ export function requestPortalEntry(b: Battle): boolean {
   return true;
 }
 
-/** Bot / debug: leave through the portal right away. */
+/** Bot / debug: leave through the portal right away (only while it is active). */
 export function enterPortal(b: Battle): boolean {
-  if (!b.portal) return false;
-  b.portal.entered = true;
+  if (!portalActive(b)) return false;
+  b.portal!.entered = true;
   return true;
 }
 

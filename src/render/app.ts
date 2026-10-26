@@ -17,8 +17,6 @@ import {
   chooseClass,
   completeBattle,
   createGameState,
-  isRunOver,
-  isRunWon,
   nextCardOffer,
   restoreCheckpoint,
   teleport,
@@ -27,7 +25,7 @@ import {
 import { type View, beginFrame, endFrame } from './canvas';
 import { createCombatScreen } from './combatView';
 import { type DebugPanel, createDebugPanel } from './debugPanel';
-import { createDeathScreen, createRewardScreen, createVictoryScreen } from './endScreens';
+import { createDeathScreen, createGameOverScreen, createRewardScreen, createVictoryScreen } from './endScreens';
 import { createHelpModal } from './help';
 import { createInventoryModal } from './inventory';
 import { createMapScreen } from './mapView';
@@ -61,6 +59,7 @@ export class App {
     this.screens.register('reward', createRewardScreen(this));
     this.screens.register('death', createDeathScreen(this));
     this.screens.register('victory', createVictoryScreen(this));
+    this.screens.register('gameOver', createGameOverScreen(this));
     this.debug = opts.dev ? createDebugPanel(this) : null;
     this.loop = new GameLoop(
       {
@@ -117,6 +116,19 @@ export class App {
     this.screens.pushModal(createInventoryModal(this, () => this.screens.popModal()));
   }
 
+  /** Pause → "Завершити забіг": the run ends as a defeat with a summary screen. */
+  abandonRun(): void {
+    this.screens.clearModals();
+    this.loop.paused = false;
+    if (this.battle) {
+      // Count the unfinished battle in the run statistics.
+      this.battle.outcome = 'lost';
+      completeBattle(this.state, this.battle);
+    }
+    this.battle = null;
+    this.screens.go('gameOver');
+  }
+
   /** After death: back to town with the progress of the last rest. */
   respawn(): void {
     this.screens.clearModals();
@@ -146,7 +158,7 @@ export class App {
     this.battle = null;
     this.loop.paused = false;
     if (!this.lastSummary.won) this.screens.go('death');
-    else if (isRunWon(this.state)) this.screens.go('victory');
+    else if (this.lastSummary.runCompleted) this.screens.go('victory');
     else this.screens.go('reward');
   }
 
@@ -158,7 +170,7 @@ export class App {
   private processModalQueue(): void {
     if (this.screens.topModal) return;
     const screen = this.screens.current;
-    if (screen === 'death' || screen === 'victory') return;
+    if (screen === 'death' || screen === 'victory' || screen === 'gameOver') return;
     const req = this.state.modalQueue.shift();
     if (!req) return;
     if (req.kind === 'classChoice') {
@@ -205,7 +217,9 @@ export class App {
 
   private frameUpdate(dt: number): void {
     this.time += dt;
-    if (!isRunOver(this.state)) this.state.stats.playTime += dt;
+    // Play time stops on the result screens (death, victory, run over).
+    const screen = this.screens.current;
+    if (screen !== 'death' && screen !== 'victory' && screen !== 'gameOver') this.state.stats.playTime += dt;
     for (const e of this.input.drain()) this.handleInput(e);
     this.processModalQueue();
   }

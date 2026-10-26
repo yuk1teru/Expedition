@@ -8,7 +8,7 @@ import { normalize } from './entities';
 import type { HitSource } from './gameEvents';
 import { getBoss } from '../data/bosses';
 import { LOOT } from '../data/items';
-import { equipOrStash, rollItem } from './items';
+import { rollItem, stashLoot } from './items';
 import { gainXp } from './leveling';
 import { applyArmor, xpReward } from './scaling';
 
@@ -88,9 +88,9 @@ function dropLoot(b: Battle, e: Enemy): void {
   const st = b.state;
   for (let i = 0; i < table.count; i++) {
     const item = rollItem(st.lootRng, table.rarity, st.nextItemUid++);
-    const equipped = equipOrStash(b.hero, item);
+    stashLoot(b.hero, item);
     b.stats.loot.push(item);
-    b.events.emit({ type: 'loot', pos: { ...e.pos }, name: item.name, rarity: item.rarity, equipped });
+    b.events.emit({ type: 'loot', pos: { ...e.pos }, name: item.name, rarity: item.rarity });
   }
 }
 

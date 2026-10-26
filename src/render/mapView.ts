@@ -101,7 +101,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
         }
       }
 
-      drawTopBar(ctx, state, app.view.width, app.totalBosses());
+      drawTopBar(ctx, state, app.view.width, app.totalBosses(), app.time);
       drawText(ctx, 'Клік по сусідній локації — вирушити. Клік по поточній — пройти ще раз.', app.view.width / 2, app.view.height - 22, {
         size: 14,
         align: 'center',

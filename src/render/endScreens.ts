@@ -158,16 +158,43 @@ export function createDeathScreen(app: App): Screen<CanvasRenderingContext2D> {
 }
 
 export function createVictoryScreen(app: App): Screen<CanvasRenderingContext2D> {
+  return createRunSummaryScreen(app, true);
+}
+
+/** The player gave up from the pause menu. */
+export function createGameOverScreen(app: App): Screen<CanvasRenderingContext2D> {
+  return createRunSummaryScreen(app, false);
+}
+
+function createRunSummaryScreen(app: App, victory: boolean): Screen<CanvasRenderingContext2D> {
   const W = app.view.width;
   const panel = { x: W / 2 - 260, y: 20, w: 520, h: 500 };
-  const buttons = new ButtonGroup([
-    new Button({
-      label: 'Новий забіг',
-      rect: { x: panel.x + 130, y: panel.y + panel.h - 60, w: 260, h: 46 },
-      hotkey: 'Enter',
-      onClick: () => app.newRun(),
-    }),
-  ]);
+  const buttons = new ButtonGroup(
+    victory
+      ? [
+          new Button({
+            label: 'Продовжити експедицію',
+            rect: { x: panel.x + 40, y: panel.y + panel.h - 60, w: 250, h: 46 },
+            hotkey: 'Enter',
+            fontSize: 16,
+            onClick: () => app.goMap(),
+          }),
+          new Button({
+            label: 'Новий забіг',
+            rect: { x: panel.x + 310, y: panel.y + panel.h - 60, w: 170, h: 46 },
+            fontSize: 15,
+            onClick: () => app.newRun(),
+          }),
+        ]
+      : [
+          new Button({
+            label: 'Новий забіг',
+            rect: { x: panel.x + 130, y: panel.y + panel.h - 60, w: 260, h: 46 },
+            hotkey: 'Enter',
+            onClick: () => app.newRun(),
+          }),
+        ],
+  );
   return {
     update() {},
     onInput(e) {
@@ -176,15 +203,22 @@ export function createVictoryScreen(app: App): Screen<CanvasRenderingContext2D> 
     render(ctx) {
       const st = app.state;
       const hero = st.hero;
-      ctx.fillStyle = '#14201a';
+      ctx.fillStyle = victory ? '#14201a' : '#1d1214';
       ctx.fillRect(0, 0, W, app.view.height);
       drawPanel(ctx, panel);
-      drawText(ctx, 'Перемога!', W / 2, panel.y + 36, { size: 30, bold: true, align: 'center', color: THEME.good });
-      drawText(ctx, 'Усіх босів переможено. Експедиція вдалася!', W / 2, panel.y + 66, {
-        size: 15,
+      drawText(ctx, victory ? 'Перемога!' : 'Забіг завершено', W / 2, panel.y + 36, {
+        size: 30,
+        bold: true,
         align: 'center',
-        color: THEME.textDim,
+        color: victory ? THEME.good : THEME.bad,
       });
+      drawText(
+        ctx,
+        victory ? 'Усіх босів переможено! Прогрес збережено — можна грати далі.' : 'Ви завершили експедицію. Підсумки:',
+        W / 2,
+        panel.y + 66,
+        { size: 15, align: 'center', color: THEME.textDim },
+      );
       const items: [string, string][] = [
         ['Днів', String(st.day)],
         ['Рівень', String(hero.level)],
@@ -200,7 +234,7 @@ export function createVictoryScreen(app: App): Screen<CanvasRenderingContext2D> 
       let y = panel.y + 96 + items.length * 26;
       drawText(ctx, app.skillSummary(), W / 2, y, { size: 13, align: 'center', color: THEME.accent });
       y += 22;
-      lootLines(ctx, app.lastSummary?.loot ?? [], W / 2, y, wornUids(app));
+      if (victory) lootLines(ctx, app.lastSummary?.loot ?? [], W / 2, y, wornUids(app));
       buttons.draw(ctx);
     },
   };

@@ -5,7 +5,7 @@
 import type { InputEvent } from '../core/input';
 import type { Modal } from '../core/screens';
 import { ITEM_SLOTS, type ItemSlot, RARITIES } from '../data/items';
-import { type Item, equipFromBag, formatStat, unequip } from '../systems/items';
+import { type Item, equipFromBag, formatStat, markItemsSeen, unequip } from '../systems/items';
 import type { App } from './app';
 import { drawItemIcon } from './icons';
 import { THEME } from './theme';
@@ -42,6 +42,9 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
   let t = 0;
   return {
     id: 'inventory',
+    exit() {
+      markItemsSeen(app.state.hero);
+    },
     update(dt) {
       t += dt;
     },
@@ -95,7 +98,17 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
 
       drawText(ctx, `Сумка (${hero.bag.length})`, BAG_X, BAG_Y - 22, { size: 15, bold: true, color: THEME.accent });
       drawText(ctx, 'клік — вдягнути', BAG_X + BAG_COLS * CELL - 6, BAG_Y - 22, { size: 12, align: 'right', color: THEME.textDim });
-      for (let i = 0; i < BAG_COLS * BAG_ROWS; i++) drawCell(ctx, bagCell(i), hero.bag[i] ?? null, null);
+      for (let i = 0; i < BAG_COLS * BAG_ROWS; i++) {
+        const item = hero.bag[i] ?? null;
+        const cell = bagCell(i);
+        drawCell(ctx, cell, item, null);
+        if (item?.isNew) {
+          const blink = 0.6 + 0.4 * Math.sin(t * 6);
+          ctx.globalAlpha = blink;
+          drawText(ctx, 'НОВЕ', cell.x + cell.w - 3, cell.y + 8, { size: 9, bold: true, align: 'right', color: THEME.accent });
+          ctx.globalAlpha = 1;
+        }
+      }
       if (hero.bag.length > BAG_COLS * BAG_ROWS) {
         drawText(ctx, `…і ще ${hero.bag.length - BAG_COLS * BAG_ROWS}`, BAG_X, BAG_Y + BAG_ROWS * CELL + 8, { size: 12, color: THEME.textDim });
       }

@@ -16,6 +16,8 @@ export interface Item {
   rarity: Rarity;
   name: string;
   stats: ItemStatValue[];
+  /** Not looked at in the inventory yet (drives the blinking hint). */
+  isNew?: boolean;
 }
 
 function rollValue(rng: Rng, range: [number, number], stat: ItemStat): number {
@@ -34,15 +36,26 @@ export function rollItem(rng: Rng, rarity: Rarity, uid: number, slot?: ItemSlot)
   return { uid, slot: s, rarity, name: rng.pick(base.names[rarity]), stats };
 }
 
-/** New loot goes into an empty slot, otherwise into the bag. Returns true if equipped. */
-export function equipOrStash(hero: Hero, item: Item): boolean {
-  if (!hero.equipment[item.slot]) {
-    hero.equipment[item.slot] = item;
-    recomputeHeroStats(hero);
-    return true;
+/** Loot always goes into the bag, marked as new; the player wears it from the inventory. */
+export function stashLoot(hero: Hero, item: Item): void {
+  hero.bag.push({ ...item, isNew: true });
+}
+
+export function hasNewItems(hero: Hero): boolean {
+  return hero.bag.some((i) => i.isNew);
+}
+
+/** Called when the inventory is closed: everything has been seen. */
+export function markItemsSeen(hero: Hero): void {
+  for (const i of hero.bag) delete i.isNew;
+}
+
+/** Wears every bag item whose slot is empty (used by the simulation bot). */
+export function equipIntoEmptySlots(hero: Hero): void {
+  for (let i = hero.bag.length - 1; i >= 0; i--) {
+    const item = hero.bag[i];
+    if (item && !hero.equipment[item.slot]) equipFromBag(hero, i);
   }
-  hero.bag.push(item);
-  return false;
 }
 
 /** Equips a bag item; the previously worn item goes back into the bag. */
@@ -50,6 +63,7 @@ export function equipFromBag(hero: Hero, bagIndex: number): void {
   const item = hero.bag[bagIndex];
   if (!item) return;
   hero.bag.splice(bagIndex, 1);
+  delete item.isNew;
   const worn = hero.equipment[item.slot];
   if (worn) hero.bag.push(worn);
   hero.equipment[item.slot] = item;
