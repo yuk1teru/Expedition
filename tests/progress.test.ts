@@ -78,7 +78,7 @@ describe('items', () => {
     expect(hasNewItems(s.hero)).toBe(false);
   });
 
-  it('miniboss drops common loot, boss drops epic loot', () => {
+  it('miniboss drops common or uncommon loot, boss can drop anything', () => {
     const s = createGameState(5);
     teleport(s, SLICE_GROVE_ID);
     const b = createBattle(s, SLICE_GROVE_ID);
@@ -220,10 +220,12 @@ describe('item comparison', () => {
     expect(compareItems(worn, worn)).toHaveLength(0);
   });
 
-  it('epic items are rare drops; legendary only from the boss', () => {
+  it('miniboss drops at most uncommon; the boss mostly common, legendary rare', () => {
     const total = (w: Partial<Record<string, number>>): number => Object.values(w).reduce<number>((a, x) => a + (x ?? 0), 0);
-    expect((LOOT.miniboss.weights.epic ?? 0) / total(LOOT.miniboss.weights)).toBeLessThanOrEqual(0.03);
-    expect(LOOT.miniboss.weights.legendary ?? 0).toBe(0);
+    expect(Object.keys(LOOT.miniboss.weights).sort()).toEqual(['common', 'uncommon']);
+    const boss = LOOT.boss.weights;
+    expect((boss.common ?? 0) / total(boss)).toBeGreaterThan(0.55);
+    expect((boss.legendary ?? 0) / total(boss)).toBeLessThan(0.05);
     expect(MERCHANT_ITEMS.weights.legendary ?? 0).toBe(0);
   });
 });

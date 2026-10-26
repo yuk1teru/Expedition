@@ -147,10 +147,14 @@ export const MERCHANT_ITEMS = {
 /** Boot dash flight speed, px/s (the hero is invulnerable for the short flight). */
 export const BOOT_DASH_SPEED = 1100;
 
-/** What drops from minibosses and bosses: count and rarity weights. */
+/**
+ * What drops from minibosses and bosses: count and rarity weights (relative, they need
+ * not sum to 100). Boss 70 / 20 / 14 / 7 / 4 ≈ 61% / 17% / 12% / 6% / 3.5%.
+ * Minibosses never drop anything better than uncommon.
+ */
 export const LOOT: Record<'miniboss' | 'boss', { count: number; weights: Partial<Record<Rarity, number>> }> = {
-  miniboss: { count: 1, weights: { common: 42, uncommon: 35, rare: 21, epic: 2 } },
-  boss: { count: 2, weights: { rare: 45, epic: 35, legendary: 20 } },
+  miniboss: { count: 1, weights: { common: 70, uncommon: 20 } },
+  boss: { count: 2, weights: { common: 70, uncommon: 20, rare: 14, epic: 7, legendary: 4 } },
 };
 
 export const STAT_LABELS: Record<ItemStat, { label: string; percent: boolean }> = {
