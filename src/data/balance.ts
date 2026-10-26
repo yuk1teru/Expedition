@@ -217,6 +217,33 @@ export const ELITE = {
   goldMult: 3,
 } as const;
 
+/**
+ * Full world: the town in the centre, 4 sectors (N, E, S, W) of depth 1–4.
+ * tier = depth + random lateral shift; the boss sits alone at depth 4.
+ */
+export const WORLD = {
+  /** Locations per depth 1..4 in every sector (the last one is the boss). */
+  nodesPerDepth: [2, 3, 3, 1],
+  lateralShift: 0.3,
+  bossTier: 4.5,
+  /** Chance that a node gets a second child at the next depth (when one is nearby). */
+  secondChildChance: 0.5,
+  /**
+   * Radial layout, logical px. The view is wide and short, so the "circle" is an ellipse
+   * with its own radius per depth on each axis; the nodes of a depth spread over `arcDeg`
+   * of their sector (narrow near the town, where the sectors are close to each other);
+   * `staggerDeg` turns a depth a little, so the middle nodes of N and S are not stacked
+   * in one column (the view has little height).
+   */
+  layout: {
+    center: { x: 480, y: 298 },
+    radiusX: [0, 130, 230, 330, 425],
+    radiusY: [0, 80, 132, 176, 212],
+    arcDeg: [0, 44, 66, 76, 0],
+    staggerDeg: [0, 0, 9, -9, 0],
+  },
+} as const;
+
 /** Slice-only world rules. */
 export const SLICE = {
   grove: { baseTier: 1, tierPerClear: 0.5, maxTier: 3 },

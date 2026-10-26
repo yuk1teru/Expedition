@@ -55,7 +55,7 @@ export function createHelpModal(app: App, onClose: () => void): Modal<CanvasRend
       ctx.fillRect(0, 0, W, app.view.height);
       drawPanel(ctx, panel, 'rgba(20, 23, 33, 0.98)');
       drawText(ctx, 'Як грати', W / 2, panel.y + 34, { size: 26, bold: true, align: 'center' });
-      drawText(ctx, 'Проходьте гай, качайте героя, збирайте речі й переможіть Старого Ената.', W / 2, panel.y + 66, {
+      drawText(ctx, 'Ідіть углиб світу, качайте героя, збирайте речі й переможіть 4 босів на його краях.', W / 2, panel.y + 66, {
         size: 14,
         align: 'center',
         color: THEME.textDim,

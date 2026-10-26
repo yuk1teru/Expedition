@@ -9,10 +9,11 @@ import { addBuff } from './effects';
 import { assignClass, createHero, healFull } from './hero';
 import type { Battle } from './battle';
 import type { Item } from './items';
-import { TOWN_ID, areAdjacent, generateSliceWorld, getNode, markCleared } from './mapgen';
+import { TOWN_ID, type WorldKind, areAdjacent, createWorld, getNode, markCleared } from './mapgen';
 import { clearBonusGold } from './scaling';
 
-export function createGameState(seed: number): GameState {
+/** `world`: the full world (the game) or the vertical-slice world (`?slice=1`, tests, slice simulation). */
+export function createGameState(seed: number, world: WorldKind = 'full'): GameState {
   const rng = new Rng(seed);
   const state: Omit<GameState, 'checkpoint'> = {
     seed,
@@ -24,7 +25,7 @@ export function createGameState(seed: number): GameState {
     day: 1,
     gold: 0,
     hero: createHero(0),
-    world: generateSliceWorld(),
+    world: createWorld(world, rng),
     currentNodeId: TOWN_ID,
     bossesDefeated: [],
     stats: createRunStats(),
@@ -78,8 +79,7 @@ export type TravelResult = { kind: 'town' } | { kind: 'battle'; nodeId: string }
  */
 export function travel(state: GameState, nodeId: string): TravelResult {
   const target = getNode(state.world, nodeId);
-  const here = state.currentNodeId;
-  if (nodeId !== here && !areAdjacent(state.world, here, nodeId)) return { kind: 'blocked' };
+  if (!canTravel(state, nodeId)) return { kind: 'blocked' };
   state.currentNodeId = nodeId;
   if (target.isTown) return { kind: 'town' };
   return { kind: 'battle', nodeId };
@@ -98,7 +98,6 @@ export function restInTown(state: GameState): void {
   saveCheckpoint(state);
 }
 
-/** Adjacent nodes, the current location (replay) and the town (always: going back is free). */
 /**
  * Leaving town saves again: what was done there (magnifiers used, items bought,
  * sold or worn) is not rolled back by a later death.
@@ -107,8 +106,26 @@ export function leaveTown(state: GameState): void {
   saveCheckpoint(state);
 }
 
+/**
+ * Adjacent nodes, the current location (replay) and the town: going back to town is
+ * always free, the way out again leads through the locations.
+ */
 export function canTravel(state: GameState, nodeId: string): boolean {
-  return nodeId === state.currentNodeId || areAdjacent(state.world, state.currentNodeId, nodeId);
+  if (state.freeTravel === true || nodeId === TOWN_ID || nodeId === state.currentNodeId) return true;
+  return areAdjacent(state.world, state.currentNodeId, nodeId);
+}
+
+/** A location cleared before can be crossed without a battle (not the boss: it is a dead end). */
+export function canPassThrough(state: GameState, nodeId: string): boolean {
+  const node = getNode(state.world, nodeId);
+  return !node.isTown && !node.isBoss && node.timesCleared > 0 && nodeId !== state.currentNodeId && canTravel(state, nodeId);
+}
+
+/** Moves the hero onto a cleared location without a battle (see canPassThrough). */
+export function passThrough(state: GameState, nodeId: string): boolean {
+  if (!canPassThrough(state, nodeId)) return false;
+  state.currentNodeId = nodeId;
+  return true;
 }
 
 export interface BattleSummary {

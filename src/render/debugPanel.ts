@@ -23,7 +23,9 @@ export function createDebugPanel(app: App): DebugPanel {
     ['Вбити всіх', () => app.debugKillAll()],
     ['Безсмертя', () => (app.state.hero.immortal = !app.state.hero.immortal)],
     ['Перейти до боса', () => app.debugGoBoss()],
-    ['Скинути гай', () => app.debugResetGrove()],
+    ['Скинути локацію', () => app.debugResetLocation()],
+    ['Вільні переходи', () => (app.state.freeTravel = !app.state.freeTravel)],
+    ['+5 днів', () => (app.state.day += 5)],
   ];
   const buttons = new ButtonGroup(
     actions.map(
@@ -48,6 +50,8 @@ export function createDebugPanel(app: App): DebugPanel {
       drawText(ctx, 'Дебаг', x + 12, y + 18, { size: 14, bold: true, color: THEME.accent });
       const immortalBtn = buttons.buttons[3];
       if (immortalBtn) immortalBtn.label = app.state.hero.immortal ? 'Безсмертя: так' : 'Безсмертя: ні';
+      const travelBtn = buttons.buttons[6];
+      if (travelBtn) travelBtn.label = app.state.freeTravel ? 'Вільні переходи: так' : 'Вільні переходи: ні';
       buttons.draw(ctx);
       drawText(ctx, '` — закрити', x + 12, y + h - 14, { size: 11, color: THEME.textMuted });
     },

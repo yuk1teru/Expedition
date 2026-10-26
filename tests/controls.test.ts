@@ -9,7 +9,7 @@ import { useSkill } from '../src/systems/skills';
 import { spawnEnemy } from '../src/systems/waves';
 
 function warriorBattle(nodeId = SLICE_LAIR_ID) {
-  const s = createGameState(11);
+  const s = createGameState(11, 'slice');
   s.hero.level = 3;
   assignClass(s.hero, 'warrior', ['whirlwind', 'charge', 'groundSlam']);
   teleport(s, nodeId);
@@ -96,7 +96,7 @@ describe('healing', () => {
 
 describe('class basic attacks', () => {
   function pair(withClass: boolean) {
-    const s = createGameState(31);
+    const s = createGameState(31, 'slice');
     s.hero.immortal = true;
     if (withClass) {
       s.hero.level = 3;
@@ -161,7 +161,7 @@ describe('aimed skills', () => {
 
 describe('class skill picks', () => {
   it('the class choice grants exactly the 3 picked skills from the 8-skill pool', () => {
-    const s = createGameState(5);
+    const s = createGameState(5, 'slice');
     s.hero.level = 3;
     assignClass(s.hero, 'warrior', ['hook', 'earthquake', 'axeThrow']);
     expect([0, 1, 2].map((i) => skillInSlot(s.hero, i)?.id)).toEqual(['hook', 'earthquake', 'axeThrow']);
@@ -194,7 +194,7 @@ describe('skill reordering', () => {
   });
 
   it('a lone skill can be dragged from slot 1 to empty slot 2, new skills fill free slots', () => {
-    const s = createGameState(3);
+    const s = createGameState(3, 'slice');
     s.hero.level = 3;
     assignClass(s.hero, 'warrior');
     s.hero.skills = s.hero.skills.filter((x) => x.slot === 0);

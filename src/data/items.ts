@@ -38,8 +38,9 @@ export const RARITIES: Record<Rarity, RarityDef> = {
 };
 
 /**
- * Item level (ilvl): how strong an item is within its rarity. Each biome has its ilvl
- * range (forest 5–40, see biomes.ts); the strongest items in the game are ilvl 300.
+ * Item level (ilvl): how strong an item is within its rarity. The ilvl range of a location
+ * follows its tier (`byTier`, interpolated): the first locations drop up to 40, the bosses
+ * at the edge of the world up to 300 — the strongest items in the game.
  * Base stat ranges are tuned for `reference`. Flat stats (attack, armor) and the sell
  * price scale by `floor + (1 − floor) · ilvl / reference` (ilvl 10 ×0.8, 40 ×1.4,
  * 300 ×6.6); percent stats by its square root (×0.89 / ×1.18 / ×2.57), so crit and
@@ -47,13 +48,22 @@ export const RARITIES: Record<Rarity, RarityDef> = {
  */
 export const ITEM_LEVEL = {
   max: 300,
+  /** [tier, min ilvl, max ilvl]; tiers in between are interpolated, outside — clamped. */
+  byTier: [
+    [1, 5, 35],
+    [1.3, 8, 40],
+    [2, 35, 90],
+    [3, 85, 160],
+    [4, 150, 240],
+    [4.5, 200, 300],
+  ] as [number, number, number][],
   reference: 20,
   floor: 0.6,
   /** Miniboss items climb from the bottom of the biome range to `top` of it by wave `fullWave` (± jitter). */
   miniboss: { top: 0.75, fullWave: 15, jitter: 2 },
   /** Boss items: from this fraction of the biome range to its top. */
   bossFrom: 0.85,
-  /** Merchant items: this band of the range of the furthest biome reached. */
+  /** Merchant items: this band of the range of the hardest location cleared. */
   merchant: [0.3, 0.6] as [number, number],
 };
 

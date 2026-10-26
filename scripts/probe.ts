@@ -26,7 +26,7 @@ let survived = 0;
 let gold = 0;
 let waves = 0;
 for (let r = 0; r < runs; r++) {
-  const state = createGameState(1000 + r);
+  const state = createGameState(1000 + r, 'slice');
   const rng = new Rng(r).fork('bot');
   for (let l = 1; l < level; l++) {
     grantLevel(state);

@@ -1,18 +1,21 @@
-// Entering a location cleared before: continue from the next wave or start from wave 1.
+// Entering a location cleared before: continue from the next wave, start from wave 1
+// or (when coming from elsewhere) just cross it without a battle.
 
 import type { InputEvent } from '../core/input';
 import type { Modal } from '../core/screens';
 import { WAVES } from '../data/balance';
 import type { MapNode } from '../systems/mapgen';
+import { canPassThrough } from '../systems/run';
 import { waveMult } from '../systems/waves';
 import type { App } from './app';
 import { THEME } from './theme';
 import { Button, ButtonGroup, drawPanel, drawText } from './ui';
 
-/** `onPick(startWave)`: waves to skip (0 = from the first), or null to stay on the map. */
-export function createWaveStartModal(app: App, node: MapNode, onPick: (startWave: number | null) => void): Modal<CanvasRenderingContext2D> {
+/** `onPick(startWave)`: waves to skip (0 = from the first), 'pass' to cross without a battle, or null to stay on the map. */
+export function createWaveStartModal(app: App, node: MapNode, onPick: (startWave: number | 'pass' | null) => void): Modal<CanvasRenderingContext2D> {
   const W = app.view.width;
-  const panel = { x: W / 2 - 250, y: 120, w: 500, h: 290 };
+  const panel = { x: W / 2 - 250, y: 110, w: 500, h: 300 };
+  const canPass = canPassThrough(app.state, node.id);
   const from = node.lastWave;
   const m = waveMult(from);
   const buttons = new ButtonGroup([
@@ -24,14 +27,25 @@ export function createWaveStartModal(app: App, node: MapNode, onPick: (startWave
     }),
     new Button({
       label: 'Почати з 1-ї хвилі [2]',
-      rect: { x: panel.x + 50, y: panel.y + 200, w: 195, h: 38 },
+      rect: { x: panel.x + 50, y: panel.y + 200, w: canPass ? 195 : 400, h: 38 },
       hotkey: 'Digit2',
       fontSize: 14,
       onClick: () => onPick(0),
     }),
+    ...(canPass
+      ? [
+          new Button({
+            label: 'Пройти без бою [3]',
+            rect: { x: panel.x + 255, y: panel.y + 200, w: 195, h: 38 },
+            hotkey: 'Digit3',
+            fontSize: 14,
+            onClick: () => onPick('pass'),
+          }),
+        ]
+      : []),
     new Button({
       label: 'Скасувати [Esc]',
-      rect: { x: panel.x + 255, y: panel.y + 200, w: 195, h: 38 },
+      rect: { x: panel.x + 50, y: panel.y + 248, w: 400, h: 34 },
       hotkey: 'Escape',
       fontSize: 14,
       onClick: () => onPick(null),

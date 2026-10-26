@@ -42,7 +42,7 @@ interface RunResult {
 }
 
 function simulateRun(seed: number, args: Args): RunResult {
-  const state = createGameState(seed);
+  const state = createGameState(seed, 'slice');
   const rng = new Rng(seed).fork('bot');
   const opts = { useSkills: args.useSkills, rng, maxBattleTime: SIM.maxBattleTime };
   const groveTimes: number[] = [];

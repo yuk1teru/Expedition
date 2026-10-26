@@ -87,7 +87,7 @@ describe('xp', () => {
   });
 
   it('gainXp levels up several times, queues choices and respects the cap', () => {
-    const s = createGameState(3);
+    const s = createGameState(3, 'slice');
     gainXp(s, xpToNext(1) + xpToNext(2) + xpToNext(3));
     expect(s.hero.level).toBe(4);
     expect(s.modalQueue).toEqual([{ kind: 'classChoice' }, { kind: 'cardChoice', level: 4 }]);
@@ -97,7 +97,7 @@ describe('xp', () => {
   });
 
   it('every level adds +15 HP and +2 attack', () => {
-    const s = createGameState(3);
+    const s = createGameState(3, 'slice');
     const hp = s.hero.maxHp;
     const atk = s.hero.stats.attack;
     gainXp(s, xpToNext(1));

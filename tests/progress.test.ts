@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../src/core/rng';
 import { CONSUMABLES } from '../src/data/consumables';
-import { BIOMES } from '../src/data/biomes';
 import { ITEM_BASES, ITEM_LEVEL, LOOT, MERCHANT_ITEMS, RARITIES, RARITY_ORDER, UNIDENTIFIED_SELL_MULT } from '../src/data/items';
 import { createBattle, stepBattle } from '../src/systems/battle';
 import { damageEnemy } from '../src/systems/combat';
@@ -12,6 +11,7 @@ import {
   buyItem,
   compareItems,
   dropItemLevel,
+  itemLevelRange,
   merchantItemLevels,
   sellPrice,
   formatStatDelta,
@@ -43,7 +43,7 @@ describe('items', () => {
   });
 
   it('a magnifier is needed to identify before wearing; selling pays by rarity', () => {
-    const s = createGameState(2);
+    const s = createGameState(2, 'slice');
     const rng = new Rng(3);
     stashLoot(s.hero, rollItem(rng, 'rare', 1, 'armor'));
     expect(equipFromBag(s.hero, 0)).toBe(false);
@@ -62,7 +62,7 @@ describe('items', () => {
   });
 
   it('loot goes to the bag as new; wearing is manual and swaps with the worn item', () => {
-    const s = createGameState(1);
+    const s = createGameState(1, 'slice');
     const atk0 = s.hero.stats.attack;
     const rng = new Rng(2);
     const a = rollItem(rng, 'common', 1, 'weapon');
@@ -83,7 +83,7 @@ describe('items', () => {
   });
 
   it('miniboss drops common or uncommon loot, boss can drop anything', () => {
-    const s = createGameState(5);
+    const s = createGameState(5, 'slice');
     teleport(s, SLICE_GROVE_ID);
     const b = createBattle(s, SLICE_GROVE_ID);
     const mini = createBossEnemy(b, 'alpha', { x: 300, y: 300 });
@@ -101,7 +101,7 @@ describe('items', () => {
 
 describe('checkpoint', () => {
   it('death returns the hero to the last rest, keeping run statistics', () => {
-    const s = createGameState(9);
+    const s = createGameState(9, 'slice');
     gainXp(s, 300);
     assignClass(s.hero, 'warrior');
     s.gold = 50;
@@ -129,14 +129,14 @@ describe('checkpoint', () => {
   });
 
   it('saving works even if a battle ended mid-dash', () => {
-    const s = createGameState(12);
+    const s = createGameState(12, 'slice');
     s.hero.dash = { from: { x: 0, y: 0 }, to: { x: 1, y: 1 }, time: 0, duration: 1, onArrive: () => {} };
     expect(() => restInTown(s)).not.toThrow();
     expect(s.checkpoint.hero.dash).toBeNull();
   });
 
   it('a boss victory saves the checkpoint; death afterwards keeps it; victory screen only once', () => {
-    const s = createGameState(14);
+    const s = createGameState(14, 'slice');
     gainXp(s, 3000);
     const level = s.hero.level;
     teleport(s, SLICE_LAIR_ID);
@@ -157,7 +157,7 @@ describe('checkpoint', () => {
   });
 
   it('a new run starts with its initial state as the checkpoint', () => {
-    const s = createGameState(10);
+    const s = createGameState(10, 'slice');
     gainXp(s, 1000);
     restoreCheckpoint(s);
     expect(s.hero.level).toBe(1);
@@ -178,7 +178,7 @@ describe('item stats and the merchant item shop', () => {
   });
 
   it('the merchant sells a random identified item for the chosen slot, never legendary or common', () => {
-    const s = createGameState(12);
+    const s = createGameState(12, 'slice');
     s.gold = MERCHANT_ITEMS.price * 30;
     for (let i = 0; i < 30; i++) {
       const it = buyItem(s, 'boots')!;
@@ -194,7 +194,7 @@ describe('item stats and the merchant item shop', () => {
 
 describe('leaving town', () => {
   it('saves: an item identified in town stays identified after a death', () => {
-    const s = createGameState(31);
+    const s = createGameState(31, 'slice');
     restInTown(s);
     const item = rollItem(new Rng(3), 'rare', 500, 'boots');
     s.hero.bag.push(item);
@@ -249,9 +249,15 @@ describe('item level', () => {
     expect(sellPrice(high)).toBeGreaterThan(sellPrice(low));
   });
 
-  it('forest drops stay within its range (max 40): bosses near the top, minibosses climb with the wave', () => {
-    const range = BIOMES.forest!.itemLevel;
-    expect(range[1]).toBe(40);
+  it('item level follows the location tier: first locations up to 40, the edge of the world up to 300', () => {
+    expect(itemLevelRange(1)[1]).toBeLessThanOrEqual(40);
+    expect(itemLevelRange(1.3)[1]).toBe(40);
+    expect(itemLevelRange(4.5)[1]).toBe(ITEM_LEVEL.max);
+    for (let t = 1; t < 4.5; t += 0.1) expect(itemLevelRange(t + 0.1)[1]).toBeGreaterThanOrEqual(itemLevelRange(t)[1]);
+  });
+
+  it('drops stay within the location range: bosses near the top, minibosses climb with the wave', () => {
+    const range = itemLevelRange(1.3);
     const rng = new Rng(21);
     const levels = (source: 'miniboss' | 'boss', wave: number): number[] => Array.from({ length: 200 }, () => dropItemLevel(rng, range, source, wave));
     const avg = (xs: number[]): number => xs.reduce((a, x) => a + x, 0) / xs.length;
@@ -264,14 +270,14 @@ describe('item level', () => {
   });
 
   it('loot from a battle and merchant items carry the level of the location', () => {
-    const s = createGameState(5);
+    const s = createGameState(5, 'slice');
     teleport(s, SLICE_GROVE_ID);
     const b = createBattle(s, SLICE_GROVE_ID);
     const boss = createBossEnemy(b, 'enat', { x: 500, y: 300 });
     damageEnemy(b, boss, { amount: 1e7, crit: false }, { source: 'skill' });
     for (const it of b.stats.loot) expect(it.ilvl).toBeLessThanOrEqual(40);
     const [lo, hi] = merchantItemLevels(s);
-    expect(lo).toBeGreaterThanOrEqual(BIOMES.forest!.itemLevel[0]);
+    expect(lo).toBeGreaterThanOrEqual(itemLevelRange(1)[0]);
     expect(hi).toBeLessThanOrEqual(40);
     s.gold = MERCHANT_ITEMS.price;
     const bought = buyItem(s, 'hat')!;

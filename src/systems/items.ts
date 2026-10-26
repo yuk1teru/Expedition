@@ -19,7 +19,6 @@ import {
   STAT_LABELS,
   UNIDENTIFIED_SELL_MULT,
 } from '../data/items';
-import { getBiome } from '../data/biomes';
 import type { Hero } from './entities';
 import { recomputeHeroStats } from './hero';
 
@@ -89,8 +88,25 @@ export function rollItem(rng: Rng, rarity: Rarity, uid: number, slot?: ItemSlot,
   };
 }
 
+/** Item level range [min, max] of a location of this tier. */
+export function itemLevelRange(tier: number): [number, number] {
+  const pts = ITEM_LEVEL.byTier;
+  const first = pts[0]!;
+  const last = pts[pts.length - 1]!;
+  if (tier <= first[0]) return [first[1], first[2]];
+  if (tier >= last[0]) return [last[1], last[2]];
+  for (let i = 1; i < pts.length; i++) {
+    const [t1, lo1, hi1] = pts[i]!;
+    if (tier > t1) continue;
+    const [t0, lo0, hi0] = pts[i - 1]!;
+    const k = (tier - t0) / (t1 - t0);
+    return [Math.round(lo0 + (lo1 - lo0) * k), Math.round(hi0 + (hi1 - hi0) * k)];
+  }
+  return [last[1], last[2]];
+}
+
 /**
- * Item level of a drop in a biome with ilvl range `range`: minibosses climb with the
+ * Item level of a drop at a location with ilvl range `range`: minibosses climb with the
  * wave (`wave` = 1-based wave number), the boss drops from the top of the range.
  */
 export function dropItemLevel(rng: Rng, range: [number, number], source: 'miniboss' | 'boss', wave: number): number {
@@ -102,15 +118,13 @@ export function dropItemLevel(rng: Rng, range: [number, number], source: 'minibo
   return Math.max(min, Math.min(max, Math.round(min + (max - min) * t) + jitter));
 }
 
-/** Item level range the merchant sells: a band of the range of the furthest biome cleared. */
+/** Item level range the merchant sells: a band of the range of the hardest location cleared. */
 export function merchantItemLevels(state: GameState): [number, number] {
-  const ranges = state.world.nodes.filter((n) => n.biome).map((n) => ({ range: getBiome(n.biome!).itemLevel, cleared: n.timesCleared > 0 }));
-  const reached = ranges.filter((r) => r.cleared);
-  // Nothing cleared yet: the easiest biome.
-  const best = reached.length > 0
-    ? reached.reduce((a, b) => (b.range[1] > a.range[1] ? b : a))
-    : ranges.reduce((a, b) => (b.range[1] < a.range[1] ? b : a));
-  const [min, max] = best.range;
+  const locations = state.world.nodes.filter((n) => !n.isTown);
+  const cleared = locations.filter((n) => n.timesCleared > 0);
+  // Nothing cleared yet: the easiest location.
+  const tier = cleared.length > 0 ? Math.max(...cleared.map((n) => n.tier)) : Math.min(...locations.map((n) => n.tier));
+  const [min, max] = itemLevelRange(tier);
   const [lo, hi] = ITEM_LEVEL.merchant;
   return [Math.round(min + (max - min) * lo), Math.round(min + (max - min) * hi)];
 }

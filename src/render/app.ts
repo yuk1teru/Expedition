@@ -9,7 +9,7 @@ import type { GameState } from '../core/state';
 import { LOOP } from '../data/balance';
 import { type Battle, createBattle, killAll } from '../systems/battle';
 import { grantLevel } from '../systems/leveling';
-import { SLICE_GROVE_ID, TOWN_ID, getNode, resetClears } from '../systems/mapgen';
+import { SLICE_GROVE_ID, TOWN_ID, type WorldKind, getNode, resetClears } from '../systems/mapgen';
 import { getSkill } from '../data/skills';
 import {
   type BattleSummary,
@@ -19,6 +19,7 @@ import {
   completeBattle,
   createGameState,
   nextCardOffer,
+  passThrough,
   rerollCards,
   restoreCheckpoint,
   skipCards,
@@ -57,16 +58,19 @@ export class App {
   /** Real seconds since start (UI animation). */
   time = 0;
   reducedMotion = false;
+  /** Full world or the vertical slice (`?slice=1`); new runs keep it. */
+  readonly worldKind: WorldKind;
   readonly debug: DebugPanel | null;
 
   constructor(
     readonly view: View,
     readonly input: Input,
     seed: number,
-    opts: { dev: boolean; reducedMotion: boolean; versions?: VersionStore },
+    opts: { dev: boolean; reducedMotion: boolean; versions?: VersionStore; world?: WorldKind },
   ) {
     this.reducedMotion = opts.reducedMotion;
-    this.state = createGameState(seed);
+    this.worldKind = opts.world ?? 'full';
+    this.state = createGameState(seed, this.worldKind);
     this.screens.onChange = (id) => (this.state.screen = id);
     this.screens.register('map', createMapScreen(this));
     this.screens.register('town', createTownScreen(this));
@@ -129,7 +133,7 @@ export class App {
     this.screens.clearModals();
     this.loop.paused = false;
     this.battle = null;
-    this.state = createGameState(seed);
+    this.state = createGameState(seed, this.worldKind);
     this.screens.go('town');
   }
 
@@ -184,7 +188,7 @@ export class App {
 
   /**
    * Map click. A wave location cleared before asks first: continue from the next
-   * wave or start from wave 1.
+   * wave, start from wave 1 or cross it without a battle.
    */
   travelTo(nodeId: string): void {
     if (!canTravel(this.state, nodeId)) return;
@@ -195,6 +199,10 @@ export class App {
         createWaveStartModal(this, node, (start) => {
           this.screens.popModal();
           if (start === null) return;
+          if (start === 'pass') {
+            passThrough(this.state, nodeId);
+            return;
+          }
           const res = travel(this.state, nodeId);
           if (res.kind === 'battle') this.startBattle(res.nodeId, start);
         }),
@@ -206,7 +214,7 @@ export class App {
     else if (res.kind === 'battle') this.startBattle(res.nodeId);
   }
 
-  /** Map → town (the town is always reachable in the slice). */
+  /** Map → town (always reachable from the map). */
   returnToTown(): void {
     this.travelTo(TOWN_ID);
   }
@@ -291,8 +299,11 @@ export class App {
     if (res.kind === 'battle') this.startBattle(res.nodeId);
   }
 
-  debugResetGrove(): void {
-    resetClears(getNode(this.state.world, SLICE_GROVE_ID));
+  /** Resets the completion counter of the current location (the grove when in town). */
+  debugResetLocation(): void {
+    const here = getNode(this.state.world, this.state.currentNodeId);
+    const node = here.isTown ? this.state.world.nodes.find((n) => n.id === SLICE_GROVE_ID) : here;
+    if (node) resetClears(node);
   }
 
   private frameUpdate(dt: number): void {

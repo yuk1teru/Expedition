@@ -8,7 +8,7 @@ import { assignQuickSlot, buyConsumable } from '../src/systems/items';
 import { createGameState, teleport } from '../src/systems/run';
 
 function grove(seed = 41) {
-  const s = createGameState(seed);
+  const s = createGameState(seed, 'slice');
   s.hero.immortal = true;
   teleport(s, SLICE_GROVE_ID);
   return { s, b: createBattle(s, SLICE_GROVE_ID) };

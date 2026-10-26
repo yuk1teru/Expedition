@@ -15,7 +15,7 @@ import { Rng } from '../src/core/rng';
 import { spawnEnemy } from '../src/systems/waves';
 
 function battle(skills: string[]) {
-  const s = createGameState(3);
+  const s = createGameState(3, 'slice');
   s.hero.immortal = true;
   s.hero.level = 3;
   assignClass(s.hero, 'warrior', skills);
@@ -83,7 +83,7 @@ describe('miniboss combos', () => {
   it('Ватажок sometimes chains lunge and leap without the usual pause', () => {
     let combos = 0;
     for (let seed = 1; seed <= 6; seed++) {
-      const s = createGameState(seed);
+      const s = createGameState(seed, 'slice');
       s.hero.immortal = true;
       teleport(s, SLICE_GROVE_ID);
       const b = createBattle(s, SLICE_GROVE_ID);

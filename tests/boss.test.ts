@@ -8,7 +8,7 @@ import { SLICE_LAIR_ID } from '../src/systems/mapgen';
 import { createGameState, teleport } from '../src/systems/run';
 
 function bossBattle(seed = 1) {
-  const s = createGameState(seed);
+  const s = createGameState(seed, 'slice');
   teleport(s, SLICE_LAIR_ID);
   return { s, b: createBattle(s, SLICE_LAIR_ID) };
 }

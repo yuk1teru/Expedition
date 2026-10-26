@@ -46,6 +46,8 @@ export interface GameState {
   events: EventBus<GameEvent>;
   /** Progress saved at the last rest in town; death returns here. */
   checkpoint: Checkpoint;
+  /** Debug: travel to any node, not only to neighbours. */
+  freeTravel?: boolean;
 }
 
 /** Snapshot of run progress restored after death. */

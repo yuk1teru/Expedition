@@ -6,13 +6,15 @@ import { getBiome } from '../data/biomes';
 import { type MapNode, recommendedLevel } from '../systems/mapgen';
 import { canTravel } from '../systems/run';
 import type { App } from './app';
-import { THEME } from './theme';
+import { THEME, font } from './theme';
 import { TOP_BAR_H, drawTopBar } from './topBar';
-import { Button, ButtonGroup, drawText, drawTooltip } from './ui';
+import { Button, ButtonGroup, type Rect, drawText, drawTooltip } from './ui';
 
-const NODE_R = 22;
-const BOSS_R = 30;
-const TOWN_R = 26;
+const NODE_R = 15;
+const BOSS_R = 20;
+const TOWN_R = 22;
+/** Nodes lower than this get their labels above (the bottom of the view is close). */
+const LABELS_ABOVE_Y = 470;
 
 function nodeRadius(n: MapNode): number {
   return n.isTown ? TOWN_R : n.isBoss ? BOSS_R : NODE_R;
@@ -74,25 +76,13 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
       }
       ctx.setLineDash([]);
 
-      // Nodes.
+      // Nodes. Names only where the eye needs them (the hero's way, bosses, hover):
+      // the full world has 37 nodes. The rest show the name in the tooltip.
       for (const n of world.nodes) {
         const reachable = canTravel(state, n.id);
         const isHere = n.id === state.currentNodeId;
         const isHover = hovered === n.id;
         drawNode(ctx, n, reachable, isHover, t);
-        drawText(ctx, n.name, n.pos.x, n.pos.y - nodeRadius(n) - 14, {
-          size: 15,
-          bold: true,
-          align: 'center',
-          color: reachable || isHere ? THEME.text : THEME.textDim,
-        });
-        if (!n.isTown) {
-          drawText(ctx, `Рек. рів. ${recommendedLevel(n.tier)}`, n.pos.x, n.pos.y + nodeRadius(n) + 16, {
-            size: 13,
-            align: 'center',
-            color: levelColor(state.hero.level, recommendedLevel(n.tier)),
-          });
-        }
         if (isHere) {
           const pulse = 1 + 0.08 * Math.sin(t * 4);
           ctx.strokeStyle = THEME.accent;
@@ -110,12 +100,23 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
           ctx.stroke();
         }
       }
+      // Labels after all nodes, by priority; a name that would overlap one already
+      // placed is left out (it is still in the tooltip).
+      const priority = (n: MapNode): number =>
+        n.id === hovered ? 0 : n.id === state.currentNodeId ? 1 : n.isTown || n.isBoss ? 2 : canTravel(state, n.id) ? 3 : 4;
+      const taken: Rect[] = [];
+      for (const n of [...world.nodes].sort((a, b) => priority(a) - priority(b))) {
+        const reachable = canTravel(state, n.id);
+        const named = priority(n) < 4;
+        const level = n.isTown ? null : recommendedLevel(n.tier);
+        drawNodeLabels(ctx, n, named, reachable, level === null ? null : { text: `рів. ${level}`, color: levelColor(state.hero.level, level) }, app.view.width, taken);
+      }
 
       drawTopBar(ctx, state, app.view.width, app.totalBosses(), app.time);
       buttons.draw(ctx);
-      drawText(ctx, 'Клік по локації — вирушити. Клік по поточній — пройти ще раз.', app.view.width / 2 + 60, app.view.height - 22, {
-        size: 14,
-        align: 'center',
+      drawText(ctx, 'Клік по сусідній локації — вирушити', app.view.width - 14, app.view.height - 14, {
+        size: 12,
+        align: 'right',
         color: THEME.textDim,
       });
 
@@ -125,6 +126,45 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
       }
     },
   };
+}
+
+/**
+ * Name and recommended level of a node. Bosses at the top and bottom of the map get
+ * them on the side (no room above / below); the rest are centred under the node (above
+ * near the bottom edge), shifted to stay on screen. `taken`: rects of names already
+ * drawn — a name that would overlap one is skipped.
+ */
+function drawNodeLabels(
+  ctx: CanvasRenderingContext2D,
+  n: MapNode,
+  named: boolean,
+  bright: boolean,
+  level: { text: string; color: string } | null,
+  screenW: number,
+  taken: Rect[],
+): void {
+  const r = nodeRadius(n);
+  const nameStyle = { size: 12, bold: true, color: bright ? THEME.text : THEME.textDim };
+  ctx.font = font(12, 'bold');
+  const w = ctx.measureText(n.name).width;
+  const fits = (rect: Rect): boolean => {
+    if (taken.some((o) => rect.x < o.x + o.w && o.x < rect.x + rect.w && rect.y < o.y + o.h && o.y < rect.y + rect.h)) return false;
+    taken.push(rect);
+    return true;
+  };
+  if (n.isBoss && (n.sector === 'N' || n.sector === 'S')) {
+    const x = n.pos.x + r + 8;
+    if (named && fits({ x, y: n.pos.y - 14, w, h: 14 })) drawText(ctx, n.name, x, n.pos.y - 7, nameStyle);
+    if (level) drawText(ctx, level.text, x, n.pos.y + 8, { size: 11, color: level.color });
+    return;
+  }
+  const above = n.pos.y > LABELS_ABOVE_Y;
+  const half = w / 2;
+  const x = Math.max(half + 4, Math.min(screenW - half - 4, n.pos.x));
+  const nameY = above ? n.pos.y - r - 24 : n.pos.y + r + 13;
+  const showName = named && fits({ x: x - half, y: nameY - 7, w, h: 14 });
+  if (showName) drawText(ctx, n.name, x, nameY, { ...nameStyle, align: 'center' });
+  if (level) drawText(ctx, level.text, n.pos.x, above ? n.pos.y - r - 10 : n.pos.y + r + (showName ? 26 : 12), { size: 11, align: 'center', color: level.color });
 }
 
 function tooltipLines(n: MapNode, current: string): string[] {
@@ -214,33 +254,69 @@ function drawNode(ctx: CanvasRenderingContext2D, n: MapNode, reachable: boolean,
   } else {
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fillStyle = '#1d2a1b';
+    ctx.fillStyle = n.biome ? getBiome(n.biome).palette.groundDark : '#1d2a1b';
     ctx.fill();
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 3;
     ctx.strokeStyle = accent;
     ctx.stroke();
-    // Little tree glyph.
     ctx.fillStyle = accent;
-    ctx.beginPath();
-    ctx.moveTo(x, y - r * 0.55);
-    ctx.lineTo(x + r * 0.42, y + r * 0.25);
-    ctx.lineTo(x - r * 0.42, y + r * 0.25);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillRect(x - 2, y + r * 0.25, 4, r * 0.3);
+    drawBiomeGlyph(ctx, n.biome, x, y, r);
   }
   if (n.timesCleared > 0 && !n.isTown) {
+    const cx = x + r * 0.8;
+    const cy = y + r * 0.8;
     ctx.fillStyle = THEME.good;
     ctx.beginPath();
-    ctx.arc(x + r * 0.75, y + r * 0.75, 9, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 6.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#0d1016';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(x + r * 0.75 - 4, y + r * 0.75);
-    ctx.lineTo(x + r * 0.75 - 1, y + r * 0.75 + 3);
-    ctx.lineTo(x + r * 0.75 + 4, y + r * 0.75 - 3);
+    ctx.moveTo(cx - 3, cy);
+    ctx.lineTo(cx - 1, cy + 2.5);
+    ctx.lineTo(cx + 3, cy - 2.5);
     ctx.stroke();
   }
   ctx.restore();
+}
+
+/** Small glyph of the biome inside a location node: tree, dune, reeds, ice crystal. */
+function drawBiomeGlyph(ctx: CanvasRenderingContext2D, biome: string | null, x: number, y: number, r: number): void {
+  ctx.beginPath();
+  switch (biome) {
+    case 'desert':
+      // Dune with a sun.
+      ctx.moveTo(x - r * 0.6, y + r * 0.35);
+      ctx.quadraticCurveTo(x - r * 0.1, y - r * 0.45, x + r * 0.6, y + r * 0.35);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x + r * 0.3, y - r * 0.35, r * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case 'swamp':
+      // Three reeds.
+      for (const dx of [-0.35, 0, 0.35]) {
+        ctx.fillRect(x + dx * r - 1, y - r * (dx === 0 ? 0.55 : 0.35), 2, r * (dx === 0 ? 0.9 : 0.7));
+        ctx.fillRect(x + dx * r - 2, y - r * (dx === 0 ? 0.55 : 0.35), 4, r * 0.25);
+      }
+      break;
+    case 'ice':
+      // Crystal.
+      ctx.moveTo(x, y - r * 0.6);
+      ctx.lineTo(x + r * 0.35, y);
+      ctx.lineTo(x, y + r * 0.6);
+      ctx.lineTo(x - r * 0.35, y);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    default:
+      // Tree.
+      ctx.moveTo(x, y - r * 0.55);
+      ctx.lineTo(x + r * 0.42, y + r * 0.25);
+      ctx.lineTo(x - r * 0.42, y + r * 0.25);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillRect(x - 1.5, y + r * 0.25, 3, r * 0.3);
+  }
 }

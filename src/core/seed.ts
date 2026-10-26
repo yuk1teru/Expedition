@@ -20,3 +20,12 @@ export function resolveSeed(url: string, random: () => number = Math.random): nu
   }
   return randomSeed(random);
 }
+
+/** `?slice=1` starts the vertical-slice world (town, grove, boss lair) instead of the full one. */
+export function resolveWorldKind(url: string): 'full' | 'slice' {
+  try {
+    return new URL(url, 'http://localhost/').searchParams.get('slice') === '1' ? 'slice' : 'full';
+  } catch {
+    return 'full';
+  }
+}

@@ -101,7 +101,7 @@ describe('card offers', () => {
 
 describe('reroll and skip', () => {
   it('reroll costs gold that grows with each reroll; no gold — no reroll', () => {
-    const s = createGameState(8);
+    const s = createGameState(8, 'slice');
     s.hero.level = 4;
     assignClass(s.hero, 'warrior');
     s.gold = rerollPrice(0) + rerollPrice(1);
@@ -113,7 +113,7 @@ describe('reroll and skip', () => {
   });
 
   it('skip gives gold and a buff (now in battle, or with the next battle)', () => {
-    const s = createGameState(9);
+    const s = createGameState(9, 'slice');
     const gold = skipCards(s, 5, false);
     expect(gold).toBe(skipGold(5));
     expect(s.gold).toBe(gold);

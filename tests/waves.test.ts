@@ -12,7 +12,7 @@ import { spawnTraps, trapsForWave, updateTraps } from '../src/systems/traps';
 import { inBreak, isPortalBreak, portalActive, portalInReach, requestPortalEntry, skipBreak, spawnEnemy, waveEvent, waveMult, waveSize } from '../src/systems/waves';
 
 function grove(): { b: Battle } {
-  const s = createGameState(21);
+  const s = createGameState(21, 'slice');
   s.hero.immortal = true;
   teleport(s, SLICE_GROVE_ID);
   return { b: createBattle(s, SLICE_GROVE_ID) };
@@ -84,7 +84,7 @@ describe('waves', () => {
   });
 
   it('continuing starts from the remembered wave, with 3 mandatory waves', () => {
-    const s = createGameState(5);
+    const s = createGameState(5, 'slice');
     s.hero.immortal = true;
     teleport(s, SLICE_GROVE_ID);
     const b = createBattle(s, SLICE_GROVE_ID, 9);
