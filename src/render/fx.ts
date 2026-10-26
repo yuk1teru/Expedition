@@ -140,11 +140,22 @@ export class Fx {
     }
   }
 
+  /** Area texts must not cover (the hero), set every frame by the combat view. */
+  avoid: { x: number; y: number; r: number } | null = null;
+
   text(pos: Vec, text: string, color: string, size: number, life: number = FX.damageText.life): void {
     const j = FX.damageText.jitter;
+    let x = pos.x + (this.rand() - 0.5) * j;
+    const y = pos.y + (this.rand() - 0.5) * j;
+    const a = this.avoid;
+    // Texts rise, so keep them out of a column above and around the hero.
+    if (a && Math.abs(x - a.x) < a.r && y > a.y - FX.damageText.rise - a.r && y < a.y + a.r) {
+      const side = x === a.x ? (this.rand() < 0.5 ? -1 : 1) : Math.sign(x - a.x);
+      x = a.x + side * (a.r + this.rand() * j);
+    }
     this.texts.push({
-      x: pos.x + (this.rand() - 0.5) * j,
-      y: pos.y + (this.rand() - 0.5) * j,
+      x,
+      y,
       text,
       color,
       size,

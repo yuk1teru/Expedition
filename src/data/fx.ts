@@ -20,8 +20,13 @@ export const FX = {
     heroColor: '#ff6b5e',
     healColor: '#6fd16f',
     goldColor: '#f2c14e',
+    goldSize: 12,
+    /** Gold pop-ups start this far above the kill, px. */
+    goldOffset: 22,
     /** Hero damage numbers drift sideways so they don't cover the hero, px. */
     heroSideOffset: 26,
+    /** Other numbers are pushed out of this radius around the hero, px. */
+    heroClearance: 34,
     jitter: 10,
   },
   particles: {
@@ -51,7 +56,7 @@ export const FX = {
   /** Hero damage ≥ this fraction of max HP shakes the screen. */
   heroHurtBigFraction: 0.08,
   /** Hit-stop in fixed frames. */
-  hitStop: { crit: 2, heavy: 3 },
+  hitStop: { crit: 2, heavy: 3, skill: 3 },
   /** Damage ≥ this fraction of target max HP counts as heavy for hit-stop. */
   heavyHitFraction: 0.5,
   levelUpRing: { life: 0.7, radius: 90 },

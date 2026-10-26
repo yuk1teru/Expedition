@@ -27,6 +27,7 @@ export function skillFx(fx: Fx, e: GameEvent): void {
         const width = ((p.angle ?? 0) * Math.PI) / 180;
         fx.cone(e.pos, angle, width, p.range ?? 0, FX.slamCone.color, FX.slamCone.life);
         fx.shake(FX.shake.groundSlam);
+        fx.stop(FX.hitStop.skill);
         const mid = { x: (e.pos.x + e.target.x) / 2, y: (e.pos.y + e.target.y) / 2 };
         fx.burst(mid, P.slam, '#c9a36b');
         break;
@@ -42,6 +43,7 @@ export function skillFx(fx: Fx, e: GameEvent): void {
         break;
       case 'charge':
         fx.shake(FX.shake.charge);
+        fx.stop(FX.hitStop.skill);
         fx.ring(e.pos, e.radius, FX.chargeRing.color, FX.chargeRing.life, 5);
         fx.burst(e.pos, P.charge, FX.chargeRing.color);
         break;

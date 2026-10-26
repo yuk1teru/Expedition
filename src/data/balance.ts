@@ -161,3 +161,12 @@ export const PROJECTILES = {
   /** Max distance to the next target for ricocheting projectiles, px. */
   ricochetRange: 220,
 } as const;
+
+/** Balance simulation defaults (scripts/sim.ts). */
+export const SIM = {
+  runs: 200,
+  grovePasses: 6,
+  baseSeed: 1,
+  /** A battle longer than this counts as lost, s. */
+  maxBattleTime: 400,
+} as const;

@@ -72,6 +72,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
     update(dt) {
       const b = battle;
       if (!b) return;
+      fx.avoid = { x: b.hero.pos.x, y: b.hero.pos.y, r: FX.damageText.heroClearance };
       fx.update(dt);
       hud.update(dt);
       if (fx.hitStop > 0) {
@@ -163,7 +164,7 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
       break;
     }
     case 'gold':
-      fx.text({ x: e.pos.x, y: e.pos.y + 6 }, `+${e.amount} золота`, T.goldColor, 13, T.life * 1.2);
+      fx.text({ x: e.pos.x, y: e.pos.y - T.goldOffset }, `+${e.amount} золота`, T.goldColor, T.goldSize, T.life * 1.2);
       break;
     case 'spawn':
       fx.burst(e.pos, P.spawn, b.biome.palette.accent);
