@@ -35,8 +35,10 @@ export function createGameState(seed: number): GameState {
 }
 
 function snapshot(state: Omit<GameState, 'checkpoint'>): Checkpoint {
+  // Transient combat state (a dash callback, buffs, statuses) is not part of progress.
+  const hero = { ...state.hero, dash: null, buffs: [], statuses: {}, invulnerable: 0 };
   return structuredClone({
-    hero: state.hero,
+    hero,
     gold: state.gold,
     day: state.day,
     world: state.world,

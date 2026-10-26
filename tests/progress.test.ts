@@ -82,6 +82,13 @@ describe('checkpoint', () => {
     expect(s.currentNodeId).toBe('town');
   });
 
+  it('saving works even if a battle ended mid-dash', () => {
+    const s = createGameState(12);
+    s.hero.dash = { from: { x: 0, y: 0 }, to: { x: 1, y: 1 }, time: 0, duration: 1, onArrive: () => {} };
+    expect(() => restInTown(s)).not.toThrow();
+    expect(s.checkpoint.hero.dash).toBeNull();
+  });
+
   it('a new run starts with its initial state as the checkpoint', () => {
     const s = createGameState(10);
     gainXp(s, 1000);

@@ -161,7 +161,8 @@ export function createHud(app: App, _fx: Fx): Hud {
 
       drawSkillBar(ctx, b, slots, noTargetT, hoverSlot);
       if (dragFrom >= 0 && dragMoved) drawDragGhost(ctx, b, dragFrom, slots, app.input.mouse);
-      drawText(ctx, 'WASD — рух · 1–4 — скіли (миша — напрямок) · Пробіл — пауза', W - 12, app.view.height - 12, { size: 11, align: 'right', color: THEME.textMuted });
+      drawText(ctx, 'WASD — рух · миша — напрямок атаки', 12, app.view.height - 40, { size: 11, color: THEME.textMuted });
+      drawText(ctx, '1–4 — скіли · Esc — пауза', 12, app.view.height - 22, { size: 11, color: THEME.textMuted });
 
       const hs = hoverSlot >= 0 ? hero.skills[hoverSlot] : undefined;
       if (hs) {

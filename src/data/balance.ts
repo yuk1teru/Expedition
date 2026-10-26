@@ -34,6 +34,10 @@ export const HERO = {
   mass: 3,
   /** Melee reach, px from the hero centre to the target's edge. */
   meleeRange: 40,
+  /** Player control: melee swings hit the nearest enemy inside this arc towards the cursor, degrees. */
+  meleeArcDeg: 120,
+  /** Player control: ranged heroes shoot along the aim when an enemy is inside this cone, degrees. */
+  rangedAimConeDeg: 50,
   /** Ranged hero AI (Mage, Archer): preferred distance band, retreat and shooting range. */
   ranged: {
     keepMin: 180,

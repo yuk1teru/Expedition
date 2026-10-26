@@ -3,7 +3,7 @@
 import type { InputEvent } from '../core/input';
 import { Rng } from '../core/rng';
 import type { Screen } from '../core/screens';
-import { ARENA, WAVES } from '../data/balance';
+import { ARENA, HERO, WAVES } from '../data/balance';
 import { getClass } from '../data/classes';
 import type { BiomeDef, DecorKind } from '../data/biomes';
 import { FX } from '../data/fx';
@@ -89,7 +89,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
     onInput(e: InputEvent) {
       if (hud.handle(e)) return;
       if (e.type !== 'key') return;
-      if (e.code === 'Space' || e.code === 'Escape') app.loop.paused = !app.loop.paused;
+      if (e.code === 'Escape') app.loop.paused = !app.loop.paused;
       else if (/^Digit[1-4]$/.test(e.code) && battle && !app.loop.paused) hud.useSlot(Number(e.code.slice(5)) - 1);
     },
 
@@ -107,6 +107,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
         if (e.boss) drawBoss(ctx, e, b, app.time);
         else drawEnemy(ctx, e, b, app.time);
       }
+      if (b.input.control === 'player' && !b.hero.dead) drawAttackArc(ctx, b.hero);
       drawHero(ctx, b.hero, b, app.time);
       fx.drawCones(ctx);
       fx.drawRings(ctx);
@@ -125,7 +126,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
         ctx.fillStyle = 'rgba(0,0,0,0.45)';
         ctx.fillRect(0, ARENA.y, app.view.width, ARENA.h);
         drawText(ctx, 'Пауза', app.view.width / 2, ARENA.y + ARENA.h / 2 - 10, { size: 40, bold: true, align: 'center' });
-        drawText(ctx, 'Пробіл — продовжити', app.view.width / 2, ARENA.y + ARENA.h / 2 + 28, {
+        drawText(ctx, 'Esc — продовжити', app.view.width / 2, ARENA.y + ARENA.h / 2 + 28, {
           size: 15,
           align: 'center',
           color: THEME.textDim,
@@ -566,6 +567,27 @@ function drawPortal(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, 
     ctx.arc(0, 0, r * (0.55 + i * 0.22), a, a + 1.6);
     ctx.stroke();
   }
+  ctx.restore();
+}
+
+/** Faint wedge showing where auto-attacks land (towards the cursor). */
+function drawAttackArc(ctx: CanvasRenderingContext2D, h: Hero): void {
+  const half = (HERO.meleeArcDeg * Math.PI) / 360;
+  const r = h.stats.ranged ? h.radius * 3 : h.stats.range + h.radius;
+  ctx.save();
+  ctx.globalAlpha = 0.14;
+  ctx.fillStyle = '#f2c14e';
+  ctx.beginPath();
+  ctx.moveTo(h.pos.x, h.pos.y);
+  ctx.arc(h.pos.x, h.pos.y, r, h.facing - half, h.facing + half);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 0.35;
+  ctx.strokeStyle = '#f2c14e';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(h.pos.x, h.pos.y, r, h.facing - half, h.facing + half);
+  ctx.stroke();
   ctx.restore();
 }
 

@@ -6,6 +6,7 @@ import { assignClass, moveSkill } from '../src/systems/hero';
 import { SLICE_GROVE_ID, SLICE_LAIR_ID } from '../src/systems/mapgen';
 import { createGameState, teleport } from '../src/systems/run';
 import { useSkill } from '../src/systems/skills';
+import { spawnEnemy } from '../src/systems/waves';
 
 function warriorBattle(nodeId = SLICE_LAIR_ID) {
   const s = createGameState(11);
@@ -36,6 +37,40 @@ describe('manual movement', () => {
     b.input.move = { x: -1, y: 0 };
     for (let t = 0; t < 1; t += LOOP.step) stepBattle(b, LOOP.step);
     expect(s.hero.hp).toBe(hp);
+  });
+});
+
+describe('player control', () => {
+  function duel() {
+    const { s, b } = warriorBattle(SLICE_GROVE_ID);
+    s.hero.immortal = true;
+    b.input.control = 'player';
+    const hero = s.hero;
+    const enemy = spawnEnemy(b, 'stump', { x: hero.pos.x + 45, y: hero.pos.y });
+    enemy.speed = 0;
+    enemy.damage = 0;
+    return { s, b, hero, enemy };
+  }
+
+  it('without movement keys the hero stays put', () => {
+    const { b, hero } = duel();
+    const p0 = { ...hero.pos };
+    b.input.aim = { x: hero.pos.x - 200, y: hero.pos.y };
+    for (let t = 0; t < 1; t += LOOP.step) stepBattle(b, LOOP.step);
+    expect(Math.hypot(hero.pos.x - p0.x, hero.pos.y - p0.y)).toBeLessThan(10);
+  });
+
+  it('attacks only towards the cursor, and keeps the last direction when the cursor leaves the arena', () => {
+    const { b, hero, enemy } = duel();
+    const hp0 = enemy.hp;
+    b.input.aim = { x: hero.pos.x - 200, y: hero.pos.y }; // facing away
+    for (let t = 0; t < 1.5; t += LOOP.step) stepBattle(b, LOOP.step);
+    expect(enemy.hp).toBe(hp0);
+    b.input.aim = { x: hero.pos.x + 200, y: hero.pos.y }; // towards the enemy
+    stepBattle(b, LOOP.step);
+    b.input.aim = null; // cursor left the arena
+    for (let t = 0; t < 1.5; t += LOOP.step) stepBattle(b, LOOP.step);
+    expect(enemy.hp).toBeLessThan(hp0);
   });
 });
 

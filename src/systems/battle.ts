@@ -37,8 +37,12 @@ export interface Portal {
   entered: boolean;
 }
 
-/** Player input for this step: movement direction (unit or zero) and skill aim point. */
+/**
+ * Hero control for this step. `player`: moves only by `move`, attacks towards `aim`
+ * (last direction if no aim). `bot` (simulation): AI walks to enemies unless `move` is set.
+ */
 export interface HeroInput {
+  control: 'player' | 'bot';
   move: Vec;
   aim: Vec | null;
 }
@@ -85,7 +89,7 @@ export function createBattle(state: GameState, nodeId: string): Battle {
     kind: node.isBoss ? 'boss' : 'waves',
     rng: state.rng.fork(`battle-${state.battleCount}`),
     events: state.events,
-    input: { move: { x: 0, y: 0 }, aim: null },
+    input: { control: 'bot', move: { x: 0, y: 0 }, aim: null },
     time: 0,
     nextId: 1,
     hero,

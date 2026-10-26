@@ -6,7 +6,7 @@ import type { Battle } from './battle';
 import { damageEnemy, damageHero, hasStatus, heroDamage, isDisabled, speedMult } from './combat';
 import type { Enemy, Hero, Projectile, Vec } from './entities';
 import { angleOf, dist, normalize } from './entities';
-import { nearestEnemy } from './targeting';
+import { coneTargets, nearestEnemy } from './targeting';
 
 /** Effective attacks per second including buffs. */
 export function heroAttackSpeed(hero: Hero): number {
@@ -21,6 +21,10 @@ export function updateHeroAI(b: Battle, dt: number): void {
   hero.vel.x = 0;
   hero.vel.y = 0;
   if (hero.dead || hero.dash || isDisabled(hero)) return;
+  if (b.input.control === 'player') {
+    playerHero(b, hero);
+    return;
+  }
   const target = nearestEnemy(b.enemies, hero.pos);
   const move = b.input.move;
   if (move.x !== 0 || move.y !== 0) {
@@ -38,6 +42,31 @@ export function updateHeroAI(b: Battle, dt: number): void {
   if (!target) return;
   if (hero.stats.ranged) rangedHero(b, hero, target);
   else meleeHero(b, hero, target);
+}
+
+/**
+ * Player control: the hero only moves where told and auto-attacks towards the
+ * cursor; with the cursor off the arena it keeps attacking in the last direction.
+ */
+function playerHero(b: Battle, hero: Hero): void {
+  const move = b.input.move;
+  const speed = hero.stats.moveSpeed * speedMult(hero);
+  hero.vel.x = move.x * speed;
+  hero.vel.y = move.y * speed;
+  const aim = b.input.aim;
+  if (aim && (aim.x !== hero.pos.x || aim.y !== hero.pos.y)) hero.facing = angleOf({ x: aim.x - hero.pos.x, y: aim.y - hero.pos.y });
+  if (hero.attackTimer > 0) return;
+  if (hero.stats.ranged) {
+    const cone = (HERO.rangedAimConeDeg * Math.PI) / 180;
+    if (coneTargets(b.enemies, hero.pos, hero.facing, cone, hero.stats.range).length > 0) shootAlong(b, hero, hero.facing);
+    return;
+  }
+  const arc = (HERO.meleeArcDeg * Math.PI) / 180;
+  const inArc = coneTargets(b.enemies, hero.pos, hero.facing, arc, hero.stats.range);
+  const target = nearestEnemy(inArc, hero.pos);
+  if (!target) return;
+  hero.attackTimer = 1 / heroAttackSpeed(hero);
+  damageEnemy(b, target, heroDamage(b, 1, 'basic'), { source: 'basic', knockFrom: hero.pos, knockback: HERO.meleeKnockback });
 }
 
 /** Hits the target if it is in melee reach and the attack is ready. Returns true if in reach. */
@@ -79,10 +108,14 @@ function rangedHero(b: Battle, hero: Hero, target: Enemy): void {
 }
 
 function tryShoot(b: Battle, hero: Hero, target: Enemy): void {
-  const r = HERO.ranged;
   if (dist(hero.pos, target.pos) > hero.stats.range || hero.attackTimer > 0) return;
+  shootAlong(b, hero, angleOf({ x: target.pos.x - hero.pos.x, y: target.pos.y - hero.pos.y }));
+}
+
+function shootAlong(b: Battle, hero: Hero, angle: number): void {
+  const r = HERO.ranged;
   hero.attackTimer = 1 / heroAttackSpeed(hero);
-  const dir = normalize({ x: target.pos.x - hero.pos.x, y: target.pos.y - hero.pos.y });
+  const dir = { x: Math.cos(angle), y: Math.sin(angle) };
   const roll = heroDamage(b, 1, 'basic');
   spawnProjectile(b, {
     pos: { ...hero.pos },
