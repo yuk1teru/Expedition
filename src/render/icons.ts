@@ -158,3 +158,62 @@ function shieldPath(ctx: CanvasRenderingContext2D, r: number): void {
   ctx.quadraticCurveTo(-r * 0.65, r * 0.4, -r * 0.7, -r * 0.55);
   ctx.closePath();
 }
+
+/** Item icons by slot: sword, hat, chestplate, boot. */
+export function drawItemIcon(ctx: CanvasRenderingContext2D, slot: string, x: number, y: number, size: number, color: string): void {
+  const r = size / 2;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = color;
+  ctx.strokeStyle = color;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  if (slot === 'weapon') {
+    ctx.rotate(-Math.PI / 4);
+    ctx.lineWidth = Math.max(2, size * 0.12);
+    ctx.beginPath();
+    ctx.moveTo(0, r * 0.35);
+    ctx.lineTo(0, -r * 0.9);
+    ctx.stroke();
+    ctx.lineWidth = Math.max(2, size * 0.09);
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.35, r * 0.35);
+    ctx.lineTo(r * 0.35, r * 0.35);
+    ctx.moveTo(0, r * 0.35);
+    ctx.lineTo(0, r * 0.8);
+    ctx.stroke();
+  } else if (slot === 'hat') {
+    ctx.beginPath();
+    ctx.ellipse(0, r * 0.35, r * 0.9, r * 0.22, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.45, r * 0.3);
+    ctx.quadraticCurveTo(-r * 0.4, -r * 0.65, 0, -r * 0.7);
+    ctx.quadraticCurveTo(r * 0.4, -r * 0.65, r * 0.45, r * 0.3);
+    ctx.closePath();
+    ctx.fill();
+  } else if (slot === 'armor') {
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.85, -r * 0.55);
+    ctx.lineTo(-r * 0.3, -r * 0.75);
+    ctx.quadraticCurveTo(0, -r * 0.45, r * 0.3, -r * 0.75);
+    ctx.lineTo(r * 0.85, -r * 0.55);
+    ctx.lineTo(r * 0.6, -r * 0.1);
+    ctx.lineTo(r * 0.55, r * 0.8);
+    ctx.lineTo(-r * 0.55, r * 0.8);
+    ctx.lineTo(-r * 0.6, -r * 0.1);
+    ctx.closePath();
+    ctx.fill();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.35, -r * 0.8);
+    ctx.lineTo(r * 0.15, -r * 0.8);
+    ctx.lineTo(r * 0.15, r * 0.2);
+    ctx.lineTo(r * 0.8, r * 0.35);
+    ctx.lineTo(r * 0.8, r * 0.75);
+    ctx.lineTo(-r * 0.35, r * 0.75);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+}

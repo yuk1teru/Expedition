@@ -4,14 +4,16 @@ import type { InputEvent } from '../core/input';
 import { ARENA, PROGRESSION } from '../data/balance';
 import { FX } from '../data/fx';
 import { describeSkill, getSkill } from '../data/skills';
+import { heroAttackSpeed } from '../systems/ai';
 import type { Battle } from '../systems/battle';
 import { isMaxLevel, xpFraction } from '../systems/leveling';
 import { bonusLevel, nextWaveIn } from '../systems/waves';
-import { moveSkill } from '../systems/hero';
+import { moveSkill, skillInSlot } from '../systems/hero';
 import { slotCooldown, useSkill } from '../systems/skills';
 import type { App } from './app';
 import { syncBattleInput } from './battleInput';
 import type { Fx } from './fx';
+import { drawBossBar } from './bossView';
 import { drawSkillIcon } from './icons';
 import { className } from './names';
 import { THEME } from './theme';
@@ -29,7 +31,16 @@ export interface Hud {
 
 const SLOT = 56;
 /** Centre of the wave/location block in the top band (left of it are hero stats). */
-const CENTER_X = 545;
+const CENTER_X = 588;
+/** Width of the centre block (boss HP bar). */
+const CENTER_W = 270;
+
+function waveTitle(b: Battle): string {
+  const w = b.waves;
+  if (!w) return '';
+  const bonus = bonusLevel(w.index);
+  return bonus > 0 ? `Додаткова хвиля ${bonus}` : `Хвиля ${Math.min(w.total, w.index + 1)}/${w.total}`;
+}
 const DRAG_THRESHOLD = 6;
 const SLOT_GAP = 14;
 
@@ -84,7 +95,7 @@ export function createHud(app: App, _fx: Fx): Hud {
         const i = slots.findIndex((r) => inRect(r, e.x, e.y));
         if (i >= 0) {
           // Click (release on the same slot) uses the skill; dragging onto another slot reorders.
-          if (app.state.hero.skills[i]) {
+          if (skillInSlot(app.state.hero, i)) {
             dragFrom = i;
             dragStart = { x: e.x, y: e.y };
             dragMoved = false;
@@ -122,15 +133,21 @@ export function createHud(app: App, _fx: Fx): Hud {
       ctx.stroke();
       drawText(ctx, String(hero.level), 32, 29, { size: 18, bold: true, align: 'center' });
 
-      drawBar(ctx, { x: 62, y: 9, w: 250, h: 20 }, hero.hp / hero.maxHp, THEME.hp, THEME.hpBack, `${Math.ceil(hero.hp)} / ${hero.maxHp}`);
-      drawBar(ctx, { x: 62, y: 34, w: 250, h: 11 }, xpFraction(hero.level, hero.xp), THEME.xp, 'rgba(0,0,0,0.5)', isMaxLevel(hero.level) ? 'МАКС' : '');
-      drawText(ctx, className(hero.classId), 324, 19, { size: 15, bold: true, color: hero.classId ? THEME.text : THEME.textDim });
-      drawText(ctx, `Атака ${Math.round(hero.stats.attack)} · Броня ${Math.round(hero.stats.armor)}`, 324, 39, {
+      drawBar(ctx, { x: 62, y: 9, w: 220, h: 20 }, hero.hp / hero.maxHp, THEME.hp, THEME.hpBack, `${Math.ceil(hero.hp)} / ${hero.maxHp}`);
+      drawBar(ctx, { x: 62, y: 34, w: 220, h: 11 }, xpFraction(hero.level, hero.xp), THEME.xp, 'rgba(0,0,0,0.5)', isMaxLevel(hero.level) ? 'МАКС' : '');
+      drawText(ctx, className(hero.classId), 292, 19, { size: 15, bold: true, color: hero.classId ? THEME.text : THEME.textDim });
+      drawText(ctx, `Атака ${Math.round(hero.stats.attack)} · ${heroAttackSpeed(hero).toFixed(2)}/с · Броня ${Math.round(hero.stats.armor)}`, 292, 39, {
         size: 12,
         color: THEME.textDim,
       });
 
-      if (b.waves) {
+      const bossLike = b.boss ?? b.enemies.find((e) => e.boss && !e.dead) ?? null;
+      if (bossLike && !bossLike.dead) {
+        // Boss / miniboss HP lives in the HUD, never over the arena.
+        const top = b.waves ? `${waveTitle(b)} · ${b.node.name}` : 'Бій з босом';
+        drawText(ctx, top, CENTER_X, 11, { size: 12, bold: true, align: 'center', color: b.waves ? THEME.textDim : THEME.bad });
+        drawBossBar(ctx, bossLike, { x: CENTER_X - CENTER_W / 2, y: 21, w: CENTER_W, h: 24 });
+      } else if (b.waves) {
         const w = b.waves;
         const bonus = bonusLevel(w.index);
         const title =
@@ -140,20 +157,17 @@ export function createHud(app: App, _fx: Fx): Hud {
         const sub = b.portal && next !== null && next > 0 ? `Наступна хвиля через ${Math.ceil(next)} с` : b.node.name;
         drawText(ctx, sub, CENTER_X, 41, { size: 12, align: 'center', color: b.portal ? '#c9a8ff' : THEME.textDim });
         if (b.portal && b.outcome === 'running') {
-          drawText(ctx, 'Портал відкрито: зайдіть у нього (WASD), щоб забрати нагороду. Залишитесь — прийдуть сильніші хвилі.', W / 2, ARENA.y + ARENA.h - 14, {
+          drawText(ctx, 'Портал на краю арени: підійдіть і натисніть «Увійти» (E), щоб забрати нагороду. Залишитесь — прийдуть сильніші хвилі.', W / 2, ARENA.y + ARENA.h - 14, {
             size: 13,
             bold: true,
             align: 'center',
             color: '#d9c2ff',
           });
         }
-      } else {
-        drawText(ctx, 'Бій з босом', CENTER_X, 28, { size: 17, bold: true, align: 'center', color: THEME.bad });
       }
 
-      drawText(ctx, `${state.gold}`, W - 240, 20, { size: 16, bold: true, align: 'right', color: THEME.accent });
-      drawText(ctx, 'золото', W - 236, 20, { size: 11, color: THEME.textDim });
-      drawText(ctx, `День ${state.day}`, W - 240, 40, { size: 12, align: 'right', color: THEME.textDim });
+      drawText(ctx, `${state.gold} зол.`, W - 162, 20, { size: 15, bold: true, align: 'right', color: THEME.accent });
+      drawText(ctx, `День ${state.day}`, W - 162, 40, { size: 12, align: 'right', color: THEME.textDim });
 
       pauseBtn.label = app.loop.paused ? 'Далі' : 'Пауза';
       speedBtn.label = `×${app.loop.speed}`;
@@ -162,9 +176,9 @@ export function createHud(app: App, _fx: Fx): Hud {
       drawSkillBar(ctx, b, slots, noTargetT, hoverSlot);
       if (dragFrom >= 0 && dragMoved) drawDragGhost(ctx, b, dragFrom, slots, app.input.mouse);
       drawText(ctx, 'WASD — рух · миша — напрямок атаки', 12, app.view.height - 40, { size: 11, color: THEME.textMuted });
-      drawText(ctx, '1–4 — скіли · Esc — пауза', 12, app.view.height - 22, { size: 11, color: THEME.textMuted });
+      drawText(ctx, '1–4 — скіли · Tab — інвентар · Esc — пауза', 12, app.view.height - 22, { size: 11, color: THEME.textMuted });
 
-      const hs = hoverSlot >= 0 ? hero.skills[hoverSlot] : undefined;
+      const hs = hoverSlot >= 0 ? skillInSlot(hero, hoverSlot) : undefined;
       if (hs) {
         const def = getSkill(hs.id);
         const lines = [
@@ -183,7 +197,7 @@ export function createHud(app: App, _fx: Fx): Hud {
 }
 
 function drawDragGhost(ctx: CanvasRenderingContext2D, b: Battle, from: number, slots: Rect[], m: { x: number; y: number }): void {
-  const s = b.hero.skills[from];
+  const s = skillInSlot(b.hero, from);
   if (!s) return;
   const target = slots.findIndex((r) => inRect(r, m.x, m.y));
   const t = slots[target];
@@ -219,7 +233,7 @@ function wrapPlain(text: string, max: number): string[] {
 function drawSkillBar(ctx: CanvasRenderingContext2D, b: Battle, slots: Rect[], noTarget: number[], hover: number): void {
   const hero = b.hero;
   slots.forEach((r, i) => {
-    const s = hero.skills[i];
+    const s = skillInSlot(hero, i);
     roundRect(ctx, r.x, r.y, r.w, r.h, 10);
     ctx.fillStyle = s ? '#232a3b' : 'rgba(35, 42, 59, 0.4)';
     ctx.fill();

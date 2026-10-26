@@ -17,7 +17,7 @@ import { updateBuffs, updateDash, updateZones } from './effects';
 import type { Item } from './items';
 import type { GameEvent } from './gameEvents';
 import { type MapNode, getNode } from './mapgen';
-import { type WaveState, checkPortalEntry, createWaves, updateWaves } from './waves';
+import { type WaveState, createWaves, updateWaves } from './waves';
 
 export interface BattleStats {
   kills: number;
@@ -167,7 +167,6 @@ export function stepBattle(b: Battle, dt: number): void {
   for (const body of bodies) clampToArena(body);
 
   cleanup(b);
-  checkPortalEntry(b);
   checkOutcome(b);
 }
 

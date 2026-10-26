@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { LOOP } from '../src/data/balance';
 import { getBoss } from '../src/data/bosses';
 import { createBattle, stepBattle } from '../src/systems/battle';
-import { addTelegraph } from '../src/systems/boss';
+import { addTelegraph, createBossEnemy } from '../src/systems/boss';
 import { damageEnemy } from '../src/systems/combat';
 import { SLICE_LAIR_ID } from '../src/systems/mapgen';
 import { createGameState, teleport } from '../src/systems/run';
@@ -61,6 +61,25 @@ describe('boss battle', () => {
     for (let i = 1; i < starts.length; i++) {
       expect(starts[i]! - starts[i - 1]!).toBeGreaterThanOrEqual(getBoss('enat').minPause - 1e-6);
     }
+  });
+
+  it('bosses and minibosses actually move; the lunge dash finishes', () => {
+    const { s, b } = bossBattle();
+    s.hero.immortal = true;
+    b.input.control = 'player'; // hero stands still
+    const enat = b.boss!;
+    const alpha = createBossEnemy(b, 'alpha', { x: s.hero.pos.x + 280, y: s.hero.pos.y });
+    const e0 = { ...enat.pos };
+    const a0 = { ...alpha.pos };
+    let dashed = false;
+    for (let t = 0; t < 6; t += LOOP.step) {
+      stepBattle(b, LOOP.step);
+      if (alpha.boss?.dash) dashed = true;
+    }
+    expect(Math.hypot(enat.pos.x - e0.x, enat.pos.y - e0.y)).toBeGreaterThan(20);
+    expect(Math.hypot(alpha.pos.x - a0.x, alpha.pos.y - a0.y)).toBeGreaterThan(60);
+    expect(dashed).toBe(true);
+    expect(alpha.boss?.dash).toBeNull();
   });
 
   it('killing the boss wins the battle and clears summons', () => {

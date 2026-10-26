@@ -48,6 +48,8 @@ export type Archetype = 'chaser' | 'shooter' | 'tank' | 'fast';
 export interface HeroSkill {
   id: string;
   rank: number;
+  /** Skill bar slot, 0-based (slots may have gaps). */
+  slot: number;
   /** Seconds until ready. */
   cooldown: number;
 }
@@ -215,6 +217,15 @@ export function dist2(a: Vec, b: Vec): number {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
   return dx * dx + dy * dy;
+}
+
+/** Distance from point `p` to segment `a`–`b`. */
+export function distToSegment(p: Vec, a: Vec, b: Vec): number {
+  const abx = b.x - a.x;
+  const aby = b.y - a.y;
+  const len2 = abx * abx + aby * aby;
+  const k = len2 > 0 ? Math.max(0, Math.min(1, ((p.x - a.x) * abx + (p.y - a.y) * aby) / len2)) : 0;
+  return Math.hypot(p.x - (a.x + abx * k), p.y - (a.y + aby * k));
 }
 
 export function normalize(v: Vec): Vec {

@@ -6,6 +6,8 @@ import type { Vec } from './entities';
 export type GameEvent =
   | { type: 'hit'; pos: Vec; amount: number; crit: boolean; targetId: number; radius: number; source: HitSource }
   | { type: 'heroHurt'; pos: Vec; amount: number }
+  /** Every basic attack of the hero (swing or shot), for the attack-speed visuals. */
+  | { type: 'heroAttack'; pos: Vec; angle: number; reach: number; ranged: boolean }
   | { type: 'heroHeal'; pos: Vec; amount: number }
   | { type: 'kill'; pos: Vec; defId: string; radius: number; elite: boolean; boss: boolean }
   | { type: 'gold'; pos: Vec; amount: number }

@@ -66,7 +66,12 @@ function playerHero(b: Battle, hero: Hero): void {
   const target = nearestEnemy(inArc, hero.pos);
   if (!target) return;
   hero.attackTimer = 1 / heroAttackSpeed(hero);
+  emitSwing(b, hero, hero.facing);
   damageEnemy(b, target, heroDamage(b, 1, 'basic'), { source: 'basic', knockFrom: hero.pos, knockback: HERO.meleeKnockback });
+}
+
+function emitSwing(b: Battle, hero: Hero, angle: number): void {
+  b.events.emit({ type: 'heroAttack', pos: { ...hero.pos }, angle, reach: hero.stats.range + hero.radius, ranged: false });
 }
 
 /** Hits the target if it is in melee reach and the attack is ready. Returns true if in reach. */
@@ -75,6 +80,7 @@ function tryMeleeHit(b: Battle, hero: Hero, target: Enemy): boolean {
   hero.facing = angleOf({ x: target.pos.x - hero.pos.x, y: target.pos.y - hero.pos.y });
   if (hero.attackTimer <= 0) {
     hero.attackTimer = 1 / heroAttackSpeed(hero);
+    emitSwing(b, hero, hero.facing);
     damageEnemy(b, target, heroDamage(b, 1, 'basic'), {
       source: 'basic',
       knockFrom: hero.pos,
@@ -115,6 +121,7 @@ function tryShoot(b: Battle, hero: Hero, target: Enemy): void {
 function shootAlong(b: Battle, hero: Hero, angle: number): void {
   const r = HERO.ranged;
   hero.attackTimer = 1 / heroAttackSpeed(hero);
+  b.events.emit({ type: 'heroAttack', pos: { ...hero.pos }, angle, reach: hero.radius * 2, ranged: true });
   const dir = { x: Math.cos(angle), y: Math.sin(angle) };
   const roll = heroDamage(b, 1, 'basic');
   spawnProjectile(b, {
@@ -132,6 +139,8 @@ function shootAlong(b: Battle, hero: Hero, angle: number): void {
 }
 
 export function updateEnemyAI(b: Battle, e: Enemy, dt: number): void {
+  // Bosses and minibosses are driven entirely by boss.ts (movement included).
+  if (e.boss) return;
   e.attackTimer = Math.max(0, e.attackTimer - dt);
   e.abilityTimer = Math.max(0, e.abilityTimer - dt);
   e.vel.x = 0;
@@ -140,7 +149,6 @@ export function updateEnemyAI(b: Battle, e: Enemy, dt: number): void {
     e.dashTime = 0;
     return;
   }
-  if (e.boss) return; // bosses are driven by boss.ts
   const hero = b.hero;
   const speed = e.speed * speedMult(e);
   e.facing = angleOf({ x: hero.pos.x - e.pos.x, y: hero.pos.y - e.pos.y });

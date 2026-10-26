@@ -102,6 +102,7 @@ interface ClassLine {
   name: string;
   note: string;
   skillId?: string;
+  passiveId?: string;
   passiveStat?: string;
   /** Rect for hover tooltips. */
   rect: Rect;
@@ -125,12 +126,13 @@ function classLines(classId: string, r: Rect): { skills: ClassLine[]; passives: 
     c.passives.length > 0
       ? c.passives.map((id) => {
           const p = getPassive(id);
-          return { name: p.name, max: p.maxStacks, stat: p.stat as string | undefined };
+          return { name: p.name, max: p.maxStacks, stat: p.stat as string | undefined, id: p.id as string | undefined };
         })
-      : (c.preview?.passives ?? []).map((name) => ({ name, max: c.preview?.passiveMaxStacks ?? 0, stat: undefined }));
+      : (c.preview?.passives ?? []).map((name) => ({ name, max: c.preview?.passiveMaxStacks ?? 0, stat: undefined, id: undefined }));
   const passives: ClassLine[] = passiveInfo.map((p, i) => ({
     name: p.name,
     note: `до ×${p.max}`,
+    passiveId: p.id,
     passiveStat: p.stat,
     rect: { x, y: passiveY + i * LINE_H - LINE_H / 2, w, h: LINE_H },
   }));
@@ -229,6 +231,11 @@ function skillTooltip(skillId: string): string[] {
   ];
 }
 
+function passiveTooltip(passiveId: string): string[] {
+  const p = getPassive(passiveId);
+  return [p.name, ...wrapPlain(`За стак: ${describePassive(passiveId)}`, 56), `До ×${p.maxStacks} стаків, кожна картка пасивки дає +1`];
+}
+
 function wrapPlain(text: string, max: number): string[] {
   const out: string[] = [];
   let line = '';
@@ -275,8 +282,13 @@ export function createClassChoiceModal(app: App, onChosen: (classId: string) => 
       // Tooltip for the skill line under the mouse.
       const m = app.input.mouse;
       CLASS_ORDER.forEach((id, i) => {
-        const line = classLines(id, rects[i] as Rect).skills.find((l) => l.skillId && inRect(l.rect, m.x, m.y));
-        if (line?.skillId) drawTooltip(ctx, skillTooltip(line.skillId), m.x, m.y, app.view.width, app.view.height);
+        const lines = classLines(id, rects[i] as Rect);
+        const sk = lines.skills.find((l) => inRect(l.rect, m.x, m.y));
+        const ps = lines.passives.find((l) => inRect(l.rect, m.x, m.y));
+        let tip: string[] | null = null;
+        if (sk) tip = sk.skillId ? skillTooltip(sk.skillId) : [sk.name, 'Опис з’явиться разом із класом'];
+        else if (ps) tip = ps.passiveId ? passiveTooltip(ps.passiveId) : [ps.name, 'Опис з’явиться разом із класом'];
+        if (tip) drawTooltip(ctx, tip, m.x, m.y, app.view.width, app.view.height);
       });
     },
   };

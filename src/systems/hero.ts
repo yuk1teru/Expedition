@@ -1,9 +1,9 @@
 // Hero creation and derived stats.
 
-import { HERO } from '../data/balance';
+import { HERO, PROGRESSION } from '../data/balance';
 import { getClass } from '../data/classes';
 import { getPassive } from '../data/skills';
-import type { Hero, HeroStats } from './entities';
+import type { Hero, HeroSkill, HeroStats } from './entities';
 import { equippedStat } from './items';
 
 export function createHero(id: number): Hero {
@@ -64,7 +64,7 @@ export function assignClass(hero: Hero, classId: string): void {
   const c = getClass(classId);
   if (c.locked) throw new Error(`Class ${classId} is locked`);
   hero.classId = c.id;
-  hero.skills = [{ id: c.startingSkill, rank: 1, cooldown: 0 }];
+  hero.skills = [{ id: c.startingSkill, rank: 1, cooldown: 0, slot: 0 }];
   recomputeHeroStats(hero);
 }
 
@@ -132,19 +132,23 @@ export function healFull(hero: Hero): void {
   hero.hp = hero.maxHp;
 }
 
-/**
- * Moves a skill between slots (0-based): swaps with an occupied slot,
- * or moves to the last occupied position when dropped on an empty one.
- */
+/** Skill in a skill-bar slot (0-based), if any. */
+export function skillInSlot(hero: Hero, slot: number): HeroSkill | undefined {
+  return hero.skills.find((s) => s.slot === slot);
+}
+
+/** First empty skill-bar slot, or -1 when all are taken. */
+export function firstFreeSlot(hero: Hero): number {
+  for (let i = 0; i < PROGRESSION.skillSlots; i++) if (!skillInSlot(hero, i)) return i;
+  return -1;
+}
+
+/** Moves a skill to another slot; swaps if that slot is occupied. */
 export function moveSkill(hero: Hero, from: number, to: number): void {
-  const n = hero.skills.length;
-  if (from < 0 || from >= n || to < 0 || from === to) return;
-  if (to >= n) {
-    const [s] = hero.skills.splice(from, 1);
-    if (s) hero.skills.push(s);
-    return;
-  }
-  const a = hero.skills[from]!;
-  hero.skills[from] = hero.skills[to]!;
-  hero.skills[to] = a;
+  if (from === to || to < 0 || to >= PROGRESSION.skillSlots) return;
+  const a = skillInSlot(hero, from);
+  if (!a) return;
+  const b = skillInSlot(hero, to);
+  if (b) b.slot = from;
+  a.slot = to;
 }

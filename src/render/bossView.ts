@@ -1,11 +1,9 @@
 // Boss rendering and the big boss HP bar.
 
-import { ARENA } from '../data/balance';
 import { FX } from '../data/fx';
 import type { Battle } from '../systems/battle';
 import { bossDefOf } from '../systems/boss';
 import type { Enemy } from '../systems/entities';
-import { THEME } from './theme';
 import { drawText, roundRect } from './ui';
 import { drawStatusMarks } from './combatView';
 
@@ -140,35 +138,27 @@ function drawAlpha(ctx: CanvasRenderingContext2D, e: Enemy, b: Battle, t: number
   ctx.restore();
 }
 
-/** Big HP bar at the top of the arena: the boss, or a living miniboss. */
-export function drawBossBar(ctx: CanvasRenderingContext2D, b: Battle, viewW: number): void {
-  const boss = b.boss ?? b.enemies.find((e) => e.boss && !e.dead) ?? null;
-  if (!boss) return;
-  const mini = bossDefOf(boss)?.miniboss ?? false;
-  const w = 520;
-  const h = 20;
-  const x = (viewW - w) / 2;
-  const y = ARENA.y + 12;
+/** Boss / miniboss HP bar for the HUD: name inside, phase-2 mark, "Мінібос" tag. */
+export function drawBossBar(ctx: CanvasRenderingContext2D, boss: Enemy, r: { x: number; y: number; w: number; h: number }): void {
+  const def = bossDefOf(boss);
   const frac = Math.max(0, boss.hp / boss.maxHp);
-  roundRect(ctx, x - 3, y - 3, w + 6, h + 6, 6);
-  ctx.fillStyle = 'rgba(0,0,0,0.7)';
-  ctx.fill();
-  roundRect(ctx, x, y, w, h, 4);
+  const phase2 = boss.boss?.phase === 2;
+  roundRect(ctx, r.x, r.y, r.w, r.h, 5);
   ctx.fillStyle = '#3a1416';
   ctx.fill();
   if (frac > 0) {
-    roundRect(ctx, x, y, w * frac, h, 4);
-    ctx.fillStyle = boss.boss?.phase === 2 ? '#ff4d3a' : '#c0392b';
+    roundRect(ctx, r.x, r.y, r.w * frac, r.h, 5);
+    ctx.fillStyle = def?.miniboss ? '#d9822b' : phase2 ? '#ff4d3a' : '#c0392b';
     ctx.fill();
   }
-  const phase2 = bossDefOf(boss)?.phase2;
-  if (phase2) {
-    // Phase-2 threshold mark.
+  if (def?.phase2) {
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.fillRect(x + w * phase2.hpFraction - 1, y - 2, 2, h + 4);
+    ctx.fillRect(r.x + r.w * def.phase2.hpFraction - 1, r.y, 2, r.h);
   }
-  drawText(ctx, mini ? `Мінібос · ${boss.name}` : boss.name, viewW / 2, y + h / 2 + 1, { size: 14, bold: true, align: 'center' });
-  if (boss.boss?.phase === 2) {
-    drawText(ctx, 'Фаза 2', x + w + 12, y + h / 2 + 1, { size: 13, bold: true, color: THEME.bad });
-  }
+  roundRect(ctx, r.x, r.y, r.w, r.h, 5);
+  ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  const tag = def?.miniboss ? 'Мінібос · ' : phase2 ? 'Фаза 2 · ' : '';
+  drawText(ctx, `${tag}${boss.name}`, r.x + r.w / 2, r.y + r.h / 2 + 1, { size: 13, bold: true, align: 'center' });
 }

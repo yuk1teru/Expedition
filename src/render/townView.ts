@@ -25,7 +25,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
       label: 'Спорядження',
       rect: { x: panel.x + 60, y: panel.y + 232, w: 320, h: 48 },
       hotkey: 'Digit2',
-      onClick: () => app.goGear(),
+      onClick: () => app.toggleInventory(),
     }),
     new Button({
       label: 'Вирушити',
@@ -73,7 +73,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
         ctx.restore();
       }
       buttons.draw(ctx);
-      drawText(ctx, '1 — відпочити (зберігає чекпоінт) · 2 — спорядження · 3 — вирушити', W / 2, panel.y + panel.h - 20, {
+      drawText(ctx, '1 — відпочити (чекпоінт) · 2 / Tab — спорядження · 3 — вирушити', W / 2, panel.y + panel.h - 20, {
         size: 12,
         align: 'center',
         color: THEME.textMuted,

@@ -113,7 +113,10 @@ export const WAVES = {
     /** Portal spawns at least this far from the hero if possible, px. */
     minDistFromHero: 260,
     candidates: 24,
-    inset: 60,
+    /** Distance from the arena edge, px. */
+    edgeInset: 34,
+    /** The "Увійти" button appears within this gap between hero and portal, px. */
+    useRange: 40,
   },
   /** Spawn margin outside/inside arena edge, px. */
   spawnInset: 24,

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { LOOP, WAVES } from '../src/data/balance';
+import { ARENA, LOOP, WAVES } from '../src/data/balance';
 import { type Battle, createBattle, killAll, stepBattle } from '../src/systems/battle';
 import { SLICE_GROVE_ID } from '../src/systems/mapgen';
 import { createGameState, teleport } from '../src/systems/run';
-import { waveSize, waveStatMult } from '../src/systems/waves';
+import { dist } from '../src/systems/entities';
+import { portalInReach, requestPortalEntry, waveSize, waveStatMult } from '../src/systems/waves';
 
 function grove(): { b: Battle } {
   const s = createGameState(21);
@@ -46,15 +47,25 @@ describe('waves and portal', () => {
     expect(b.enemies.length).toBeGreaterThan(0);
   });
 
-  it('auto-battle does not leave through the portal while enemies are around; steering into it does', () => {
+  it('portal sits at the arena edge; walking into it does nothing, the button works only in reach', () => {
     const { b } = grove();
     clearWaves(b, WAVES.count);
-    for (let t = 0; t < WAVES.bonus.delay + 2; t += LOOP.step) stepBattle(b, LOOP.step);
     const portal = b.portal!;
+    const edgeGap = Math.min(
+      portal.pos.x - ARENA.x,
+      ARENA.x + ARENA.w - portal.pos.x,
+      portal.pos.y - ARENA.y,
+      ARENA.y + ARENA.h - portal.pos.y,
+    );
+    expect(edgeGap).toBeLessThanOrEqual(WAVES.portal.edgeInset + 1);
+    expect(requestPortalEntry(b)).toBe(dist(b.hero.pos, portal.pos) <= portal.radius + b.hero.radius + WAVES.portal.useRange);
+    b.portal!.entered = false;
     b.hero.pos = { ...portal.pos };
+    b.input.move = { x: 1, y: 0 };
     stepBattle(b, LOOP.step);
     expect(b.outcome).toBe('running');
-    b.input.move = { x: 1, y: 0 };
+    expect(portalInReach(b)).toBe(true);
+    expect(requestPortalEntry(b)).toBe(true);
     stepBattle(b, LOOP.step);
     expect(b.outcome).toBe('won');
   });

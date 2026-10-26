@@ -109,7 +109,7 @@ export const BOSSES: Record<string, BossDef> = {
     biome: 'forest',
     miniboss: true,
     hp: 150,
-    damage: 4,
+    damage: 3,
     armor: 5,
     speed: 80,
     radius: 20,
@@ -126,11 +126,11 @@ export const BOSSES: Record<string, BossDef> = {
         weight: 1,
         phases: [1],
         cooldown: [5, 5],
-        initialCooldown: 2.5,
+        initialCooldown: 1.5,
         // Line telegraph of `length` × `width` towards the hero, then a dash along it.
         params: [
-          { length: 300, width: 46, damage: 3, speed: 950, minRange: 90 },
-          { length: 300, width: 46, damage: 3, speed: 950, minRange: 90 },
+          { length: 300, width: 46, damage: 3, speed: 950, minRange: 40 },
+          { length: 300, width: 46, damage: 3, speed: 950, minRange: 40 },
         ],
       },
       {

@@ -8,17 +8,19 @@ import { getClass } from '../data/classes';
 import type { BiomeDef, DecorKind } from '../data/biomes';
 import { FX } from '../data/fx';
 import { RARITIES } from '../data/items';
+import { heroAttackSpeed } from '../systems/ai';
 import { type Battle, stepBattle } from '../systems/battle';
+import { portalInReach, requestPortalEntry } from '../systems/waves';
 import type { Enemy, Hero, Projectile, Telegraph, Zone } from '../systems/entities';
 import type { GameEvent } from '../systems/gameEvents';
 import type { App } from './app';
 import { syncBattleInput } from './battleInput';
-import { drawBoss, drawBossBar } from './bossView';
+import { drawBoss } from './bossView';
 import { Fx } from './fx';
 import { createHud } from './hud';
 import { skillFx } from './skillFx';
 import { THEME } from './theme';
-import { drawText } from './ui';
+import { type Rect, drawText, inRect, roundRect } from './ui';
 
 interface Decor {
   x: number;
@@ -87,6 +89,14 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
     },
 
     onInput(e: InputEvent) {
+      const b0 = battle;
+      if (b0 && !app.loop.paused && portalInReach(b0)) {
+        const btn = portalButtonRect(b0);
+        if ((e.type === 'key' && e.code === 'KeyE') || (e.type === 'mousedown' && inRect(btn, e.x, e.y))) {
+          requestPortalEntry(b0);
+          return;
+        }
+      }
       if (hud.handle(e)) return;
       if (e.type !== 'key') return;
       if (e.code === 'Escape') app.loop.paused = !app.loop.paused;
@@ -109,7 +119,9 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       }
       if (b.input.control === 'player' && !b.hero.dead) drawAttackArc(ctx, b.hero);
       drawHero(ctx, b.hero, b, app.time);
+      if (!b.hero.dead) drawAttackReady(ctx, b.hero, app.time);
       fx.drawCones(ctx);
+      fx.drawSlashes(ctx, (HERO.meleeArcDeg * Math.PI) / 180);
       fx.drawRings(ctx);
       fx.drawParticles(ctx);
       // Telegraphs always above effects so they stay readable.
@@ -118,9 +130,9 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       fx.drawTexts(ctx);
       if (b.input.aim) drawCrosshair(ctx, b.input.aim);
       ctx.restore();
+      if (portalInReach(b)) drawPortalButton(ctx, portalButtonRect(b), inRect(portalButtonRect(b), app.input.mouse.x, app.input.mouse.y));
       fx.drawFlash(ctx, app.view.width, app.view.height);
       hud.draw(ctx, b);
-      drawBossBar(ctx, b, app.view.width);
       fx.drawBanner(ctx, app.view.width / 2, ARENA.y + ARENA.h * 0.3);
       if (app.loop.paused && !app.screens.isPaused) {
         ctx.fillStyle = 'rgba(0,0,0,0.45)';
@@ -157,6 +169,9 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
       if (e.amount >= b.hero.maxHp * FX.heroHurtBigFraction) fx.shake(FX.shake.heroHurtBig);
       break;
     }
+    case 'heroAttack':
+      if (!e.ranged) fx.slash(e.pos, e.angle, e.reach);
+      break;
     case 'heroHeal':
       fx.text({ x: e.pos.x + T.heroSideOffset, y: e.pos.y - 18 }, `+${Math.round(e.amount)}`, T.healColor, T.size);
       break;
@@ -548,6 +563,27 @@ function drawZone(ctx: CanvasRenderingContext2D, z: Zone, b: Battle, t: number):
   ctx.restore();
 }
 
+/** "Увійти" button next to the portal, kept inside the arena. */
+function portalButtonRect(b: Battle): Rect {
+  const p = b.portal!;
+  const w = 168;
+  const h = 34;
+  const x = Math.max(ARENA.x + 6, Math.min(ARENA.x + ARENA.w - w - 6, p.pos.x - w / 2));
+  const above = p.pos.y - p.radius - h - 16;
+  const y = above > ARENA.y + 6 ? above : p.pos.y + p.radius + 16;
+  return { x, y, w, h };
+}
+
+function drawPortalButton(ctx: CanvasRenderingContext2D, r: Rect, hover: boolean): void {
+  roundRect(ctx, r.x, r.y, r.w, r.h, 8);
+  ctx.fillStyle = hover ? '#6b3fc4' : '#4b2a8f';
+  ctx.fill();
+  ctx.strokeStyle = '#d9c2ff';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  drawText(ctx, 'Увійти в портал [E]', r.x + r.w / 2, r.y + r.h / 2 + 1, { size: 14, bold: true, align: 'center' });
+}
+
 function drawPortal(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, r: number, t: number): void {
   ctx.save();
   ctx.translate(p.x, p.y);
@@ -567,6 +603,30 @@ function drawPortal(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, 
     ctx.arc(0, 0, r * (0.55 + i * 0.22), a, a + 1.6);
     ctx.stroke();
   }
+  ctx.restore();
+}
+
+/** Ring that fills up until the next basic attack; full and pulsing when ready. */
+function drawAttackReady(ctx: CanvasRenderingContext2D, h: Hero, t: number): void {
+  const a = FX.attackReady;
+  const interval = 1 / heroAttackSpeed(h);
+  const frac = Math.max(0, Math.min(1, 1 - h.attackTimer / interval));
+  const r = h.radius + a.ring;
+  ctx.save();
+  ctx.lineWidth = a.width;
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.arc(h.pos.x, h.pos.y, r, 0, Math.PI * 2);
+  ctx.stroke();
+  if (frac >= 1) {
+    ctx.globalAlpha = 0.75 + 0.25 * Math.sin(t * 10);
+    ctx.strokeStyle = a.readyColor;
+  } else {
+    ctx.strokeStyle = a.chargingColor;
+  }
+  ctx.beginPath();
+  ctx.arc(h.pos.x, h.pos.y, r, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+  ctx.stroke();
   ctx.restore();
 }
 

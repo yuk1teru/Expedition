@@ -16,6 +16,7 @@ export function skillFx(fx: Fx, e: GameEvent): void {
         break;
       case 'charge':
         fx.burst(e.pos, P.charge, FX.chargeRing.color);
+        if (e.target) fx.lineBurst(e.pos, e.target, P.chargeTrail, FX.chargeRing.color);
         break;
       case 'battleCry':
         fx.ring(e.pos, p.tauntRadius ?? 0, FX.battleCryRing.color, FX.battleCryRing.life, 6);

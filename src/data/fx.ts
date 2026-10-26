@@ -39,6 +39,7 @@ export const FX = {
     whirl: { count: 6, speed: 220, life: 0.35, size: 3 },
     slam: { count: 26, speed: 260, life: 0.5, size: 4 },
     charge: { count: 18, speed: 200, life: 0.45, size: 3.5 },
+    chargeTrail: { count: 30, speed: 50, life: 0.5, size: 4 },
     telegraph: { count: 16, speed: 180, life: 0.5, size: 4 },
     levelUp: { count: 24, speed: 140, life: 0.8, size: 3 },
     battleCry: { count: 20, speed: 160, life: 0.5, size: 3 },
@@ -60,6 +61,10 @@ export const FX = {
   /** Damage ≥ this fraction of target max HP counts as heavy for hit-stop. */
   heavyHitFraction: 0.5,
   levelUpRing: { life: 0.7, radius: 90 },
+  /** Basic attack swing: a white crescent sweeping across the attack arc. */
+  slash: { life: 0.16, color: '#ffffff', width: 5 },
+  /** Ring around the hero that fills up until the next basic attack. */
+  attackReady: { ring: 6, width: 3, readyColor: '#f2c14e', chargingColor: 'rgba(242, 193, 78, 0.45)' },
   slamCone: { life: 0.3, color: '#f2c14e' },
   battleCryRing: { life: 0.5, color: '#ff7a3c' },
   chargeRing: { life: 0.35, color: '#ffb347' },

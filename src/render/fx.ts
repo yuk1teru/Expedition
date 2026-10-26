@@ -49,6 +49,14 @@ interface Cone {
   maxLife: number;
 }
 
+interface Slash {
+  x: number;
+  y: number;
+  angle: number;
+  reach: number;
+  life: number;
+}
+
 interface Banner {
   text: string;
   color: string;
@@ -62,6 +70,7 @@ export class Fx {
   texts: FloatText[] = [];
   rings: Ring[] = [];
   cones: Cone[] = [];
+  slashes: Slash[] = [];
   banner: Banner | null = null;
   shakeTime = 0;
   shakeDuration = 0;
@@ -86,6 +95,7 @@ export class Fx {
     this.texts = [];
     this.rings = [];
     this.cones = [];
+    this.slashes = [];
     this.banner = null;
     this.shakeTime = 0;
     this.hitStop = 0;
@@ -118,6 +128,14 @@ export class Fx {
         size: spec.size * (0.6 + this.rand() * 0.8),
         color,
       });
+    }
+  }
+
+  /** Particles spread along a line (dash trails). */
+  lineBurst(from: Vec, to: Vec, spec: ParticleSpec, color: string): void {
+    for (let i = 0; i < spec.count; i++) {
+      const t = this.rand();
+      this.burst({ x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t }, { ...spec, count: 1 }, color);
     }
   }
 
@@ -210,6 +228,8 @@ export class Fx {
     this.texts = this.texts.filter((t) => t.life > 0);
     for (const r of this.rings) r.life -= dt;
     this.rings = this.rings.filter((r) => r.life > 0);
+    for (const sl of this.slashes) sl.life -= dt;
+    this.slashes = this.slashes.filter((sl) => sl.life > 0);
     for (const c of this.cones) c.life -= dt;
     this.cones = this.cones.filter((c) => c.life > 0);
     if (this.banner) {
@@ -246,6 +266,32 @@ export class Fx {
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
+  }
+
+  slash(pos: Vec, angle: number, reach: number): void {
+    this.slashes.push({ x: pos.x, y: pos.y, angle, reach, life: FX.slash.life });
+  }
+
+  /** Swing: a crescent that sweeps from one side of the arc to the other. */
+  drawSlashes(ctx: CanvasRenderingContext2D, arc: number): void {
+    for (const sl of this.slashes) {
+      const k = 1 - sl.life / FX.slash.life;
+      const start = sl.angle - arc / 2;
+      const sweep = arc * Math.min(1, k * 1.6);
+      ctx.globalAlpha = 1 - k * 0.7;
+      ctx.strokeStyle = FX.slash.color;
+      ctx.lineWidth = FX.slash.width;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(sl.x, sl.y, sl.reach, start, start + sweep);
+      ctx.stroke();
+      ctx.lineWidth = FX.slash.width * 0.5;
+      ctx.beginPath();
+      ctx.arc(sl.x, sl.y, sl.reach * 0.75, start, start + sweep);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.lineCap = 'butt';
   }
 
   drawCones(ctx: CanvasRenderingContext2D): void {

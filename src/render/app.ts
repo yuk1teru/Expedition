@@ -28,7 +28,7 @@ import { type View, beginFrame, endFrame } from './canvas';
 import { createCombatScreen } from './combatView';
 import { type DebugPanel, createDebugPanel } from './debugPanel';
 import { createDeathScreen, createRewardScreen, createVictoryScreen } from './endScreens';
-import { createGearScreen } from './gearView';
+import { createInventoryModal } from './inventory';
 import { createMapScreen } from './mapView';
 import { createCardChoiceModal, createClassChoiceModal } from './modals';
 import { THEME } from './theme';
@@ -56,7 +56,6 @@ export class App {
     this.screens.onChange = (id) => (this.state.screen = id);
     this.screens.register('map', createMapScreen(this));
     this.screens.register('town', createTownScreen(this));
-    this.screens.register('gear', createGearScreen(this));
     this.screens.register('combat', createCombatScreen(this));
     this.screens.register('reward', createRewardScreen(this));
     this.screens.register('death', createDeathScreen(this));
@@ -98,8 +97,17 @@ export class App {
     this.screens.go('town');
   }
 
-  goGear(): void {
-    this.screens.go('gear');
+  /** Opens or closes the inventory (Tab); only where the hero is not in a dialog. */
+  toggleInventory(): void {
+    const top = this.screens.topModal;
+    if (top?.id === 'inventory') {
+      this.screens.popModal();
+      return;
+    }
+    if (top) return;
+    const screen = this.screens.current;
+    if (screen !== 'map' && screen !== 'town' && screen !== 'combat') return;
+    this.screens.pushModal(createInventoryModal(this, () => this.screens.popModal()));
   }
 
   /** After death: back to town with the progress of the last rest. */
@@ -136,7 +144,7 @@ export class App {
   }
 
   skillSummary(): string {
-    return this.state.hero.skills.map((sk) => `${getSkill(sk.id).name} ${'I'.repeat(sk.rank)}`).join(' · ');
+    return [...this.state.hero.skills].sort((a, b) => a.slot - b.slot).map((sk) => `${getSkill(sk.id).name} ${'I'.repeat(sk.rank)}`).join(' · ');
   }
 
   /** Opens the next queued level-up choice when nothing else is open. */
@@ -197,6 +205,13 @@ export class App {
 
   private handleInput(e: InputEvent): void {
     if (this.debug?.handle(e)) return;
+    if (e.type === 'key' && e.code === 'Tab' && (this.screens.topModal?.id ?? 'inventory') === 'inventory') {
+      const screen = this.screens.current;
+      if (screen === 'map' || screen === 'town' || screen === 'combat') {
+        this.toggleInventory();
+        return;
+      }
+    }
     this.screens.onInput(e);
   }
 

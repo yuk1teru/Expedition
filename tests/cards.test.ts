@@ -48,6 +48,8 @@ describe('card offers', () => {
         expect(stacks).toBeLessThanOrEqual(getPassive(id).maxStacks);
       }
       expect(new Set(hero.skills.map((s) => s.id)).size).toBe(hero.skills.length);
+      expect(new Set(hero.skills.map((s) => s.slot)).size).toBe(hero.skills.length);
+      for (const s of hero.skills) expect(s.slot).toBeLessThan(PROGRESSION.skillSlots);
     }
   });
 

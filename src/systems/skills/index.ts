@@ -3,6 +3,7 @@
 import { getSkill, skillParams } from '../../data/skills';
 import type { Battle } from '../battle';
 import { isDisabled } from '../combat';
+import { skillInSlot } from '../hero';
 import type { SkillImpl } from './types';
 import { WARRIOR_SKILLS } from './warrior';
 
@@ -15,7 +16,7 @@ export type SkillUseResult = 'cast' | 'cooldown' | 'noTarget' | 'busy' | 'empty'
 /** Uses the skill in a slot (0-based). A skill without a target does not spend its cooldown. */
 export function useSkill(b: Battle, slot: number): SkillUseResult {
   const hero = b.hero;
-  const s = hero.skills[slot];
+  const s = skillInSlot(hero, slot);
   if (!s) return 'empty';
   if (b.outcome !== 'running' || hero.dead || hero.dash || isDisabled(hero)) return 'busy';
   if (s.cooldown > 0) return 'cooldown';
@@ -34,7 +35,7 @@ export function useSkill(b: Battle, slot: number): SkillUseResult {
 
 /** Cooldown of a slot's skill at its current rank (for UI). */
 export function slotCooldown(b: Battle, slot: number): number {
-  const s = b.hero.skills[slot];
+  const s = skillInSlot(b.hero, slot);
   if (!s) return 0;
   return (skillParams(s.id, s.rank).cooldown ?? 0) * b.hero.stats.cooldownMult;
 }

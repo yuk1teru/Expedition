@@ -107,17 +107,14 @@ function spawnMiniboss(b: Battle, defId: string): void {
   b.events.emit({ type: 'spawn', pos: { ...e.pos }, radius: e.radius });
 }
 
-/** Opens the exit portal at a spot away from the hero. */
+/** Opens the exit portal at the arena edge, away from the hero if possible. */
 export function openPortal(b: Battle): void {
   if (b.portal) return;
-  const inset = WAVES.portal.inset;
-  let best: Vec = { x: ARENA.x + ARENA.w / 2, y: ARENA.y + ARENA.h / 2 };
+  const inset = WAVES.portal.edgeInset;
+  let best: Vec = { x: ARENA.x + inset, y: ARENA.y + ARENA.h / 2 };
   let bestD = -1;
   for (let i = 0; i < WAVES.portal.candidates; i++) {
-    const p = {
-      x: b.rng.float(ARENA.x + inset, ARENA.x + ARENA.w - inset),
-      y: b.rng.float(ARENA.y + inset, ARENA.y + ARENA.h - inset),
-    };
+    const p = edgePoint(b.rng, inset);
     const d = dist(p, b.hero.pos);
     if (d >= WAVES.portal.minDistFromHero) {
       best = p;
@@ -132,17 +129,17 @@ export function openPortal(b: Battle): void {
   b.events.emit({ type: 'portalOpen', pos: { ...best } });
 }
 
-/**
- * The hero leaves through the portal when standing in it while steering manually
- * (or when the field is empty), so the auto-battle never walks out by accident.
- */
-export function checkPortalEntry(b: Battle): void {
+/** The hero is close enough to use the portal (the "Увійти" button shows up). */
+export function portalInReach(b: Battle): boolean {
   const p = b.portal;
-  if (!p || p.entered) return;
-  const hero = b.hero;
-  if (dist(hero.pos, p.pos) > p.radius + hero.radius * 0.5) return;
-  const steering = b.input.move.x !== 0 || b.input.move.y !== 0;
-  if (steering || !b.enemies.some((e) => !e.dead)) p.entered = true;
+  return !!p && !p.entered && b.outcome === 'running' && dist(b.hero.pos, p.pos) <= p.radius + b.hero.radius + WAVES.portal.useRange;
+}
+
+/** Player pressed "Увійти": leaves only when in reach, never by walking or being pushed in. */
+export function requestPortalEntry(b: Battle): boolean {
+  if (!portalInReach(b)) return false;
+  b.portal!.entered = true;
+  return true;
 }
 
 /** Bot / debug: leave through the portal right away. */
@@ -164,8 +161,7 @@ function spawnGroup(b: Battle, group: SpawnEntry[], statMult: number): void {
 }
 
 /** Random point just inside a random arena edge. */
-export function edgePoint(rng: Rng): Vec {
-  const inset = WAVES.spawnInset;
+export function edgePoint(rng: Rng, inset: number = WAVES.spawnInset): Vec {
   const side = rng.int(0, 3);
   const x0 = ARENA.x + inset;
   const x1 = ARENA.x + ARENA.w - inset;

@@ -70,3 +70,12 @@ export function equippedStat(hero: Hero, stat: ItemStat): number {
   }
   return sum;
 }
+
+/** Takes a worn item off into the bag. */
+export function unequip(hero: Hero, slot: ItemSlot): void {
+  const item = hero.equipment[slot];
+  if (!item) return;
+  delete hero.equipment[slot];
+  hero.bag.push(item);
+  recomputeHeroStats(hero);
+}

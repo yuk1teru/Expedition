@@ -5,7 +5,7 @@ import { getClass } from '../data/classes';
 import { getPassive } from '../data/skills';
 import type { Rng } from '../core/rng';
 import type { Hero } from './entities';
-import { recomputeHeroStats } from './hero';
+import { firstFreeSlot, recomputeHeroStats } from './hero';
 
 export type Card =
   | { kind: 'newSkill'; skillId: string }
@@ -84,7 +84,7 @@ export function applyCard(hero: Hero, card: Card): void {
   if (!isCardValid(hero, card)) throw new Error(`Invalid card ${cardKey(card)}`);
   switch (card.kind) {
     case 'newSkill':
-      hero.skills.push({ id: card.skillId, rank: 1, cooldown: 0 });
+      hero.skills.push({ id: card.skillId, rank: 1, cooldown: 0, slot: firstFreeSlot(hero) });
       break;
     case 'upgrade': {
       const s = hero.skills.find((x) => x.id === card.skillId);

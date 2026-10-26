@@ -3,8 +3,8 @@
 
 import type { InputEvent } from './input';
 
-export type ScreenId = 'map' | 'town' | 'gear' | 'combat' | 'reward' | 'death' | 'victory';
-export type ModalId = 'classChoice' | 'cardChoice';
+export type ScreenId = 'map' | 'town' | 'combat' | 'reward' | 'death' | 'victory';
+export type ModalId = 'classChoice' | 'cardChoice' | 'inventory';
 
 export interface Screen<R> {
   enter?(): void;

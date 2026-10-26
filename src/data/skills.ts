@@ -67,12 +67,14 @@ export const SKILLS: Record<string, SkillDef> = {
     targeting: 'densest',
     aimable: true,
     icon: 'dash',
-    description: 'Стрибок до найщільнішої групи (до {range} px): {damage%} атаки, оглушення {stun} с. Невразливість під час стрибка.',
+    description: 'Стрибок до курсора (до {range} px): {damage%} атаки й оглушення {stun} с усім на шляху і в точці приземлення. Невразливість під час стрибка.',
     base: {
       cooldown: 7,
       range: 300,
       damage: 1.5,
       radius: 70,
+      /** Width of the damaging path, px. */
+      pathWidth: 56,
       stun: 1,
       speed: 900,
       knockback: 220,

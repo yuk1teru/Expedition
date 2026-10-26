@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { LOOP } from '../src/data/balance';
 import { createBattle, stepBattle } from '../src/systems/battle';
 import { addTelegraph } from '../src/systems/boss';
-import { assignClass, moveSkill } from '../src/systems/hero';
+import { assignClass, firstFreeSlot, moveSkill, skillInSlot } from '../src/systems/hero';
 import { SLICE_GROVE_ID, SLICE_LAIR_ID } from '../src/systems/mapgen';
 import { createGameState, teleport } from '../src/systems/run';
 import { useSkill } from '../src/systems/skills';
@@ -12,7 +12,7 @@ function warriorBattle(nodeId = SLICE_LAIR_ID) {
   const s = createGameState(11);
   s.hero.level = 3;
   assignClass(s.hero, 'warrior');
-  s.hero.skills.push({ id: 'charge', rank: 1, cooldown: 0 }, { id: 'groundSlam', rank: 1, cooldown: 0 });
+  s.hero.skills.push({ id: 'charge', rank: 1, cooldown: 0, slot: 1 }, { id: 'groundSlam', rank: 1, cooldown: 0, slot: 2 });
   teleport(s, nodeId);
   return { s, b: createBattle(s, nodeId) };
 }
@@ -84,21 +84,45 @@ describe('aimed skills', () => {
     expect(s.hero.pos.x).toBeLessThan(start.x - 150);
   });
 
+  it('Charge hits every enemy on its path, not only at the landing spot', () => {
+    const { s, b } = warriorBattle(SLICE_GROVE_ID);
+    const h = s.hero.pos;
+    const onPath = spawnEnemy(b, 'stump', { x: h.x - 120, y: h.y + 10 });
+    const offPath = spawnEnemy(b, 'stump', { x: h.x - 120, y: h.y + 150 });
+    const hp = onPath.hp;
+    b.input.aim = { x: h.x - 280, y: h.y };
+    expect(useSkill(b, 1)).toBe('cast');
+    for (let t = 0; t < 0.5; t += LOOP.step) stepBattle(b, LOOP.step);
+    expect(onPath.hp).toBeLessThan(hp);
+    expect(offPath.hp).toBe(offPath.maxHp);
+  });
+
   it('without aim Charge keeps automatic targeting', () => {
     const { s, b } = warriorBattle(SLICE_GROVE_ID);
     expect(useSkill(b, 1)).toBe('noTarget');
-    expect(s.hero.skills[1]!.cooldown).toBe(0);
+    expect(skillInSlot(s.hero, 1)!.cooldown).toBe(0);
   });
 });
 
 describe('skill reordering', () => {
-  it('swaps occupied slots and keeps cooldowns with the skill', () => {
+  it('swaps occupied slots, moves into empty ones and keeps cooldowns with the skill', () => {
     const { s } = warriorBattle();
-    s.hero.skills[1]!.cooldown = 3;
+    const bar = (): (string | undefined)[] => [0, 1, 2, 3].map((i) => skillInSlot(s.hero, i)?.id);
+    skillInSlot(s.hero, 1)!.cooldown = 3;
     moveSkill(s.hero, 1, 0);
-    expect(s.hero.skills.map((x) => x.id)).toEqual(['charge', 'whirlwind', 'groundSlam']);
-    expect(s.hero.skills[0]!.cooldown).toBe(3);
+    expect(bar()).toEqual(['charge', 'whirlwind', 'groundSlam', undefined]);
+    expect(skillInSlot(s.hero, 0)!.cooldown).toBe(3);
     moveSkill(s.hero, 0, 3);
-    expect(s.hero.skills.map((x) => x.id)).toEqual(['whirlwind', 'groundSlam', 'charge']);
+    expect(bar()).toEqual([undefined, 'whirlwind', 'groundSlam', 'charge']);
+  });
+
+  it('a lone skill can be dragged from slot 1 to empty slot 2, new skills fill free slots', () => {
+    const s = createGameState(3);
+    s.hero.level = 3;
+    assignClass(s.hero, 'warrior');
+    moveSkill(s.hero, 0, 1);
+    expect(skillInSlot(s.hero, 0)).toBeUndefined();
+    expect(skillInSlot(s.hero, 1)?.id).toBe('whirlwind');
+    expect(firstFreeSlot(s.hero)).toBe(0);
   });
 });

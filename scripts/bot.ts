@@ -32,9 +32,7 @@ export function resolveModals(state: GameState, rng: Rng): void {
 
 /** Uses every ready skill that has a target. */
 export function useReadySkills(b: Battle): void {
-  b.hero.skills.forEach((s, i) => {
-    if (s.cooldown <= 0) useSkill(b, i);
-  });
+  for (const s of b.hero.skills) if (s.cooldown <= 0) useSkill(b, s.slot);
 }
 
 export interface BattleRun {

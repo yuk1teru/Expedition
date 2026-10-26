@@ -30,6 +30,7 @@ export const GAME_KEYS = [
   'Backquote',
   'Enter',
   'Tab',
+  'KeyE',
   ...Object.keys(MOVE_KEYS),
 ] as const;
 

@@ -5,7 +5,7 @@ import { addStatus, damageEnemy, heroDamage } from '../combat';
 import { addBuff, addZone, startDash } from '../effects';
 import type { SkillParams } from '../../data/skills';
 import type { Battle } from '../battle';
-import { type Hero, type Vec, dist } from '../entities';
+import { type Hero, type Vec, dist, distToSegment } from '../entities';
 import { bestConeAngle, coneTargets, densePoints, enemiesInRadius, nearestEnemy } from '../targeting';
 import { telegraphContains } from '../boss';
 import type { SkillImpl } from './types';
@@ -47,7 +47,12 @@ const charge: SkillImpl = ({ b, hero, p, def, rank, aim }) => {
     }
   }
   startDash(hero, dest, p.speed!, () => {
-    for (const e of enemiesInRadius(b.enemies, hero.pos, p.radius!)) {
+    // Everyone the hero ran through, plus everyone around the landing spot, is hit once.
+    const hit = new Set(enemiesInRadius(b.enemies, hero.pos, p.radius!));
+    for (const e of b.enemies) {
+      if (!e.dead && distToSegment(e.pos, from, dest) <= p.pathWidth! / 2 + e.radius) hit.add(e);
+    }
+    for (const e of hit) {
       damageEnemy(b, e, heroDamage(b, p.damage!, 'skill'), { source: 'skill', knockFrom: hero.pos, knockback: p.knockback! });
       if (!e.dead) addStatus(e, 'stun', p.stun!);
     }
