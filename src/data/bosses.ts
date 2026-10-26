@@ -117,9 +117,9 @@ export const BOSSES: Record<string, BossDef> = {
     xp: 40,
     gold: 20,
     keepDistance: 0,
-    telegraphDelay: 0.8,
+    telegraphDelay: 0.7,
     minPause: 1.2,
-    melee: { damage: 1, interval: 1.3, reach: 6 },
+    melee: { damage: 1.3, interval: 1.3, reach: 6 },
     attacks: [
       {
         id: 'lunge',
@@ -129,8 +129,8 @@ export const BOSSES: Record<string, BossDef> = {
         initialCooldown: 1.5,
         // Line telegraph of `length` × `width` towards the hero, then a dash along it.
         params: [
-          { length: 300, width: 46, damage: 3, speed: 950, minRange: 40 },
-          { length: 300, width: 46, damage: 3, speed: 950, minRange: 40 },
+          { length: 300, width: 46, damage: 4, speed: 950, minRange: 40 },
+          { length: 300, width: 46, damage: 4, speed: 950, minRange: 40 },
         ],
       },
       {

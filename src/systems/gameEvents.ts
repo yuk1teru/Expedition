@@ -13,9 +13,9 @@ export type GameEvent =
   | { type: 'kill'; pos: Vec; defId: string; radius: number; elite: boolean; boss: boolean }
   | { type: 'gold'; pos: Vec; amount: number }
   | { type: 'spawn'; pos: Vec; radius: number }
-  | { type: 'wave'; index: number; total: number; bonus: number }
+  | { type: 'wave'; index: number; total: number; bonus: number; statMult: number }
   | { type: 'miniboss'; name: string; pos: Vec }
-  | { type: 'portalOpen'; pos: Vec }
+  | { type: 'portalOpen'; pos: Vec; seconds: number }
   | { type: 'pickupSpawn'; kind: PickupKind; pos: Vec }
   | { type: 'pickup'; kind: PickupKind; pos: Vec }
   | { type: 'loot'; pos: Vec; name: string; rarity: Rarity }

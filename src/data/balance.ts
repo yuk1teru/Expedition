@@ -86,30 +86,30 @@ export const SCALING = {
 } as const;
 
 export const WAVES = {
-  /** Mandatory waves; the portal opens after them. */
+  /** Waves before the first portal (and before short breaks end). */
   count: 3,
-  /** Wave size = min(baseSize + perTier × floor(tier), maxSize) (+ bonus extra). */
+  /** Wave size = min(baseSize + perTier × floor(tier), maxSize) + extraPerWave × (waves past the first portal). */
   baseSize: 10,
   perTier: 3,
   maxSize: 24,
+  extraPerWave: 2,
+  /**
+   * HP, damage, XP and gold multiplier of wave i (0-based): 1 + statPerWave·i + statPerWave2·i².
+   * Gentle at first, steep later: wave 3 ×1.24, wave 6 ×1.9, wave 10 ×3.3, wave 15 ×6.
+   */
+  statPerWave: 0.05,
+  statPerWave2: 0.018,
   groupSize: 4,
   /** Seconds between spawn groups. */
   groupInterval: 0.5,
-  /** Seconds between waves. */
-  pauseBetween: 1.5,
-  /** 1-based wave index that contains the elite. */
+  /** Breaks between waves, s: first waves, normal, and the longer portal break. */
+  breaks: { first: 1.5, normal: 5, portal: 15 },
+  /** The portal opens after every N-th wave. */
+  portalEvery: 3,
+  /** A (scaled) miniboss comes with every N-th wave. */
+  minibossEvery: 3,
+  /** 1-based wave index from which every wave has an elite. */
   eliteWave: 3,
-  /** 1-based wave index where the location miniboss appears. */
-  minibossWave: 3,
-  /** Bonus waves after the portal opens, while the hero stays. */
-  bonus: {
-    /** Break before each bonus wave, s; the portal is usable only during it. */
-    delay: 10,
-    /** Extra enemies per bonus level. */
-    extraPerWave: 3,
-    /** HP, damage, XP and gold +8% per bonus level. */
-    statPerWave: 0.08,
-  },
   portal: {
     radius: 26,
     /** Portal spawns at least this far from the hero if possible, px. */

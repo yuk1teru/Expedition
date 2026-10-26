@@ -1,5 +1,6 @@
-// Waves: 3 mandatory waves (elite and miniboss in the 3rd), then a portal opens.
-// Until the hero enters it, bonus waves keep coming, each bigger and stronger.
+// Waves: every wave is bigger and stronger than the previous one. Every 3rd wave
+// brings a (scaled) miniboss; after every 3rd wave the exit portal opens for a
+// longer break. Until the hero leaves, waves keep coming.
 
 import { ARENA, ELITE, ENEMY_COMMON, WAVES } from '../data/balance';
 import { getBiome } from '../data/biomes';
@@ -31,6 +32,8 @@ export interface WaveState {
   cleared: number;
   /** HP/damage/reward multiplier of the current wave. */
   statMult: number;
+  /** The current break is a portal break (portal usable). */
+  portalBreak: boolean;
 }
 
 /** Bonus wave number for a wave index (0 for mandatory waves). */
@@ -38,28 +41,40 @@ export function bonusLevel(index: number): number {
   return Math.max(0, index + 1 - WAVES.count);
 }
 
-export function waveSize(tier: number, bonus = 0): number {
+/** Enemies in a wave (0-based index): tier base, then a few more every wave after the first portal. */
+export function waveSize(tier: number, index = 0): number {
   const base = Math.min(WAVES.baseSize + WAVES.perTier * Math.floor(tier), WAVES.maxSize);
-  return base + WAVES.bonus.extraPerWave * bonus;
+  return base + WAVES.extraPerWave * Math.max(0, index + 1 - WAVES.count);
 }
 
-export function waveStatMult(bonus: number): number {
-  return 1 + WAVES.bonus.statPerWave * bonus;
+/** HP, damage and rewards multiplier of a wave (0-based index). */
+export function waveStatMult(index: number): number {
+  return 1 + WAVES.statPerWave * index + WAVES.statPerWave2 * index * index;
+}
+
+/** The break after `cleared` waves opens the portal. */
+export function isPortalBreak(cleared: number): boolean {
+  return cleared > 0 && cleared % WAVES.portalEvery === 0;
+}
+
+/** Waves until the next portal break, counting the current one. */
+export function wavesToPortal(w: WaveState): number {
+  const done = w.started ? w.index : w.cleared;
+  return WAVES.portalEvery - (done % WAVES.portalEvery);
 }
 
 export function createWaves(): WaveState {
-  return { index: 0, total: WAVES.count, queue: [], groupTimer: 0, pause: 0, started: false, cleared: 0, statMult: 1 };
+  return { index: 0, total: WAVES.count, queue: [], groupTimer: 0, pause: 0, started: false, cleared: 0, statMult: 1, portalBreak: false };
 }
 
 export function composeWave(rng: Rng, biomeId: string, tier: number, waveIndex: number): SpawnEntry[] {
   const biome = getBiome(biomeId);
   const weighted = biome.enemies.map((id) => ({ item: id, weight: getEnemyDef(id).spawnWeight }));
-  const bonus = bonusLevel(waveIndex);
-  const size = waveSize(tier, bonus);
+  const size = waveSize(tier, waveIndex);
   const out: SpawnEntry[] = [];
   for (let i = 0; i < size; i++) out.push({ defId: rng.weighted(weighted), elite: false });
-  // Elite in the elite wave and in every bonus wave; it arrives with the last group.
-  if ((waveIndex + 1 === WAVES.eliteWave || bonus > 0) && out.length > 0) {
+  // Elite from the elite wave on; it arrives with the last group.
+  if (waveIndex + 1 >= WAVES.eliteWave && out.length > 0) {
     const last = out[out.length - 1] as SpawnEntry;
     last.elite = true;
   }
@@ -73,13 +88,14 @@ export function updateWaves(b: Battle, dt: number): void {
     w.pause -= dt;
     if (w.pause > 0) return;
     w.started = true;
+    w.portalBreak = false;
     const bonus = bonusLevel(w.index);
-    w.statMult = waveStatMult(bonus);
+    w.statMult = waveStatMult(w.index);
     w.queue = composeWave(b.rng, b.biome.id, b.tier, w.index);
     w.groupTimer = 0;
-    b.events.emit({ type: 'wave', index: w.index + 1, total: w.total, bonus });
+    b.events.emit({ type: 'wave', index: w.index + 1, total: w.total, bonus, statMult: w.statMult });
     maybeSpawnPickup(b, w.index + 1);
-    if (w.index + 1 === WAVES.minibossWave && b.biome.miniboss) spawnMiniboss(b, b.biome.miniboss);
+    if ((w.index + 1) % WAVES.minibossEvery === 0 && b.biome.miniboss) spawnMiniboss(b, b.biome.miniboss, w.statMult);
   }
   if (w.queue.length > 0) {
     w.groupTimer -= dt;
@@ -92,10 +108,15 @@ export function updateWaves(b: Battle, dt: number): void {
   if (b.enemies.some((e) => !e.dead)) return;
   // Wave cleared.
   w.cleared = w.index + 1;
-  if (w.cleared === w.total) openPortal(b);
   w.index += 1;
   w.started = false;
-  w.pause = w.index >= w.total ? WAVES.bonus.delay : WAVES.pauseBetween;
+  w.portalBreak = isPortalBreak(w.cleared);
+  if (w.portalBreak) {
+    openPortal(b);
+    w.pause = WAVES.breaks.portal;
+  } else {
+    w.pause = w.cleared < WAVES.count ? WAVES.breaks.first : WAVES.breaks.normal;
+  }
 }
 
 /** Seconds until the next wave starts (null while a wave is running). */
@@ -103,15 +124,18 @@ export function nextWaveIn(w: WaveState): number | null {
   return w.started ? null : Math.max(0, w.pause);
 }
 
-function spawnMiniboss(b: Battle, defId: string): void {
-  const e = createBossEnemy(b, defId, edgePoint(b.rng));
+function spawnMiniboss(b: Battle, defId: string, statMult: number): void {
+  const e = createBossEnemy(b, defId, edgePoint(b.rng), statMult);
   b.events.emit({ type: 'miniboss', name: e.name, pos: { ...e.pos } });
   b.events.emit({ type: 'spawn', pos: { ...e.pos }, radius: e.radius });
 }
 
-/** Opens the exit portal at the arena edge, away from the hero if possible. */
+/** Opens the exit portal (placed once at the arena edge, away from the hero) and warns the player. */
 export function openPortal(b: Battle): void {
-  if (b.portal) return;
+  if (b.portal) {
+    b.events.emit({ type: 'portalOpen', pos: { ...b.portal.pos }, seconds: WAVES.breaks.portal });
+    return;
+  }
   const inset = WAVES.portal.edgeInset;
   let best: Vec = { x: ARENA.x + inset, y: ARENA.y + ARENA.h / 2 };
   let bestD = -1;
@@ -128,12 +152,12 @@ export function openPortal(b: Battle): void {
     }
   }
   b.portal = { pos: best, radius: WAVES.portal.radius, entered: false };
-  b.events.emit({ type: 'portalOpen', pos: { ...best } });
+  b.events.emit({ type: 'portalOpen', pos: { ...best }, seconds: WAVES.breaks.portal });
 }
 
-/** The portal works only during the break between waves (wave cleared, next one not started). */
+/** The portal works only during a portal break (after every 3rd wave). */
 export function portalActive(b: Battle): boolean {
-  return !!b.portal && !b.portal.entered && !!b.waves && !b.waves.started && b.outcome === 'running';
+  return !!b.portal && !b.portal.entered && !!b.waves && !b.waves.started && b.waves.portalBreak && b.outcome === 'running';
 }
 
 /** The portal is active and the hero is close enough (the "Увійти" button shows up). */

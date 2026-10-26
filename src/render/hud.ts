@@ -8,7 +8,7 @@ import { heroAttackSpeed } from '../systems/ai';
 import type { Battle } from '../systems/battle';
 import { isMaxLevel, xpFraction } from '../systems/leveling';
 import { xpToNext } from '../systems/scaling';
-import { bonusLevel, nextWaveIn, portalActive } from '../systems/waves';
+import { nextWaveIn, portalActive, wavesToPortal } from '../systems/waves';
 import { moveSkill, skillInSlot } from '../systems/hero';
 import { hasNewItems } from '../systems/items';
 import { slotCooldown, useSkill } from '../systems/skills';
@@ -45,8 +45,7 @@ const CENTER_W = 270;
 function waveTitle(b: Battle): string {
   const w = b.waves;
   if (!w) return '';
-  const bonus = bonusLevel(w.index);
-  return bonus > 0 ? `Додаткова хвиля ${bonus}` : `Хвиля ${Math.min(w.total, w.index + 1)}/${w.total}`;
+  return `Хвиля ${w.index + 1}`;
 }
 const DRAG_THRESHOLD = 6;
 const SLOT_GAP = 14;
@@ -144,12 +143,17 @@ export function createHud(app: App, _fx: Fx): Hud {
         drawBossBar(ctx, bossLike, { x: CENTER_X - CENTER_W / 2, y: 21, w: CENTER_W, h: 24 });
       } else if (b.waves) {
         const w = b.waves;
-        const bonus = bonusLevel(w.index);
-        const title =
-          b.portal && !w.started ? 'Перерва — портал відкрито' : bonus > 0 ? `Додаткова хвиля ${bonus}` : `Хвиля ${Math.min(w.total, w.index + 1)}/${w.total}`;
-        drawText(ctx, title, CENTER_X, 20, { size: 17, bold: true, align: 'center', color: bonus > 0 || b.portal ? THEME.accent : THEME.text });
+        const breakNow = !w.started && w.cleared > 0;
+        const title = portalActive(b) ? 'Перерва — портал відкрито' : breakNow ? 'Перерва' : `Хвиля ${w.index + 1}`;
+        drawText(ctx, title, CENTER_X, 20, { size: 17, bold: true, align: 'center', color: portalActive(b) ? THEME.accent : THEME.text });
         const next = nextWaveIn(w);
-        const sub = b.portal && next !== null && next > 0 ? `Наступна хвиля через ${Math.ceil(next)} с` : b.node.name;
+        const toPortal = wavesToPortal(w);
+        const sub =
+          breakNow && next !== null && next > 0
+            ? `Хвиля ${w.index + 1} через ${Math.ceil(next)} с`
+            : toPortal === 1
+              ? 'Портал — після цієї хвилі'
+              : `Портал — через ${toPortal} хвилі`;
         drawText(ctx, sub, CENTER_X, 41, { size: 12, align: 'center', color: b.portal ? '#c9a8ff' : THEME.textDim });
         if (portalActive(b)) {
           const left = Math.ceil(nextWaveIn(w) ?? 0);

@@ -32,9 +32,9 @@ function behaviorOf(id: string): BossBehavior {
 }
 
 /** Creates a boss-driven enemy (boss or miniboss) at `pos`. */
-export function createBossEnemy(b: Battle, defId: string, pos: Vec): Enemy {
+export function createBossEnemy(b: Battle, defId: string, pos: Vec, statMult = 1): Enemy {
   const def = getBoss(defId);
-  const scaled = enemyStats(def, b.tier, dayMultiplier(b.state.day));
+  const scaled = enemyStats(def, b.tier, dayMultiplier(b.state.day) * statMult);
   const attackCooldowns: Record<string, number> = {};
   for (const a of def.attacks) attackCooldowns[a.id] = a.initialCooldown;
   const e: Enemy = {
@@ -59,8 +59,8 @@ export function createBossEnemy(b: Battle, defId: string, pos: Vec): Enemy {
     damage: scaled.damage,
     speed: def.speed,
     armor: def.armor,
-    xp: def.xp,
-    gold: def.gold,
+    xp: def.xp * statMult,
+    gold: Math.round(def.gold * statMult),
     attackTimer: 0,
     abilityTimer: 0,
     dashTime: 0,

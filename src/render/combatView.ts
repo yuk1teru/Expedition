@@ -3,7 +3,7 @@
 import type { InputEvent } from '../core/input';
 import { Rng } from '../core/rng';
 import type { Screen } from '../core/screens';
-import { ARENA, WAVES } from '../data/balance';
+import { ARENA } from '../data/balance';
 import { getClass } from '../data/classes';
 import type { BiomeDef, DecorKind } from '../data/biomes';
 import { FX } from '../data/fx';
@@ -243,8 +243,8 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
       fx.burst(e.pos, P.spawn, b.biome.palette.accent);
       break;
     case 'wave':
-      if (e.bonus > 0) fx.showBanner(`Додаткова хвиля ${e.bonus} · вороги +${Math.round(e.bonus * WAVES.bonus.statPerWave * 100)}%`, THEME.accent);
-      else fx.showBanner(`Хвиля ${e.index}/${e.total}`, THEME.text);
+      if (e.statMult > 1) fx.showBanner(`Хвиля ${e.index} · вороги +${Math.round((e.statMult - 1) * 100)}%`, e.bonus > 0 ? THEME.accent : THEME.text);
+      else fx.showBanner(`Хвиля ${e.index}`, THEME.text);
       break;
     case 'miniboss':
       fx.showBanner(`Мінібос: ${e.name}`, THEME.bad);
@@ -274,7 +274,7 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
       break;
     }
     case 'portalOpen':
-      fx.showBanner('Портал відкрито!', '#b98cff');
+      fx.showBanner(`Портал відкрито на ${e.seconds} с!`, '#b98cff');
       fx.ring(e.pos, 80, '#b98cff', 0.8, 6);
       fx.burst(e.pos, P.levelUp, '#b98cff');
       break;
