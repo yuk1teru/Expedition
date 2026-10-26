@@ -71,6 +71,18 @@ describe('waves', () => {
     expect(skipBreak(b)).toBe(false);
   });
 
+  it('skipping a break takes the skipped seconds off skill and boot-dash cooldowns', () => {
+    const { b } = grove();
+    clearWaves(b, WAVES.portalEvery);
+    const left = b.waves!.pause;
+    b.hero.skills = [{ id: 'whirlwind', rank: 1, slot: 0, cooldown: left + 2 }, { id: 'charge', rank: 1, slot: 1, cooldown: 1 }];
+    b.hero.dodgeCooldown = left + 3;
+    expect(skipBreak(b)).toBe(true);
+    expect(b.hero.skills[0]!.cooldown).toBeCloseTo(2);
+    expect(b.hero.skills[1]!.cooldown).toBe(0);
+    expect(b.hero.dodgeCooldown).toBeCloseTo(3);
+  });
+
   it('continuing starts from the remembered wave, with 3 mandatory waves', () => {
     const s = createGameState(5);
     s.hero.immortal = true;

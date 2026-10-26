@@ -16,7 +16,7 @@ import { basicAttackOf } from '../systems/hero';
 import { type Battle, stepBattle } from '../systems/battle';
 import { type Pickup, pickupReady, useQuickSlot } from '../systems/pickups';
 import { portalActive, portalInReach, requestPortalEntry } from '../systems/waves';
-import { PICKUPS, PICKUP_SPAWN, QUICK_SLOTS } from '../data/consumables';
+import { CONSUMABLES, type ConsumableId, PICKUPS, PICKUP_SPAWN, QUICK_SLOTS } from '../data/consumables';
 import { drawConsumableIcon } from './icons';
 import { useBootDash } from '../systems/skills';
 import type { Enemy, Hero, Projectile, Telegraph, Zone } from '../systems/entities';
@@ -304,9 +304,16 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
     case 'pickupSpawn':
       fx.burst(e.pos, P.spawn, PICKUPS[e.kind].color);
       break;
-    case 'healUse':
-      fx.text({ x: e.pos.x + T.heroSideOffset, y: e.pos.y - 30 }, `+${Math.round(e.total)} HP за ${e.duration} с`, T.healColor, 14, 1.4);
-      fx.ring(e.pos, 30, T.healColor, 0.5, 3);
+    case 'healUse': {
+      // In the item's own colour: green / red / white herb, potion colours.
+      const c = CONSUMABLES[e.id];
+      fx.text({ x: e.pos.x + T.heroSideOffset, y: e.pos.y - 30 }, `${c.name}: +${Math.round(e.total)} HP за ${e.duration} с`, c.color, 14, 1.6);
+      fx.ring(e.pos, 34, c.color, 0.6, 4);
+      fx.burst(e.pos, P.levelUp, c.color);
+      break;
+    }
+    case 'breakSkipped':
+      fx.text({ x: e.pos.x, y: e.pos.y - 46 }, `Перезарядка −${Math.ceil(e.seconds)} с`, '#8fd3ff', 15, 1.4);
       break;
     case 'pickup': {
       const def = PICKUPS[e.kind];
@@ -589,6 +596,7 @@ function drawHero(ctx: CanvasRenderingContext2D, h: Hero, b: Battle, t: number, 
     ctx.arc(0, 0, r + 6 + Math.sin(t * 20) * 1.5, 0, Math.PI * 2);
     ctx.stroke();
   }
+  drawHealing(ctx, h, t);
   for (const buff of h.buffs) {
     if (buff.attackSpeedMult > 1) {
       ctx.strokeStyle = 'rgba(255, 120, 60, 0.7)';
@@ -1019,4 +1027,45 @@ function drawWeather(ctx: CanvasRenderingContext2D, b: Battle, t: number): void 
     ctx.stroke();
   }
   ctx.restore();
+}
+
+/**
+ * Active herb / potion healing: a soft aura and small crosses rising around the hero,
+ * in the colour of the item (so you see which one is working).
+ */
+function drawHealing(ctx: CanvasRenderingContext2D, h: Hero, t: number): void {
+  const r = h.radius;
+  let k = 0;
+  for (const buff of h.buffs) {
+    if (!buff.id.startsWith('heal:')) continue;
+    const id = buff.id.split(':')[1] as ConsumableId;
+    const color = CONSUMABLES[id]?.color ?? '#6fd16f';
+    ctx.save();
+    const grad = ctx.createRadialGradient(0, 0, r * 0.6, 0, 0, r + 16 + k * 4);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(1, color);
+    ctx.globalAlpha = 0.35 + 0.15 * Math.sin(t * 6 + k);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, r + 16 + k * 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    for (let i = 0; i < 6; i++) {
+      // Each cross rises and fades over a second, staggered.
+      const phase = (t * 0.9 + i / 6 + k * 0.13) % 1;
+      const a = (i / 6) * Math.PI * 2 + k;
+      const x = Math.cos(a) * (r + 8);
+      const y = Math.sin(a) * (r * 0.6) - phase * 34;
+      ctx.globalAlpha = 1 - phase;
+      ctx.beginPath();
+      ctx.moveTo(x - 4.5, y);
+      ctx.lineTo(x + 4.5, y);
+      ctx.moveTo(x, y - 4.5);
+      ctx.lineTo(x, y + 4.5);
+      ctx.stroke();
+    }
+    ctx.restore();
+    k++;
+  }
 }

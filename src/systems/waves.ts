@@ -188,10 +188,19 @@ export function inBreak(b: Battle): boolean {
   return !!w && !w.started && w.cleared > w.start && b.outcome === 'running';
 }
 
-/** "Далі": ends the break now (the portal closes if it was open). */
+/**
+ * "Далі": ends the break now (the portal closes if it was open). The skipped seconds
+ * still count for the hero: skill and boot-dash cooldowns run down by that much.
+ */
 export function skipBreak(b: Battle): boolean {
   if (!inBreak(b)) return false;
-  b.waves!.pause = 0;
+  const w = b.waves!;
+  const skipped = Math.max(0, w.pause);
+  w.pause = 0;
+  const hero = b.hero;
+  for (const s of hero.skills) s.cooldown = Math.max(0, s.cooldown - skipped);
+  hero.dodgeCooldown = Math.max(0, hero.dodgeCooldown - skipped);
+  if (skipped > 0) b.events.emit({ type: 'breakSkipped', seconds: skipped, pos: { ...hero.pos } });
   return true;
 }
 
