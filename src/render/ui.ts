@@ -112,7 +112,6 @@ export class ButtonGroup {
         b.onClick();
         return true;
       }
-      return false;
     }
     for (const b of this.buttons) {
       if (b.enabled && b.hotkey === e.code) {

@@ -7,9 +7,14 @@ import { ScreenManager } from '../core/screens';
 import { randomSeed } from '../core/seed';
 import type { GameState } from '../core/state';
 import { LOOP } from '../data/balance';
-import { getNode, markCleared } from '../systems/mapgen';
-import { createGameState, travel } from '../systems/run';
+import { type Battle, createBattle, killAll } from '../systems/battle';
+import { grantLevel } from '../systems/leveling';
+import { SLICE_GROVE_ID, getNode, resetClears } from '../systems/mapgen';
+import { type BattleSummary, completeBattle, createGameState, isRunWon, teleport, travel } from '../systems/run';
 import { type View, beginFrame, endFrame } from './canvas';
+import { createCombatScreen } from './combatView';
+import { type DebugPanel, createDebugPanel } from './debugPanel';
+import { createDeathScreen, createRewardScreen, createVictoryScreen } from './endScreens';
 import { createMapScreen } from './mapView';
 import { THEME } from './theme';
 import { createTownScreen } from './townView';
@@ -18,18 +23,29 @@ export class App {
   readonly screens = new ScreenManager<CanvasRenderingContext2D>();
   readonly loop: GameLoop;
   state: GameState;
+  battle: Battle | null = null;
+  lastSummary: BattleSummary | null = null;
   /** Real seconds since start (UI animation). */
   time = 0;
+  reducedMotion = false;
+  readonly debug: DebugPanel | null;
 
   constructor(
     readonly view: View,
     readonly input: Input,
     seed: number,
+    opts: { dev: boolean; reducedMotion: boolean },
   ) {
+    this.reducedMotion = opts.reducedMotion;
     this.state = createGameState(seed);
     this.screens.onChange = (id) => (this.state.screen = id);
     this.screens.register('map', createMapScreen(this));
     this.screens.register('town', createTownScreen(this));
+    this.screens.register('combat', createCombatScreen(this));
+    this.screens.register('reward', createRewardScreen(this));
+    this.screens.register('death', createDeathScreen(this));
+    this.screens.register('victory', createVictoryScreen(this));
+    this.debug = opts.dev ? createDebugPanel(this) : null;
     this.loop = new GameLoop(
       {
         fixedUpdate: (dt) => this.screens.update(dt),
@@ -53,6 +69,7 @@ export class App {
   newRun(seed: number = randomSeed()): void {
     this.screens.clearModals();
     this.loop.paused = false;
+    this.battle = null;
     this.state = createGameState(seed);
     this.screens.go('town');
   }
@@ -72,9 +89,47 @@ export class App {
   }
 
   startBattle(nodeId: string): void {
-    // Temporary stub until combat exists: the location counts as completed.
-    markCleared(getNode(this.state.world, nodeId));
-    this.state.day += 1;
+    this.battle = createBattle(this.state, nodeId);
+    this.loop.paused = false;
+    this.screens.go('combat');
+  }
+
+  /** Called by the combat screen when the battle's end delay has run out. */
+  finishBattle(): void {
+    const b = this.battle;
+    if (!b) return;
+    this.lastSummary = completeBattle(this.state, b);
+    this.battle = null;
+    this.loop.paused = false;
+    if (!this.lastSummary.won) this.screens.go('death');
+    else if (isRunWon(this.state)) this.screens.go('victory');
+    else this.screens.go('reward');
+  }
+
+  skillSummary(): string {
+    return '';
+  }
+
+  // ---- Debug actions ----
+
+  debugLevelUp(): void {
+    grantLevel(this.state);
+  }
+
+  debugKillAll(): void {
+    if (this.battle) killAll(this.battle);
+  }
+
+  debugGoBoss(): void {
+    const boss = this.state.world.nodes.find((n) => n.isBoss);
+    if (!boss) return;
+    this.screens.clearModals();
+    const res = teleport(this.state, boss.id);
+    if (res.kind === 'battle') this.startBattle(res.nodeId);
+  }
+
+  debugResetGrove(): void {
+    resetClears(getNode(this.state.world, SLICE_GROVE_ID));
   }
 
   private frameUpdate(dt: number): void {
@@ -84,12 +139,14 @@ export class App {
   }
 
   private handleInput(e: InputEvent): void {
+    if (this.debug?.handle(e)) return;
     this.screens.onInput(e);
   }
 
   private render(): void {
     beginFrame(this.view, THEME.letterbox);
     this.screens.render(this.view.ctx);
+    this.debug?.draw(this.view.ctx);
     endFrame(this.view);
   }
 }

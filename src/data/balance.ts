@@ -42,6 +42,8 @@ export const HERO = {
     shootRange: 300,
     projectileSpeed: 520,
     projectileRadius: 5,
+    /** Extra projectile lifetime beyond range / speed, s. */
+    projectileLifePad: 0.2,
   },
   /** Knockback impulse of a basic melee hit, px/s. */
   meleeKnockback: 60,
@@ -102,13 +104,14 @@ export const GOLD = {
 export const ENEMY_COMMON = {
   /** Extra reach beyond touching for melee enemies, px. */
   meleeReach: 6,
-  projectileSpeed: 240,
   projectileRadius: 6,
+  /** Shooters drift only when outside keepDistance ± band, px. */
+  shooterBand: 20,
   projectileLife: 3,
   /** Knockback decay per second (fraction kept is exp(-decay × dt)). */
   knockbackDecay: 7,
-  /** Seconds the body stays visible after death (render). */
-  deathLinger: 0,
+  /** Fresh enemies wait this fraction of their attack interval before the first attack. */
+  firstAttackDelay: 0.5,
 } as const;
 
 export const ELITE = {

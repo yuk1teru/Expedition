@@ -1,0 +1,55 @@
+// Scaling formulas: enemy stats by tier/day, XP and gold rewards, XP curve.
+
+import { GOLD, PROGRESSION, SCALING } from '../data/balance';
+
+export function tierMultiplier(tier: number): number {
+  return 1 + SCALING.perTier * (tier - 1);
+}
+
+export function dayMultiplier(day: number, enabled: boolean = SCALING.dayThreat.enabled): number {
+  if (!enabled) return 1;
+  const t = SCALING.dayThreat;
+  return 1 + t.perStep * Math.floor(day / t.everyDays);
+}
+
+export interface ScaledStats {
+  hp: number;
+  damage: number;
+}
+
+/** HP and damage = base × (1 + 0.45 × (tier − 1)) × day multiplier. */
+export function enemyStats(base: ScaledStats, tier: number, dayMult: number = 1): ScaledStats {
+  const m = tierMultiplier(tier) * dayMult;
+  return { hp: base.hp * m, damage: base.damage * m };
+}
+
+export function recommendedLevelForTier(tier: number): number {
+  return Math.round(tier * SCALING.recommendedLevelPerTier);
+}
+
+/** XP for a kill; reduced when the hero outlevels the location. */
+export function xpReward(baseXp: number, tier: number, heroLevel: number): number {
+  const scaled = baseXp * (1 + SCALING.xpPerTier * (tier - 1));
+  const gap = heroLevel - recommendedLevelForTier(tier);
+  const mult = gap > PROGRESSION.xpPenalty.levelGap ? PROGRESSION.xpPenalty.mult : 1;
+  return Math.max(1, Math.round(scaled * mult));
+}
+
+export function goldReward(tier: number): number {
+  return Math.round(GOLD.perEnemyPerTier * tier);
+}
+
+export function clearBonusGold(tier: number): number {
+  return Math.round(GOLD.clearBonusPerTier * tier);
+}
+
+/** XP needed to go from `level` to `level + 1`. */
+export function xpToNext(level: number): number {
+  const c = PROGRESSION.xpCurve;
+  return Math.round(c.base * Math.pow(level, c.exponent));
+}
+
+/** Damage after armor: dmg × k / (k + armor). */
+export function applyArmor(damage: number, armor: number): number {
+  return (damage * SCALING.armorK) / (SCALING.armorK + Math.max(0, armor));
+}

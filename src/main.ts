@@ -8,7 +8,8 @@ const view = createView(canvas);
 const input = new Input();
 bindInput(input, window, canvas, (x, y) => toLogical(view, x, y));
 
-const app = new App(view, input, resolveSeed(window.location.href));
+const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+const app = new App(view, input, resolveSeed(window.location.href), { dev: import.meta.env.DEV, reducedMotion });
 app.start();
 canvas.focus();
 

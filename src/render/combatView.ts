@@ -1,0 +1,504 @@
+// Combat screen: arena, entities, effects, HUD; drives the battle simulation.
+
+import type { InputEvent } from '../core/input';
+import { Rng } from '../core/rng';
+import type { Screen } from '../core/screens';
+import { ARENA } from '../data/balance';
+import type { BiomeDef, DecorKind } from '../data/biomes';
+import { FX } from '../data/fx';
+import { type Battle, stepBattle } from '../systems/battle';
+import type { Enemy, Hero, Projectile, Telegraph, Zone } from '../systems/entities';
+import type { GameEvent } from '../systems/gameEvents';
+import type { App } from './app';
+import { drawBoss } from './bossView';
+import { Fx } from './fx';
+import { createHud } from './hud';
+import { THEME } from './theme';
+import { drawText } from './ui';
+
+interface Decor {
+  x: number;
+  y: number;
+  size: number;
+  kind: DecorKind;
+  color: string;
+  rot: number;
+}
+
+interface Patch {
+  x: number;
+  y: number;
+  r: number;
+}
+
+export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> & { fx: Fx } {
+  const fx = new Fx();
+  const hud = createHud(app, fx);
+  let decor: Decor[] = [];
+  let patches: Patch[] = [];
+  let battle: Battle | null = null;
+
+  function onEvent(e: GameEvent): void {
+    const b = battle;
+    if (!b) return;
+    handleEvent(b, fx, e);
+  }
+
+  return {
+    fx,
+
+    enter() {
+      battle = app.battle;
+      fx.reset();
+      fx.reducedMotion = app.reducedMotion;
+      hud.reset();
+      if (battle) {
+        const r = new Rng(battle.rng.seed).fork('decor');
+        decor = makeDecor(r, battle.biome);
+        patches = makePatches(r);
+        fx.attach(app.state.events, onEvent);
+      }
+    },
+
+    exit() {
+      fx.detach();
+      app.loop.paused = false;
+    },
+
+    update(dt) {
+      const b = battle;
+      if (!b) return;
+      fx.update(dt);
+      hud.update(dt);
+      if (fx.hitStop > 0) {
+        fx.hitStop -= 1;
+        return;
+      }
+      stepBattle(b, dt);
+      if (b.finished) app.finishBattle();
+    },
+
+    onInput(e: InputEvent) {
+      if (hud.handle(e)) return;
+      if (e.type === 'key' && (e.code === 'Space' || e.code === 'Escape')) app.loop.paused = !app.loop.paused;
+    },
+
+    render(ctx) {
+      const b = battle;
+      if (!b) return;
+      const off = fx.shakeOffset();
+      ctx.save();
+      ctx.translate(off.x, off.y);
+      drawArena(ctx, b.biome, patches, decor);
+      for (const z of b.zones) drawZone(ctx, z, b, app.time);
+      for (const p of b.projectiles) drawProjectile(ctx, p);
+      for (const e of b.enemies) {
+        if (e.boss) drawBoss(ctx, e, b, app.time);
+        else drawEnemy(ctx, e, b, app.time);
+      }
+      drawHero(ctx, b.hero, b, app.time);
+      fx.drawRings(ctx);
+      fx.drawParticles(ctx);
+      // Telegraphs always above effects so they stay readable.
+      for (const t of b.telegraphs) drawTelegraph(ctx, t);
+      for (const e of b.enemies) drawEnemyBar(ctx, e);
+      fx.drawTexts(ctx);
+      ctx.restore();
+      fx.drawFlash(ctx, app.view.width, app.view.height);
+      hud.draw(ctx, b);
+      fx.drawBanner(ctx, app.view.width / 2, ARENA.y + ARENA.h * 0.3);
+      if (app.loop.paused && !app.screens.isPaused) {
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.fillRect(0, ARENA.y, app.view.width, ARENA.h);
+        drawText(ctx, 'Пауза', app.view.width / 2, ARENA.y + ARENA.h / 2 - 10, { size: 40, bold: true, align: 'center' });
+        drawText(ctx, 'Пробіл — продовжити', app.view.width / 2, ARENA.y + ARENA.h / 2 + 28, {
+          size: 15,
+          align: 'center',
+          color: THEME.textDim,
+        });
+      }
+    },
+  };
+}
+
+function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
+  const T = FX.damageText;
+  const P = FX.particles;
+  switch (e.type) {
+    case 'hit': {
+      const amount = Math.max(1, Math.round(e.amount));
+      fx.text({ x: e.pos.x, y: e.pos.y - e.radius - 6 }, String(amount), e.crit ? T.critColor : T.color, e.crit ? T.critSize : T.size);
+      fx.burst(e.pos, e.crit ? P.crit : P.hit, e.crit ? T.critColor : '#ffffff');
+      if (e.crit) fx.stop(FX.hitStop.crit);
+      const target = b.enemies.find((x) => x.id === e.targetId);
+      if (target && e.amount >= target.maxHp * FX.heavyHitFraction && e.source !== 'zone') fx.stop(FX.hitStop.heavy);
+      break;
+    }
+    case 'heroHurt': {
+      const amount = Math.max(1, Math.round(e.amount));
+      const side = fx.rand() < 0.5 ? -1 : 1;
+      fx.text({ x: e.pos.x + side * T.heroSideOffset, y: e.pos.y - 8 }, `-${amount}`, T.heroColor, T.size);
+      fx.burst(e.pos, P.heroHurt, T.heroColor);
+      if (e.amount >= b.hero.maxHp * FX.heroHurtBigFraction) fx.shake(FX.shake.heroHurtBig);
+      break;
+    }
+    case 'heroHeal':
+      fx.text({ x: e.pos.x + T.heroSideOffset, y: e.pos.y - 18 }, `+${Math.round(e.amount)}`, T.healColor, T.size);
+      break;
+    case 'kill': {
+      const color = b.biome.palette.enemies[e.defId] ?? '#cccccc';
+      fx.burst(e.pos, e.elite || e.boss ? P.eliteDeath : P.death, color);
+      if (e.boss) {
+        fx.shake(FX.shake.bossDeath);
+        fx.screenFlash('#ffffff', 0.6);
+      }
+      break;
+    }
+    case 'gold':
+      fx.text({ x: e.pos.x, y: e.pos.y + 6 }, `+${e.amount} золота`, T.goldColor, 13, T.life * 1.2);
+      break;
+    case 'spawn':
+      fx.burst(e.pos, P.spawn, b.biome.palette.accent);
+      break;
+    case 'wave':
+      fx.showBanner(`Хвиля ${e.index}/${e.total}`, THEME.text);
+      break;
+    case 'levelUp':
+      fx.ring(b.hero.pos, FX.levelUpRing.radius, THEME.accent, FX.levelUpRing.life, 6);
+      fx.burst(b.hero.pos, P.levelUp, THEME.accent);
+      fx.text({ x: b.hero.pos.x, y: b.hero.pos.y - 40 }, `Рівень ${e.level}!  +${e.hp} HP, +${e.attack} атаки`, THEME.accent, 16, 1.6);
+      break;
+    case 'heroDeath':
+      fx.burst(e.pos, P.eliteDeath, '#f4f1e8');
+      fx.screenFlash('#e5534b', 0.5);
+      break;
+    case 'battleEnd':
+      fx.showBanner(e.won ? 'Перемога!' : 'Поразка', e.won ? THEME.good : THEME.bad);
+      break;
+    default:
+      break;
+  }
+}
+
+// ---------- Arena ----------
+
+function makeDecor(r: Rng, biome: BiomeDef): Decor[] {
+  const out: Decor[] = [];
+  const d = biome.decor;
+  for (let i = 0; i < d.count; i++) {
+    const size = r.float(d.minSize, d.maxSize);
+    const side = r.int(0, 3);
+    const band = r.float(-size * 0.5, d.edgeBand);
+    let x: number;
+    let y: number;
+    if (side === 0) {
+      x = r.float(ARENA.x, ARENA.x + ARENA.w);
+      y = ARENA.y + band;
+    } else if (side === 1) {
+      x = ARENA.x + ARENA.w - band;
+      y = r.float(ARENA.y, ARENA.y + ARENA.h);
+    } else if (side === 2) {
+      x = r.float(ARENA.x, ARENA.x + ARENA.w);
+      y = ARENA.y + ARENA.h - band;
+    } else {
+      x = ARENA.x + band;
+      y = r.float(ARENA.y, ARENA.y + ARENA.h);
+    }
+    out.push({ x, y, size, kind: r.pick(d.kinds), color: r.pick(biome.palette.decor), rot: r.float(0, Math.PI * 2) });
+  }
+  // Trees drawn last (on top).
+  return out.sort((a, b) => (a.kind === 'tree' ? 1 : 0) - (b.kind === 'tree' ? 1 : 0) || a.y - b.y);
+}
+
+function makePatches(r: Rng): Patch[] {
+  return Array.from({ length: 14 }, () => ({
+    x: r.float(ARENA.x, ARENA.x + ARENA.w),
+    y: r.float(ARENA.y, ARENA.y + ARENA.h),
+    r: r.float(30, 90),
+  }));
+}
+
+function drawArena(ctx: CanvasRenderingContext2D, biome: BiomeDef, patches: Patch[], decor: Decor[]): void {
+  const p = biome.palette;
+  ctx.fillStyle = p.ground;
+  ctx.fillRect(ARENA.x, ARENA.y, ARENA.w, ARENA.h);
+  ctx.fillStyle = p.groundDark;
+  ctx.globalAlpha = 0.5;
+  for (const pt of patches) {
+    ctx.beginPath();
+    ctx.ellipse(pt.x, pt.y, pt.r, pt.r * 0.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  for (const d of decor) drawDecor(ctx, d);
+  // Vignette edge.
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(ARENA.x + 3, ARENA.y + 3, ARENA.w - 6, ARENA.h - 6);
+}
+
+function drawDecor(ctx: CanvasRenderingContext2D, d: Decor): void {
+  ctx.save();
+  ctx.translate(d.x, d.y);
+  if (d.kind === 'tree') {
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(4, 6, d.size, d.size * 0.7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = d.color;
+    ctx.beginPath();
+    ctx.arc(0, 0, d.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.beginPath();
+    ctx.arc(-d.size * 0.3, -d.size * 0.3, d.size * 0.55, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (d.kind === 'bush') {
+    ctx.fillStyle = d.color;
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.arc((i - 1) * d.size * 0.45, Math.sin(d.rot + i) * 3, d.size * 0.45, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else {
+    ctx.rotate(d.rot);
+    ctx.fillStyle = '#5b5f66';
+    ctx.beginPath();
+    ctx.moveTo(-d.size * 0.5, d.size * 0.2);
+    ctx.lineTo(-d.size * 0.2, -d.size * 0.4);
+    ctx.lineTo(d.size * 0.4, -d.size * 0.3);
+    ctx.lineTo(d.size * 0.5, d.size * 0.3);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ---------- Entities ----------
+
+function spawnScale(b: Battle, spawnedAt: number): number {
+  return Math.min(1, Math.max(0.05, (b.time - spawnedAt) / FX.spawnGrow));
+}
+
+function isFlashing(b: Battle, hitAt: number): boolean {
+  return b.time - hitAt < FX.hitFlash;
+}
+
+function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, b: Battle, t: number): void {
+  const color = b.biome.palette.enemies[e.defId] ?? '#cccccc';
+  const s = spawnScale(b, e.spawnedAt);
+  const r = e.radius * s;
+  ctx.save();
+  ctx.translate(e.pos.x, e.pos.y);
+  // Shadow.
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(0, r * 0.7, r * 0.9, r * 0.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  if (e.elite) {
+    const pulse = 1 + 0.12 * Math.sin(t * 6);
+    ctx.strokeStyle = b.biome.palette.eliteAura;
+    ctx.globalAlpha = 0.55;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.45 * pulse, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = b.biome.palette.eliteAura;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  ctx.rotate(e.facing);
+  ctx.fillStyle = isFlashing(b, e.hitAt) ? '#ffffff' : color;
+  ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  switch (e.archetype) {
+    case 'chaser':
+      ctx.moveTo(r, 0);
+      ctx.lineTo(-r * 0.8, r * 0.85);
+      ctx.lineTo(-r * 0.8, -r * 0.85);
+      break;
+    case 'fast':
+      ctx.moveTo(r * 1.35, 0);
+      ctx.lineTo(-r, r * 0.6);
+      ctx.lineTo(-r * 0.6, 0);
+      ctx.lineTo(-r, -r * 0.6);
+      break;
+    case 'shooter':
+      ctx.moveTo(r, 0);
+      ctx.lineTo(0, r);
+      ctx.lineTo(-r, 0);
+      ctx.lineTo(0, -r);
+      break;
+    case 'tank':
+      ctx.rect(-r * 0.85, -r * 0.85, r * 1.7, r * 1.7);
+      break;
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // Eye towards the hero.
+  ctx.fillStyle = '#1b1e27';
+  ctx.beginPath();
+  ctx.arc(r * 0.35, 0, Math.max(1.5, r * 0.16), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  drawStatusMarks(ctx, e, t);
+}
+
+export function drawStatusMarks(ctx: CanvasRenderingContext2D, e: Enemy, t: number): void {
+  if ((e.statuses.stun?.time ?? 0) > 0) {
+    ctx.fillStyle = '#ffe066';
+    for (let i = 0; i < 3; i++) {
+      const a = t * 6 + (i * Math.PI * 2) / 3;
+      ctx.beginPath();
+      ctx.arc(e.pos.x + Math.cos(a) * e.radius * 0.8, e.pos.y - e.radius - 6 + Math.sin(a) * 3, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  if ((e.statuses.taunt?.time ?? 0) > 0) {
+    drawText(ctx, '!', e.pos.x, e.pos.y - e.radius - 10, { size: 14, bold: true, align: 'center', color: '#ff6b5e' });
+  }
+}
+
+function drawEnemyBar(ctx: CanvasRenderingContext2D, e: Enemy): void {
+  if (e.boss || e.hp >= e.maxHp || e.dead) return;
+  const w = Math.max(22, e.radius * 2.2);
+  const x = e.pos.x - w / 2;
+  const y = e.pos.y - e.radius - 9;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(x - 1, y - 1, w + 2, 5);
+  ctx.fillStyle = e.elite ? '#ffd34d' : '#e5534b';
+  ctx.fillRect(x, y, w * Math.max(0, e.hp / e.maxHp), 3);
+}
+
+function drawHero(ctx: CanvasRenderingContext2D, h: Hero, b: Battle, t: number): void {
+  if (h.dead) return;
+  const r = h.radius;
+  ctx.save();
+  ctx.translate(h.pos.x, h.pos.y);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(0, r * 0.7, r, r * 0.45, 0, 0, Math.PI * 2);
+  ctx.fill();
+  if (h.invulnerable > 0) {
+    ctx.strokeStyle = 'rgba(160, 220, 255, 0.8)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, r + 6 + Math.sin(t * 20) * 1.5, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  for (const buff of h.buffs) {
+    if (buff.attackSpeedMult > 1) {
+      ctx.strokeStyle = 'rgba(255, 120, 60, 0.7)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, r + 3, t * 5, t * 5 + Math.PI * 1.2);
+      ctx.stroke();
+    }
+  }
+  ctx.rotate(h.facing);
+  // Direction wedge.
+  ctx.fillStyle = '#f2c14e';
+  ctx.beginPath();
+  ctx.moveTo(r + 9, 0);
+  ctx.lineTo(r - 2, 7);
+  ctx.lineTo(r - 2, -7);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = isFlashing(b, h.hitAt) ? '#ff8a80' : '#f4f1e8';
+  ctx.strokeStyle = h.classId ? classColor(h.classId) : '#1b1e27';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function classColor(classId: string): string {
+  return classId === 'warrior' ? '#c0392b' : classId === 'mage' ? '#3b7dd8' : '#3fa34d';
+}
+
+function drawProjectile(ctx: CanvasRenderingContext2D, p: Projectile): void {
+  if (p.team === 'enemy') {
+    ctx.fillStyle = '#d86bf0';
+    ctx.beginPath();
+    ctx.arc(p.pos.x, p.pos.y, p.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.beginPath();
+    ctx.arc(p.pos.x - 1.5, p.pos.y - 1.5, p.radius * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    const a = Math.atan2(p.vel.y, p.vel.x);
+    ctx.strokeStyle = p.kind.endsWith('Crit') ? '#ffd23f' : '#f4f1e8';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(p.pos.x, p.pos.y);
+    ctx.lineTo(p.pos.x - Math.cos(a) * 14, p.pos.y - Math.sin(a) * 14);
+    ctx.stroke();
+  }
+}
+
+function drawZone(ctx: CanvasRenderingContext2D, z: Zone, b: Battle, t: number): void {
+  const life = 1 - z.time / z.duration;
+  ctx.save();
+  ctx.translate(z.pos.x, z.pos.y);
+  if (z.kind === 'whirlwind') {
+    ctx.globalAlpha = 0.2 + 0.15 * life;
+    ctx.fillStyle = '#e8ecf4';
+    ctx.beginPath();
+    ctx.arc(0, 0, z.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.85;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 4;
+    for (let i = 0; i < 3; i++) {
+      const a = t * 14 + (i * Math.PI * 2) / 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, z.radius * (0.55 + i * 0.2), a, a + 1.1);
+      ctx.stroke();
+    }
+  } else if (z.kind === 'fireTrail') {
+    ctx.globalAlpha = 0.6 * life;
+    const g = ctx.createRadialGradient(0, 0, 2, 0, 0, z.radius);
+    g.addColorStop(0, '#ffd23f');
+    g.addColorStop(1, 'rgba(229, 83, 75, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(0, 0, z.radius * (0.9 + 0.1 * Math.sin(t * 20 + z.id)), 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.globalAlpha = 0.25 * life;
+    ctx.fillStyle = b.biome.palette.accent;
+    ctx.beginPath();
+    ctx.arc(0, 0, z.radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawTelegraph(ctx: CanvasRenderingContext2D, tg: Telegraph): void {
+  const k = Math.min(1, tg.time / tg.delay);
+  const r = tg.shape.radius;
+  ctx.save();
+  ctx.translate(tg.pos.x, tg.pos.y);
+  ctx.fillStyle = 'rgba(229, 40, 40, 0.18)';
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(229, 40, 40, 0.38)';
+  ctx.beginPath();
+  ctx.arc(0, 0, r * k, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = `rgba(255, 70, 60, ${0.6 + 0.4 * k})`;
+  ctx.lineWidth = 2.5;
+  ctx.setLineDash([8, 6]);
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}

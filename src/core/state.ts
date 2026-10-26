@@ -1,6 +1,8 @@
 // Run state: everything that describes one expedition.
 
+import type { EventBus } from './events';
 import type { Rng } from './rng';
+import type { GameEvent } from '../systems/gameEvents';
 import type { ScreenId } from './screens';
 import type { Hero } from '../systems/entities';
 import type { World } from '../systems/mapgen';
@@ -34,6 +36,8 @@ export interface GameState {
   screen: ScreenId;
   /** Pending modal windows (level-up choices) to show in order. */
   modalQueue: ModalRequest[];
+  /** Logic → render notifications. Nobody listens in headless simulation. */
+  events: EventBus<GameEvent>;
 }
 
 export function createRunStats(): RunStats {
