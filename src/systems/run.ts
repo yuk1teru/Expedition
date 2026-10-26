@@ -99,6 +99,14 @@ export function restInTown(state: GameState): void {
 }
 
 /** Adjacent nodes, the current location (replay) and the town (always: going back is free). */
+/**
+ * Leaving town saves again: what was done there (magnifiers used, items bought,
+ * sold or worn) is not rolled back by a later death.
+ */
+export function leaveTown(state: GameState): void {
+  saveCheckpoint(state);
+}
+
 export function canTravel(state: GameState, nodeId: string): boolean {
   return nodeId === state.currentNodeId || areAdjacent(state.world, state.currentNodeId, nodeId);
 }

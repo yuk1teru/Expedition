@@ -20,7 +20,7 @@ import {
 } from '../src/systems/items';
 import { gainXp } from '../src/systems/leveling';
 import { SLICE_GROVE_ID, SLICE_LAIR_ID, getNode, markCleared } from '../src/systems/mapgen';
-import { completeBattle, createGameState, restInTown, restoreCheckpoint, teleport } from '../src/systems/run';
+import { completeBattle, createGameState, leaveTown, restInTown, restoreCheckpoint, teleport } from '../src/systems/run';
 
 describe('items', () => {
   it('rarities scale power and extra stats; items drop unidentified', () => {
@@ -183,5 +183,24 @@ describe('item stats and the merchant item shop', () => {
     expect(s.gold).toBe(0);
     expect(buyItem(s, 'hat')).toBeNull();
     expect(s.hero.bag).toHaveLength(30);
+  });
+});
+
+describe('leaving town', () => {
+  it('saves: an item identified in town stays identified after a death', () => {
+    const s = createGameState(31);
+    restInTown(s);
+    const item = rollItem(new Rng(3), 'rare', 500, 'boots');
+    s.hero.bag.push(item);
+    s.hero.consumables.magnifier = 1;
+    expect(identifyItem(s.hero, 0)).toBe(true);
+    leaveTown(s);
+    restoreCheckpoint(s);
+    expect(s.hero.bag[0]?.identified).toBe(true);
+    expect(s.hero.consumables.magnifier).toBe(0);
+  });
+
+  it('rare items are clearly stronger than uncommon ones', () => {
+    expect(RARITIES.rare.power).toBeGreaterThan(RARITIES.uncommon.power * 1.3);
   });
 });

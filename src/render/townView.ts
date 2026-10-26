@@ -1,7 +1,7 @@
 // Town screen: arriving rests the hero automatically (full heal + checkpoint).
 
 import type { Screen } from '../core/screens';
-import { restInTown } from '../systems/run';
+import { leaveTown, restInTown } from '../systems/run';
 import type { App } from './app';
 import { THEME } from './theme';
 import { TOP_BAR_H, drawTopBar } from './topBar';
@@ -47,6 +47,9 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
       // Every arrival in town is a rest: full HP and a saved checkpoint.
       restInTown(app.state);
       restedFlash = TOWN_REST_FLASH;
+    },
+    exit() {
+      leaveTown(app.state);
     },
     update(dt) {
       restedFlash = Math.max(0, restedFlash - dt);
