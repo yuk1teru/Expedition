@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../src/core/rng';
 import { CONSUMABLES } from '../src/data/consumables';
-import { ITEM_BASES, LOOT, MERCHANT_ITEMS, RARITIES, RARITY_ORDER, UNIDENTIFIED_SELL_MULT } from '../src/data/items';
+import { BIOMES } from '../src/data/biomes';
+import { ITEM_BASES, ITEM_LEVEL, LOOT, MERCHANT_ITEMS, RARITIES, RARITY_ORDER, UNIDENTIFIED_SELL_MULT } from '../src/data/items';
 import { createBattle, stepBattle } from '../src/systems/battle';
 import { damageEnemy } from '../src/systems/combat';
 import { createBossEnemy } from '../src/systems/boss';
@@ -10,6 +11,9 @@ import {
   buyConsumable,
   buyItem,
   compareItems,
+  dropItemLevel,
+  merchantItemLevels,
+  sellPrice,
   formatStatDelta,
   equipFromBag,
   hasNewItems,
@@ -227,5 +231,51 @@ describe('item comparison', () => {
     expect((boss.common ?? 0) / total(boss)).toBeGreaterThan(0.55);
     expect((boss.legendary ?? 0) / total(boss)).toBeLessThan(0.05);
     expect(MERCHANT_ITEMS.weights.legendary ?? 0).toBe(0);
+  });
+});
+
+describe('item level', () => {
+  it('higher item level: stronger flat stats, percent stats grow slower, pricier; capped at 300', () => {
+    const low = rollItem(new Rng(8), 'rare', 1, 'weapon', 10);
+    const high = rollItem(new Rng(8), 'rare', 2, 'weapon', 40);
+    const top = rollItem(new Rng(8), 'rare', 3, 'weapon', 999);
+    expect([low.ilvl, high.ilvl, top.ilvl]).toEqual([10, 40, ITEM_LEVEL.max]);
+    const attack = (it: typeof low): number => it.stats.find((s) => s.stat === 'attack')!.value;
+    expect(attack(high)).toBeGreaterThan(attack(low));
+    expect(attack(top)).toBeGreaterThan(attack(high) * 3);
+    const extra = (it: typeof low): number => it.stats[1]!.value;
+    expect(extra(top) / extra(high)).toBeLessThan(attack(top) / attack(high));
+    high.identified = low.identified = true;
+    expect(sellPrice(high)).toBeGreaterThan(sellPrice(low));
+  });
+
+  it('forest drops stay within its range (max 40): bosses near the top, minibosses climb with the wave', () => {
+    const range = BIOMES.forest!.itemLevel;
+    expect(range[1]).toBe(40);
+    const rng = new Rng(21);
+    const levels = (source: 'miniboss' | 'boss', wave: number): number[] => Array.from({ length: 200 }, () => dropItemLevel(rng, range, source, wave));
+    const avg = (xs: number[]): number => xs.reduce((a, x) => a + x, 0) / xs.length;
+    for (const xs of [levels('miniboss', 3), levels('miniboss', 30), levels('boss', 1)]) {
+      expect(Math.min(...xs)).toBeGreaterThanOrEqual(range[0]);
+      expect(Math.max(...xs)).toBeLessThanOrEqual(range[1]);
+    }
+    expect(avg(levels('miniboss', 3))).toBeLessThan(avg(levels('miniboss', 12)));
+    expect(Math.min(...levels('boss', 1))).toBeGreaterThan(Math.max(...levels('miniboss', 3)));
+  });
+
+  it('loot from a battle and merchant items carry the level of the location', () => {
+    const s = createGameState(5);
+    teleport(s, SLICE_GROVE_ID);
+    const b = createBattle(s, SLICE_GROVE_ID);
+    const boss = createBossEnemy(b, 'enat', { x: 500, y: 300 });
+    damageEnemy(b, boss, { amount: 1e7, crit: false }, { source: 'skill' });
+    for (const it of b.stats.loot) expect(it.ilvl).toBeLessThanOrEqual(40);
+    const [lo, hi] = merchantItemLevels(s);
+    expect(lo).toBeGreaterThanOrEqual(BIOMES.forest!.itemLevel[0]);
+    expect(hi).toBeLessThanOrEqual(40);
+    s.gold = MERCHANT_ITEMS.price;
+    const bought = buyItem(s, 'hat')!;
+    expect(bought.ilvl).toBeGreaterThanOrEqual(lo);
+    expect(bought.ilvl).toBeLessThanOrEqual(hi);
   });
 });

@@ -6,6 +6,7 @@ import { CONSUMABLES, type ConsumableId, HEAL_ORDER, type HealId } from '../data
 import {
   BOOT_DASH,
   ITEM_ACCENTS,
+  ITEM_LEVEL,
   MERCHANT_ITEMS,
   ITEM_BASES,
   ITEM_KINDS,
@@ -18,6 +19,7 @@ import {
   STAT_LABELS,
   UNIDENTIFIED_SELL_MULT,
 } from '../data/items';
+import { getBiome } from '../data/biomes';
 import type { Hero } from './entities';
 import { recomputeHeroStats } from './hero';
 
@@ -41,6 +43,8 @@ export interface Item {
   /** Kind id (sword, axe, hood…), decides the icon. */
   kind: string;
   name: string;
+  /** Item level (1–300): scales the stats and the price. */
+  ilvl: number;
   stats: ItemStatValue[];
   look: ItemLook;
   /** Unidentified items show "???" and can't be worn until a magnifier is used. */
@@ -49,19 +53,27 @@ export interface Item {
   isNew?: boolean;
 }
 
-function rollValue(rng: Rng, range: [number, number], power: number, stat: ItemStat): number {
-  const v = rng.float(range[0], range[1]) * power;
-  return STAT_LABELS[stat].percent ? Math.round(v * 100) / 100 : Math.max(1, Math.round(v));
+/** Stat multiplier of an item level: linear for flat stats, square root for percent ones. */
+export function itemLevelMult(ilvl: number, percent: boolean): number {
+  const flat = ITEM_LEVEL.floor + ((1 - ITEM_LEVEL.floor) * ilvl) / ITEM_LEVEL.reference;
+  return percent ? Math.sqrt(flat) : flat;
 }
 
-/** Rolls an item of the given rarity (random slot unless given). New items are unidentified. */
-export function rollItem(rng: Rng, rarity: Rarity, uid: number, slot?: ItemSlot): Item {
+function rollValue(rng: Rng, range: [number, number], power: number, stat: ItemStat, ilvl: number): number {
+  const percent = STAT_LABELS[stat].percent;
+  const v = rng.float(range[0], range[1]) * power * itemLevelMult(ilvl, percent);
+  return percent ? Math.round(v * 100) / 100 : Math.max(1, Math.round(v));
+}
+
+/** Rolls an item of the given rarity and level (random slot unless given). New items are unidentified. */
+export function rollItem(rng: Rng, rarity: Rarity, uid: number, slot?: ItemSlot, ilvl: number = ITEM_LEVEL.reference): Item {
   const s = slot ?? rng.pick(ITEM_SLOTS).id;
   const base = ITEM_BASES[s];
   const r = RARITIES[rarity];
-  const stats: ItemStatValue[] = [{ stat: base.main.stat, value: rollValue(rng, base.main.range, r.power, base.main.stat) }];
+  const level = Math.max(1, Math.min(ITEM_LEVEL.max, Math.round(ilvl)));
+  const stats: ItemStatValue[] = [{ stat: base.main.stat, value: rollValue(rng, base.main.range, r.power, base.main.stat, level) }];
   for (const extra of rng.shuffle(base.extras).slice(0, r.extraStats)) {
-    stats.push({ stat: extra.stat, value: rollValue(rng, extra.range, r.power, extra.stat) });
+    stats.push({ stat: extra.stat, value: rollValue(rng, extra.range, r.power, extra.stat, level) });
   }
   const kind = rng.pick(ITEM_KINDS[s]);
   return {
@@ -70,10 +82,37 @@ export function rollItem(rng: Rng, rarity: Rarity, uid: number, slot?: ItemSlot)
     rarity,
     kind: kind.id,
     name: `${kind.name} ${rng.pick(ITEM_SUFFIXES)}`,
+    ilvl: level,
     stats,
     look: { accent: rng.pick(ITEM_ACCENTS), gem: rng.chance(0.5) ? rng.pick(ITEM_ACCENTS) : null, shape: rng.next() },
     identified: false,
   };
+}
+
+/**
+ * Item level of a drop in a biome with ilvl range `range`: minibosses climb with the
+ * wave (`wave` = 1-based wave number), the boss drops from the top of the range.
+ */
+export function dropItemLevel(rng: Rng, range: [number, number], source: 'miniboss' | 'boss', wave: number): number {
+  const [min, max] = range;
+  if (source === 'boss') return rng.int(Math.round(min + (max - min) * ITEM_LEVEL.bossFrom), max);
+  const m = ITEM_LEVEL.miniboss;
+  const t = Math.min(1, wave / m.fullWave) * m.top;
+  const jitter = rng.int(-m.jitter, m.jitter);
+  return Math.max(min, Math.min(max, Math.round(min + (max - min) * t) + jitter));
+}
+
+/** Item level range the merchant sells: a band of the range of the furthest biome cleared. */
+export function merchantItemLevels(state: GameState): [number, number] {
+  const ranges = state.world.nodes.filter((n) => n.biome).map((n) => ({ range: getBiome(n.biome!).itemLevel, cleared: n.timesCleared > 0 }));
+  const reached = ranges.filter((r) => r.cleared);
+  // Nothing cleared yet: the easiest biome.
+  const best = reached.length > 0
+    ? reached.reduce((a, b) => (b.range[1] > a.range[1] ? b : a))
+    : ranges.reduce((a, b) => (b.range[1] < a.range[1] ? b : a));
+  const [min, max] = best.range;
+  const [lo, hi] = ITEM_LEVEL.merchant;
+  return [Math.round(min + (max - min) * lo), Math.round(min + (max - min) * hi)];
 }
 
 /** Rolls a rarity from a weight table. */
@@ -134,7 +173,7 @@ export function unequip(hero: Hero, slot: ItemSlot): void {
 }
 
 export function sellPrice(item: Item): number {
-  const base = RARITIES[item.rarity].sellPrice;
+  const base = Math.round(RARITIES[item.rarity].sellPrice * itemLevelMult(item.ilvl, false));
   return item.identified ? base : Math.round(base * UNIDENTIFIED_SELL_MULT);
 }
 
@@ -177,7 +216,9 @@ export function assignQuickSlot(hero: Hero, slot: number, id: HealId | null): vo
 export function buyItem(state: GameState, slot: ItemSlot): Item | null {
   if (state.gold < MERCHANT_ITEMS.price) return null;
   state.gold -= MERCHANT_ITEMS.price;
-  const item = rollItem(state.lootRng, rollRarity(state.lootRng, MERCHANT_ITEMS.weights), state.nextItemUid++, slot);
+  const [lo, hi] = merchantItemLevels(state);
+  const rarity = rollRarity(state.lootRng, MERCHANT_ITEMS.weights);
+  const item = rollItem(state.lootRng, rarity, state.nextItemUid++, slot, state.lootRng.int(lo, hi));
   item.identified = true;
   item.isNew = true;
   state.hero.bag.push(item);

@@ -5,7 +5,7 @@ import type { InputEvent } from '../core/input';
 import type { Modal } from '../core/screens';
 import { CONSUMABLES, type ConsumableId, describeConsumable } from '../data/consumables';
 import { ITEM_SLOTS, MERCHANT_ITEMS, RARITIES } from '../data/items';
-import { buyConsumable, buyItem, canBuy, displayName, equipFromBag, identifyItem, sellItem, sellPrice } from '../systems/items';
+import { buyConsumable, buyItem, canBuy, displayName, equipFromBag, identifyItem, merchantItemLevels, sellItem, sellPrice } from '../systems/items';
 import type { App } from './app';
 import { drawConsumableIcon } from './icons';
 import { MENU_ROW, MENU_W, type MenuOption, drawBagItemTooltip, drawMenu } from './inventory';
@@ -196,7 +196,8 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
       if (st.hero.bag.length > COLS * ROWS) {
         drawText(ctx, `…ще ${st.hero.bag.length - COLS * ROWS} у сумці (Tab)`, SELL_X + COLS * CELL - 6, SELL_Y - 22, { size: 11, align: 'right', color: THEME.textDim });
       }
-      drawText(ctx, `Купити річ — ${MERCHANT_ITEMS.price} зол. (випадкова: зелена, синя або епічна)`, SELL_X, ITEM_Y - 14, {
+      const [lo, hi] = merchantItemLevels(st);
+      drawText(ctx, `Купити річ — ${MERCHANT_ITEMS.price} зол. (зелена, синя або епічна; рівень ${lo}–${hi})`, SELL_X, ITEM_Y - 14, {
         size: 12,
         bold: true,
         color: THEME.accent,

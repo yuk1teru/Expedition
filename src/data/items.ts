@@ -37,6 +37,26 @@ export const RARITIES: Record<Rarity, RarityDef> = {
   legendary: { name: 'Легендарна', color: '#ff9f1c', power: 3, extraStats: 3, sellPrice: 60 },
 };
 
+/**
+ * Item level (ilvl): how strong an item is within its rarity. Each biome has its ilvl
+ * range (forest 5–40, see biomes.ts); the strongest items in the game are ilvl 300.
+ * Base stat ranges are tuned for `reference`. Flat stats (attack, armor) and the sell
+ * price scale by `floor + (1 − floor) · ilvl / reference` (ilvl 10 ×0.8, 40 ×1.4,
+ * 300 ×6.6); percent stats by its square root (×0.89 / ×1.18 / ×2.57), so crit and
+ * speed stay sane late in the game.
+ */
+export const ITEM_LEVEL = {
+  max: 300,
+  reference: 20,
+  floor: 0.6,
+  /** Miniboss items climb from the bottom of the biome range to `top` of it by wave `fullWave` (± jitter). */
+  miniboss: { top: 0.75, fullWave: 15, jitter: 2 },
+  /** Boss items: from this fraction of the biome range to its top. */
+  bossFrom: 0.85,
+  /** Merchant items: this band of the range of the furthest biome reached. */
+  merchant: [0.3, 0.6] as [number, number],
+};
+
 /** Unidentified items sell for this fraction of the price. */
 export const UNIDENTIFIED_SELL_MULT = 0.5;
 

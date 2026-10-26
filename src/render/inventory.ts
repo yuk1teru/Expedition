@@ -119,6 +119,7 @@ export function itemTooltip(item: Item, extra: string[], hero?: Hero, compare = 
   };
   add(displayName(item), RARITIES[item.rarity].color);
   add(`${slotName(item.slot)} · ${RARITIES[item.rarity].name}`, THEME.textDim);
+  add(`Рівень предмета ${item.ilvl}`, '#f2d16b');
   if (item.identified) {
     for (const s of item.stats) add(formatStat(s));
     for (const p of itemPerks(item)) add(p, '#8fd3ff');
@@ -132,6 +133,7 @@ export function itemTooltip(item: Item, extra: string[], hero?: Hero, compare = 
     else if (item.identified && !compare) add('Shift — порівняти з одягненим', THEME.textDim);
     else if (item.identified) {
       add(`Порівняно з «${displayName(worn)}»:`, RARITIES[worn.rarity].color);
+      if (item.ilvl !== worn.ilvl) add(`  рівень предмета ${worn.ilvl} → ${item.ilvl}`, item.ilvl > worn.ilvl ? THEME.good : THEME.bad);
       const diff = compareItems(item, worn);
       if (diff.length === 0) add('  без змін', THEME.textDim);
       for (const d of diff) add(`  ${formatStatDelta(d)}`, d.value > 0 ? THEME.good : THEME.bad);

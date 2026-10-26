@@ -8,7 +8,7 @@ import { normalize } from './entities';
 import type { HitSource } from './gameEvents';
 import { getBoss } from '../data/bosses';
 import { LOOT } from '../data/items';
-import { displayName, rollItem, rollRarity, stashLoot } from './items';
+import { displayName, dropItemLevel, rollItem, rollRarity, stashLoot } from './items';
 import { heroAttack, heroRegen } from './hero';
 import { gainXp } from './leveling';
 import { applyArmor, xpReward } from './scaling';
@@ -89,13 +89,20 @@ export function killEnemy(b: Battle, e: Enemy): void {
   if (e.boss) dropLoot(b, e);
 }
 
-/** Bosses drop strong items, minibosses weak ones. New items go straight to the hero. */
+/**
+ * Bosses drop strong items, minibosses weak ones; the item level comes from the biome
+ * (and the wave, for minibosses). New items go straight to the hero's bag.
+ */
 function dropLoot(b: Battle, e: Enemy): void {
   const def = getBoss(e.boss!.defId);
-  const table = def.miniboss ? LOOT.miniboss : LOOT.boss;
+  const source = def.miniboss ? 'miniboss' : 'boss';
+  const table = LOOT[source];
   const st = b.state;
+  const wave = (b.waves?.index ?? 0) + 1;
   for (let i = 0; i < table.count; i++) {
-    const item = rollItem(st.lootRng, rollRarity(st.lootRng, table.weights), st.nextItemUid++);
+    const rarity = rollRarity(st.lootRng, table.weights);
+    const ilvl = dropItemLevel(st.lootRng, b.biome.itemLevel, source, wave);
+    const item = rollItem(st.lootRng, rarity, st.nextItemUid++, undefined, ilvl);
     stashLoot(b.hero, item);
     b.stats.loot.push(item);
     b.events.emit({ type: 'loot', pos: { ...e.pos }, name: displayName(item), rarity: item.rarity });

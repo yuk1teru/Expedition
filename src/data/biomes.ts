@@ -22,6 +22,8 @@ export interface BiomeDef {
   boss: string;
   /** Miniboss of ordinary locations ('' if none). */
   miniboss: string;
+  /** Item levels that drop here, [min, max] (see ITEM_LEVEL in items.ts). */
+  itemLevel: [number, number];
   decor: {
     count: number;
     kinds: DecorKind[];
@@ -55,17 +57,19 @@ export const BIOMES: Record<string, BiomeDef> = {
     enemies: ['wolf', 'mushroom', 'stump'],
     boss: 'enat',
     miniboss: 'alpha',
+    itemLevel: [5, 40],
     decor: { count: 26, kinds: ['tree', 'tree', 'bush', 'rock'], minSize: 10, maxSize: 30, edgeBand: 44 },
   },
   // TODO: full prototype (PLAN.md, етап 5) — enemies, boss, palette.
-  desert: emptyBiome('desert', 'Пустеля'),
+  // Item levels of the later biomes are placeholders: each biome continues the previous one.
+  desert: emptyBiome('desert', 'Пустеля', [35, 110]),
   // TODO: full prototype (PLAN.md, етап 5).
-  swamp: emptyBiome('swamp', 'Болото'),
+  swamp: emptyBiome('swamp', 'Болото', [100, 200]),
   // TODO: full prototype (PLAN.md, етап 5).
-  ice: emptyBiome('ice', 'Крига'),
+  ice: emptyBiome('ice', 'Крига', [190, 300]),
 };
 
-function emptyBiome(id: string, name: string): BiomeDef {
+function emptyBiome(id: string, name: string, itemLevel: [number, number]): BiomeDef {
   return {
     id,
     name,
@@ -74,6 +78,7 @@ function emptyBiome(id: string, name: string): BiomeDef {
     enemies: [],
     boss: '',
     miniboss: '',
+    itemLevel,
     decor: { count: 0, kinds: [], minSize: 0, maxSize: 0, edgeBand: 0 },
   };
 }
