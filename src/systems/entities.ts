@@ -1,0 +1,214 @@
+// Entity types shared by combat, AI, skills, bosses and render.
+
+export interface Vec {
+  x: number;
+  y: number;
+}
+
+export type Team = 'hero' | 'enemy';
+
+export type StatusId = 'stun' | 'slow' | 'freeze' | 'burn' | 'taunt';
+
+export interface StatusEffect {
+  /** Seconds remaining. */
+  time: number;
+  /** Status strength: slow fraction, burn damage per second, etc. */
+  value: number;
+}
+
+export type Statuses = Partial<Record<StatusId, StatusEffect>>;
+
+export interface Body {
+  id: number;
+  pos: Vec;
+  vel: Vec;
+  radius: number;
+  hp: number;
+  maxHp: number;
+  team: Team;
+  statuses: Statuses;
+  /** Decaying impulse velocity from knockback / pulls. */
+  knockback: Vec;
+  /** Direction the body faces, radians. */
+  facing: number;
+  /** Relative weight when bodies push each other apart. */
+  mass: number;
+  /** Battle time of the last hit received (render uses it for the white flash). */
+  hitAt: number;
+  /** Battle time of spawn (render uses it for the grow-in animation). */
+  spawnedAt: number;
+  dead: boolean;
+}
+
+export type Archetype = 'chaser' | 'shooter' | 'tank' | 'fast';
+
+export interface HeroSkill {
+  id: string;
+  rank: number;
+  /** Seconds until ready. */
+  cooldown: number;
+}
+
+export interface HeroBuff {
+  id: string;
+  time: number;
+  attackSpeedMult: number;
+  damageTakenMult: number;
+}
+
+export interface HeroStats {
+  maxHp: number;
+  attack: number;
+  /** Attacks per second. */
+  attackSpeed: number;
+  moveSpeed: number;
+  armor: number;
+  critChance: number;
+  critMult: number;
+  /** Fraction of dealt damage healed. */
+  lifesteal: number;
+  /** Fraction of received melee damage reflected. */
+  thorns: number;
+  /** Basic attack reach (melee) or shooting range (ranged), px. */
+  range: number;
+  ranged: boolean;
+  skillDamageMult: number;
+}
+
+export interface Dash {
+  from: Vec;
+  to: Vec;
+  time: number;
+  duration: number;
+  /** Called by effects when the dash lands. */
+  onArrive: (() => void) | null;
+}
+
+export interface Hero extends Body {
+  level: number;
+  xp: number;
+  classId: string | null;
+  skills: HeroSkill[];
+  /** Passive id → stacks. */
+  passives: Record<string, number>;
+  stats: HeroStats;
+  /** Seconds until next basic attack. */
+  attackTimer: number;
+  buffs: HeroBuff[];
+  dash: Dash | null;
+  /** Seconds of invulnerability left. */
+  invulnerable: number;
+  /** Debug god mode. */
+  immortal: boolean;
+}
+
+export interface BossRuntime {
+  defId: string;
+  phase: 1 | 2;
+  /** Attack id → seconds until available. */
+  attackCooldowns: Record<string, number>;
+  /** Seconds until the next attack may start. */
+  pause: number;
+  /** Timers for periodic abilities (summons etc.). */
+  timers: Record<string, number>;
+}
+
+export interface Enemy extends Body {
+  defId: string;
+  name: string;
+  archetype: Archetype;
+  elite: boolean;
+  damage: number;
+  speed: number;
+  armor: number;
+  xp: number;
+  gold: number;
+  attackTimer: number;
+  /** Timer for archetype ability (shooter shot, fast dash). */
+  abilityTimer: number;
+  /** Remaining dash time for `fast` enemies. */
+  dashTime: number;
+  dashDir: Vec;
+  boss: BossRuntime | null;
+  summoned: boolean;
+}
+
+export interface Projectile {
+  id: number;
+  pos: Vec;
+  vel: Vec;
+  radius: number;
+  damage: number;
+  team: Team;
+  /** Seconds remaining. */
+  life: number;
+  /** How many more targets it can pass through. */
+  pierce: number;
+  hit: number[];
+  kind: string;
+  /** Whether a hit counts as melee for thorns. */
+  melee: boolean;
+  dead: boolean;
+}
+
+/** Area effect that lives for some time and ticks on bodies inside. */
+export interface Zone {
+  id: number;
+  kind: string;
+  pos: Vec;
+  radius: number;
+  team: Team;
+  /** If set, zone follows the hero. */
+  followHero: boolean;
+  time: number;
+  duration: number;
+  tickInterval: number;
+  tickTimer: number;
+  /** Damage per tick. */
+  damage: number;
+  /** Pull strength towards the centre per tick, px/s impulse. */
+  pull: number;
+  stun: number;
+  dead: boolean;
+}
+
+export type TelegraphShape = { kind: 'circle'; radius: number };
+
+/** Boss attack warning: red area that fills up, then strikes. */
+export interface Telegraph {
+  id: number;
+  kind: string;
+  pos: Vec;
+  shape: TelegraphShape;
+  time: number;
+  delay: number;
+  damage: number;
+  dead: boolean;
+}
+
+export function vec(x = 0, y = 0): Vec {
+  return { x, y };
+}
+
+export function dist(a: Vec, b: Vec): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+export function dist2(a: Vec, b: Vec): number {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return dx * dx + dy * dy;
+}
+
+export function normalize(v: Vec): Vec {
+  const l = Math.hypot(v.x, v.y);
+  return l > 1e-9 ? { x: v.x / l, y: v.y / l } : { x: 0, y: 0 };
+}
+
+export function angleOf(v: Vec): number {
+  return Math.atan2(v.y, v.x);
+}
+
+export function fromAngle(a: number, len = 1): Vec {
+  return { x: Math.cos(a) * len, y: Math.sin(a) * len };
+}
