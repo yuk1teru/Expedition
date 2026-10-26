@@ -1,6 +1,7 @@
 // Timed effects: zones (static or following the hero), dashes with
 // invulnerability, hero buffs.
 
+import { ARENA } from '../data/balance';
 import type { Battle } from './battle';
 import { addStatus, damageEnemy, pull, rollCrit } from './combat';
 import type { Hero, HeroBuff, Vec, Zone } from './entities';
@@ -92,6 +93,14 @@ export function updateDash(hero: Hero, dt: number): void {
     hero.dash = null;
     dash.onArrive?.();
   }
+}
+
+/** Instant move with a short invulnerability window. */
+export function teleport(hero: Hero, to: Vec, invulnerable: number): void {
+  hero.pos.x = Math.max(ARENA.x + hero.radius, Math.min(ARENA.x + ARENA.w - hero.radius, to.x));
+  hero.pos.y = Math.max(ARENA.y + hero.radius, Math.min(ARENA.y + ARENA.h - hero.radius, to.y));
+  hero.dash = null;
+  hero.invulnerable = Math.max(hero.invulnerable, invulnerable);
 }
 
 export function addBuff(hero: Hero, buff: HeroBuff): void {

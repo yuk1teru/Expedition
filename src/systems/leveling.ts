@@ -42,7 +42,7 @@ export function levelUp(state: GameState): void {
   if (hero.level === PROGRESSION.classChoiceLevel) {
     state.modalQueue.push({ kind: 'classChoice' });
   } else if (hero.level > PROGRESSION.classChoiceLevel) {
-    state.modalQueue.push({ kind: 'cardChoice' });
+    state.modalQueue.push({ kind: 'cardChoice', level: hero.level });
   }
 }
 

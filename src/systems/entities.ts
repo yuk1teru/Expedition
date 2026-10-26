@@ -73,6 +73,8 @@ export interface HeroStats {
   range: number;
   ranged: boolean;
   skillDamageMult: number;
+  /** Multiplier applied to skill cooldowns. */
+  cooldownMult: number;
 }
 
 export interface Dash {
@@ -144,6 +146,8 @@ export interface Projectile {
   life: number;
   /** How many more targets it can pass through. */
   pierce: number;
+  /** How many times it bounces to a new target after its last hit. */
+  ricochet: number;
   hit: number[];
   kind: string;
   /** Whether a hit counts as melee for thorns. */

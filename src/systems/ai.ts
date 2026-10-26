@@ -70,6 +70,7 @@ function rangedHero(b: Battle, hero: Hero, target: Enemy): void {
       team: 'hero',
       life: hero.stats.range / r.projectileSpeed + r.projectileLifePad,
       pierce: 0,
+      ricochet: 0,
       kind: roll.crit ? 'heroCrit' : 'hero',
       melee: false,
     });
@@ -152,6 +153,7 @@ export function enemyShoot(b: Battle, e: Enemy, speed: number, at: Vec = b.hero.
     team: 'enemy',
     life: ENEMY_COMMON.projectileLife,
     pierce: 0,
+    ricochet: 0,
     kind,
     melee: false,
   });

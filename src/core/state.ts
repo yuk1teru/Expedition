@@ -16,7 +16,7 @@ export interface RunStats {
   locationsCleared: number;
 }
 
-export type ModalRequest = { kind: 'classChoice' } | { kind: 'cardChoice' };
+export type ModalRequest = { kind: 'classChoice' } | { kind: 'cardChoice'; level: number };
 
 export interface GameState {
   seed: number;

@@ -1,6 +1,6 @@
 // One combat encounter. Pure simulation: no render, no DOM.
 
-import { ARENA, FLOW } from '../data/balance';
+import { ARENA, FLOW, PROJECTILES } from '../data/balance';
 import { type BiomeDef, getBiome } from '../data/biomes';
 import type { EventBus } from '../core/events';
 import type { Rng } from '../core/rng';
@@ -9,7 +9,8 @@ import { updateEnemyAI, updateHeroAI } from './ai';
 import { clampToArena, insideArena, separateBodies } from './collision';
 import { damageEnemy, damageHero, decayKnockback, killEnemy, updateStatuses } from './combat';
 import type { Body, Enemy, Hero, Projectile, Telegraph, Zone } from './entities';
-import { dist } from './entities';
+import { dist, normalize } from './entities';
+import { nearestEnemy } from './targeting';
 import { updateBuffs, updateDash, updateZones } from './effects';
 import type { GameEvent } from './gameEvents';
 import { type MapNode, getNode } from './mapgen';
@@ -186,14 +187,32 @@ function updateProjectiles(b: Battle, dt: number): void {
         if (dist(p.pos, e.pos) > p.radius + e.radius) continue;
         p.hit.push(e.id);
         damageEnemy(b, e, { amount: p.damage, crit: p.kind.endsWith('Crit') }, { source: 'basic' });
-        if (p.pierce <= 0) {
-          p.dead = true;
-          break;
+        if (p.pierce > 0) {
+          p.pierce -= 1;
+          continue;
         }
-        p.pierce -= 1;
+        if (p.ricochet > 0 && ricochet(b, p)) break;
+        p.dead = true;
+        break;
       }
     }
   }
+}
+
+/** Redirects a projectile to the nearest enemy it has not hit yet. */
+function ricochet(b: Battle, p: Projectile): boolean {
+  const next = nearestEnemy(
+    b.enemies.filter((e) => !p.hit.includes(e.id)),
+    p.pos,
+    PROJECTILES.ricochetRange,
+  );
+  if (!next) return false;
+  const speed = Math.hypot(p.vel.x, p.vel.y);
+  const d = normalize({ x: next.pos.x - p.pos.x, y: next.pos.y - p.pos.y });
+  p.vel = { x: d.x * speed, y: d.y * speed };
+  p.ricochet -= 1;
+  p.life = Math.max(p.life, PROJECTILES.ricochetRange / Math.max(speed, 1));
+  return true;
 }
 
 function cleanup(b: Battle): void {

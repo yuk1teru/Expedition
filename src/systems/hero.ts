@@ -1,6 +1,8 @@
 // Hero creation and derived stats.
 
 import { HERO } from '../data/balance';
+import { getClass } from '../data/classes';
+import { getPassive } from '../data/skills';
 import type { Hero, HeroStats } from './entities';
 
 export function createHero(id: number): Hero {
@@ -50,16 +52,66 @@ function baseStats(level: number): HeroStats {
     range: HERO.meleeRange,
     ranged: false,
     skillDamageMult: 1,
+    cooldownMult: 1,
   };
+}
+
+/** Level-3 class choice: sets the class and grants its starting skill. */
+export function assignClass(hero: Hero, classId: string): void {
+  const c = getClass(classId);
+  if (c.locked) throw new Error(`Class ${classId} is locked`);
+  hero.classId = c.id;
+  hero.skills = [{ id: c.startingSkill, rank: 1, cooldown: 0 }];
+  recomputeHeroStats(hero);
 }
 
 /**
  * Recomputes derived stats from level, class and passives.
- * Keeps the current HP fraction-independent: max HP growth also heals by the same amount.
+ * Max HP growth also heals by the same amount.
  */
 export function recomputeHeroStats(hero: Hero): void {
   const prevMax = hero.maxHp;
   const s = baseStats(hero.level);
+  if (hero.classId) {
+    const c = getClass(hero.classId);
+    s.maxHp *= c.hpMult;
+    s.attackSpeed *= c.attackSpeedMult;
+    s.skillDamageMult *= c.skillDamageMult;
+    s.ranged = c.ranged;
+    s.range = c.range;
+  }
+  let hpPct = 0;
+  for (const [id, stacks] of Object.entries(hero.passives)) {
+    const p = getPassive(id);
+    const v = p.value * stacks;
+    switch (p.stat) {
+      case 'armor':
+        s.armor += v;
+        break;
+      case 'lifesteal':
+        s.lifesteal += v;
+        break;
+      case 'thorns':
+        s.thorns += v;
+        break;
+      case 'critChance':
+        s.critChance += v;
+        break;
+      case 'attackSpeedPct':
+        s.attackSpeed *= 1 + v;
+        break;
+      case 'hpPct':
+        hpPct += v;
+        break;
+      case 'skillDamagePct':
+        s.skillDamageMult *= 1 + v;
+        break;
+      case 'cooldownPct':
+        s.cooldownMult *= 1 - v;
+        break;
+    }
+  }
+  s.maxHp *= 1 + hpPct;
   hero.stats = s;
   hero.maxHp = Math.round(s.maxHp);
   if (hero.maxHp > prevMax) hero.hp += hero.maxHp - prevMax;

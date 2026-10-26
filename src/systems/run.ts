@@ -4,7 +4,8 @@ import { EventBus } from '../core/events';
 import { Rng } from '../core/rng';
 import { createRunStats, type GameState } from '../core/state';
 import type { GameEvent } from './gameEvents';
-import { createHero, healFull } from './hero';
+import { type Card, applyCard, offerCards } from './cards';
+import { assignClass, createHero, healFull } from './hero';
 import type { Battle } from './battle';
 import { TOWN_ID, areAdjacent, generateSliceWorld, getNode, markCleared } from './mapgen';
 import { clearBonusGold } from './scaling';
@@ -102,4 +103,18 @@ export function completeBattle(state: GameState, b: Battle): BattleSummary {
 
 export function isRunWon(state: GameState): boolean {
   return state.world.nodes.filter((n) => n.isBoss).every((n) => state.bossesDefeated.includes(n.id));
+}
+
+/** Level-3 class choice. */
+export function chooseClass(state: GameState, classId: string): void {
+  assignClass(state.hero, classId);
+}
+
+/** Offer for the next card choice (uses the run's card stream). */
+export function nextCardOffer(state: GameState): Card[] {
+  return offerCards(state.hero, state.cardRng);
+}
+
+export function chooseCard(state: GameState, card: Card): void {
+  applyCard(state.hero, card);
 }

@@ -87,7 +87,7 @@ describe('xp', () => {
     const s = createGameState(3);
     gainXp(s, xpToNext(1) + xpToNext(2) + xpToNext(3));
     expect(s.hero.level).toBe(4);
-    expect(s.modalQueue.map((m) => m.kind)).toEqual(['classChoice', 'cardChoice']);
+    expect(s.modalQueue).toEqual([{ kind: 'classChoice' }, { kind: 'cardChoice', level: 4 }]);
     gainXp(s, 1e9);
     expect(s.hero.level).toBe(PROGRESSION.maxLevel);
     expect(s.hero.xp).toBe(0);

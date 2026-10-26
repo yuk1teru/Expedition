@@ -10,12 +10,24 @@ import { LOOP } from '../data/balance';
 import { type Battle, createBattle, killAll } from '../systems/battle';
 import { grantLevel } from '../systems/leveling';
 import { SLICE_GROVE_ID, getNode, resetClears } from '../systems/mapgen';
-import { type BattleSummary, completeBattle, createGameState, isRunWon, teleport, travel } from '../systems/run';
+import { getSkill } from '../data/skills';
+import {
+  type BattleSummary,
+  chooseCard,
+  chooseClass,
+  completeBattle,
+  createGameState,
+  isRunWon,
+  nextCardOffer,
+  teleport,
+  travel,
+} from '../systems/run';
 import { type View, beginFrame, endFrame } from './canvas';
 import { createCombatScreen } from './combatView';
 import { type DebugPanel, createDebugPanel } from './debugPanel';
 import { createDeathScreen, createRewardScreen, createVictoryScreen } from './endScreens';
 import { createMapScreen } from './mapView';
+import { createCardChoiceModal, createClassChoiceModal } from './modals';
 import { THEME } from './theme';
 import { createTownScreen } from './townView';
 
@@ -107,7 +119,34 @@ export class App {
   }
 
   skillSummary(): string {
-    return '';
+    return this.state.hero.skills.map((sk) => `${getSkill(sk.id).name} ${'I'.repeat(sk.rank)}`).join(' · ');
+  }
+
+  /** Opens the next queued level-up choice when nothing else is open. */
+  private processModalQueue(): void {
+    if (this.screens.topModal) return;
+    const screen = this.screens.current;
+    if (screen === 'death' || screen === 'victory') return;
+    const req = this.state.modalQueue.shift();
+    if (!req) return;
+    if (req.kind === 'classChoice') {
+      this.screens.pushModal(
+        createClassChoiceModal(this, (classId) => {
+          chooseClass(this.state, classId);
+          this.screens.popModal();
+        }),
+      );
+      return;
+    }
+    if (!this.state.hero.classId) return;
+    const offer = nextCardOffer(this.state);
+    if (offer.length === 0) return;
+    this.screens.pushModal(
+      createCardChoiceModal(this, offer, req.level, (card) => {
+        chooseCard(this.state, card);
+        this.screens.popModal();
+      }),
+    );
   }
 
   // ---- Debug actions ----
@@ -136,6 +175,7 @@ export class App {
     this.time += dt;
     this.state.stats.playTime += dt;
     for (const e of this.input.drain()) this.handleInput(e);
+    this.processModalQueue();
   }
 
   private handleInput(e: InputEvent): void {

@@ -38,6 +38,17 @@ interface Ring {
   width: number;
 }
 
+interface Cone {
+  x: number;
+  y: number;
+  angle: number;
+  width: number;
+  range: number;
+  color: string;
+  life: number;
+  maxLife: number;
+}
+
 interface Banner {
   text: string;
   color: string;
@@ -50,6 +61,7 @@ export class Fx {
   particles: Particle[] = [];
   texts: FloatText[] = [];
   rings: Ring[] = [];
+  cones: Cone[] = [];
   banner: Banner | null = null;
   shakeTime = 0;
   shakeDuration = 0;
@@ -73,6 +85,7 @@ export class Fx {
     this.particles = [];
     this.texts = [];
     this.rings = [];
+    this.cones = [];
     this.banner = null;
     this.shakeTime = 0;
     this.hitStop = 0;
@@ -144,6 +157,10 @@ export class Fx {
     this.rings.push({ x: pos.x, y: pos.y, radius, color, life, maxLife: life, width });
   }
 
+  cone(pos: Vec, angle: number, width: number, range: number, color: string, life: number): void {
+    this.cones.push({ x: pos.x, y: pos.y, angle, width, range, color, life, maxLife: life });
+  }
+
   shake(spec: ShakeSpec): void {
     if (this.reducedMotion) return;
     if (spec.strength >= this.shakeStrength * (this.shakeTime / Math.max(this.shakeDuration, 1e-6))) {
@@ -182,6 +199,8 @@ export class Fx {
     this.texts = this.texts.filter((t) => t.life > 0);
     for (const r of this.rings) r.life -= dt;
     this.rings = this.rings.filter((r) => r.life > 0);
+    for (const c of this.cones) c.life -= dt;
+    this.cones = this.cones.filter((c) => c.life > 0);
     if (this.banner) {
       this.banner.life -= dt;
       if (this.banner.life <= 0) this.banner = null;
@@ -213,6 +232,27 @@ export class Fx {
       ctx.lineWidth = r.width * (1 - t) + 1;
       ctx.beginPath();
       ctx.arc(r.x, r.y, r.radius * (0.3 + 0.7 * t), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  drawCones(ctx: CanvasRenderingContext2D): void {
+    for (const c of this.cones) {
+      const k = c.life / c.maxLife;
+      const grow = 0.6 + 0.4 * (1 - k);
+      ctx.globalAlpha = 0.5 * k;
+      ctx.fillStyle = c.color;
+      ctx.beginPath();
+      ctx.moveTo(c.x, c.y);
+      ctx.arc(c.x, c.y, c.range * grow, c.angle - c.width / 2, c.angle + c.width / 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = k;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, c.range * grow, c.angle - c.width / 2, c.angle + c.width / 2);
       ctx.stroke();
     }
     ctx.globalAlpha = 1;

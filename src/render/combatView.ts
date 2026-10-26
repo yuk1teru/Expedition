@@ -4,6 +4,7 @@ import type { InputEvent } from '../core/input';
 import { Rng } from '../core/rng';
 import type { Screen } from '../core/screens';
 import { ARENA } from '../data/balance';
+import { getClass } from '../data/classes';
 import type { BiomeDef, DecorKind } from '../data/biomes';
 import { FX } from '../data/fx';
 import { type Battle, stepBattle } from '../systems/battle';
@@ -13,6 +14,7 @@ import type { App } from './app';
 import { drawBoss } from './bossView';
 import { Fx } from './fx';
 import { createHud } from './hud';
+import { skillFx } from './skillFx';
 import { THEME } from './theme';
 import { drawText } from './ui';
 
@@ -41,7 +43,9 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
   function onEvent(e: GameEvent): void {
     const b = battle;
     if (!b) return;
-    handleEvent(b, fx, e);
+    if (e.type === 'noTarget') hud.noTarget(e.slot);
+    else if (e.type === 'skillCast' || e.type === 'skillTick') skillFx(fx, e);
+    else handleEvent(b, fx, e);
   }
 
   return {
@@ -80,7 +84,9 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
 
     onInput(e: InputEvent) {
       if (hud.handle(e)) return;
-      if (e.type === 'key' && (e.code === 'Space' || e.code === 'Escape')) app.loop.paused = !app.loop.paused;
+      if (e.type !== 'key') return;
+      if (e.code === 'Space' || e.code === 'Escape') app.loop.paused = !app.loop.paused;
+      else if (/^Digit[1-4]$/.test(e.code) && battle && !app.loop.paused) hud.useSlot(Number(e.code.slice(5)) - 1);
     },
 
     render(ctx) {
@@ -97,6 +103,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
         else drawEnemy(ctx, e, b, app.time);
       }
       drawHero(ctx, b.hero, b, app.time);
+      fx.drawCones(ctx);
       fx.drawRings(ctx);
       fx.drawParticles(ctx);
       // Telegraphs always above effects so they stay readable.
@@ -397,6 +404,20 @@ function drawHero(ctx: CanvasRenderingContext2D, h: Hero, b: Battle, t: number):
       ctx.arc(0, 0, r + 3, t * 5, t * 5 + Math.PI * 1.2);
       ctx.stroke();
     }
+    if (buff.damageTakenMult < 1) {
+      // Damage reduction: steel hexagon shield.
+      ctx.strokeStyle = 'rgba(190, 210, 235, 0.85)';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      for (let i = 0; i <= 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
+        const px = Math.cos(a) * (r + 9);
+        const py = Math.sin(a) * (r + 9);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
   }
   ctx.rotate(h.facing);
   // Direction wedge.
@@ -408,17 +429,13 @@ function drawHero(ctx: CanvasRenderingContext2D, h: Hero, b: Battle, t: number):
   ctx.closePath();
   ctx.fill();
   ctx.fillStyle = isFlashing(b, h.hitAt) ? '#ff8a80' : '#f4f1e8';
-  ctx.strokeStyle = h.classId ? classColor(h.classId) : '#1b1e27';
+  ctx.strokeStyle = h.classId ? getClass(h.classId).color : '#1b1e27';
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
   ctx.restore();
-}
-
-function classColor(classId: string): string {
-  return classId === 'warrior' ? '#c0392b' : classId === 'mage' ? '#3b7dd8' : '#3fa34d';
 }
 
 function drawProjectile(ctx: CanvasRenderingContext2D, p: Projectile): void {

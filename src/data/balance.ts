@@ -141,3 +141,21 @@ export const FLOW = {
   /** Delay after hero death before the death screen. */
   loseDelay: 1.2,
 } as const;
+
+/** General skill rank rule. */
+export const RANKS = {
+  max: 3,
+  rank2DamageMult: 1.3,
+  rank2CooldownMult: 0.9,
+} as const;
+
+/** Level-up card offers. */
+export const CARDS = {
+  offerSize: 3,
+  weights: { newSkill: 40, upgrade: 40, passive: 20 },
+} as const;
+
+export const PROJECTILES = {
+  /** Max distance to the next target for ricocheting projectiles, px. */
+  ricochetRange: 220,
+} as const;
