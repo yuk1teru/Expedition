@@ -67,12 +67,16 @@ export function basicAttackOf(hero: Hero): BasicAttackDef {
   return hero.classId ? getClass(hero.classId).basicAttack : NOVICE_ATTACK;
 }
 
-/** Level-3 class choice: sets the class and grants its starting skill. */
-export function assignClass(hero: Hero, classId: string): void {
+/** Level-3 class choice: sets the class and grants the picked skills (slots in pick order). */
+export function assignClass(hero: Hero, classId: string, picks?: string[]): void {
   const c = getClass(classId);
   if (c.locked) throw new Error(`Class ${classId} is locked`);
+  const chosen = picks ?? c.defaultPicks;
+  if (chosen.length !== PROGRESSION.startingSkillPicks || new Set(chosen).size !== chosen.length || !chosen.every((id) => c.skills.includes(id))) {
+    throw new Error(`Pick ${PROGRESSION.startingSkillPicks} different ${classId} skills`);
+  }
   hero.classId = c.id;
-  hero.skills = [{ id: c.startingSkill, rank: 1, cooldown: 0, slot: 0 }];
+  hero.skills = chosen.map((id, slot) => ({ id, rank: 1, cooldown: 0, slot }));
   recomputeHeroStats(hero);
 }
 

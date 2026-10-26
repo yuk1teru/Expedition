@@ -193,6 +193,9 @@ export interface Zone {
   /** Pull strength towards the centre per tick, px/s impulse. */
   pull: number;
   stun: number;
+  /** Slow applied per tick (fraction) and its duration. */
+  slow: number;
+  slowTime: number;
   dead: boolean;
 }
 

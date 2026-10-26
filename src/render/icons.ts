@@ -68,6 +68,61 @@ export function drawSkillIcon(ctx: CanvasRenderingContext2D, icon: SkillIcon, x:
       ctx.lineTo(r * 0.3, r * 0.1);
       ctx.stroke();
       break;
+    case 'axe':
+      ctx.rotate(-Math.PI / 6);
+      ctx.beginPath();
+      ctx.moveTo(0, r * 0.85);
+      ctx.lineTo(0, -r * 0.75);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, -r * 0.65);
+      ctx.quadraticCurveTo(r * 0.85, -r * 0.4, 0, -r * 0.05);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    case 'shield':
+      ctx.beginPath();
+      ctx.moveTo(0, -r * 0.85);
+      ctx.lineTo(r * 0.7, -r * 0.55);
+      ctx.quadraticCurveTo(r * 0.65, r * 0.4, 0, r * 0.85);
+      ctx.quadraticCurveTo(-r * 0.65, r * 0.4, -r * 0.7, -r * 0.55);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.25, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case 'quake':
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.9, r * 0.5);
+      ctx.lineTo(r * 0.9, r * 0.5);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.1, r * 0.5);
+      ctx.lineTo(r * 0.15, r * 0.05);
+      ctx.lineTo(-r * 0.15, -r * 0.25);
+      ctx.lineTo(r * 0.1, -r * 0.75);
+      ctx.stroke();
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.arc(side * r * 0.55, r * 0.15, r * 0.25, Math.PI, 0);
+        ctx.stroke();
+      }
+      break;
+    case 'hook':
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.2, -r * 0.85);
+      ctx.lineTo(-r * 0.2, r * 0.2);
+      ctx.arc(r * 0.15, r * 0.2, r * 0.35, Math.PI, 0, true);
+      ctx.lineTo(r * 0.5, -r * 0.05);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(r * 0.5, -r * 0.3);
+      ctx.lineTo(r * 0.68, -r * 0.02);
+      ctx.lineTo(r * 0.32, -r * 0.02);
+      ctx.closePath();
+      ctx.fill();
+      break;
   }
   ctx.restore();
 }

@@ -29,6 +29,7 @@ import { createDeathScreen, createGameOverScreen, createRewardScreen, createVict
 import { createHelpModal } from './help';
 import { createInventoryModal } from './inventory';
 import { createMerchantModal } from './merchant';
+import { createSkillPickModal } from './skillPick';
 import { createMapScreen } from './mapView';
 import { createCardChoiceModal, createClassChoiceModal } from './modals';
 import { THEME } from './theme';
@@ -183,8 +184,14 @@ export class App {
     if (req.kind === 'classChoice') {
       this.screens.pushModal(
         createClassChoiceModal(this, (classId) => {
-          chooseClass(this.state, classId);
           this.screens.popModal();
+          // Then the player picks the starting skills from the class pool.
+          this.screens.pushModal(
+            createSkillPickModal(this, classId, (picks) => {
+              chooseClass(this.state, classId, picks);
+              this.screens.popModal();
+            }),
+          );
         }),
       );
       return;

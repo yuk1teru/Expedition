@@ -63,6 +63,8 @@ export const PROGRESSION = {
   /** Levels at which only automatic stat growth happens. */
   autoLevelsUpTo: 2,
   classChoiceLevel: 3,
+  /** Skills chosen from the class pool at the class choice (the rest come from cards). */
+  startingSkillPicks: 3,
   /** Slice cap; the full prototype goes to 20. */
   maxLevel: 10,
   /** xpToNext(level) = round(base × level^exponent). */

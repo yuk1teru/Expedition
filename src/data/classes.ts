@@ -31,9 +31,9 @@ export interface ClassDef {
   ranged: boolean;
   /** Melee reach or shooting range, px. */
   range: number;
-  startingSkill: string;
-  /** Display name of the starting skill (locked classes have no skill data yet). */
-  startingSkillName: string;
+  /** Skills the bot (simulation) picks at the class choice. */
+  defaultPicks: string[];
+  /** Full class skill pool: the player picks some at the class choice, the rest come from cards. */
   skills: string[];
   passives: string[];
   basicAttack: BasicAttackDef;
@@ -56,9 +56,8 @@ export const CLASSES: Record<string, ClassDef> = {
     skillDamageMult: 1,
     ranged: false,
     range: 40,
-    startingSkill: 'whirlwind',
-    startingSkillName: 'Вихор',
-    skills: ['whirlwind', 'charge', 'battleCry', 'groundSlam'],
+    defaultPicks: ['whirlwind', 'charge', 'groundSlam'],
+    skills: ['whirlwind', 'charge', 'battleCry', 'groundSlam', 'axeThrow', 'ironSkin', 'earthquake', 'hook'],
     passives: ['armor', 'vampirism', 'thorns'],
     basicAttack: {
       kind: 'melee',
@@ -80,8 +79,7 @@ export const CLASSES: Record<string, ClassDef> = {
     skillDamageMult: 1.25,
     ranged: true,
     range: 260,
-    startingSkill: 'fireball',
-    startingSkillName: 'Вогняна куля',
+    defaultPicks: [],
     skills: [],
     passives: [],
     basicAttack: { kind: 'ranged', description: 'Вогняний снаряд; вороги впритул обпікаються (мале AoE).' },
@@ -104,8 +102,7 @@ export const CLASSES: Record<string, ClassDef> = {
     skillDamageMult: 1,
     ranged: true,
     range: 300,
-    startingSkill: 'multishot',
-    startingSkillName: 'Мультипостріл',
+    defaultPicks: [],
     skills: [],
     passives: [],
     basicAttack: { kind: 'ranged', description: 'Стріла прошиває першого ворога й ранить того, хто позаду.' },

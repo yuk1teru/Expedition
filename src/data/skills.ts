@@ -15,7 +15,7 @@ export type Targeting =
 
 export type SkillParams = Record<string, number>;
 
-export type SkillIcon = 'whirl' | 'dash' | 'shout' | 'slam';
+export type SkillIcon = 'whirl' | 'dash' | 'shout' | 'slam' | 'axe' | 'shield' | 'quake' | 'hook';
 
 export interface SkillDef {
   id: string;
@@ -110,6 +110,48 @@ export const SKILLS: Record<string, SkillDef> = {
     description: 'Конус {angle}° на {range} px: {damage%} атаки і відкидання.',
     base: { cooldown: 9, angle: 90, range: 220, damage: 2, knockback: 420, stun: 0 },
     rank3Modifier: { text: 'Оглушує на 0.8 с.', param: 'stun', value: 0.8 },
+  }),
+  axeThrow: skill({
+    id: 'axeThrow',
+    name: 'Кидок сокири',
+    classId: 'warrior',
+    targeting: 'any',
+    aimable: true,
+    icon: 'axe',
+    description: 'Сокира летить до курсора ({range} px): {damage%} атаки, пробиває {pierce} ворогів.',
+    base: { cooldown: 6, damage: 1.8, range: 420, speed: 520, radius: 10, pierce: 2 },
+    rank3Modifier: { text: 'Пробиває всіх ворогів на шляху.', param: 'pierce', value: 99 },
+  }),
+  ironSkin: skill({
+    id: 'ironSkin',
+    name: 'Залізна шкіра',
+    classId: 'warrior',
+    targeting: 'any',
+    icon: 'shield',
+    description: '−{damageReduction%} отриманої шкоди на {duration} с.',
+    base: { cooldown: 16, duration: 4, damageReduction: 0.4, heal: 0 },
+    rank3Modifier: { text: 'Ще й лікує 15% HP.', param: 'heal', value: 0.15 },
+  }),
+  earthquake: skill({
+    id: 'earthquake',
+    name: 'Землетрус',
+    classId: 'warrior',
+    targeting: 'self',
+    icon: 'quake',
+    description: '{pulses} поштовхи навколо героя (радіус {radius}): {damage%} атаки і сповільнення на {slow%}.',
+    base: { cooldown: 12, radius: 160, castRange: 200, pulses: 3, interval: 1, damage: 0.9, slow: 0.4, slowTime: 1.2, stun: 0 },
+    rank3Modifier: { text: 'Кожен поштовх оглушує на 0.5 с.', param: 'stun', value: 0.5 },
+  }),
+  hook: skill({
+    id: 'hook',
+    name: 'Гак',
+    classId: 'warrior',
+    targeting: 'cone',
+    aimable: true,
+    icon: 'hook',
+    description: 'Підтягує ворогів у конусі {angle}° ({range} px) до героя: {damage%} атаки.',
+    base: { cooldown: 8, angle: 50, range: 320, damage: 1, pull: 700, stun: 0 },
+    rank3Modifier: { text: 'Підтягнуті вороги оглушені на 1 с.', param: 'stun', value: 1 },
   }),
 };
 

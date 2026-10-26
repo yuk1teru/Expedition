@@ -11,8 +11,7 @@ import { spawnEnemy } from '../src/systems/waves';
 function warriorBattle(nodeId = SLICE_LAIR_ID) {
   const s = createGameState(11);
   s.hero.level = 3;
-  assignClass(s.hero, 'warrior');
-  s.hero.skills.push({ id: 'charge', rank: 1, cooldown: 0, slot: 1 }, { id: 'groundSlam', rank: 1, cooldown: 0, slot: 2 });
+  assignClass(s.hero, 'warrior', ['whirlwind', 'charge', 'groundSlam']);
   teleport(s, nodeId);
   return { s, b: createBattle(s, nodeId) };
 }
@@ -160,6 +159,28 @@ describe('aimed skills', () => {
   });
 });
 
+describe('class skill picks', () => {
+  it('the class choice grants exactly the 3 picked skills from the 8-skill pool', () => {
+    const s = createGameState(5);
+    s.hero.level = 3;
+    assignClass(s.hero, 'warrior', ['hook', 'earthquake', 'axeThrow']);
+    expect([0, 1, 2].map((i) => skillInSlot(s.hero, i)?.id)).toEqual(['hook', 'earthquake', 'axeThrow']);
+    expect(() => assignClass(s.hero, 'warrior', ['hook', 'hook', 'axeThrow'])).toThrow();
+    expect(() => assignClass(s.hero, 'warrior', ['hook', 'earthquake'])).toThrow();
+  });
+
+  it('every new warrior skill casts', () => {
+    const { s, b } = warriorBattle(SLICE_GROVE_ID);
+    s.hero.immortal = true;
+    const h = s.hero.pos;
+    spawnEnemy(b, 'stump', { x: h.x + 90, y: h.y });
+    s.hero.skills = ['axeThrow', 'ironSkin', 'earthquake', 'hook'].map((id, slot) => ({ id, rank: 3, cooldown: 0, slot }));
+    b.input.aim = { x: h.x + 200, y: h.y };
+    for (let i = 0; i < 4; i++) expect(useSkill(b, i)).toBe('cast');
+    for (let t = 0; t < 3; t += LOOP.step) stepBattle(b, LOOP.step);
+  });
+});
+
 describe('skill reordering', () => {
   it('swaps occupied slots, moves into empty ones and keeps cooldowns with the skill', () => {
     const { s } = warriorBattle();
@@ -176,6 +197,7 @@ describe('skill reordering', () => {
     const s = createGameState(3);
     s.hero.level = 3;
     assignClass(s.hero, 'warrior');
+    s.hero.skills = s.hero.skills.filter((x) => x.slot === 0);
     moveSkill(s.hero, 0, 1);
     expect(skillInSlot(s.hero, 0)).toBeUndefined();
     expect(skillInSlot(s.hero, 1)?.id).toBe('whirlwind');

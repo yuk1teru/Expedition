@@ -97,7 +97,8 @@ function drawCard(ctx: CanvasRenderingContext2D, r: Rect, face: CardFace, hovere
 
 const CLASS_CARD_Y = 80;
 const CLASS_CARD_H = 448;
-const LINE_H = 22;
+/** Compact list rows: the warrior pool has 8 skills. */
+const LINE_H = 17;
 
 interface ClassLine {
   name: string;
@@ -115,11 +116,11 @@ function classLines(classId: string, r: Rect): { skills: ClassLine[]; passives: 
   const x = r.x + 16;
   const w = r.w - 32;
   const skillY = r.y + 216;
-  const passiveY = skillY + PROGRESSION.skillSlots * LINE_H + 30;
   const skillNames = c.skills.length > 0 ? c.skills.map((id) => getSkill(id).name) : (c.preview?.skills ?? []);
+  const passiveY = skillY + skillNames.length * LINE_H + 24;
   const skills: ClassLine[] = skillNames.map((name, i) => ({
     name,
-    note: name === c.startingSkillName ? 'старт' : '',
+    note: '',
     skillId: c.skills[i],
     rect: { x, y: skillY + i * LINE_H - LINE_H / 2, w, h: LINE_H },
   }));
@@ -173,7 +174,11 @@ function drawClassCard(ctx: CanvasRenderingContext2D, classId: string, r: Rect, 
     .forEach((l, i) => drawText(ctx, l, cx, r.y + 162 + i * 15, { size: 12, align: 'center', color: '#e8c48a' }));
 
   const lines = classLines(classId, r);
-  drawText(ctx, `Скіли · ${RANKS.max} ранги (${RANKS.max - 1} покращення)`, r.x + 16, r.y + 196, {
+  const skillHeader =
+    c.skills.length > 0
+      ? `Скіли: оберете ${PROGRESSION.startingSkillPicks} з ${c.skills.length} · ранги 1–${RANKS.max}`
+      : `Скіли · ${RANKS.max} ранги (${RANKS.max - 1} покращення)`;
+  drawText(ctx, skillHeader, r.x + 16, r.y + 196, {
     size: 12,
     bold: true,
     color: THEME.accent,
@@ -181,9 +186,9 @@ function drawClassCard(ctx: CanvasRenderingContext2D, classId: string, r: Rect, 
   for (const l of lines.skills) {
     const y = l.rect.y + LINE_H / 2;
     const def = l.skillId ? getSkill(l.skillId) : null;
-    if (def) drawSkillIcon(ctx, def.icon, l.rect.x + 8, y, 15, THEME.text);
+    if (def) drawSkillIcon(ctx, def.icon, l.rect.x + 8, y, 13, THEME.text);
     else dot(ctx, l.rect.x + 8, y);
-    drawText(ctx, l.name, l.rect.x + 22, y, { size: 14 });
+    drawText(ctx, l.name, l.rect.x + 22, y, { size: 13 });
     if (l.note) drawText(ctx, l.note, l.rect.x + l.rect.w - 34, y, { size: 11, align: 'right', color: THEME.good, bold: true });
     for (let k = 0; k < RANKS.max; k++) {
       ctx.fillStyle = THEME.accent;
@@ -196,12 +201,11 @@ function drawClassCard(ctx: CanvasRenderingContext2D, classId: string, r: Rect, 
   drawText(ctx, 'Пасивки · стаки', r.x + 16, passiveHeaderY, { size: 12, bold: true, color: '#9b8cff' });
   for (const l of lines.passives) {
     const y = l.rect.y + LINE_H / 2;
-    if (l.passiveStat) drawPassiveIcon(ctx, l.passiveStat, l.rect.x + 8, y, 14, '#9b8cff');
+    if (l.passiveStat) drawPassiveIcon(ctx, l.passiveStat, l.rect.x + 8, y, 12, '#9b8cff');
     else dot(ctx, l.rect.x + 8, y);
-    drawText(ctx, l.name, l.rect.x + 22, y, { size: 14 });
+    drawText(ctx, l.name, l.rect.x + 22, y, { size: 13 });
     drawText(ctx, l.note, l.rect.x + l.rect.w, y, { size: 12, align: 'right', color: THEME.textDim });
   }
-  if (!c.locked) drawText(ctx, `HP ×${c.hpMult}`, cx, r.y + r.h - 42, { size: 13, bold: true, align: 'center', color: THEME.good });
   ctx.restore();
 
   if (c.locked) {
@@ -278,7 +282,7 @@ export function createClassChoiceModal(app: App, onChosen: (classId: string) => 
     render(ctx) {
       dim(ctx, app.view.width, app.view.height);
       drawText(ctx, 'Рівень 3 — оберіть клас', app.view.width / 2, 34, { size: 26, bold: true, align: 'center' });
-      drawText(ctx, 'Клас дає базову атаку і перший скіл; решту скілів і покращень дають картки на нових рівнях', app.view.width / 2, 62, {
+      drawText(ctx, 'Клас дає автоатаку; далі ви оберете 3 скіли з 8, решту дадуть картки на нових рівнях', app.view.width / 2, 62, {
         size: 14,
         align: 'center',
         color: THEME.textDim,

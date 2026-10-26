@@ -1,7 +1,8 @@
 // Warrior skills: Whirlwind, Charge, Battle Cry, Ground Slam.
 
 import { ARENA } from '../../data/balance';
-import { addStatus, damageEnemy, heroDamage } from '../combat';
+import { spawnProjectile } from '../ai';
+import { addStatus, damageEnemy, healHero, heroDamage, pull } from '../combat';
 import { addBuff, addZone, startDash } from '../effects';
 import type { SkillParams } from '../../data/skills';
 import type { Battle } from '../battle';
@@ -132,9 +133,82 @@ const groundSlam: SkillImpl = ({ b, hero, p, def, rank, aim }) => {
   return true;
 };
 
+/** Axe thrown towards the cursor (or the nearest enemy), piercing. */
+const axeThrow: SkillImpl = ({ b, hero, p, def, rank, aim }) => {
+  const target = aim ?? nearestEnemy(b.enemies, hero.pos, p.range!)?.pos;
+  if (!target || !nearestEnemy(b.enemies, hero.pos)) return false;
+  const angle = Math.atan2(target.y - hero.pos.y, target.x - hero.pos.x);
+  hero.facing = angle;
+  const roll = heroDamage(b, p.damage!, 'skill');
+  spawnProjectile(b, {
+    pos: { ...hero.pos },
+    vel: { x: Math.cos(angle) * p.speed!, y: Math.sin(angle) * p.speed! },
+    radius: p.radius!,
+    damage: roll.amount,
+    team: 'hero',
+    life: p.range! / p.speed!,
+    pierce: p.pierce!,
+    ricochet: 0,
+    kind: roll.crit ? 'axeCrit' : 'axe',
+    melee: false,
+  });
+  b.events.emit({ type: 'skillCast', skillId: def.id, rank, pos: { ...hero.pos }, target: { x: hero.pos.x + Math.cos(angle) * p.range!, y: hero.pos.y + Math.sin(angle) * p.range! } });
+  return true;
+};
+
+const ironSkin: SkillImpl = ({ b, hero, p, def, rank }) => {
+  if (!nearestEnemy(b.enemies, hero.pos)) return false;
+  addBuff(hero, { id: def.id, time: p.duration!, attackSpeedMult: 1, damageTakenMult: 1 - p.damageReduction! });
+  if (p.heal! > 0) healHero(b, hero.maxHp * p.heal!, 'show');
+  b.events.emit({ type: 'skillCast', skillId: def.id, rank, pos: { ...hero.pos }, target: null });
+  return true;
+};
+
+/** Pulses around the spot where the hero stood. */
+const earthquake: SkillImpl = ({ b, hero, p, def, rank }) => {
+  if (!nearestEnemy(b.enemies, hero.pos, p.castRange!)) return false;
+  addZone(b, {
+    kind: def.id,
+    pos: hero.pos,
+    radius: p.radius!,
+    duration: p.interval! * (p.pulses! - 1),
+    tickInterval: p.interval!,
+    damage: hero.stats.attack * p.damage! * hero.stats.skillDamageMult,
+    slow: p.slow!,
+    slowTime: p.slowTime!,
+    stun: p.stun!,
+    tickNow: true,
+  });
+  b.events.emit({ type: 'skillCast', skillId: def.id, rank, pos: { ...hero.pos }, target: null });
+  return true;
+};
+
+/** Pulls enemies in a cone (towards the cursor, or the best direction) to the hero. */
+const hook: SkillImpl = ({ b, hero, p, def, rank, aim }) => {
+  const width = (p.angle! * Math.PI) / 180;
+  const angle = aim
+    ? Math.atan2(aim.y - hero.pos.y, aim.x - hero.pos.x)
+    : bestConeAngle(b.enemies, hero.pos, width, p.range!)?.angle;
+  if (angle === undefined || !nearestEnemy(b.enemies, hero.pos)) return false;
+  hero.facing = angle;
+  for (const e of coneTargets(b.enemies, hero.pos, angle, width, p.range!)) {
+    damageEnemy(b, e, heroDamage(b, p.damage!, 'skill'), { source: 'skill' });
+    if (e.dead) continue;
+    pull(e, hero.pos, p.pull!);
+    if (p.stun! > 0) addStatus(e, 'stun', p.stun!);
+  }
+  const target = { x: hero.pos.x + Math.cos(angle) * p.range!, y: hero.pos.y + Math.sin(angle) * p.range! };
+  b.events.emit({ type: 'skillCast', skillId: def.id, rank, pos: { ...hero.pos }, target });
+  return true;
+};
+
 export const WARRIOR_SKILLS: Record<string, SkillImpl> = {
   whirlwind,
   charge,
   battleCry,
   groundSlam,
+  axeThrow,
+  ironSkin,
+  earthquake,
+  hook,
 };

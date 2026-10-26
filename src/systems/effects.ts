@@ -18,6 +18,8 @@ export interface ZoneSpec {
   damage: number;
   pull?: number;
   stun?: number;
+  slow?: number;
+  slowTime?: number;
   /** Tick immediately on creation. */
   tickNow?: boolean;
 }
@@ -37,6 +39,8 @@ export function addZone(b: Battle, spec: ZoneSpec): Zone {
     damage: spec.damage,
     pull: spec.pull ?? 0,
     stun: spec.stun ?? 0,
+    slow: spec.slow ?? 0,
+    slowTime: spec.slowTime ?? 0,
     dead: false,
   };
   b.zones.push(z);
@@ -69,6 +73,7 @@ function tickZone(b: Battle, z: Zone): void {
     if (e.dead) continue;
     if (z.pull > 0) pull(e, z.pos, z.pull);
     if (z.stun > 0) addStatus(e, 'stun', z.stun);
+    if (z.slow > 0) addStatus(e, 'slow', z.slowTime, z.slow);
   }
   b.events.emit({ type: 'skillTick', skillId: z.kind, pos: { ...z.pos }, radius: z.radius });
 }

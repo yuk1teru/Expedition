@@ -158,9 +158,9 @@ export function isRunWon(state: GameState): boolean {
   return state.world.nodes.filter((n) => n.isBoss).every((n) => state.bossesDefeated.includes(n.id));
 }
 
-/** Level-3 class choice. */
-export function chooseClass(state: GameState, classId: string): void {
-  assignClass(state.hero, classId);
+/** Level-3 class choice with the picked starting skills. */
+export function chooseClass(state: GameState, classId: string, picks?: string[]): void {
+  assignClass(state.hero, classId, picks);
 }
 
 /** Offer for the next card choice (uses the run's card stream). */

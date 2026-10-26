@@ -577,6 +577,24 @@ function drawProjectile(ctx: CanvasRenderingContext2D, p: Projectile): void {
     ctx.beginPath();
     ctx.arc(p.pos.x - 1.5, p.pos.y - 1.5, p.radius * 0.4, 0, Math.PI * 2);
     ctx.fill();
+  } else if (p.kind.startsWith('axe')) {
+    // Spinning thrown axe.
+    ctx.save();
+    ctx.translate(p.pos.x, p.pos.y);
+    ctx.rotate(p.life * 25);
+    ctx.strokeStyle = '#8a6a44';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-p.radius, 0);
+    ctx.lineTo(p.radius, 0);
+    ctx.stroke();
+    ctx.fillStyle = p.kind.endsWith('Crit') ? '#ffd23f' : '#d8dde8';
+    ctx.beginPath();
+    ctx.moveTo(p.radius * 0.6, 0);
+    ctx.quadraticCurveTo(p.radius * 1.2, -p.radius, p.radius * 0.2, -p.radius * 0.9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
   } else {
     const a = Math.atan2(p.vel.y, p.vel.x);
     ctx.strokeStyle = p.kind.endsWith('Crit') ? '#ffd23f' : '#f4f1e8';
@@ -607,6 +625,20 @@ function drawZone(ctx: CanvasRenderingContext2D, z: Zone, b: Battle, t: number):
       ctx.arc(0, 0, z.radius * (0.55 + i * 0.2), a, a + 1.1);
       ctx.stroke();
     }
+  } else if (z.kind === 'earthquake') {
+    ctx.globalAlpha = 0.35 * life + 0.1;
+    ctx.strokeStyle = '#c9a36b';
+    ctx.lineWidth = 4;
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.arc(0, 0, z.radius * (0.4 + 0.3 * i), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = '#c9a36b';
+    ctx.beginPath();
+    ctx.arc(0, 0, z.radius, 0, Math.PI * 2);
+    ctx.fill();
   } else if (z.kind === 'fireTrail') {
     ctx.globalAlpha = 0.6 * life;
     const g = ctx.createRadialGradient(0, 0, 2, 0, 0, z.radius);

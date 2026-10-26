@@ -24,7 +24,7 @@ export function resolveModals(state: GameState, rng: Rng): void {
     const req = state.modalQueue.shift()!;
     if (req.kind === 'classChoice') {
       const id = CLASS_ORDER.find((c) => !getClass(c).locked);
-      if (id) chooseClass(state, id);
+      if (id) chooseClass(state, id, getClass(id).defaultPicks);
     } else if (state.hero.classId) {
       const offer = nextCardOffer(state);
       if (offer.length > 0) chooseCard(state, rng.pick(offer));
