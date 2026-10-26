@@ -6,7 +6,7 @@ import { SLICE_GROVE_ID } from '../src/systems/mapgen';
 import { createGameState, teleport } from '../src/systems/run';
 import { TRAPS } from '../src/data/balance';
 import { ENEMIES } from '../src/data/enemies';
-import { CONSUMABLES } from '../src/data/consumables';
+import { CONSUMABLES, PICKUP_SPAWN } from '../src/data/consumables';
 import { maybeSpawnPickup } from '../src/systems/pickups';
 import { spawnTraps, trapsForWave, updateTraps } from '../src/systems/traps';
 import { inBreak, isPortalBreak, portalActive, portalInReach, requestPortalEntry, skipBreak, spawnEnemy, waveEvent, waveMult, waveSize } from '../src/systems/waves';
@@ -97,14 +97,17 @@ describe('waves', () => {
     expect(b.hero.statuses.root?.time ?? 0).toBeGreaterThan(0);
   });
 
-  it('no herb grows while the hero already carries the maximum', () => {
+  it('herbs grow even with full pockets, but never more than the max plants at once', () => {
     const { b } = grove();
-    b.hero.consumables.herbGreen = CONSUMABLES.herbGreen.max;
+    for (const id of ['herbGreen', 'herbRed', 'herbWhite'] as const) b.hero.consumables[id] = CONSUMABLES[id].max;
+    const kinds = new Set<string>();
     for (let i = 0; i < 40; i++) {
       b.pickups = [];
-      maybeSpawnPickup(b, 2);
-      expect(b.pickups.every((p) => p.kind !== 'herbGreen')).toBe(true);
+      for (let w = 1; w <= 6; w++) maybeSpawnPickup(b, w * 2);
+      expect(b.pickups.length).toBeLessThanOrEqual(PICKUP_SPAWN.max);
+      for (const p of b.pickups) kinds.add(p.kind);
     }
+    expect(kinds.has('herbGreen')).toBe(true);
   });
 
   it('portal opens only after every 3rd wave; the miniboss comes with every 3rd wave and grows', () => {

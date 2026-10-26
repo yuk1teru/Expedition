@@ -98,7 +98,7 @@ export const PICKUPS: Record<PickupKind, PickupDef> = {
 export const PICKUP_SPAWN = {
   /** A plant may appear at the start of every N-th wave (bonus waves included). */
   everyWaves: 2,
-  /** Never more than this many on the arena. */
+  /** Never more than this many on the arena (they grow even when the hero's pockets are full). */
   max: 2,
   /** Seconds to grow before it can be picked. */
   growTime: 2,
