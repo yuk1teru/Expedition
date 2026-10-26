@@ -141,7 +141,7 @@ export const BOOT_DASH: Partial<Record<Rarity, { distance: number; cooldown: num
 /** The merchant sells a random identified item for a chosen slot: expensive, uncommon to epic. */
 export const MERCHANT_ITEMS = {
   price: 120,
-  weights: { uncommon: 60, rare: 30, epic: 10 } as Partial<Record<Rarity, number>>,
+  weights: { uncommon: 65, rare: 30, epic: 5 } as Partial<Record<Rarity, number>>,
 };
 
 /** Boot dash flight speed, px/s (the hero is invulnerable for the short flight). */
@@ -149,8 +149,8 @@ export const BOOT_DASH_SPEED = 1100;
 
 /** What drops from minibosses and bosses: count and rarity weights. */
 export const LOOT: Record<'miniboss' | 'boss', { count: number; weights: Partial<Record<Rarity, number>> }> = {
-  miniboss: { count: 1, weights: { common: 40, uncommon: 33, rare: 20, epic: 7 } },
-  boss: { count: 2, weights: { rare: 30, epic: 45, legendary: 25 } },
+  miniboss: { count: 1, weights: { common: 42, uncommon: 35, rare: 21, epic: 2 } },
+  boss: { count: 2, weights: { rare: 45, epic: 35, legendary: 20 } },
 };
 
 export const STAT_LABELS: Record<ItemStat, { label: string; percent: boolean }> = {

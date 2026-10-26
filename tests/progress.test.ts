@@ -9,6 +9,8 @@ import { assignClass } from '../src/systems/hero';
 import {
   buyConsumable,
   buyItem,
+  compareItems,
+  formatStatDelta,
   equipFromBag,
   hasNewItems,
   identifyItem,
@@ -202,5 +204,26 @@ describe('leaving town', () => {
 
   it('rare items are clearly stronger than uncommon ones', () => {
     expect(RARITIES.rare.power).toBeGreaterThan(RARITIES.uncommon.power * 1.3);
+  });
+});
+
+describe('item comparison', () => {
+  it('lists every stat that changes, better positive and worse negative', () => {
+    const mk = (stats: { stat: 'armor' | 'hpPct' | 'moveSpeedPct'; value: number }[]) => ({ ...rollItem(new Rng(1), 'rare', 1, 'boots'), stats, identified: true });
+    const worn = mk([{ stat: 'moveSpeedPct', value: 0.2 }, { stat: 'armor', value: 3 }]);
+    const item = mk([{ stat: 'moveSpeedPct', value: 0.25 }, { stat: 'hpPct', value: 0.04 }]);
+    const diff = compareItems(item, worn);
+    expect(diff).toContainEqual({ stat: 'moveSpeedPct', value: 0.05 });
+    expect(diff).toContainEqual({ stat: 'hpPct', value: 0.04 });
+    expect(diff).toContainEqual({ stat: 'armor', value: -3 });
+    expect(formatStatDelta({ stat: 'armor', value: -3 })).toBe('−3 броні');
+    expect(compareItems(worn, worn)).toHaveLength(0);
+  });
+
+  it('epic items are rare drops; legendary only from the boss', () => {
+    const total = (w: Partial<Record<string, number>>): number => Object.values(w).reduce<number>((a, x) => a + (x ?? 0), 0);
+    expect((LOOT.miniboss.weights.epic ?? 0) / total(LOOT.miniboss.weights)).toBeLessThanOrEqual(0.03);
+    expect(LOOT.miniboss.weights.legendary ?? 0).toBe(0);
+    expect(MERCHANT_ITEMS.weights.legendary ?? 0).toBe(0);
   });
 });

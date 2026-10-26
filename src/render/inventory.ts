@@ -8,7 +8,7 @@
 import type { InputEvent } from '../core/input';
 import type { Modal } from '../core/screens';
 import { CONSUMABLES, type ConsumableId, HEAL_ORDER, QUICK_SLOTS, describeConsumable } from '../data/consumables';
-import { ITEM_SLOTS, type ItemSlot, RARITIES } from '../data/items';
+import { BOOT_DASH, ITEM_SLOTS, type ItemSlot, RARITIES } from '../data/items';
 import {
   type Item,
   displayName,
@@ -16,6 +16,8 @@ import {
   equipFromBag,
   formatStat,
   isHeal,
+  compareItems,
+  formatStatDelta,
   itemPerks,
   identifyItem,
   markItemsSeen,
@@ -23,6 +25,7 @@ import {
   sellPrice,
   unequip,
 } from '../systems/items';
+import type { Hero } from '../systems/entities';
 import type { App } from './app';
 import { drawConsumableIcon, drawItemIcon } from './icons';
 import { drawItem } from './itemArt';
@@ -97,12 +100,44 @@ function slotName(slot: ItemSlot): string {
   return ITEM_SLOTS.find((s) => s.id === slot)?.name ?? '';
 }
 
-export function itemTooltip(item: Item, extra: string[]): string[] {
-  const lines = [displayName(item), `${slotName(item.slot)} · ${RARITIES[item.rarity].name}`];
-  if (item.identified) lines.push(...item.stats.map(formatStat), ...itemPerks(item));
-  else lines.push('Не розпізнано: використайте лупу', '(ПКМ → «Розпізнати» або перетягніть лупу на річ)');
-  lines.push(`Ціна продажу: ${sellPrice(item)} зол.`, ...extra);
-  return lines;
+/**
+ * Item tooltip: name in its rarity colour, stats, and — for an item not worn — how it
+ * compares with what the hero wears in that slot (green better, red worse).
+ */
+export function itemTooltip(item: Item, extra: string[], hero?: Hero): { lines: string[]; colors: (string | undefined)[] } {
+  const lines: string[] = [];
+  const colors: (string | undefined)[] = [];
+  const add = (text: string, color?: string): void => {
+    lines.push(text);
+    colors.push(color);
+  };
+  add(displayName(item), RARITIES[item.rarity].color);
+  add(`${slotName(item.slot)} · ${RARITIES[item.rarity].name}`, THEME.textDim);
+  if (item.identified) {
+    for (const s of item.stats) add(formatStat(s));
+    for (const p of itemPerks(item)) add(p, '#8fd3ff');
+  } else {
+    add('Не розпізнано: використайте лупу');
+    add('(ПКМ → «Розпізнати» або перетягніть лупу на річ)', THEME.textDim);
+  }
+  const worn = hero?.equipment[item.slot];
+  if (hero && worn !== item) {
+    if (!worn) add('Слот вільний — лише плюси', THEME.good);
+    else if (item.identified) {
+      add(`Порівняно з «${displayName(worn)}»:`, RARITIES[worn.rarity].color);
+      const diff = compareItems(item, worn);
+      if (diff.length === 0) add('  без змін', THEME.textDim);
+      for (const d of diff) add(`  ${formatStatDelta(d)}`, d.value > 0 ? THEME.good : THEME.bad);
+      if (item.slot === 'boots') {
+        const a = BOOT_DASH[worn.rarity]?.distance ?? 0;
+        const b = BOOT_DASH[item.rarity]?.distance ?? 0;
+        if (a !== b) add(`  ривок (Shift) ${a ? `${a} px` : 'немає'} → ${b ? `${b} px` : 'немає'}`, b > a ? THEME.good : THEME.bad);
+      }
+    }
+  }
+  add(`Ціна продажу: ${sellPrice(item)} зол.`, THEME.textDim);
+  for (const e of extra) add(e, THEME.textDim);
+  return { lines, colors };
 }
 
 export function createInventoryModal(app: App, onClose: () => void): Modal<CanvasRenderingContext2D> {
@@ -385,16 +420,16 @@ function drawHoverTooltip(ctx: CanvasRenderingContext2D, app: App, m: { x: numbe
   for (const slot of ITEM_SLOTS) {
     const item = h.equipment[slot.id];
     if (item && inRect(SLOT_LAYOUT[slot.id].box, m.x, m.y)) {
-      drawTooltip(ctx, itemTooltip(item, ['ПКМ — зняти · перетягніть у сумку']), m.x, m.y, W, H);
+      const tip = itemTooltip(item, ['ПКМ — зняти · перетягніть у сумку']);
+      drawTooltip(ctx, tip.lines, m.x, m.y, W, H, tip.colors);
       return;
     }
   }
   for (let i = 0; i < h.bag.length && i < BAG_COLS * BAG_ROWS; i++) {
     const item = h.bag[i]!;
     if (!inRect(bagCell(i), m.x, m.y)) continue;
-    const worn = h.equipment[item.slot];
-    const extra = [item.identified ? (worn ? `Замінить «${worn.name}»` : 'Слот вільний') : '', 'ПКМ — меню · перетягніть на фігуру'].filter(Boolean);
-    drawTooltip(ctx, itemTooltip(item, extra), m.x, m.y, W, H);
+    const tip = itemTooltip(item, ['ПКМ — меню · перетягніть на фігуру'], h);
+    drawTooltip(ctx, tip.lines, m.x, m.y, W, H, tip.colors);
     return;
   }
   CONSUMABLE_ORDER.forEach((id, i) => {

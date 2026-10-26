@@ -214,7 +214,9 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
       if (menu) drawMenu(ctx, menu, m);
       else {
         for (let i = 0; i < st.hero.bag.length && i < COLS * ROWS; i++) {
-          if (inRect(sellCell(i), m.x, m.y)) drawTooltip(ctx, itemTooltip(st.hero.bag[i]!, ['Клік — меню: розпізнати, вдягнути або продати']), m.x, m.y, app.view.width, app.view.height);
+          if (!inRect(sellCell(i), m.x, m.y)) continue;
+          const tip = itemTooltip(st.hero.bag[i]!, ['Клік — меню: розпізнати, вдягнути або продати'], st.hero);
+          drawTooltip(ctx, tip.lines, m.x, m.y, app.view.width, app.view.height, tip.colors);
         }
       }
     },

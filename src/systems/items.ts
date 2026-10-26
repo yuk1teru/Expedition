@@ -219,7 +219,26 @@ export function formatStat(s: ItemStatValue): string {
   return l.percent ? `+${Math.round(s.value * 100)}% ${l.label}` : `+${s.value} ${l.label}`;
 }
 
-/** Sum of a stat over all equipped items. */
+/** Stat change if `item` replaced `worn`: one entry per stat that differs (positive = better). */
+export function compareItems(item: Item, worn: Item): ItemStatValue[] {
+  const sum = (it: Item, stat: ItemStat): number => it.stats.filter((x) => x.stat === stat).reduce((a, x) => a + x.value, 0);
+  const stats = new Set<ItemStat>([...item.stats.map((x) => x.stat), ...worn.stats.map((x) => x.stat)]);
+  const out: ItemStatValue[] = [];
+  for (const stat of stats) {
+    const value = Math.round((sum(item, stat) - sum(worn, stat)) * 100) / 100;
+    if (value !== 0) out.push({ stat, value });
+  }
+  return out;
+}
+
+/** "+3% швидкості руху" / "−2 броні". */
+export function formatStatDelta(s: ItemStatValue): string {
+  const l = STAT_LABELS[s.stat];
+  const sign = s.value > 0 ? '+' : '−';
+  const v = Math.abs(s.value);
+  return l.percent ? `${sign}${Math.round(v * 100)}% ${l.label}` : `${sign}${v} ${l.label}`;
+}
+
 /** The Shift dash of the worn boots, if they have one. */
 export function bootDash(hero: Hero): { distance: number; cooldown: number } | null {
   const boots = hero.equipment.boots;
