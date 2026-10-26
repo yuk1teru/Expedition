@@ -7,6 +7,7 @@ import { CLASS_ORDER, getClass } from '../src/data/classes';
 import { type Battle, createBattle, stepBattle } from '../src/systems/battle';
 import { chooseCard, chooseClass, completeBattle, type BattleSummary, nextCardOffer } from '../src/systems/run';
 import { useSkill } from '../src/systems/skills';
+import { enterPortal } from '../src/systems/waves';
 
 export interface BotOptions {
   useSkills: boolean;
@@ -46,6 +47,7 @@ export function runBattle(state: GameState, nodeId: string, opts: BotOptions): B
   const b = createBattle(state, nodeId);
   while (!b.finished && b.time < opts.maxBattleTime) {
     if (opts.useSkills) useReadySkills(b);
+    if (b.portal) enterPortal(b);
     stepBattle(b, LOOP.step);
     resolveModals(state, opts.rng);
   }

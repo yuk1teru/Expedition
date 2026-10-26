@@ -3,6 +3,7 @@
 import { ARENA } from '../data/balance';
 import { FX } from '../data/fx';
 import type { Battle } from '../systems/battle';
+import { bossDefOf } from '../systems/boss';
 import type { Enemy } from '../systems/entities';
 import { THEME } from './theme';
 import { drawText, roundRect } from './ui';
@@ -12,6 +13,7 @@ type BossPainter = (ctx: CanvasRenderingContext2D, e: Enemy, b: Battle, t: numbe
 
 const painters: Record<string, BossPainter> = {
   enat: drawEnat,
+  alpha: drawAlpha,
 };
 
 export function drawBoss(ctx: CanvasRenderingContext2D, e: Enemy, b: Battle, t: number): void {
@@ -92,10 +94,57 @@ function drawEnat(ctx: CanvasRenderingContext2D, e: Enemy, b: Battle, t: number,
   ctx.restore();
 }
 
-/** Big HP bar at the top of the arena with the boss name. */
+/** Alpha wolf: big pale wolf with a mane; glows red while winding up a lunge. */
+function drawAlpha(ctx: CanvasRenderingContext2D, e: Enemy, b: Battle, t: number, flash: boolean): void {
+  const r = e.radius;
+  const windup = (e.boss?.busy ?? 0) > 0 && !e.boss?.dash;
+  ctx.save();
+  ctx.translate(e.pos.x, e.pos.y);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(0, r * 0.7, r * 1.1, r * 0.45, 0, 0, Math.PI * 2);
+  ctx.fill();
+  if (windup) {
+    ctx.fillStyle = `rgba(255, 70, 60, ${0.25 + 0.2 * Math.sin(t * 25)})`;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.rotate(e.facing);
+  // Mane spikes.
+  ctx.fillStyle = flash ? '#ffffff' : '#8f98a6';
+  ctx.beginPath();
+  for (let i = 0; i < 7; i++) {
+    const a = Math.PI * 0.55 + (i / 6) * Math.PI * 0.9;
+    ctx.moveTo(Math.cos(a) * r * 0.3, Math.sin(a) * r * 0.3);
+    ctx.lineTo(Math.cos(a) * r * 1.25, Math.sin(a) * r * 1.25);
+    ctx.lineTo(Math.cos(a + 0.25) * r * 0.5, Math.sin(a + 0.25) * r * 0.5);
+  }
+  ctx.fill();
+  ctx.fillStyle = flash ? '#ffffff' : (b.biome.palette.enemies[e.defId] ?? '#dfe4ec');
+  ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(r * 1.4, 0);
+  ctx.lineTo(-r, r * 0.7);
+  ctx.lineTo(-r * 0.55, 0);
+  ctx.lineTo(-r, -r * 0.7);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#ff4d3a';
+  ctx.beginPath();
+  ctx.arc(r * 0.55, -r * 0.18, r * 0.1, 0, Math.PI * 2);
+  ctx.arc(r * 0.55, r * 0.18, r * 0.1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/** Big HP bar at the top of the arena: the boss, or a living miniboss. */
 export function drawBossBar(ctx: CanvasRenderingContext2D, b: Battle, viewW: number): void {
-  const boss = b.boss;
+  const boss = b.boss ?? b.enemies.find((e) => e.boss && !e.dead) ?? null;
   if (!boss) return;
+  const mini = bossDefOf(boss)?.miniboss ?? false;
   const w = 520;
   const h = 20;
   const x = (viewW - w) / 2;
@@ -112,10 +161,13 @@ export function drawBossBar(ctx: CanvasRenderingContext2D, b: Battle, viewW: num
     ctx.fillStyle = boss.boss?.phase === 2 ? '#ff4d3a' : '#c0392b';
     ctx.fill();
   }
-  // Phase-2 threshold mark.
-  ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.fillRect(x + w * 0.5 - 1, y - 2, 2, h + 4);
-  drawText(ctx, boss.name, viewW / 2, y + h / 2 + 1, { size: 14, bold: true, align: 'center' });
+  const phase2 = bossDefOf(boss)?.phase2;
+  if (phase2) {
+    // Phase-2 threshold mark.
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fillRect(x + w * phase2.hpFraction - 1, y - 2, 2, h + 4);
+  }
+  drawText(ctx, mini ? `Мінібос · ${boss.name}` : boss.name, viewW / 2, y + h / 2 + 1, { size: 14, bold: true, align: 'center' });
   if (boss.boss?.phase === 2) {
     drawText(ctx, 'Фаза 2', x + w + 12, y + h / 2 + 1, { size: 13, bold: true, color: THEME.bad });
   }

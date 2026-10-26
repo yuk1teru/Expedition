@@ -115,6 +115,8 @@ export interface BossRuntime {
   timers: Record<string, number>;
   /** Wind-up: the boss stands still while > 0. */
   busy: number;
+  /** Straight dash in progress. */
+  dash: { to: Vec; speed: number } | null;
 }
 
 export interface Enemy extends Body {
@@ -178,7 +180,7 @@ export interface Zone {
   dead: boolean;
 }
 
-export type TelegraphShape = { kind: 'circle'; radius: number };
+export type TelegraphShape = { kind: 'circle'; radius: number } | { kind: 'line'; to: Vec; width: number };
 
 /** Boss attack warning: red area that fills up, then strikes. */
 export interface Telegraph {
@@ -190,6 +192,8 @@ export interface Telegraph {
   delay: number;
   damage: number;
   dead: boolean;
+  /** Called when the telegraph strikes (e.g. start the boss dash). */
+  onFire: (() => void) | null;
 }
 
 export function vec(x = 0, y = 0): Vec {

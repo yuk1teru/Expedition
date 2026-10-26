@@ -43,7 +43,7 @@ describe('boss battle', () => {
     boss.hp = boss.maxHp * 0.49;
     stepBattle(b, LOOP.step);
     expect(boss.boss?.phase).toBe(2);
-    expect(boss.speed).toBeCloseTo(speed * getBoss('enat').phase2.speedMult);
+    expect(boss.speed).toBeCloseTo(speed * getBoss('enat').phase2!.speedMult);
   });
 
   it('keeps at least the minimal pause between attacks', () => {

@@ -6,6 +6,7 @@ import { FX } from '../data/fx';
 import { describeSkill, getSkill } from '../data/skills';
 import type { Battle } from '../systems/battle';
 import { isMaxLevel, xpFraction } from '../systems/leveling';
+import { bonusLevel, nextWaveIn } from '../systems/waves';
 import { moveSkill } from '../systems/hero';
 import { slotCooldown, useSkill } from '../systems/skills';
 import type { App } from './app';
@@ -27,6 +28,8 @@ export interface Hud {
 }
 
 const SLOT = 56;
+/** Centre of the wave/location block in the top band (left of it are hero stats). */
+const CENTER_X = 545;
 const DRAG_THRESHOLD = 6;
 const SLOT_GAP = 14;
 
@@ -129,10 +132,23 @@ export function createHud(app: App, _fx: Fx): Hud {
 
       if (b.waves) {
         const w = b.waves;
-        drawText(ctx, `Хвиля ${Math.min(w.total, w.index + 1)}/${w.total}`, W / 2, 20, { size: 17, bold: true, align: 'center' });
-        drawText(ctx, b.node.name, W / 2, 41, { size: 12, align: 'center', color: THEME.textDim });
+        const bonus = bonusLevel(w.index);
+        const title =
+          b.portal && !w.started ? 'Портал відкрито' : bonus > 0 ? `Додаткова хвиля ${bonus}` : `Хвиля ${Math.min(w.total, w.index + 1)}/${w.total}`;
+        drawText(ctx, title, CENTER_X, 20, { size: 17, bold: true, align: 'center', color: bonus > 0 || b.portal ? THEME.accent : THEME.text });
+        const next = nextWaveIn(w);
+        const sub = b.portal && next !== null && next > 0 ? `Наступна хвиля через ${Math.ceil(next)} с` : b.node.name;
+        drawText(ctx, sub, CENTER_X, 41, { size: 12, align: 'center', color: b.portal ? '#c9a8ff' : THEME.textDim });
+        if (b.portal && b.outcome === 'running') {
+          drawText(ctx, 'Портал відкрито: зайдіть у нього (WASD), щоб забрати нагороду. Залишитесь — прийдуть сильніші хвилі.', W / 2, ARENA.y + ARENA.h - 14, {
+            size: 13,
+            bold: true,
+            align: 'center',
+            color: '#d9c2ff',
+          });
+        }
       } else {
-        drawText(ctx, 'Бій з босом', W / 2, 28, { size: 17, bold: true, align: 'center', color: THEME.bad });
+        drawText(ctx, 'Бій з босом', CENTER_X, 28, { size: 17, bold: true, align: 'center', color: THEME.bad });
       }
 
       drawText(ctx, `${state.gold}`, W - 240, 20, { size: 16, bold: true, align: 'right', color: THEME.accent });

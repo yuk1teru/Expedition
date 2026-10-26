@@ -16,7 +16,7 @@ import { nearestEnemy } from './targeting';
 import { updateBuffs, updateDash, updateZones } from './effects';
 import type { GameEvent } from './gameEvents';
 import { type MapNode, getNode } from './mapgen';
-import { type WaveState, createWaves, updateWaves } from './waves';
+import { type WaveState, checkPortalEntry, createWaves, updateWaves } from './waves';
 
 export interface BattleStats {
   kills: number;
@@ -27,6 +27,12 @@ export interface BattleStats {
 }
 
 export type BattleOutcome = 'running' | 'won' | 'lost';
+
+export interface Portal {
+  pos: Vec;
+  radius: number;
+  entered: boolean;
+}
 
 /** Player input for this step: movement direction (unit or zero) and skill aim point. */
 export interface HeroInput {
@@ -51,6 +57,8 @@ export interface Battle {
   zones: Zone[];
   telegraphs: Telegraph[];
   waves: WaveState | null;
+  /** Exit portal (opens after the mandatory waves). */
+  portal: Portal | null;
   boss: Enemy | null;
   stats: BattleStats;
   outcome: BattleOutcome;
@@ -83,6 +91,7 @@ export function createBattle(state: GameState, nodeId: string): Battle {
     zones: [],
     telegraphs: [],
     waves: node.isBoss ? null : createWaves(),
+    portal: null,
     boss: null,
     stats: { kills: 0, xp: 0, gold: 0, damageDealt: 0, damageTaken: 0 },
     outcome: 'running',
@@ -151,6 +160,7 @@ export function stepBattle(b: Battle, dt: number): void {
   for (const body of bodies) clampToArena(body);
 
   cleanup(b);
+  checkPortalEntry(b);
   checkOutcome(b);
 }
 
@@ -228,8 +238,8 @@ function checkOutcome(b: Battle): void {
   if (b.kind === 'boss' && isBossDefeated(b)) {
     onBossDefeated(b);
     finish(b, 'won', FLOW.bossWinDelay);
-  } else if (b.waves !== null && b.waves.finished) {
-    finish(b, 'won', FLOW.winDelay);
+  } else if (b.portal?.entered) {
+    finish(b, 'won', FLOW.portalDelay);
   }
 }
 

@@ -3,7 +3,7 @@
 import type { InputEvent } from '../core/input';
 import { Rng } from '../core/rng';
 import type { Screen } from '../core/screens';
-import { ARENA } from '../data/balance';
+import { ARENA, WAVES } from '../data/balance';
 import { getClass } from '../data/classes';
 import type { BiomeDef, DecorKind } from '../data/biomes';
 import { FX } from '../data/fx';
@@ -100,6 +100,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       ctx.translate(off.x, off.y);
       drawArena(ctx, b.biome, patches, decor);
       for (const z of b.zones) drawZone(ctx, z, b, app.time);
+      if (b.portal) drawPortal(ctx, b.portal.pos, b.portal.radius, app.time);
       for (const p of b.projectiles) drawProjectile(ctx, p);
       for (const e of b.enemies) {
         if (e.boss) drawBoss(ctx, e, b, app.time);
@@ -173,7 +174,17 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
       fx.burst(e.pos, P.spawn, b.biome.palette.accent);
       break;
     case 'wave':
-      fx.showBanner(`Хвиля ${e.index}/${e.total}`, THEME.text);
+      if (e.bonus > 0) fx.showBanner(`Додаткова хвиля ${e.bonus} · вороги +${Math.round(e.bonus * WAVES.bonus.statPerWave * 100)}%`, THEME.accent);
+      else fx.showBanner(`Хвиля ${e.index}/${e.total}`, THEME.text);
+      break;
+    case 'miniboss':
+      fx.showBanner(`Мінібос: ${e.name}`, THEME.bad);
+      fx.burst(e.pos, P.eliteDeath, THEME.bad);
+      break;
+    case 'portalOpen':
+      fx.showBanner('Портал відкрито!', '#b98cff');
+      fx.ring(e.pos, 80, '#b98cff', 0.8, 6);
+      fx.burst(e.pos, P.levelUp, '#b98cff');
       break;
     case 'levelUp':
       fx.ring(b.hero.pos, FX.levelUpRing.radius, THEME.accent, FX.levelUpRing.life, 6);
@@ -523,6 +534,28 @@ function drawZone(ctx: CanvasRenderingContext2D, z: Zone, b: Battle, t: number):
   ctx.restore();
 }
 
+function drawPortal(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, r: number, t: number): void {
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  const g = ctx.createRadialGradient(0, 0, 2, 0, 0, r * 1.6);
+  g.addColorStop(0, 'rgba(230, 210, 255, 0.95)');
+  g.addColorStop(0.45, 'rgba(150, 90, 255, 0.7)');
+  g.addColorStop(1, 'rgba(90, 40, 200, 0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 1.6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#d9c2ff';
+  ctx.lineWidth = 3;
+  for (let i = 0; i < 3; i++) {
+    const a = t * 3 + (i * Math.PI * 2) / 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * (0.55 + i * 0.22), a, a + 1.6);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawCrosshair(ctx: CanvasRenderingContext2D, p: { x: number; y: number }): void {
   ctx.strokeStyle = 'rgba(242, 193, 78, 0.55)';
   ctx.lineWidth = 1.5;
@@ -541,23 +574,37 @@ function drawCrosshair(ctx: CanvasRenderingContext2D, p: { x: number; y: number 
 
 function drawTelegraph(ctx: CanvasRenderingContext2D, tg: Telegraph): void {
   const k = Math.min(1, tg.time / tg.delay);
-  const r = tg.shape.radius;
   ctx.save();
   ctx.translate(tg.pos.x, tg.pos.y);
-  ctx.fillStyle = 'rgba(229, 40, 40, 0.18)';
-  ctx.beginPath();
-  ctx.arc(0, 0, r, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = 'rgba(229, 40, 40, 0.38)';
-  ctx.beginPath();
-  ctx.arc(0, 0, r * k, 0, Math.PI * 2);
-  ctx.fill();
   ctx.strokeStyle = `rgba(255, 70, 60, ${0.6 + 0.4 * k})`;
   ctx.lineWidth = 2.5;
   ctx.setLineDash([8, 6]);
-  ctx.beginPath();
-  ctx.arc(0, 0, r, 0, Math.PI * 2);
-  ctx.stroke();
+  if (tg.shape.kind === 'circle') {
+    const r = tg.shape.radius;
+    ctx.fillStyle = 'rgba(229, 40, 40, 0.18)';
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(229, 40, 40, 0.38)';
+    ctx.beginPath();
+    ctx.arc(0, 0, r * k, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.stroke();
+  } else {
+    // Line: a band from the origin; the fill runs along it.
+    const dx = tg.shape.to.x - tg.pos.x;
+    const dy = tg.shape.to.y - tg.pos.y;
+    const len = Math.hypot(dx, dy);
+    const w = tg.shape.width;
+    ctx.rotate(Math.atan2(dy, dx));
+    ctx.fillStyle = 'rgba(229, 40, 40, 0.18)';
+    ctx.fillRect(0, -w / 2, len, w);
+    ctx.fillStyle = 'rgba(229, 40, 40, 0.38)';
+    ctx.fillRect(0, -w / 2, len * k, w);
+    ctx.strokeRect(0, -w / 2, len, w);
+  }
   ctx.setLineDash([]);
   ctx.restore();
 }

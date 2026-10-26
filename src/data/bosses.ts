@@ -38,7 +38,11 @@ export interface BossDef {
   telegraphDelay: number;
   /** Minimal pause between two attacks, s. */
   minPause: number;
-  phase2: { hpFraction: number; speedMult: number };
+  /** Minibosses guard ordinary locations; bosses own the lair. */
+  miniboss?: boolean;
+  phase2?: { hpFraction: number; speedMult: number };
+  /** Contact melee: damage × boss damage every `interval` s within `reach` px. */
+  melee?: { damage: number; interval: number; reach: number };
   attacks: BossAttackDef[];
 }
 
@@ -95,6 +99,51 @@ export const BOSSES: Record<string, BossDef> = {
         params: [
           { radius: 150, trigger: 120, damage: 1.2 },
           { radius: 150, trigger: 120, damage: 1.2 },
+        ],
+      },
+    ],
+  },
+  alpha: {
+    id: 'alpha',
+    name: 'Ватажок зграї',
+    biome: 'forest',
+    miniboss: true,
+    hp: 150,
+    damage: 4,
+    armor: 5,
+    speed: 80,
+    radius: 20,
+    mass: 6,
+    xp: 40,
+    gold: 20,
+    keepDistance: 0,
+    telegraphDelay: 0.8,
+    minPause: 1.2,
+    melee: { damage: 1, interval: 1.3, reach: 6 },
+    attacks: [
+      {
+        id: 'lunge',
+        weight: 1,
+        phases: [1],
+        cooldown: [5, 5],
+        initialCooldown: 2.5,
+        // Line telegraph of `length` × `width` towards the hero, then a dash along it.
+        params: [
+          { length: 300, width: 46, damage: 3, speed: 950, minRange: 90 },
+          { length: 300, width: 46, damage: 3, speed: 950, minRange: 90 },
+        ],
+      },
+      {
+        id: 'howl',
+        weight: 1,
+        priority: true,
+        phases: [1],
+        cooldown: [11, 11],
+        initialCooldown: 5,
+        enemyId: 'wolf',
+        params: [
+          { count: 2, ring: 45 },
+          { count: 2, ring: 45 },
         ],
       },
     ],

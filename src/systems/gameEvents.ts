@@ -9,7 +9,9 @@ export type GameEvent =
   | { type: 'kill'; pos: Vec; defId: string; radius: number; elite: boolean; boss: boolean }
   | { type: 'gold'; pos: Vec; amount: number }
   | { type: 'spawn'; pos: Vec; radius: number }
-  | { type: 'wave'; index: number; total: number }
+  | { type: 'wave'; index: number; total: number; bonus: number }
+  | { type: 'miniboss'; name: string; pos: Vec }
+  | { type: 'portalOpen'; pos: Vec }
   | { type: 'levelUp'; level: number; hp: number; attack: number }
   | { type: 'heroDeath'; pos: Vec }
   | { type: 'skillCast'; skillId: string; rank: number; pos: Vec; target: Vec | null }

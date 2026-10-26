@@ -7,6 +7,7 @@ import type { SkillParams } from '../../data/skills';
 import type { Battle } from '../battle';
 import { type Hero, type Vec, dist } from '../entities';
 import { bestConeAngle, coneTargets, densePoints, enemiesInRadius, nearestEnemy } from '../targeting';
+import { telegraphContains } from '../boss';
 import type { SkillImpl } from './types';
 
 const whirlwind: SkillImpl = ({ b, hero, p, def, rank }) => {
@@ -81,7 +82,7 @@ function chargeLanding(b: Battle, hero: Hero, p: SkillParams): Vec | null {
   if (!first) return null;
   const clamp = (v: Vec): Vec => clampToArenaPoint(v, hero.radius);
   if (b.telegraphs.length === 0) return clamp(first.pos);
-  const safe = (v: Vec): boolean => b.telegraphs.every((t) => dist(v, t.pos) > t.shape.radius + hero.radius);
+  const safe = (v: Vec): boolean => b.telegraphs.every((t) => !telegraphContains(t, v, hero.radius));
   for (const c of clusters) {
     const options = [c.pos];
     for (let k = 0; k < p.landingSamples!; k++) {

@@ -80,18 +80,37 @@ export const SCALING = {
 } as const;
 
 export const WAVES = {
+  /** Mandatory waves; the portal opens after them. */
   count: 3,
-  /** Wave size = min(baseSize + perTier × floor(tier), maxSize). */
-  baseSize: 6,
-  perTier: 2,
-  maxSize: 16,
-  groupSize: 3,
+  /** Wave size = min(baseSize + perTier × floor(tier), maxSize) (+ bonus extra). */
+  baseSize: 10,
+  perTier: 3,
+  maxSize: 24,
+  groupSize: 4,
   /** Seconds between spawn groups. */
-  groupInterval: 0.6,
+  groupInterval: 0.5,
   /** Seconds between waves. */
   pauseBetween: 1.5,
   /** 1-based wave index that contains the elite. */
   eliteWave: 3,
+  /** 1-based wave index where the location miniboss appears. */
+  minibossWave: 3,
+  /** Bonus waves after the portal opens, while the hero stays. */
+  bonus: {
+    /** Seconds before each bonus wave. */
+    delay: 5,
+    /** Extra enemies per bonus level. */
+    extraPerWave: 3,
+    /** HP, damage, XP and gold +8% per bonus level. */
+    statPerWave: 0.08,
+  },
+  portal: {
+    radius: 26,
+    /** Portal spawns at least this far from the hero if possible, px. */
+    minDistFromHero: 260,
+    candidates: 24,
+    inset: 60,
+  },
   /** Spawn margin outside/inside arena edge, px. */
   spawnInset: 24,
   /** Spread of a group around its spawn point, px. */
@@ -138,8 +157,8 @@ export const SLICE = {
 
 /** Battle flow timings. */
 export const FLOW = {
-  /** Delay after the last enemy dies before the reward screen. */
-  winDelay: 1.0,
+  /** Delay after stepping into the portal before the reward screen. */
+  portalDelay: 0.6,
   /** Delay after hero death before the death screen. */
   loseDelay: 1.2,
   /** Longer pause to enjoy the boss falling. */

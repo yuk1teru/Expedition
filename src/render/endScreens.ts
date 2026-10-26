@@ -58,6 +58,7 @@ export function createRewardScreen(app: App): Screen<CanvasRenderingContext2D> {
           ['Досвід', `+${s.xp}`],
           ['Золото', `+${s.gold}  (бонус ${s.clearBonus})`],
           ['Вбито ворогів', String(s.kills)],
+          ['Додаткових хвиль', String(s.bonusWaves)],
           ['Отримано шкоди', String(Math.round(s.damageTaken))],
           ['День', String(app.state.day)],
         ];

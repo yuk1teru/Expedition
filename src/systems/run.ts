@@ -70,6 +70,8 @@ export interface BattleSummary {
   kills: number;
   damageDealt: number;
   damageTaken: number;
+  /** Bonus waves cleared after the portal opened. */
+  bonusWaves: number;
 }
 
 /** Applies the result of a finished battle to the run. */
@@ -98,6 +100,7 @@ export function completeBattle(state: GameState, b: Battle): BattleSummary {
     kills: b.stats.kills,
     damageDealt: b.stats.damageDealt,
     damageTaken: b.stats.damageTaken,
+    bonusWaves: b.waves ? Math.max(0, b.waves.cleared - b.waves.total) : 0,
   };
 }
 

@@ -20,6 +20,8 @@ export interface BiomeDef {
   locationNames: string[];
   enemies: string[];
   boss: string;
+  /** Miniboss of ordinary locations ('' if none). */
+  miniboss: string;
   decor: {
     count: number;
     kinds: DecorKind[];
@@ -44,12 +46,14 @@ export const BIOMES: Record<string, BiomeDef> = {
         mushroom: '#c97ad8',
         stump: '#a07a4c',
         enat: '#6b8f3a',
+        alpha: '#dfe4ec',
       },
       eliteAura: '#ffd34d',
     },
     locationNames: ['Тихий гай', 'Лігво Старого Ената'],
     enemies: ['wolf', 'mushroom', 'stump'],
     boss: 'enat',
+    miniboss: 'alpha',
     decor: { count: 26, kinds: ['tree', 'tree', 'bush', 'rock'], minSize: 10, maxSize: 30, edgeBand: 44 },
   },
   // TODO: full prototype (PLAN.md, етап 5) — enemies, boss, palette.
@@ -68,6 +72,7 @@ function emptyBiome(id: string, name: string): BiomeDef {
     locationNames: [],
     enemies: [],
     boss: '',
+    miniboss: '',
     decor: { count: 0, kinds: [], minSize: 0, maxSize: 0, edgeBand: 0 },
   };
 }
