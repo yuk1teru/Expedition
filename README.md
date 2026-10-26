@@ -18,6 +18,10 @@ npm run sim -- --runs 500 --seed 42 # інша кількість прогоні
 
 Seed забігу показано в правому верхньому куті карти. Задати його можна через URL: `http://localhost:5173/?seed=123`.
 
+## Деплой (GitHub Pages)
+
+Кожен пуш у `main` запускає `.github/workflows/deploy.yml`: `npm ci` → typecheck → тести → `npm run build` → публікація `dist/` на GitHub Pages. Гра доступна за адресою `https://yuk1teru.github.io/Expedition/` (можна додавати `?seed=123`). Відносні шляхи в збірці задає `vite.config.ts` (`base: './'`). Одноразово в репозиторії треба увімкнути **Settings → Pages → Source: GitHub Actions**. Дебаг-панель у публічній збірці вимкнена.
+
 ## Керування
 
 | Дія | Клавіша / миша |
