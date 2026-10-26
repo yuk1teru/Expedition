@@ -9,12 +9,12 @@ import { Button, ButtonGroup, drawBar, drawPanel, drawText } from './ui';
 
 export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
   const W = app.view.width;
-  const panel = { x: W / 2 - 220, y: 90, w: 440, h: 400 };
+  const panel = { x: W / 2 - 220, y: 60, w: 440, h: 440 };
   let restedFlash = 0;
   const buttons = new ButtonGroup([
     new Button({
       label: 'Відпочити',
-      rect: { x: panel.x + 60, y: panel.y + 170, w: 320, h: 48 },
+      rect: { x: panel.x + 60, y: panel.y + 172, w: 320, h: 46 },
       hotkey: 'Digit1',
       onClick: () => {
         restInTown(app.state);
@@ -23,14 +23,20 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
     }),
     new Button({
       label: 'Спорядження',
-      rect: { x: panel.x + 60, y: panel.y + 232, w: 320, h: 48 },
+      rect: { x: panel.x + 60, y: panel.y + 226, w: 320, h: 46 },
       hotkey: 'Digit2',
       onClick: () => app.toggleInventory(),
     }),
     new Button({
-      label: 'Вирушити',
-      rect: { x: panel.x + 60, y: panel.y + 294, w: 320, h: 48 },
+      label: 'Торговець',
+      rect: { x: panel.x + 60, y: panel.y + 280, w: 320, h: 46 },
       hotkey: 'Digit3',
+      onClick: () => app.openMerchant(),
+    }),
+    new Button({
+      label: 'Вирушити',
+      rect: { x: panel.x + 60, y: panel.y + 334, w: 320, h: 46 },
+      hotkey: 'Digit4',
       onClick: () => app.goMap(),
     }),
   ]);
@@ -73,7 +79,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
         ctx.restore();
       }
       buttons.draw(ctx);
-      drawText(ctx, '1 — відпочити (чекпоінт) · 2 / Tab — спорядження · 3 — вирушити', W / 2, panel.y + panel.h - 20, {
+      drawText(ctx, '1 — відпочити · 2 / Tab — спорядження · 3 — торговець · 4 — вирушити', W / 2, panel.y + panel.h - 20, {
         size: 12,
         align: 'center',
         color: THEME.textMuted,

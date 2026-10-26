@@ -35,6 +35,8 @@ export function createHero(id: number): Hero {
     immortal: false,
     equipment: {},
     bag: [],
+    consumables: { magnifier: 0, herb: 0 },
+    herbCooldown: 0,
   };
   recomputeHeroStats(hero);
   hero.hp = hero.maxHp;

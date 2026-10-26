@@ -2,7 +2,7 @@
 
 import type { Screen } from '../core/screens';
 import { RARITIES } from '../data/items';
-import { type Item, formatStat } from '../systems/items';
+import { type Item, displayName, formatStat } from '../systems/items';
 import type { App } from './app';
 import { className } from './names';
 import { THEME } from './theme';
@@ -29,7 +29,8 @@ function lootLines(ctx: CanvasRenderingContext2D, loot: Item[], cx: number, y: n
   loot.forEach((item, i) => {
     const yy = y + 22 + i * 20;
     const where = equippedUids.has(item.uid) ? 'вдягнуто' : 'у сумці';
-    drawText(ctx, `${item.name} — ${item.stats.map(formatStat).join(', ')} (${where})`, cx, yy, {
+    const desc = item.identified ? item.stats.map(formatStat).join(', ') : 'не розпізнано';
+    drawText(ctx, `${displayName(item)} — ${desc} (${where})`, cx, yy, {
       size: 13,
       align: 'center',
       color: RARITIES[item.rarity].color,

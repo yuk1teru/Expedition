@@ -1,10 +1,13 @@
-// Equipment: slots, rarities, item bases and loot tables.
+// Equipment: slots, rarities, item kinds (each with its own look), stat rolls,
+// loot tables and prices.
 
 export type ItemSlot = 'weapon' | 'hat' | 'armor' | 'boots';
 
 export type ItemStat = 'attack' | 'critChance' | 'armor' | 'hpPct' | 'moveSpeedPct' | 'attackSpeedPct';
 
-export type Rarity = 'common' | 'epic';
+export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+
+export const RARITY_ORDER: Rarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
 
 export const ITEM_SLOTS: { id: ItemSlot; name: string }[] = [
   { id: 'weapon', name: 'Зброя' },
@@ -13,74 +16,114 @@ export const ITEM_SLOTS: { id: ItemSlot; name: string }[] = [
   { id: 'boots', name: 'Черевики' },
 ];
 
-export const RARITIES: Record<Rarity, { name: string; color: string }> = {
-  common: { name: 'Звичайна', color: '#c9ced8' },
-  epic: { name: 'Епічна', color: '#c77dff' },
+export interface RarityDef {
+  name: string;
+  color: string;
+  /** Multiplier on the base stat ranges. */
+  power: number;
+  /** Extra stats on top of the main one. */
+  extraStats: number;
+  /** Gold the merchant pays for an identified item. */
+  sellPrice: number;
+}
+
+export const RARITIES: Record<Rarity, RarityDef> = {
+  common: { name: 'Звичайна', color: '#c9ced8', power: 1, extraStats: 0, sellPrice: 8 },
+  uncommon: { name: 'Незвичайна', color: '#5fd35f', power: 1.35, extraStats: 0, sellPrice: 15 },
+  rare: { name: 'Рідкісна', color: '#4aa3ff', power: 1.75, extraStats: 1, sellPrice: 30 },
+  epic: { name: 'Епічна', color: '#c77dff', power: 2.3, extraStats: 1, sellPrice: 60 },
+  legendary: { name: 'Легендарна', color: '#ff9f1c', power: 3, extraStats: 2, sellPrice: 120 },
 };
+
+/** Unidentified items sell for this fraction of the price. */
+export const UNIDENTIFIED_SELL_MULT = 0.5;
+
+/** Item kinds: each has its own icon shape (see src/render/icons.ts). */
+export const ITEM_KINDS: Record<ItemSlot, { id: string; name: string }[]> = {
+  weapon: [
+    { id: 'sword', name: 'Меч' },
+    { id: 'axe', name: 'Сокира' },
+    { id: 'mace', name: 'Булава' },
+    { id: 'dagger', name: 'Кинджал' },
+    { id: 'spear', name: 'Спис' },
+  ],
+  hat: [
+    { id: 'brim', name: 'Капелюх' },
+    { id: 'hood', name: 'Каптур' },
+    { id: 'helm', name: 'Шолом' },
+    { id: 'crown', name: 'Корона' },
+    { id: 'band', name: 'Пов’язка' },
+  ],
+  armor: [
+    { id: 'jacket', name: 'Куртка' },
+    { id: 'mail', name: 'Кольчуга' },
+    { id: 'plate', name: 'Лати' },
+    { id: 'robe', name: 'Мантія' },
+    { id: 'vest', name: 'Панцир' },
+  ],
+  boots: [
+    { id: 'boots', name: 'Чоботи' },
+    { id: 'shoes', name: 'Черевики' },
+    { id: 'sandals', name: 'Сандалі' },
+    { id: 'greaves', name: 'Поножі' },
+    { id: 'wraps', name: 'Обмотки' },
+  ],
+};
+
+/** Name suffixes ("Меч вовка"). */
+export const ITEM_SUFFIXES = ['вовка', 'світанку', 'лісовика', 'бурі', 'вартового', 'мисливця', 'тіні', 'кореня', 'ватажка', 'мандрівника'];
+
+/** Accent and gem colours for the unique look of each item. */
+export const ITEM_ACCENTS = ['#e8d5a3', '#b0b8c8', '#8fd18f', '#e07a5f', '#7ec8e3', '#d4a5ff', '#f2c14e'];
 
 export interface StatRoll {
   stat: ItemStat;
-  /** [min, max] per rarity. */
-  common: [number, number];
-  epic: [number, number];
+  /** Base [min, max]; multiplied by the rarity power. */
+  range: [number, number];
 }
 
 export interface ItemBase {
-  slot: ItemSlot;
-  names: Record<Rarity, string[]>;
-  /** Main stat, always present. */
   main: StatRoll;
-  /** Extra stats; epic items get `epicExtraStats` of them. */
   extras: StatRoll[];
 }
 
 export const ITEM_BASES: Record<ItemSlot, ItemBase> = {
   weapon: {
-    slot: 'weapon',
-    names: {
-      common: ['Іржавий меч', 'Дубовий кийок', 'Мисливський ніж'],
-      epic: ['Клинок Ената', 'Сокира ватажка', 'Меч світанку'],
-    },
-    main: { stat: 'attack', common: [3, 5], epic: [10, 14] },
-    extras: [{ stat: 'critChance', common: [0.02, 0.03], epic: [0.05, 0.08] }],
+    main: { stat: 'attack', range: [3, 4] },
+    extras: [
+      { stat: 'critChance', range: [0.02, 0.03] },
+      { stat: 'attackSpeedPct', range: [0.03, 0.05] },
+    ],
   },
   hat: {
-    slot: 'hat',
-    names: {
-      common: ['Повстяний капелюх', 'Шкіряний каптур', 'Солом’яний бриль'],
-      epic: ['Корона з гілок', 'Шолом вартового', 'Капюшон тіні'],
-    },
-    main: { stat: 'critChance', common: [0.03, 0.05], epic: [0.08, 0.12] },
-    extras: [{ stat: 'attackSpeedPct', common: [0.03, 0.05], epic: [0.08, 0.12] }],
+    main: { stat: 'critChance', range: [0.02, 0.03] },
+    extras: [
+      { stat: 'attackSpeedPct', range: [0.03, 0.04] },
+      { stat: 'hpPct', range: [0.03, 0.04] },
+    ],
   },
   armor: {
-    slot: 'armor',
-    names: {
-      common: ['Стьобана куртка', 'Шкіряний обладунок', 'Кольчуга новобранця'],
-      epic: ['Кора-панцир', 'Лати лісового лицаря', 'Обладунок ведмедя'],
-    },
-    main: { stat: 'armor', common: [6, 10], epic: [20, 28] },
-    extras: [{ stat: 'hpPct', common: [0.04, 0.06], epic: [0.1, 0.15] }],
+    // Kept low on purpose: armor shouldn't trivialise incoming damage.
+    main: { stat: 'armor', range: [4, 6] },
+    extras: [
+      { stat: 'hpPct', range: [0.03, 0.05] },
+      { stat: 'critChance', range: [0.01, 0.02] },
+    ],
   },
   boots: {
-    slot: 'boots',
-    names: {
-      common: ['Старі чоботи', 'Мокасини', 'Похідні черевики'],
-      epic: ['Чоботи вітру', 'Кроки вовка', 'Черевики мандрівника'],
-    },
-    main: { stat: 'moveSpeedPct', common: [0.08, 0.12], epic: [0.18, 0.25] },
-    extras: [{ stat: 'hpPct', common: [0.03, 0.05], epic: [0.08, 0.12] }],
+    main: { stat: 'moveSpeedPct', range: [0.06, 0.08] },
+    extras: [
+      { stat: 'hpPct', range: [0.03, 0.04] },
+      { stat: 'attackSpeedPct', range: [0.02, 0.03] },
+    ],
   },
 };
 
-/** How many extra stats an item of each rarity rolls. */
-export const RARITY_EXTRA_STATS: Record<Rarity, number> = { common: 0, epic: 1 };
-
-/** What drops from minibosses and bosses. */
-export const LOOT = {
-  miniboss: { rarity: 'common' as Rarity, count: 1 },
-  boss: { rarity: 'epic' as Rarity, count: 2 },
-} as const;
+/** What drops from minibosses and bosses: count and rarity weights. */
+export const LOOT: Record<'miniboss' | 'boss', { count: number; weights: Partial<Record<Rarity, number>> }> = {
+  miniboss: { count: 1, weights: { common: 50, uncommon: 32, rare: 15, epic: 3 } },
+  boss: { count: 2, weights: { rare: 30, epic: 45, legendary: 25 } },
+};
 
 export const STAT_LABELS: Record<ItemStat, { label: string; percent: boolean }> = {
   attack: { label: 'атаки', percent: false },

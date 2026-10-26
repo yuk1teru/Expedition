@@ -86,6 +86,7 @@ export class ButtonGroup {
       return false;
     }
     if (e.type === 'mousedown') {
+      if (e.button !== 0) return false;
       for (const b of this.buttons) {
         if (b.enabled && inRect(b.rect, e.x, e.y)) {
           b.onClick();

@@ -28,6 +28,7 @@ import { type DebugPanel, createDebugPanel } from './debugPanel';
 import { createDeathScreen, createGameOverScreen, createRewardScreen, createVictoryScreen } from './endScreens';
 import { createHelpModal } from './help';
 import { createInventoryModal } from './inventory';
+import { createMerchantModal } from './merchant';
 import { createMapScreen } from './mapView';
 import { createCardChoiceModal, createClassChoiceModal } from './modals';
 import { THEME } from './theme';
@@ -72,6 +73,12 @@ export class App {
     );
     this.screens.go('town');
     this.showHelp();
+  }
+
+  /** Town merchant window. */
+  openMerchant(): void {
+    if (this.screens.topModal) return;
+    this.screens.pushModal(createMerchantModal(this, () => this.screens.popModal()));
   }
 
   /** "Як грати" window (before the game starts). */

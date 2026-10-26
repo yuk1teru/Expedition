@@ -7,7 +7,7 @@ import { CLASS_ORDER, getClass } from '../src/data/classes';
 import { type Battle, createBattle, stepBattle } from '../src/systems/battle';
 import { chooseCard, chooseClass, completeBattle, type BattleSummary, nextCardOffer } from '../src/systems/run';
 import { useSkill } from '../src/systems/skills';
-import { equipIntoEmptySlots } from '../src/systems/items';
+import { botIdentifyAndEquip } from '../src/systems/items';
 import { enterPortal } from '../src/systems/waves';
 
 export interface BotOptions {
@@ -56,7 +56,7 @@ export function runBattle(state: GameState, nodeId: string, opts: BotOptions): B
   }
   const time = b.time;
   const summary = completeBattle(state, b);
-  // A player would wear new items; the bot fills empty slots.
-  equipIntoEmptySlots(state.hero);
+  // A player would buy magnifiers and wear new items; the bot fills empty slots.
+  botIdentifyAndEquip(state);
   return { summary, time, hpLeftFrac: state.hero.hp / state.hero.maxHp };
 }

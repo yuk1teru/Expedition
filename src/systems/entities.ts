@@ -1,5 +1,6 @@
 // Entity types shared by combat, AI, skills, bosses and render.
 
+import type { ConsumableId } from '../data/consumables';
 import type { ItemSlot } from '../data/items';
 import type { Item } from './items';
 
@@ -113,6 +114,10 @@ export interface Hero extends Body {
   equipment: Partial<Record<ItemSlot, Item>>;
   /** Items found but not worn. */
   bag: Item[];
+  /** Carried consumables (magnifiers, healing herbs). */
+  consumables: Record<ConsumableId, number>;
+  /** Seconds until the herb (G) can be used again. */
+  herbCooldown: number;
 }
 
 export interface BossRuntime {

@@ -1,26 +1,57 @@
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../src/core/rng';
-import { ITEM_BASES, LOOT } from '../src/data/items';
+import { CONSUMABLES } from '../src/data/consumables';
+import { ITEM_BASES, LOOT, RARITIES, RARITY_ORDER, UNIDENTIFIED_SELL_MULT } from '../src/data/items';
 import { createBattle, stepBattle } from '../src/systems/battle';
 import { damageEnemy } from '../src/systems/combat';
 import { createBossEnemy } from '../src/systems/boss';
 import { assignClass } from '../src/systems/hero';
-import { equipFromBag, hasNewItems, markItemsSeen, rollItem, stashLoot } from '../src/systems/items';
+import {
+  buyConsumable,
+  equipFromBag,
+  hasNewItems,
+  identifyItem,
+  markItemsSeen,
+  rollItem,
+  sellItem,
+  stashLoot,
+  unequip,
+} from '../src/systems/items';
 import { gainXp } from '../src/systems/leveling';
 import { SLICE_GROVE_ID, SLICE_LAIR_ID, getNode, markCleared } from '../src/systems/mapgen';
 import { completeBattle, createGameState, restInTown, restoreCheckpoint, teleport } from '../src/systems/run';
 
 describe('items', () => {
-  it('epic items are stronger than common ones and have an extra stat', () => {
+  it('rarities scale power and extra stats; items drop unidentified', () => {
     const rng = new Rng(4);
     for (let i = 0; i < 50; i++) {
-      const c = rollItem(rng, 'common', i, 'weapon');
-      const e = rollItem(rng, 'epic', i, 'weapon');
-      expect(c.stats).toHaveLength(1);
-      expect(e.stats).toHaveLength(2);
-      expect(e.stats[0]!.value).toBeGreaterThan(c.stats[0]!.value);
-      expect(e.stats[0]!.value).toBeLessThanOrEqual(ITEM_BASES.weapon.main.epic[1]);
+      const items = RARITY_ORDER.map((r) => rollItem(rng, r, i, 'weapon'));
+      items.forEach((it, k) => {
+        expect(it.stats).toHaveLength(1 + RARITIES[RARITY_ORDER[k]!].extraStats);
+        expect(it.identified).toBe(false);
+        expect(it.stats[0]!.value).toBeLessThanOrEqual(Math.round(ITEM_BASES.weapon.main.range[1] * RARITIES[it.rarity].power));
+      });
+      expect(items[4]!.stats[0]!.value).toBeGreaterThan(items[0]!.stats[0]!.value);
     }
+  });
+
+  it('a magnifier is needed to identify before wearing; selling pays by rarity', () => {
+    const s = createGameState(2);
+    const rng = new Rng(3);
+    stashLoot(s.hero, rollItem(rng, 'rare', 1, 'armor'));
+    expect(equipFromBag(s.hero, 0)).toBe(false);
+    expect(identifyItem(s.hero, 0)).toBe(false); // no magnifier
+    s.gold = CONSUMABLES.magnifier.price;
+    expect(buyConsumable(s, 'magnifier')).toBe(true);
+    expect(s.gold).toBe(0);
+    expect(identifyItem(s.hero, 0)).toBe(true);
+    expect(s.hero.consumables.magnifier).toBe(0);
+    expect(equipFromBag(s.hero, 0)).toBe(true);
+    unequip(s.hero, 'armor');
+    expect(sellItem(s, 0)).toBe(RARITIES.rare.sellPrice);
+    expect(s.gold).toBe(RARITIES.rare.sellPrice);
+    stashLoot(s.hero, rollItem(rng, 'rare', 2, 'armor'));
+    expect(sellItem(s, 0)).toBe(Math.round(RARITIES.rare.sellPrice * UNIDENTIFIED_SELL_MULT));
   });
 
   it('loot goes to the bag as new; wearing is manual and swaps with the worn item', () => {
@@ -29,8 +60,8 @@ describe('items', () => {
     const rng = new Rng(2);
     const a = rollItem(rng, 'common', 1, 'weapon');
     const b = rollItem(rng, 'epic', 2, 'weapon');
-    stashLoot(s.hero, a);
-    stashLoot(s.hero, b);
+    stashLoot(s.hero, { ...a, identified: true });
+    stashLoot(s.hero, { ...b, identified: true });
     expect(s.hero.equipment.weapon).toBeUndefined();
     expect(hasNewItems(s.hero)).toBe(true);
     expect(s.hero.stats.attack).toBe(atk0);
@@ -51,10 +82,13 @@ describe('items', () => {
     const mini = createBossEnemy(b, 'alpha', { x: 300, y: 300 });
     damageEnemy(b, mini, { amount: 1e6, crit: false }, { source: 'skill' });
     expect(b.stats.loot).toHaveLength(LOOT.miniboss.count);
-    expect(b.stats.loot.every((i) => i.rarity === 'common')).toBe(true);
+    const allowed = (w: object, r: string): boolean => r in w;
+    expect(b.stats.loot.every((i) => allowed(LOOT.miniboss.weights, i.rarity))).toBe(true);
     const boss = createBossEnemy(b, 'enat', { x: 500, y: 300 });
     damageEnemy(b, boss, { amount: 1e7, crit: false }, { source: 'skill' });
-    expect(b.stats.loot.filter((i) => i.rarity === 'epic')).toHaveLength(LOOT.boss.count);
+    const bossLoot = b.stats.loot.slice(LOOT.miniboss.count);
+    expect(bossLoot).toHaveLength(LOOT.boss.count);
+    expect(bossLoot.every((i) => allowed(LOOT.boss.weights, i.rarity))).toBe(true);
   });
 });
 

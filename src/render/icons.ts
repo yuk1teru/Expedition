@@ -217,3 +217,49 @@ export function drawItemIcon(ctx: CanvasRenderingContext2D, slot: string, x: num
   }
   ctx.restore();
 }
+
+/** Consumables: magnifier (lens + handle), healing herb (sprig). */
+export function drawConsumableIcon(ctx: CanvasRenderingContext2D, id: string, x: number, y: number, size: number): void {
+  const r = size / 2;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.lineCap = 'round';
+  if (id === 'magnifier') {
+    ctx.strokeStyle = '#8a6a44';
+    ctx.lineWidth = r * 0.25;
+    ctx.beginPath();
+    ctx.moveTo(r * 0.25, r * 0.25);
+    ctx.lineTo(r * 0.85, r * 0.85);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(160, 210, 255, 0.45)';
+    ctx.strokeStyle = '#d9c9a3';
+    ctx.lineWidth = r * 0.15;
+    ctx.beginPath();
+    ctx.arc(-r * 0.15, -r * 0.15, r * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.lineWidth = r * 0.08;
+    ctx.beginPath();
+    ctx.arc(-r * 0.15, -r * 0.15, r * 0.3, Math.PI * 1.1, Math.PI * 1.5);
+    ctx.stroke();
+  } else {
+    ctx.strokeStyle = '#3f7a32';
+    ctx.lineWidth = r * 0.12;
+    ctx.beginPath();
+    ctx.moveTo(0, r * 0.85);
+    ctx.quadraticCurveTo(-r * 0.1, 0, r * 0.05, -r * 0.8);
+    ctx.stroke();
+    ctx.fillStyle = '#6fd16f';
+    for (const [lx, ly, a] of [[-0.3, 0.2, -0.8], [0.3, -0.1, 0.8], [-0.25, -0.4, -0.6], [0.25, -0.6, 0.6]] as [number, number, number][]) {
+      ctx.save();
+      ctx.translate(lx * r, ly * r);
+      ctx.rotate(a);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r * 0.32, r * 0.14, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+}

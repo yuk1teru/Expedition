@@ -1,25 +1,46 @@
-// Inventory (Tab, or "Спорядження" in town): a figure wearing the items,
-// slot boxes around it, the bag as an icon grid. Click a bag item to wear it,
-// click a worn slot to take it off. The game is paused while it is open.
+// Inventory (Tab, or "Спорядження" in town): a figure wearing the items, slot
+// boxes around it, the bag, consumables. Wear items by dragging them onto the
+// figure / a slot, or via the right-click menu. Unidentified items need a
+// magnifier first (menu "Розпізнати" or drag the magnifier onto the item).
+// The game is paused while it is open.
 
 import type { InputEvent } from '../core/input';
 import type { Modal } from '../core/screens';
+import { CONSUMABLES, type ConsumableId } from '../data/consumables';
 import { ITEM_SLOTS, type ItemSlot, RARITIES } from '../data/items';
-import { type Item, equipFromBag, formatStat, markItemsSeen, unequip } from '../systems/items';
+import {
+  type Item,
+  displayName,
+  equipFromBag,
+  formatStat,
+  identifyItem,
+  markItemsSeen,
+  sellPrice,
+  unequip,
+} from '../systems/items';
 import type { App } from './app';
-import { drawItemIcon } from './icons';
+import { drawConsumableIcon, drawItemIcon } from './icons';
+import { drawItem } from './itemArt';
 import { THEME } from './theme';
 import { type Rect, drawPanel, drawText, drawTooltip, inRect, roundRect } from './ui';
 
-const PANEL: Rect = { x: 50, y: 34, w: 860, h: 472 };
+const PANEL: Rect = { x: 50, y: 30, w: 860, h: 480 };
 const FIG_X = 250;
-const FIG_Y = 120;
+const FIG_Y = 110;
+const FIGURE_AREA: Rect = { x: FIG_X - 80, y: FIG_Y - 10, w: 160, h: 320 };
 const SLOT_SIZE = 64;
 const CELL = 58;
 const BAG_COLS = 6;
-const BAG_ROWS = 5;
+const BAG_ROWS = 4;
 const BAG_X = 500;
-const BAG_Y = 110;
+const BAG_Y = 100;
+const BAG_AREA: Rect = { x: BAG_X - 6, y: BAG_Y - 6, w: BAG_COLS * CELL + 6, h: BAG_ROWS * CELL + 6 };
+const CONS_Y = BAG_Y + BAG_ROWS * CELL + 34;
+const CONSUMABLE_ORDER: ConsumableId[] = ['magnifier', 'herb'];
+const MENU_W = 200;
+const MENU_ROW = 28;
+const DRAG_THRESHOLD = 5;
+const MESSAGE_TIME = 2.2;
 
 /** Slot boxes around the figure and the body point each one links to. */
 const SLOT_LAYOUT: Record<ItemSlot, { box: Rect; anchor: { x: number; y: number } }> = {
@@ -29,17 +50,103 @@ const SLOT_LAYOUT: Record<ItemSlot, { box: Rect; anchor: { x: number; y: number 
   boots: { box: { x: FIG_X + 106, y: FIG_Y + 220, w: SLOT_SIZE, h: SLOT_SIZE }, anchor: { x: FIG_X + 26, y: FIG_Y + 280 } },
 };
 
+type DragSource = { kind: 'bag'; index: number } | { kind: 'worn'; slot: ItemSlot } | { kind: 'magnifier' };
+
+interface MenuOption {
+  label: string;
+  enabled: boolean;
+  run: () => void;
+}
+
 function bagCell(i: number): Rect {
   return { x: BAG_X + (i % BAG_COLS) * CELL, y: BAG_Y + Math.floor(i / BAG_COLS) * CELL, w: CELL - 6, h: CELL - 6 };
 }
 
-function itemTooltip(item: Item, action: string): string[] {
-  const slot = ITEM_SLOTS.find((s) => s.id === item.slot)?.name ?? '';
-  return [item.name, `${slot} · ${RARITIES[item.rarity].name}`, ...item.stats.map(formatStat), action];
+function consumableCell(i: number): Rect {
+  return { x: BAG_X + i * (CELL + 70), y: CONS_Y, w: CELL - 6, h: CELL - 6 };
+}
+
+function slotName(slot: ItemSlot): string {
+  return ITEM_SLOTS.find((s) => s.id === slot)?.name ?? '';
+}
+
+export function itemTooltip(item: Item, extra: string[]): string[] {
+  const lines = [displayName(item), `${slotName(item.slot)} · ${RARITIES[item.rarity].name}`];
+  if (item.identified) lines.push(...item.stats.map(formatStat));
+  else lines.push('Не розпізнано: використайте лупу', '(ПКМ → «Розпізнати» або перетягніть лупу на річ)');
+  lines.push(`Ціна продажу: ${sellPrice(item)} зол.`, ...extra);
+  return lines;
 }
 
 export function createInventoryModal(app: App, onClose: () => void): Modal<CanvasRenderingContext2D> {
   let t = 0;
+  let drag: (DragSource & { x: number; y: number; moved: boolean }) | null = null;
+  let menu: { x: number; y: number; options: MenuOption[] } | null = null;
+  let message = '';
+  let messageTime = 0;
+  const say = (text: string): void => {
+    message = text;
+    messageTime = MESSAGE_TIME;
+  };
+  const hero = (): App['state']['hero'] => app.state.hero;
+
+  const bagIndexAt = (x: number, y: number): number => {
+    for (let i = 0; i < hero().bag.length && i < BAG_COLS * BAG_ROWS; i++) if (inRect(bagCell(i), x, y)) return i;
+    return -1;
+  };
+  const slotAt = (x: number, y: number): ItemSlot | null => {
+    for (const s of ITEM_SLOTS) if (inRect(SLOT_LAYOUT[s.id].box, x, y)) return s.id;
+    return null;
+  };
+
+  const tryEquip = (index: number): void => {
+    const item = hero().bag[index];
+    if (!item) return;
+    if (!item.identified) say('Спершу розпізнайте річ лупою');
+    else equipFromBag(hero(), index);
+  };
+  const tryIdentify = (index: number): void => {
+    if (hero().consumables.magnifier <= 0) say('Немає лупи — купіть у торговця в місті');
+    else identifyItem(hero(), index);
+  };
+
+  const openMenu = (x: number, y: number): void => {
+    const bi = bagIndexAt(x, y);
+    const slot = slotAt(x, y);
+    const options: MenuOption[] = [];
+    if (bi >= 0) {
+      const item = hero().bag[bi]!;
+      if (!item.identified) {
+        options.push({
+          label: `Розпізнати (лупа: ${hero().consumables.magnifier})`,
+          enabled: hero().consumables.magnifier > 0,
+          run: () => tryIdentify(bi),
+        });
+      }
+      options.push({ label: 'Вдягнути', enabled: item.identified, run: () => tryEquip(bi) });
+    } else if (slot && hero().equipment[slot]) {
+      options.push({ label: 'Зняти в сумку', enabled: true, run: () => unequip(hero(), slot) });
+    }
+    menu = options.length > 0 ? { x: Math.min(x, PANEL.x + PANEL.w - MENU_W - 8), y, options } : null;
+  };
+
+  const drop = (src: DragSource, x: number, y: number): void => {
+    const slot = slotAt(x, y);
+    const onFigure = inRect(FIGURE_AREA, x, y);
+    if (src.kind === 'bag') {
+      const item = hero().bag[src.index];
+      if (!item) return;
+      if (slot === item.slot || onFigure) tryEquip(src.index);
+      else if (slot) say(`Ця річ — не для слота «${slotName(slot)}»`);
+    } else if (src.kind === 'worn') {
+      if (inRect(BAG_AREA, x, y)) unequip(hero(), src.slot);
+    } else {
+      const bi = bagIndexAt(x, y);
+      const item = bi >= 0 ? hero().bag[bi] : undefined;
+      if (item && !item.identified) tryIdentify(bi);
+    }
+  };
+
   return {
     id: 'inventory',
     exit() {
@@ -47,29 +154,53 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
     },
     update(dt) {
       t += dt;
+      messageTime = Math.max(0, messageTime - dt);
     },
     onInput(e: InputEvent) {
-      if (e.type === 'key' && (e.code === 'Escape' || e.code === 'Tab')) {
-        onClose();
+      if (e.type === 'key') {
+        if (e.code === 'Escape' && menu) menu = null;
+        else if (e.code === 'Escape' || e.code === 'Tab') onClose();
         return;
       }
-      if (e.type !== 'mousedown') return;
-      const hero = app.state.hero;
-      for (const slot of ITEM_SLOTS) {
-        if (inRect(SLOT_LAYOUT[slot.id].box, e.x, e.y)) {
-          unequip(hero, slot.id);
-          return;
-        }
+      if (e.type === 'mousemove') {
+        if (drag && Math.hypot(e.x - drag.x, e.y - drag.y) > DRAG_THRESHOLD) drag.moved = true;
+        return;
       }
-      for (let i = 0; i < hero.bag.length && i < BAG_COLS * BAG_ROWS; i++) {
-        if (inRect(bagCell(i), e.x, e.y)) {
-          equipFromBag(hero, i);
+      if (e.type === 'mousedown') {
+        if (menu) {
+          const m = menu;
+          const i = Math.floor((e.y - m.y) / MENU_ROW);
+          const inside = e.x >= m.x && e.x <= m.x + MENU_W && i >= 0 && i < m.options.length;
+          menu = null;
+          if (inside && e.button === 0) {
+            const opt = m.options[i]!;
+            if (opt.enabled) opt.run();
+            return;
+          }
+        }
+        if (e.button === 2) {
+          openMenu(e.x, e.y);
           return;
         }
+        if (e.button !== 0) return;
+        const bi = bagIndexAt(e.x, e.y);
+        const slot = slotAt(e.x, e.y);
+        if (bi >= 0) drag = { kind: 'bag', index: bi, x: e.x, y: e.y, moved: false };
+        else if (slot && hero().equipment[slot]) drag = { kind: 'worn', slot, x: e.x, y: e.y, moved: false };
+        else if (inRect(consumableCell(0), e.x, e.y) && hero().consumables.magnifier > 0) {
+          drag = { kind: 'magnifier', x: e.x, y: e.y, moved: false };
+        }
+        return;
+      }
+      if (e.type === 'mouseup' && drag) {
+        const d = drag;
+        drag = null;
+        if (d.moved) drop(d, e.x, e.y);
+        else if (d.kind !== 'magnifier') say('ПКМ — меню · перетягніть річ на фігуру, щоб вдягнути');
       }
     },
     render(ctx) {
-      const hero = app.state.hero;
+      const h = app.state.hero;
       ctx.fillStyle = 'rgba(5, 6, 10, 0.75)';
       ctx.fillRect(0, 0, app.view.width, app.view.height);
       drawPanel(ctx, PANEL, 'rgba(20, 23, 33, 0.98)');
@@ -79,11 +210,13 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
         align: 'right',
         color: THEME.textDim,
       });
+      drawText(ctx, 'Перетягніть річ на фігуру або ПКМ → «Вдягнути»', PANEL.x + 20, PANEL.y + 24, { size: 12, color: THEME.textDim });
 
-      drawFigure(ctx, hero.equipment, t);
+      drawFigure(ctx, h.equipment, t);
       for (const slot of ITEM_SLOTS) {
         const { box, anchor } = SLOT_LAYOUT[slot.id];
-        const item = hero.equipment[slot.id];
+        const item = h.equipment[slot.id];
+        const dropTarget = drag?.kind === 'bag' && drag.moved && h.bag[drag.index]?.slot === slot.id;
         ctx.strokeStyle = 'rgba(160, 170, 195, 0.35)';
         ctx.lineWidth = 1.5;
         ctx.setLineDash([4, 4]);
@@ -92,64 +225,134 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
         ctx.lineTo(anchor.x, anchor.y);
         ctx.stroke();
         ctx.setLineDash([]);
-        drawCell(ctx, box, item ?? null, slot.id);
+        drawCell(ctx, box, item ?? null, slot.id, dropTarget);
         drawText(ctx, slot.name, box.x + box.w / 2, box.y + box.h + 12, { size: 12, align: 'center', color: THEME.textDim });
       }
 
-      drawText(ctx, `Сумка (${hero.bag.length})`, BAG_X, BAG_Y - 22, { size: 15, bold: true, color: THEME.accent });
-      drawText(ctx, 'клік — вдягнути', BAG_X + BAG_COLS * CELL - 6, BAG_Y - 22, { size: 12, align: 'right', color: THEME.textDim });
+      drawText(ctx, `Сумка (${h.bag.length})`, BAG_X, BAG_Y - 18, { size: 15, bold: true, color: THEME.accent });
       for (let i = 0; i < BAG_COLS * BAG_ROWS; i++) {
-        const item = hero.bag[i] ?? null;
+        const item = h.bag[i] ?? null;
         const cell = bagCell(i);
-        drawCell(ctx, cell, item, null);
-        if (item?.isNew) {
-          const blink = 0.6 + 0.4 * Math.sin(t * 6);
-          ctx.globalAlpha = blink;
+        const dragging = drag?.kind === 'bag' && drag.index === i && drag.moved;
+        const lupaTarget = drag?.kind === 'magnifier' && drag.moved && item && !item.identified;
+        drawCell(ctx, cell, dragging ? null : item, null, !!lupaTarget);
+        if (item?.isNew && !dragging) {
+          ctx.globalAlpha = 0.6 + 0.4 * Math.sin(t * 6);
           drawText(ctx, 'НОВЕ', cell.x + cell.w - 3, cell.y + 8, { size: 9, bold: true, align: 'right', color: THEME.accent });
           ctx.globalAlpha = 1;
         }
       }
-      if (hero.bag.length > BAG_COLS * BAG_ROWS) {
-        drawText(ctx, `…і ще ${hero.bag.length - BAG_COLS * BAG_ROWS}`, BAG_X, BAG_Y + BAG_ROWS * CELL + 8, { size: 12, color: THEME.textDim });
+      if (h.bag.length > BAG_COLS * BAG_ROWS) {
+        drawText(ctx, `…і ще ${h.bag.length - BAG_COLS * BAG_ROWS}`, BAG_X + BAG_COLS * CELL - 6, BAG_Y - 18, { size: 12, align: 'right', color: THEME.textDim });
       }
 
-      const s = hero.stats;
+      drawText(ctx, 'Витратні', BAG_X, CONS_Y - 14, { size: 13, bold: true, color: THEME.accent });
+      CONSUMABLE_ORDER.forEach((id, i) => {
+        const r = consumableCell(i);
+        roundRect(ctx, r.x, r.y, r.w, r.h, 8);
+        ctx.fillStyle = '#20263a';
+        ctx.fill();
+        ctx.strokeStyle = THEME.panelBorder;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        const n = h.consumables[id];
+        ctx.globalAlpha = n > 0 ? 1 : 0.35;
+        drawConsumableIcon(ctx, id, r.x + r.w / 2, r.y + r.h / 2, r.w * 0.6);
+        ctx.globalAlpha = 1;
+        drawText(ctx, `×${n}`, r.x + r.w + 6, r.y + r.h / 2 - 8, { size: 14, bold: true });
+        drawText(ctx, CONSUMABLES[id].name, r.x + r.w + 6, r.y + r.h / 2 + 10, { size: 11, color: THEME.textDim });
+      });
+
+      const s = h.stats;
       const summary = [
-        `HP ${hero.maxHp}`,
+        `HP ${h.maxHp}`,
         `Атака ${Math.round(s.attack)}`,
         `Броня ${Math.round(s.armor)}`,
         `Крит ${Math.round(s.critChance * 100)}%`,
         `Атак/с ${s.attackSpeed.toFixed(2)}`,
         `Рух ${Math.round(s.moveSpeed)}`,
-      ].join('   ·   ');
-      drawText(ctx, summary, PANEL.x + PANEL.w / 2, PANEL.y + PANEL.h - 22, { size: 14, align: 'center' });
-
-      // Tooltip.
-      const m = app.input.mouse;
-      for (const slot of ITEM_SLOTS) {
-        const item = hero.equipment[slot.id];
-        if (item && inRect(SLOT_LAYOUT[slot.id].box, m.x, m.y)) drawTooltip(ctx, itemTooltip(item, 'клік — зняти в сумку'), m.x, m.y, app.view.width, app.view.height);
+        `Золото ${app.state.gold}`,
+      ].join('  ·  ');
+      drawText(ctx, summary, PANEL.x + PANEL.w / 2, PANEL.y + PANEL.h - 20, { size: 13, align: 'center' });
+      if (messageTime > 0) {
+        ctx.globalAlpha = Math.min(1, messageTime);
+        drawText(ctx, message, FIG_X, PANEL.y + PANEL.h - 48, { size: 13, bold: true, align: 'center', color: THEME.bad });
+        ctx.globalAlpha = 1;
       }
-      for (let i = 0; i < hero.bag.length && i < BAG_COLS * BAG_ROWS; i++) {
-        const item = hero.bag[i]!;
-        if (inRect(bagCell(i), m.x, m.y)) {
-          const worn = hero.equipment[item.slot];
-          const lines = itemTooltip(item, worn ? `клік — вдягнути замість «${worn.name}»` : 'клік — вдягнути');
-          drawTooltip(ctx, lines, m.x, m.y, app.view.width, app.view.height);
+
+      const m = app.input.mouse;
+      if (drag?.moved) {
+        ctx.globalAlpha = 0.85;
+        if (drag.kind === 'magnifier') drawConsumableIcon(ctx, 'magnifier', m.x, m.y, 40);
+        else {
+          const item = drag.kind === 'bag' ? h.bag[drag.index] : h.equipment[drag.slot];
+          if (item) drawItem(ctx, item, m.x, m.y, 46);
         }
+        ctx.globalAlpha = 1;
+      } else if (menu) {
+        drawMenu(ctx, menu, m);
+      } else {
+        drawHoverTooltip(ctx, app, m);
       }
     },
   };
 }
 
-function drawCell(ctx: CanvasRenderingContext2D, r: Rect, item: Item | null, emptySlot: ItemSlot | null): void {
+function drawHoverTooltip(ctx: CanvasRenderingContext2D, app: App, m: { x: number; y: number }): void {
+  const h = app.state.hero;
+  const W = app.view.width;
+  const H = app.view.height;
+  for (const slot of ITEM_SLOTS) {
+    const item = h.equipment[slot.id];
+    if (item && inRect(SLOT_LAYOUT[slot.id].box, m.x, m.y)) {
+      drawTooltip(ctx, itemTooltip(item, ['ПКМ — зняти · перетягніть у сумку']), m.x, m.y, W, H);
+      return;
+    }
+  }
+  for (let i = 0; i < h.bag.length && i < BAG_COLS * BAG_ROWS; i++) {
+    const item = h.bag[i]!;
+    if (!inRect(bagCell(i), m.x, m.y)) continue;
+    const worn = h.equipment[item.slot];
+    const extra = [item.identified ? (worn ? `Замінить «${worn.name}»` : 'Слот вільний') : '', 'ПКМ — меню · перетягніть на фігуру'].filter(Boolean);
+    drawTooltip(ctx, itemTooltip(item, extra), m.x, m.y, W, H);
+    return;
+  }
+  CONSUMABLE_ORDER.forEach((id, i) => {
+    if (inRect(consumableCell(i), m.x, m.y)) {
+      const def = CONSUMABLES[id];
+      const hint = id === 'magnifier' ? 'Перетягніть на нерозпізнану річ' : 'У бою — клавіша G';
+      drawTooltip(ctx, [def.name, def.description, `Купити: ${def.price} зол. у торговця`, hint], m.x, m.y, W, H);
+    }
+  });
+}
+
+function drawMenu(ctx: CanvasRenderingContext2D, menu: { x: number; y: number; options: MenuOption[] }, m: { x: number; y: number }): void {
+  const h = menu.options.length * MENU_ROW;
+  roundRect(ctx, menu.x, menu.y, MENU_W, h, 6);
+  ctx.fillStyle = 'rgba(12, 14, 20, 0.97)';
+  ctx.fill();
+  ctx.strokeStyle = THEME.accent;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  menu.options.forEach((o, i) => {
+    const y = menu.y + i * MENU_ROW;
+    const hover = m.x >= menu.x && m.x <= menu.x + MENU_W && m.y >= y && m.y < y + MENU_ROW;
+    if (hover && o.enabled) {
+      ctx.fillStyle = 'rgba(242, 193, 78, 0.15)';
+      ctx.fillRect(menu.x + 2, y + 2, MENU_W - 4, MENU_ROW - 4);
+    }
+    drawText(ctx, o.label, menu.x + 12, y + MENU_ROW / 2 + 1, { size: 13, color: o.enabled ? THEME.text : THEME.textMuted });
+  });
+}
+
+function drawCell(ctx: CanvasRenderingContext2D, r: Rect, item: Item | null, emptySlot: ItemSlot | null, highlight = false): void {
   roundRect(ctx, r.x, r.y, r.w, r.h, 8);
   ctx.fillStyle = item ? '#262d42' : '#1a1f2d';
   ctx.fill();
-  ctx.lineWidth = item ? 2 : 1;
-  ctx.strokeStyle = item ? RARITIES[item.rarity].color : THEME.panelBorder;
+  ctx.lineWidth = highlight ? 3 : item ? 2 : 1;
+  ctx.strokeStyle = highlight ? THEME.good : item ? RARITIES[item.rarity].color : THEME.panelBorder;
   ctx.stroke();
-  if (item) drawItemIcon(ctx, item.slot, r.x + r.w / 2, r.y + r.h / 2, r.w * 0.62, RARITIES[item.rarity].color);
+  if (item) drawItem(ctx, item, r.x + r.w / 2, r.y + r.h / 2, r.w * 0.66);
   else if (emptySlot) drawItemIcon(ctx, emptySlot, r.x + r.w / 2, r.y + r.h / 2, r.w * 0.55, 'rgba(120, 128, 150, 0.25)');
 }
 
@@ -161,7 +364,6 @@ function drawFigure(ctx: CanvasRenderingContext2D, eq: Partial<Record<ItemSlot, 
   const cloth = '#4a5068';
   const breathe = Math.sin(t * 2) * 1.5;
   ctx.save();
-  // Shadow.
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
   ctx.beginPath();
   ctx.ellipse(x, y + 300, 70, 14, 0, 0, Math.PI * 2);
@@ -182,21 +384,11 @@ function drawFigure(ctx: CanvasRenderingContext2D, eq: Partial<Record<ItemSlot, 
   ctx.rotate(-0.25);
   ctx.fillRect(-9, 0, 18, 92);
   ctx.restore();
-  // Torso.
-  const armor = eq.armor;
-  ctx.fillStyle = armor ? RARITIES[armor.rarity].color : cloth;
+  // Torso: plain clothes, or the armor drawn big over it.
+  ctx.fillStyle = cloth;
   roundRect(ctx, x - 44, y + 60 + breathe, 88, 118, 14);
   ctx.fill();
-  if (armor) {
-    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(x, y + 66 + breathe);
-    ctx.lineTo(x, y + 170 + breathe);
-    ctx.moveTo(x - 36, y + 110 + breathe);
-    ctx.lineTo(x + 36, y + 110 + breathe);
-    ctx.stroke();
-  }
+  if (eq.armor) drawItem(ctx, eq.armor, x, y + 118 + breathe, 120);
   // Head.
   ctx.fillStyle = skin;
   ctx.beginPath();
@@ -207,21 +399,15 @@ function drawFigure(ctx: CanvasRenderingContext2D, eq: Partial<Record<ItemSlot, 
   ctx.arc(x - 9, y + 26 + breathe, 3, 0, Math.PI * 2);
   ctx.arc(x + 9, y + 26 + breathe, 3, 0, Math.PI * 2);
   ctx.fill();
-  // Hat.
-  const hat = eq.hat;
-  if (hat) drawItemIcon(ctx, 'hat', x, y + 2 + breathe, 70, RARITIES[hat.rarity].color);
-  // Boots.
-  const boots = eq.boots;
-  if (boots) {
-    drawItemIcon(ctx, 'boots', x - 20, y + 282, 38, RARITIES[boots.rarity].color);
-    drawItemIcon(ctx, 'boots', x + 22, y + 282, 38, RARITIES[boots.rarity].color);
+  if (eq.hat) drawItem(ctx, eq.hat, x, y + 4 + breathe, 70);
+  if (eq.boots) {
+    drawItem(ctx, eq.boots, x - 20, y + 280, 40);
+    drawItem(ctx, eq.boots, x + 22, y + 280, 40);
   } else {
     ctx.fillStyle = '#3a3329';
     ctx.fillRect(x - 32, y + 280, 28, 12);
     ctx.fillRect(x + 4, y + 280, 28, 12);
   }
-  // Weapon in the right hand.
-  const weapon = eq.weapon;
-  if (weapon) drawItemIcon(ctx, 'weapon', x + 72, y + 140 + breathe, 80, RARITIES[weapon.rarity].color);
+  if (eq.weapon) drawItem(ctx, eq.weapon, x + 72, y + 140 + breathe, 84);
   ctx.restore();
 }
