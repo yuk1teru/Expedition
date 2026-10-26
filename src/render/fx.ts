@@ -54,6 +54,7 @@ interface Slash {
   y: number;
   angle: number;
   reach: number;
+  arc: number;
   life: number;
 }
 
@@ -229,6 +230,7 @@ export class Fx {
     for (const r of this.rings) r.life -= dt;
     this.rings = this.rings.filter((r) => r.life > 0);
     for (const sl of this.slashes) sl.life -= dt;
+    this.lungeTime = Math.max(0, this.lungeTime - dt);
     this.slashes = this.slashes.filter((sl) => sl.life > 0);
     for (const c of this.cones) c.life -= dt;
     this.cones = this.cones.filter((c) => c.life > 0);
@@ -268,26 +270,49 @@ export class Fx {
     ctx.globalAlpha = 1;
   }
 
-  slash(pos: Vec, angle: number, reach: number): void {
-    this.slashes.push({ x: pos.x, y: pos.y, angle, reach, life: FX.slash.life });
+  /** Body jerk of the hero after a swing: offset along the swing direction. */
+  lungeTime = 0;
+  lungeAngle = 0;
+
+  slash(pos: Vec, angle: number, reach: number, arc: number): void {
+    this.slashes.push({ x: pos.x, y: pos.y, angle, reach, arc, life: FX.slash.life });
+    this.lungeTime = FX.lunge.life;
+    this.lungeAngle = angle;
   }
 
-  /** Swing: a crescent that sweeps from one side of the arc to the other. */
-  drawSlashes(ctx: CanvasRenderingContext2D, arc: number): void {
+  lungeOffset(): Vec {
+    if (this.lungeTime <= 0) return { x: 0, y: 0 };
+    const k = Math.sin((this.lungeTime / FX.lunge.life) * Math.PI) * FX.lunge.distance;
+    return { x: Math.cos(this.lungeAngle) * k, y: Math.sin(this.lungeAngle) * k };
+  }
+
+  /** Swing: a filled crescent sweeping across the attack arc with a bright leading edge. */
+  drawSlashes(ctx: CanvasRenderingContext2D): void {
+    const S = FX.slash;
     for (const sl of this.slashes) {
-      const k = 1 - sl.life / FX.slash.life;
-      const start = sl.angle - arc / 2;
-      const sweep = arc * Math.min(1, k * 1.6);
-      ctx.globalAlpha = 1 - k * 0.7;
-      ctx.strokeStyle = FX.slash.color;
-      ctx.lineWidth = FX.slash.width;
+      const k = 1 - sl.life / S.life;
+      const start = sl.angle - sl.arc / 2;
+      const head = start + sl.arc * Math.min(1, k * 1.8);
+      const tail = start + sl.arc * Math.max(0, k * 1.8 - 0.8);
+      const outer = sl.reach + S.outerExtra;
+      const inner = sl.reach * S.innerFrac;
+      ctx.globalAlpha = 0.55 * (1 - k);
+      ctx.fillStyle = S.color;
+      ctx.beginPath();
+      ctx.arc(sl.x, sl.y, outer, tail, head);
+      ctx.arc(sl.x, sl.y, inner, head, tail, true);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1 - k * 0.6;
+      ctx.strokeStyle = S.edge;
+      ctx.lineWidth = S.width;
       ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.arc(sl.x, sl.y, sl.reach, start, start + sweep);
+      ctx.moveTo(sl.x + Math.cos(head) * inner, sl.y + Math.sin(head) * inner);
+      ctx.lineTo(sl.x + Math.cos(head) * outer, sl.y + Math.sin(head) * outer);
       ctx.stroke();
-      ctx.lineWidth = FX.slash.width * 0.5;
       ctx.beginPath();
-      ctx.arc(sl.x, sl.y, sl.reach * 0.75, start, start + sweep);
+      ctx.arc(sl.x, sl.y, outer, tail, head);
       ctx.stroke();
     }
     ctx.globalAlpha = 1;

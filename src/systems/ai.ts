@@ -6,6 +6,7 @@ import type { Battle } from './battle';
 import { damageEnemy, damageHero, hasStatus, heroDamage, isDisabled, speedMult } from './combat';
 import type { Enemy, Hero, Projectile, Vec } from './entities';
 import { angleOf, dist, normalize } from './entities';
+import { basicAttackOf } from './hero';
 import { coneTargets, nearestEnemy } from './targeting';
 
 /** Effective attacks per second including buffs. */
@@ -61,32 +62,44 @@ function playerHero(b: Battle, hero: Hero): void {
     if (coneTargets(b.enemies, hero.pos, hero.facing, cone, hero.stats.range).length > 0) shootAlong(b, hero, hero.facing);
     return;
   }
-  const arc = (HERO.meleeArcDeg * Math.PI) / 180;
-  const inArc = coneTargets(b.enemies, hero.pos, hero.facing, arc, hero.stats.range);
-  const target = nearestEnemy(inArc, hero.pos);
-  if (!target) return;
-  hero.attackTimer = 1 / heroAttackSpeed(hero);
-  emitSwing(b, hero, hero.facing);
-  damageEnemy(b, target, heroDamage(b, 1, 'basic'), { source: 'basic', knockFrom: hero.pos, knockback: HERO.meleeKnockback });
+  const attack = basicAttackOf(hero);
+  if (attack.kind !== 'melee') return;
+  const arc = (attack.arcDeg * Math.PI) / 180;
+  const target = nearestEnemy(coneTargets(b.enemies, hero.pos, hero.facing, arc, hero.stats.range), hero.pos);
+  if (target) meleeStrike(b, hero, target, hero.facing);
 }
 
-function emitSwing(b: Battle, hero: Hero, angle: number): void {
-  b.events.emit({ type: 'heroAttack', pos: { ...hero.pos }, angle, reach: hero.stats.range + hero.radius, ranged: false });
+/**
+ * One basic melee strike towards `angle`: full damage to `target`, the class
+ * splash to every other enemy inside the attack arc.
+ */
+function meleeStrike(b: Battle, hero: Hero, target: Enemy, angle: number): void {
+  const attack = basicAttackOf(hero);
+  const arc = attack.kind === 'melee' ? (attack.arcDeg * Math.PI) / 180 : 0;
+  const splash = attack.kind === 'melee' ? attack.splash : 0;
+  hero.attackTimer = 1 / heroAttackSpeed(hero);
+  const others = splash > 0 ? coneTargets(b.enemies, hero.pos, angle, arc, hero.stats.range).filter((e) => e !== target) : [];
+  b.events.emit({
+    type: 'heroAttack',
+    pos: { ...hero.pos },
+    angle,
+    reach: hero.stats.range + hero.radius,
+    arc,
+    ranged: false,
+    targets: 1 + others.length,
+  });
+  const roll = heroDamage(b, 1, 'basic');
+  damageEnemy(b, target, roll, { source: 'basic', knockFrom: hero.pos, knockback: HERO.meleeKnockback });
+  for (const e of others) {
+    damageEnemy(b, e, { amount: roll.amount * splash, crit: roll.crit }, { source: 'splash', knockFrom: hero.pos, knockback: HERO.meleeKnockback });
+  }
 }
 
 /** Hits the target if it is in melee reach and the attack is ready. Returns true if in reach. */
 function tryMeleeHit(b: Battle, hero: Hero, target: Enemy): boolean {
   if (dist(hero.pos, target.pos) - target.radius > hero.stats.range) return false;
   hero.facing = angleOf({ x: target.pos.x - hero.pos.x, y: target.pos.y - hero.pos.y });
-  if (hero.attackTimer <= 0) {
-    hero.attackTimer = 1 / heroAttackSpeed(hero);
-    emitSwing(b, hero, hero.facing);
-    damageEnemy(b, target, heroDamage(b, 1, 'basic'), {
-      source: 'basic',
-      knockFrom: hero.pos,
-      knockback: HERO.meleeKnockback,
-    });
-  }
+  if (hero.attackTimer <= 0) meleeStrike(b, hero, target, hero.facing);
   return true;
 }
 
@@ -121,7 +134,7 @@ function tryShoot(b: Battle, hero: Hero, target: Enemy): void {
 function shootAlong(b: Battle, hero: Hero, angle: number): void {
   const r = HERO.ranged;
   hero.attackTimer = 1 / heroAttackSpeed(hero);
-  b.events.emit({ type: 'heroAttack', pos: { ...hero.pos }, angle, reach: hero.radius * 2, ranged: true });
+  b.events.emit({ type: 'heroAttack', pos: { ...hero.pos }, angle, reach: hero.radius * 2, arc: 0, ranged: true, targets: 1 });
   const dir = { x: Math.cos(angle), y: Math.sin(angle) };
   const roll = heroDamage(b, 1, 'basic');
   spawnProjectile(b, {

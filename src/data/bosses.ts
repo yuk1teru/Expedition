@@ -51,7 +51,7 @@ export const BOSSES: Record<string, BossDef> = {
     id: 'enat',
     name: 'Старий Енат',
     biome: 'forest',
-    hp: 2300,
+    hp: 2450,
     damage: 7.5,
     armor: 15,
     speed: 34,

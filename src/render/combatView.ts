@@ -3,12 +3,13 @@
 import type { InputEvent } from '../core/input';
 import { Rng } from '../core/rng';
 import type { Screen } from '../core/screens';
-import { ARENA, HERO, WAVES } from '../data/balance';
+import { ARENA, WAVES } from '../data/balance';
 import { getClass } from '../data/classes';
 import type { BiomeDef, DecorKind } from '../data/biomes';
 import { FX } from '../data/fx';
 import { RARITIES } from '../data/items';
 import { heroAttackSpeed } from '../systems/ai';
+import { basicAttackOf } from '../systems/hero';
 import { type Battle, stepBattle } from '../systems/battle';
 import { portalInReach, requestPortalEntry } from '../systems/waves';
 import type { Enemy, Hero, Projectile, Telegraph, Zone } from '../systems/entities';
@@ -17,10 +18,11 @@ import type { App } from './app';
 import { syncBattleInput } from './battleInput';
 import { drawBoss } from './bossView';
 import { Fx } from './fx';
+import { drawControls } from './help';
 import { createHud } from './hud';
 import { skillFx } from './skillFx';
 import { THEME } from './theme';
-import { type Rect, drawText, inRect, roundRect } from './ui';
+import { type Rect, drawPanel, drawText, inRect, roundRect } from './ui';
 
 interface Decor {
   x: number;
@@ -118,15 +120,16 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
         else drawEnemy(ctx, e, b, app.time);
       }
       if (b.input.control === 'player' && !b.hero.dead) drawAttackArc(ctx, b.hero);
-      drawHero(ctx, b.hero, b, app.time);
+      drawHero(ctx, b.hero, b, app.time, fx.lungeOffset());
       if (!b.hero.dead) drawAttackReady(ctx, b.hero, app.time);
       fx.drawCones(ctx);
-      fx.drawSlashes(ctx, (HERO.meleeArcDeg * Math.PI) / 180);
+      fx.drawSlashes(ctx);
       fx.drawRings(ctx);
       fx.drawParticles(ctx);
       // Telegraphs always above effects so they stay readable.
       for (const t of b.telegraphs) drawTelegraph(ctx, t);
       for (const e of b.enemies) drawEnemyBar(ctx, e);
+      drawHeroBar(ctx, b.hero);
       fx.drawTexts(ctx);
       if (b.input.aim) drawCrosshair(ctx, b.input.aim);
       ctx.restore();
@@ -137,12 +140,10 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       if (app.loop.paused && !app.screens.isPaused) {
         ctx.fillStyle = 'rgba(0,0,0,0.45)';
         ctx.fillRect(0, ARENA.y, app.view.width, ARENA.h);
-        drawText(ctx, 'Пауза', app.view.width / 2, ARENA.y + ARENA.h / 2 - 10, { size: 40, bold: true, align: 'center' });
-        drawText(ctx, 'Esc — продовжити', app.view.width / 2, ARENA.y + ARENA.h / 2 + 28, {
-          size: 15,
-          align: 'center',
-          color: THEME.textDim,
-        });
+        drawPanel(ctx, { x: app.view.width / 2 - 330, y: ARENA.y + 14, w: 660, h: 330 }, 'rgba(14, 16, 24, 0.94)');
+        drawText(ctx, 'Пауза', app.view.width / 2, ARENA.y + 44, { size: 38, bold: true, align: 'center' });
+        drawText(ctx, 'Esc — продовжити', app.view.width / 2, ARENA.y + 80, { size: 15, align: 'center', color: THEME.textDim });
+        drawControls(ctx, app.view.width / 2 - 20, ARENA.y + 130);
       }
     },
   };
@@ -154,7 +155,13 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
   switch (e.type) {
     case 'hit': {
       const amount = Math.max(1, Math.round(e.amount));
+      if (e.source === 'splash') {
+        fx.text({ x: e.pos.x, y: e.pos.y - e.radius - 6 }, String(amount), T.splashColor, T.splashSize);
+        fx.burst(e.pos, P.hit, T.splashColor);
+        break;
+      }
       fx.text({ x: e.pos.x, y: e.pos.y - e.radius - 6 }, String(amount), e.crit ? T.critColor : T.color, e.crit ? T.critSize : T.size);
+      if (e.source === 'basic') fx.ring(e.pos, e.radius + FX.impact.extra, '#ffffff', FX.impact.life, FX.impact.width);
       fx.burst(e.pos, e.crit ? P.crit : P.hit, e.crit ? T.critColor : '#ffffff');
       if (e.crit) fx.stop(FX.hitStop.crit);
       const target = b.enemies.find((x) => x.id === e.targetId);
@@ -170,7 +177,8 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
       break;
     }
     case 'heroAttack':
-      if (!e.ranged) fx.slash(e.pos, e.angle, e.reach);
+      if (!e.ranged) fx.slash(e.pos, e.angle, e.reach, e.arc);
+      if (e.targets >= FX.cleaveShakeTargets) fx.shake(FX.shake.cleave);
       break;
     case 'heroHeal':
       fx.text({ x: e.pos.x + T.heroSideOffset, y: e.pos.y - 18 }, `+${Math.round(e.amount)}`, T.healColor, T.size);
@@ -446,11 +454,11 @@ function drawEnemyBar(ctx: CanvasRenderingContext2D, e: Enemy): void {
   ctx.fillRect(x, y, w * Math.max(0, e.hp / e.maxHp), 3);
 }
 
-function drawHero(ctx: CanvasRenderingContext2D, h: Hero, b: Battle, t: number): void {
+function drawHero(ctx: CanvasRenderingContext2D, h: Hero, b: Battle, t: number, lunge: { x: number; y: number }): void {
   if (h.dead) return;
   const r = h.radius;
   ctx.save();
-  ctx.translate(h.pos.x, h.pos.y);
+  ctx.translate(h.pos.x + lunge.x, h.pos.y + lunge.y);
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
   ctx.beginPath();
   ctx.ellipse(0, r * 0.7, r, r * 0.45, 0, 0, Math.PI * 2);
@@ -606,6 +614,20 @@ function drawPortal(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, 
   ctx.restore();
 }
 
+/** HP bar with numbers right under the hero, so the eyes stay on the fight. */
+function drawHeroBar(ctx: CanvasRenderingContext2D, h: Hero): void {
+  if (h.dead) return;
+  const B = FX.heroBar;
+  const x = h.pos.x - B.width / 2;
+  const y = h.pos.y + h.radius + B.gap;
+  const frac = Math.max(0, h.hp / h.maxHp);
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(x - 1, y - 1, B.width + 2, B.height + 2);
+  ctx.fillStyle = frac <= B.low ? '#ff3b30' : '#d64545';
+  ctx.fillRect(x, y, B.width * frac, B.height);
+  drawText(ctx, `${Math.ceil(h.hp)}/${h.maxHp}`, h.pos.x, y + B.height + 8, { size: 10, bold: true, align: 'center', color: frac <= B.low ? '#ff6b5e' : THEME.text });
+}
+
 /** Ring that fills up until the next basic attack; full and pulsing when ready. */
 function drawAttackReady(ctx: CanvasRenderingContext2D, h: Hero, t: number): void {
   const a = FX.attackReady;
@@ -632,7 +654,9 @@ function drawAttackReady(ctx: CanvasRenderingContext2D, h: Hero, t: number): voi
 
 /** Faint wedge showing where auto-attacks land (towards the cursor). */
 function drawAttackArc(ctx: CanvasRenderingContext2D, h: Hero): void {
-  const half = (HERO.meleeArcDeg * Math.PI) / 360;
+  const attack = basicAttackOf(h);
+  if (attack.kind !== 'melee') return;
+  const half = (attack.arcDeg * Math.PI) / 360;
   const r = h.stats.ranged ? h.radius * 3 : h.stats.range + h.radius;
   ctx.save();
   ctx.globalAlpha = 0.14;

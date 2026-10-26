@@ -27,6 +27,8 @@ export const FX = {
     heroSideOffset: 26,
     /** Other numbers are pushed out of this radius around the hero, px. */
     heroClearance: 34,
+    splashSize: 12,
+    splashColor: '#d8dde8',
     jitter: 10,
   },
   particles: {
@@ -49,6 +51,7 @@ export const FX = {
     whirlwind: { strength: 2.5, duration: 0.12 },
     charge: { strength: 6, duration: 0.2 },
     groundSlam: { strength: 8, duration: 0.25 },
+    cleave: { strength: 1.5, duration: 0.08 },
     heroHurtBig: { strength: 3, duration: 0.12 },
     telegraph: { strength: 5, duration: 0.2 },
     bossPhase: { strength: 9, duration: 0.4 },
@@ -61,8 +64,16 @@ export const FX = {
   /** Damage ≥ this fraction of target max HP counts as heavy for hit-stop. */
   heavyHitFraction: 0.5,
   levelUpRing: { life: 0.7, radius: 90 },
-  /** Basic attack swing: a white crescent sweeping across the attack arc. */
-  slash: { life: 0.16, color: '#ffffff', width: 5 },
+  /** Basic attack swing: a filled crescent sweeping across the attack arc. */
+  slash: { life: 0.22, color: '#ffffff', edge: '#fff4c2', innerFrac: 0.45, outerExtra: 10, width: 4 },
+  /** The hero's body jerks forward on each swing. */
+  lunge: { distance: 7, life: 0.14 },
+  /** White ring on the target of a basic hit. */
+  impact: { life: 0.16, extra: 6, width: 3 },
+  /** Cleave hitting at least this many enemies gives a tiny shake. */
+  cleaveShakeTargets: 3,
+  /** HP bar under the hero. */
+  heroBar: { width: 54, height: 7, gap: 12, low: 0.3 },
   /** Ring around the hero that fills up until the next basic attack. */
   attackReady: { ring: 6, width: 3, readyColor: '#f2c14e', chargingColor: 'rgba(242, 193, 78, 0.45)' },
   slamCone: { life: 0.3, color: '#f2c14e' },

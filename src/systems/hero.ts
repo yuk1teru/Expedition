@@ -1,7 +1,7 @@
 // Hero creation and derived stats.
 
 import { HERO, PROGRESSION } from '../data/balance';
-import { getClass } from '../data/classes';
+import { type BasicAttackDef, NOVICE_ATTACK, getClass } from '../data/classes';
 import { getPassive } from '../data/skills';
 import type { Hero, HeroSkill, HeroStats } from './entities';
 import { equippedStat } from './items';
@@ -57,6 +57,11 @@ function baseStats(level: number): HeroStats {
     skillDamageMult: 1,
     cooldownMult: 1,
   };
+}
+
+/** The hero's auto-attack: the class one, or the novice one before the class choice. */
+export function basicAttackOf(hero: Hero): BasicAttackDef {
+  return hero.classId ? getClass(hero.classId).basicAttack : NOVICE_ATTACK;
 }
 
 /** Level-3 class choice: sets the class and grants its starting skill. */

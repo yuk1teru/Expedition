@@ -7,6 +7,7 @@ import { describeSkill, getSkill } from '../data/skills';
 import { heroAttackSpeed } from '../systems/ai';
 import type { Battle } from '../systems/battle';
 import { isMaxLevel, xpFraction } from '../systems/leveling';
+import { xpToNext } from '../systems/scaling';
 import { bonusLevel, nextWaveIn } from '../systems/waves';
 import { moveSkill, skillInSlot } from '../systems/hero';
 import { slotCooldown, useSkill } from '../systems/skills';
@@ -29,7 +30,10 @@ export interface Hud {
   noTarget(slot: number): void;
 }
 
-const SLOT = 56;
+const SLOT = 48;
+/** XP bar sits in the bottom HUD right above the skill bar. */
+const XP_BAR = { top: 6, h: 8 };
+const LEVEL_BADGE_R = 19;
 /** Centre of the wave/location block in the top band (left of it are hero stats). */
 const CENTER_X = 588;
 /** Width of the centre block (boss HP bar). */
@@ -62,7 +66,7 @@ export function createHud(app: App, _fx: Fx): Hud {
   const slots: Rect[] = [];
   const n = PROGRESSION.skillSlots;
   const total = n * SLOT + (n - 1) * SLOT_GAP;
-  const barY = ARENA.y + ARENA.h + (app.view.height - ARENA.y - ARENA.h - SLOT) / 2;
+  const barY = ARENA.y + ARENA.h + XP_BAR.top + XP_BAR.h + 6;
   for (let i = 0; i < n; i++) slots.push({ x: (W - total) / 2 + i * (SLOT + SLOT_GAP), y: barY, w: SLOT, h: SLOT });
   const noTargetT = new Array<number>(n).fill(0);
   let hoverSlot = -1;
@@ -123,20 +127,8 @@ export function createHud(app: App, _fx: Fx): Hud {
       ctx.fillRect(0, 0, W, ARENA.y);
       ctx.fillRect(0, ARENA.y + ARENA.h, W, app.view.height - ARENA.y - ARENA.h);
 
-      // Level badge.
-      ctx.fillStyle = '#2a3145';
-      ctx.beginPath();
-      ctx.arc(32, 28, 21, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = THEME.accent;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      drawText(ctx, String(hero.level), 32, 29, { size: 18, bold: true, align: 'center' });
-
-      drawBar(ctx, { x: 62, y: 9, w: 220, h: 20 }, hero.hp / hero.maxHp, THEME.hp, THEME.hpBack, `${Math.ceil(hero.hp)} / ${hero.maxHp}`);
-      drawBar(ctx, { x: 62, y: 34, w: 220, h: 11 }, xpFraction(hero.level, hero.xp), THEME.xp, 'rgba(0,0,0,0.5)', isMaxLevel(hero.level) ? 'МАКС' : '');
-      drawText(ctx, className(hero.classId), 292, 19, { size: 15, bold: true, color: hero.classId ? THEME.text : THEME.textDim });
-      drawText(ctx, `Атака ${Math.round(hero.stats.attack)} · ${heroAttackSpeed(hero).toFixed(2)}/с · Броня ${Math.round(hero.stats.armor)}`, 292, 39, {
+      drawText(ctx, className(hero.classId), 16, 19, { size: 15, bold: true, color: hero.classId ? THEME.text : THEME.textDim });
+      drawText(ctx, `Атака ${Math.round(hero.stats.attack)} · ${heroAttackSpeed(hero).toFixed(2)}/с · Броня ${Math.round(hero.stats.armor)}`, 16, 39, {
         size: 12,
         color: THEME.textDim,
       });
@@ -174,9 +166,8 @@ export function createHud(app: App, _fx: Fx): Hud {
       buttons.draw(ctx);
 
       drawSkillBar(ctx, b, slots, noTargetT, hoverSlot);
+      drawLevelAndXp(ctx, hero.level, hero.xp, slots, ARENA.y + ARENA.h + XP_BAR.top);
       if (dragFrom >= 0 && dragMoved) drawDragGhost(ctx, b, dragFrom, slots, app.input.mouse);
-      drawText(ctx, 'WASD — рух · миша — напрямок атаки', 12, app.view.height - 40, { size: 11, color: THEME.textMuted });
-      drawText(ctx, '1–4 — скіли · Tab — інвентар · Esc — пауза', 12, app.view.height - 22, { size: 11, color: THEME.textMuted });
 
       const hs = hoverSlot >= 0 ? skillInSlot(hero, hoverSlot) : undefined;
       if (hs) {
@@ -194,6 +185,28 @@ export function createHud(app: App, _fx: Fx): Hud {
     },
   };
   return hud;
+}
+
+/** Level badge left of the skill bar and the XP bar above it. */
+function drawLevelAndXp(ctx: CanvasRenderingContext2D, level: number, xp: number, slots: Rect[], y: number): void {
+  const first = slots[0];
+  const last = slots[slots.length - 1];
+  if (!first || !last) return;
+  const cx = first.x - LEVEL_BADGE_R - 14;
+  const cy = first.y + first.h / 2;
+  ctx.fillStyle = '#2a3145';
+  ctx.beginPath();
+  ctx.arc(cx, cy, LEVEL_BADGE_R, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = THEME.accent;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  drawText(ctx, String(level), cx, cy + 1, { size: 17, bold: true, align: 'center' });
+  const x0 = cx - LEVEL_BADGE_R;
+  const x1 = last.x + last.w;
+  drawBar(ctx, { x: x0, y, w: x1 - x0, h: XP_BAR.h }, xpFraction(level, xp), THEME.xp, 'rgba(255,255,255,0.08)');
+  const label = isMaxLevel(level) ? 'МАКС' : `${Math.floor(xp)} / ${xpToNext(level)} досвіду`;
+  drawText(ctx, label, x1 + 8, y + XP_BAR.h / 2 + 1, { size: 10, color: THEME.xp });
 }
 
 function drawDragGhost(ctx: CanvasRenderingContext2D, b: Battle, from: number, slots: Rect[], m: { x: number; y: number }): void {
@@ -284,7 +297,7 @@ function drawSkillBar(ctx: CanvasRenderingContext2D, b: Battle, slots: Rect[], n
     }
     if (nt > 0) {
       ctx.globalAlpha = Math.min(1, nt / (FX.noTargetFlash * 0.5));
-      drawText(ctx, 'Немає цілі', r.x + r.w / 2, r.y - 10, { size: 12, bold: true, align: 'center', color: THEME.bad });
+      drawText(ctx, 'Немає цілі', r.x + r.w / 2, r.y - 24, { size: 12, bold: true, align: 'center', color: THEME.bad });
       ctx.globalAlpha = 1;
     }
   });

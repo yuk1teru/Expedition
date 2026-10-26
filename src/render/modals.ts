@@ -94,8 +94,8 @@ function drawCard(ctx: CanvasRenderingContext2D, r: Rect, face: CardFace, hovere
   }
 }
 
-const CLASS_CARD_Y = 84;
-const CLASS_CARD_H = 424;
+const CLASS_CARD_Y = 80;
+const CLASS_CARD_H = 448;
 const LINE_H = 22;
 
 interface ClassLine {
@@ -113,7 +113,7 @@ function classLines(classId: string, r: Rect): { skills: ClassLine[]; passives: 
   const c = getClass(classId);
   const x = r.x + 16;
   const w = r.w - 32;
-  const skillY = r.y + 186;
+  const skillY = r.y + 216;
   const passiveY = skillY + PROGRESSION.skillSlots * LINE_H + 30;
   const skillNames = c.skills.length > 0 ? c.skills.map((id) => getSkill(id).name) : (c.preview?.skills ?? []);
   const skills: ClassLine[] = skillNames.map((name, i) => ({
@@ -166,9 +166,13 @@ function drawClassCard(ctx: CanvasRenderingContext2D, classId: string, r: Rect, 
   drawText(ctx, c.name, cx, r.y + 96, { size: 22, bold: true, align: 'center' });
   drawText(ctx, c.role, cx, r.y + 120, { size: 13, bold: true, align: 'center', color: c.color });
   drawText(ctx, c.description, cx, r.y + 142, { size: 13, align: 'center', color: THEME.textDim });
+  ctx.font = font(12);
+  wrapLines(ctx, `Автоатака: ${c.basicAttack.description}`, r.w - 28)
+    .slice(0, 2)
+    .forEach((l, i) => drawText(ctx, l, cx, r.y + 162 + i * 15, { size: 12, align: 'center', color: '#e8c48a' }));
 
   const lines = classLines(classId, r);
-  drawText(ctx, `Скіли · ${RANKS.max} ранги (${RANKS.max - 1} покращення)`, r.x + 16, r.y + 166, {
+  drawText(ctx, `Скіли · ${RANKS.max} ранги (${RANKS.max - 1} покращення)`, r.x + 16, r.y + 196, {
     size: 12,
     bold: true,
     color: THEME.accent,

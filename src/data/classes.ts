@@ -2,6 +2,23 @@
 
 export type ClassIcon = 'shield' | 'orb' | 'bow';
 
+/**
+ * Basic (auto) attack of a class. `melee`: hits the nearest enemy in an arc
+ * towards the aim; others in the arc take `splash` × damage.
+ * `ranged`: described for Mage/Archer, not implemented in the slice yet.
+ */
+export type BasicAttackDef =
+  | { kind: 'melee'; arcDeg: number; splash: number; description: string }
+  | { kind: 'ranged'; description: string };
+
+/** Hero before the class choice. */
+export const NOVICE_ATTACK: BasicAttackDef = {
+  kind: 'melee',
+  arcDeg: 100,
+  splash: 0,
+  description: 'Одиночний удар: б’є одного найближчого ворога перед собою.',
+};
+
 export interface ClassDef {
   id: string;
   name: string;
@@ -19,6 +36,7 @@ export interface ClassDef {
   startingSkillName: string;
   skills: string[];
   passives: string[];
+  basicAttack: BasicAttackDef;
   /** Names shown in the class choice for classes without skill data yet. */
   preview?: { skills: string[]; passives: string[]; passiveMaxStacks: number };
   /** Outline colour of the hero and class accents. */
@@ -42,6 +60,12 @@ export const CLASSES: Record<string, ClassDef> = {
     startingSkillName: 'Вихор',
     skills: ['whirlwind', 'charge', 'battleCry', 'groundSlam'],
     passives: ['armor', 'vampirism', 'thorns'],
+    basicAttack: {
+      kind: 'melee',
+      arcDeg: 140,
+      splash: 0.4,
+      description: 'Широкий удар: ціль — повна шкода, решта в дузі — 40%.',
+    },
     color: '#c0392b',
     icon: 'shield',
   },
@@ -60,6 +84,7 @@ export const CLASSES: Record<string, ClassDef> = {
     startingSkillName: 'Вогняна куля',
     skills: [],
     passives: [],
+    basicAttack: { kind: 'ranged', description: 'Вогняний снаряд; вороги впритул обпікаються (мале AoE).' },
     preview: {
       skills: ['Вогняна куля', 'Крижане кільце', 'Ланцюгова блискавка', 'Телепорт'],
       passives: ['Сила чар', 'Зосередження', "Магічний бар'єр"],
@@ -83,6 +108,7 @@ export const CLASSES: Record<string, ClassDef> = {
     startingSkillName: 'Мультипостріл',
     skills: [],
     passives: [],
+    basicAttack: { kind: 'ranged', description: 'Стріла прошиває першого ворога й ранить того, хто позаду.' },
     preview: {
       skills: ['Мультипостріл', 'Пастка', 'Дощ стріл', 'Відскок'],
       passives: ['Влучність', 'Спритність', 'Пробиття'],

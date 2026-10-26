@@ -74,6 +74,41 @@ describe('player control', () => {
   });
 });
 
+describe('class basic attacks', () => {
+  function pair(withClass: boolean) {
+    const s = createGameState(31);
+    s.hero.immortal = true;
+    if (withClass) {
+      s.hero.level = 3;
+      assignClass(s.hero, 'warrior');
+    }
+    teleport(s, SLICE_GROVE_ID);
+    const b = createBattle(s, SLICE_GROVE_ID);
+    b.input.control = 'player';
+    const h = s.hero.pos;
+    const a = spawnEnemy(b, 'stump', { x: h.x + 40, y: h.y });
+    const c = spawnEnemy(b, 'stump', { x: h.x + 30, y: h.y + 34 });
+    for (const e of [a, c]) {
+      e.speed = 0;
+      e.damage = 0;
+      e.mass = 1000;
+    }
+    b.input.aim = { x: h.x + 200, y: h.y };
+    stepBattle(b, LOOP.step);
+    return { a, c };
+  }
+
+  it('novice hits a single enemy; Warrior splashes others in the arc', () => {
+    const novice = pair(false);
+    const hitNovice = [novice.a, novice.c].filter((e) => e.hp < e.maxHp).length;
+    expect(hitNovice).toBe(1);
+    const warrior = pair(true);
+    const hits = [warrior.a, warrior.c].map((e) => e.maxHp - e.hp).sort((x, y) => y - x);
+    expect(hits[1]).toBeGreaterThan(0);
+    expect(hits[1]! / hits[0]!).toBeCloseTo(0.4, 1);
+  });
+});
+
 describe('aimed skills', () => {
   it('Charge flies towards the aim point', () => {
     const { s, b } = warriorBattle();

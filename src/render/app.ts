@@ -28,6 +28,7 @@ import { type View, beginFrame, endFrame } from './canvas';
 import { createCombatScreen } from './combatView';
 import { type DebugPanel, createDebugPanel } from './debugPanel';
 import { createDeathScreen, createRewardScreen, createVictoryScreen } from './endScreens';
+import { createHelpModal } from './help';
 import { createInventoryModal } from './inventory';
 import { createMapScreen } from './mapView';
 import { createCardChoiceModal, createClassChoiceModal } from './modals';
@@ -71,6 +72,12 @@ export class App {
       { step: LOOP.step, maxFrame: LOOP.maxFrame },
     );
     this.screens.go('town');
+    this.showHelp();
+  }
+
+  /** "Як грати" window (before the game starts). */
+  showHelp(): void {
+    this.screens.pushModal(createHelpModal(this, () => this.screens.popModal()));
   }
 
   start(): void {
