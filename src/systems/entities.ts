@@ -70,8 +70,10 @@ export interface HeroStats {
   armor: number;
   critChance: number;
   critMult: number;
-  /** Fraction of dealt damage healed. */
+  /** Fraction of dealt damage healed (basic attacks and skills). */
   lifesteal: number;
+  /** HP per second in battle. */
+  hpRegen: number;
   /** Fraction of received melee damage reflected. */
   thorns: number;
   /** Basic attack reach (melee) or shooting range (ranged), px. */

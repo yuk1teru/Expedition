@@ -7,7 +7,7 @@ import { THEME } from './theme';
 import { Button, ButtonGroup, drawPanel, drawText } from './ui';
 
 export const CONTROLS: [string, string][] = [
-  ['WASD / стрілки', 'рух героя (сам герой не ходить)'],
+  ['WASD / стрілки', 'рух героя'],
   ['Миша', 'напрямок автоатаки, Ривка й Удару об землю'],
   ['1–4 або клік по слоту', 'скіли; слоти можна перетягувати'],
   ['E / кнопка біля порталу', 'вийти з локації після 3-ї хвилі'],
@@ -17,12 +17,11 @@ export const CONTROLS: [string, string][] = [
 ];
 
 /** Draws the controls table; returns its height. */
-export function drawControls(ctx: CanvasRenderingContext2D, cx: number, y: number): number {
-  const lh = 26;
+export function drawControls(ctx: CanvasRenderingContext2D, cx: number, y: number, size = 15, lh = 26, color: string = THEME.text): number {
   CONTROLS.forEach(([key, action], i) => {
     const yy = y + i * lh;
-    drawText(ctx, key, cx - 12, yy, { size: 15, bold: true, align: 'right', color: THEME.accent });
-    drawText(ctx, action, cx + 12, yy, { size: 15 });
+    drawText(ctx, key, cx - 10, yy, { size, bold: true, align: 'right', color: THEME.accent });
+    drawText(ctx, action, cx + 10, yy, { size, color });
   });
   return CONTROLS.length * lh;
 }

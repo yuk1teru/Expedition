@@ -74,6 +74,27 @@ describe('player control', () => {
   });
 });
 
+describe('healing', () => {
+  it('lifesteal also heals from skill damage; regen works in battle', () => {
+    const { s, b } = warriorBattle(SLICE_GROVE_ID);
+    s.hero.stats.lifesteal = 0.5;
+    s.hero.stats.hpRegen = 0;
+    s.hero.hp = 50;
+    const h = s.hero.pos;
+    const e = spawnEnemy(b, 'stump', { x: h.x - 100, y: h.y });
+    e.maxHp = e.hp = 1e6;
+    b.input.aim = { x: h.x - 250, y: h.y };
+    expect(useSkill(b, 1)).toBe('cast'); // Charge through the stump
+    for (let t = 0; t < 0.5; t += LOOP.step) stepBattle(b, LOOP.step);
+    expect(s.hero.hp).toBeGreaterThan(50);
+    const hp = s.hero.hp;
+    b.enemies = [];
+    s.hero.stats.hpRegen = 1;
+    for (let t = 0; t < 2; t += LOOP.step) stepBattle(b, LOOP.step);
+    expect(s.hero.hp).toBeCloseTo(hp + 2, 0);
+  });
+});
+
 describe('class basic attacks', () => {
   function pair(withClass: boolean) {
     const s = createGameState(31);

@@ -9,7 +9,7 @@ import { updateEnemyAI, updateHeroAI } from './ai';
 import { isBossDefeated, onBossDefeated, setupBossBattle, updateBoss, updateTelegraphs } from './boss';
 import './bosses';
 import { clampToArena, insideArena, separateBodies } from './collision';
-import { damageEnemy, damageHero, decayKnockback, killEnemy, updateStatuses } from './combat';
+import { damageEnemy, damageHero, decayKnockback, killEnemy, updateHeroHealing, updateStatuses } from './combat';
 import type { Body, Enemy, Hero, Projectile, Telegraph, Vec, Zone } from './entities';
 import { dist, normalize } from './entities';
 import { nearestEnemy } from './targeting';
@@ -68,6 +68,9 @@ export interface Battle {
   portal: Portal | null;
   boss: Enemy | null;
   stats: BattleStats;
+  /** Lifesteal healed since the last popup, and time to the next popup. */
+  healAcc: number;
+  healTimer: number;
   outcome: BattleOutcome;
   /** Counts down after the outcome is decided, then the flow moves on. */
   endTimer: number;
@@ -101,6 +104,8 @@ export function createBattle(state: GameState, nodeId: string): Battle {
     portal: null,
     boss: null,
     stats: { kills: 0, xp: 0, gold: 0, damageDealt: 0, damageTaken: 0, loot: [] },
+    healAcc: 0,
+    healTimer: 0,
     outcome: 'running',
     endTimer: 0,
     finished: false,
@@ -137,6 +142,7 @@ export function stepBattle(b: Battle, dt: number): void {
   // Hero.
   updateStatuses(b, hero, dt);
   updateBuffs(hero, dt);
+  if (!hero.dead) updateHeroHealing(b, dt);
   for (const s of hero.skills) s.cooldown = Math.max(0, s.cooldown - dt);
   updateDash(hero, dt);
   updateHeroAI(b, dt);

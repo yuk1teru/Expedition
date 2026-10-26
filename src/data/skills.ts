@@ -136,7 +136,7 @@ export const PASSIVES: Record<string, PassiveDef> = {
     maxStacks: 5,
     description: '+{value} броні.',
     stat: 'armor',
-    value: 8,
+    value: 6,
     format: 'flat',
   },
   vampirism: {

@@ -16,9 +16,12 @@ import {
 
 describe('armor', () => {
   it('reduces damage by k / (k + armor)', () => {
+    const k = SCALING.armorK;
     expect(applyArmor(100, 0)).toBe(100);
-    expect(applyArmor(100, 100)).toBeCloseTo(50);
-    expect(applyArmor(30, 50)).toBeCloseTo(20);
+    expect(applyArmor(100, k)).toBeCloseTo(50);
+    expect(applyArmor(30, 50)).toBeCloseTo((30 * k) / (k + 50));
+    // Soft armor: 50 armor cuts no more than a quarter.
+    expect(applyArmor(100, 50)).toBeGreaterThan(75);
   });
 });
 

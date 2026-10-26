@@ -51,6 +51,10 @@ export const HERO = {
   },
   /** Knockback impulse of a basic melee hit, px/s. */
   meleeKnockback: 60,
+  /** HP regenerated per second in battle. */
+  hpRegen: 1,
+  /** Lifesteal heals are summed and shown as one number every this many seconds. */
+  healPopupInterval: 0.5,
   /** Growth on every level-up (levels 1–2 are auto-only). */
   perLevel: { hp: 15, attack: 2 },
 } as const;
@@ -75,8 +79,8 @@ export const SCALING = {
   recommendedLevelPerTier: 3,
   /** Day threat: +perStep every `everyDays`. Disabled in the slice. */
   dayThreat: { enabled: false, everyDays: 5, perStep: 0.1 },
-  /** Armor formula: damage × k / (k + armor). */
-  armorK: 100,
+  /** Armor formula: damage × k / (k + armor). 200: 50 armor → −20%, 100 armor → −33%. */
+  armorK: 200,
   /** Enemy XP grows with tier like HP. */
   xpPerTier: 0.45,
 } as const;

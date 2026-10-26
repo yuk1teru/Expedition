@@ -1,6 +1,6 @@
 // Damage, crits, armor, lifesteal, thorns, kills, knockback and statuses.
 
-import { ENEMY_COMMON } from '../data/balance';
+import { ENEMY_COMMON, HERO } from '../data/balance';
 import type { Rng } from '../core/rng';
 import type { Battle } from './battle';
 import type { Body, Enemy, StatusId, Vec } from './entities';
@@ -44,7 +44,8 @@ export function damageEnemy(b: Battle, e: Enemy, roll: Roll, opts: HitOptions): 
   b.stats.damageDealt += amount;
   const hero = b.hero;
   if (hero.stats.lifesteal > 0 && opts.source !== 'thorns') {
-    healHero(b, amount * hero.stats.lifesteal, false);
+    // Every damage source heals, skills included; the numbers are summed for display.
+    healHero(b, amount * hero.stats.lifesteal, 'aggregate');
   }
   if (opts.knockFrom && opts.knockback) knock(e, opts.knockFrom, opts.knockback);
   b.events.emit({
@@ -120,12 +121,25 @@ export function damageHero(b: Battle, rawAmount: number, opts: HeroHitOptions): 
   return amount;
 }
 
-export function healHero(b: Battle, amount: number, show = true): void {
+/** `show`: number pops up now; `aggregate`: summed and shown periodically; `silent`: no number. */
+export function healHero(b: Battle, amount: number, mode: 'show' | 'aggregate' | 'silent' = 'show'): void {
   const hero = b.hero;
   if (hero.dead || amount <= 0) return;
   const before = hero.hp;
   hero.hp = Math.min(hero.maxHp, hero.hp + amount);
-  if (show && hero.hp - before >= 1) b.events.emit({ type: 'heroHeal', pos: { ...hero.pos }, amount: hero.hp - before });
+  const healed = hero.hp - before;
+  if (mode === 'aggregate') b.healAcc += healed;
+  else if (mode === 'show' && healed >= 1) b.events.emit({ type: 'heroHeal', pos: { ...hero.pos }, amount: healed });
+}
+
+/** Regeneration and the periodic lifesteal popup. */
+export function updateHeroHealing(b: Battle, dt: number): void {
+  healHero(b, b.hero.stats.hpRegen * dt, 'silent');
+  b.healTimer -= dt;
+  if (b.healTimer > 0) return;
+  b.healTimer = HERO.healPopupInterval;
+  if (b.healAcc >= 1) b.events.emit({ type: 'heroHeal', pos: { ...b.hero.pos }, amount: b.healAcc });
+  b.healAcc = 0;
 }
 
 /** Adds an impulse away from `from`; heavier bodies move less. */

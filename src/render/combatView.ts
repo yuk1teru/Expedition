@@ -51,17 +51,18 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
   /** Abandon-run needs a second click within this time. */
   let confirmUntil = 0;
   const W = app.view.width;
-  const PAUSE_PANEL = { x: W / 2 - 330, y: ARENA.y + 10, w: 660, h: 392 };
+  // Compact, see-through pause panel: the arena stays visible.
+  const PAUSE_PANEL = { x: W / 2 - 270, y: ARENA.y + ARENA.h / 2 - 140, w: 540, h: 280 };
   const resumeBtn = new Button({
     label: 'Продовжити (Esc)',
-    rect: { x: W / 2 - 250, y: PAUSE_PANEL.y + PAUSE_PANEL.h - 62, w: 230, h: 44 },
-    fontSize: 15,
+    rect: { x: W / 2 - 215, y: PAUSE_PANEL.y + PAUSE_PANEL.h - 50, w: 200, h: 36 },
+    fontSize: 14,
     onClick: () => (app.loop.paused = false),
   });
   const abandonBtn = new Button({
     label: 'Завершити забіг (поразка)',
-    rect: { x: W / 2 + 20, y: PAUSE_PANEL.y + PAUSE_PANEL.h - 62, w: 230, h: 44 },
-    fontSize: 14,
+    rect: { x: W / 2 + 15, y: PAUSE_PANEL.y + PAUSE_PANEL.h - 50, w: 200, h: 36 },
+    fontSize: 13,
     onClick: () => {
       if (app.time < confirmUntil) app.abandonRun();
       else confirmUntil = app.time + PAUSE_CONFIRM_TIME;
@@ -170,11 +171,11 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       hud.draw(ctx, b);
       fx.drawBanner(ctx, app.view.width / 2, ARENA.y + ARENA.h * 0.3);
       if (app.loop.paused && !app.screens.isPaused) {
-        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
         ctx.fillRect(0, ARENA.y, app.view.width, ARENA.h);
-        drawPanel(ctx, PAUSE_PANEL, 'rgba(14, 16, 24, 0.96)');
-        drawText(ctx, 'Пауза', W / 2, PAUSE_PANEL.y + 32, { size: 34, bold: true, align: 'center' });
-        drawControls(ctx, W / 2 - 20, PAUSE_PANEL.y + 82);
+        drawPanel(ctx, PAUSE_PANEL, 'rgba(14, 16, 24, 0.72)');
+        drawText(ctx, 'Пауза', W / 2, PAUSE_PANEL.y + 24, { size: 22, bold: true, align: 'center' });
+        drawControls(ctx, W / 2 - 50, PAUSE_PANEL.y + 54, 12, 21, THEME.textDim);
         const confirming = app.time < confirmUntil;
         abandonBtn.label = confirming ? 'Точно? Клацніть ще раз' : 'Завершити забіг (поразка)';
         pauseButtons.draw(ctx);

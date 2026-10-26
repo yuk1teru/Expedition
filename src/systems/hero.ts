@@ -51,6 +51,7 @@ function baseStats(level: number): HeroStats {
     critChance: HERO.critChance,
     critMult: HERO.critMult,
     lifesteal: 0,
+    hpRegen: HERO.hpRegen,
     thorns: 0,
     range: HERO.meleeRange,
     ranged: false,

@@ -6,6 +6,7 @@ import { PROGRESSION, RANKS } from '../data/balance';
 import { CLASS_ORDER, getClass } from '../data/classes';
 import { describePassive, describeSkill, getPassive, getSkill } from '../data/skills';
 import type { Card } from '../systems/cards';
+import { skillInSlot } from '../systems/hero';
 import type { App } from './app';
 import { drawClassIcon, drawPassiveIcon, drawSkillIcon } from './icons';
 import { THEME, font } from './theme';
@@ -369,6 +370,46 @@ export function createCardChoiceModal(app: App, offer: Card[], level: number, on
         color: THEME.textDim,
       });
       offer.forEach((card, i) => drawCard(ctx, rects[i] as Rect, cardFace(card), hovered === i, i + 1, t));
+      drawCurrentSkills(ctx, app);
     },
   };
+}
+
+const MINI_SLOT = 40;
+
+/** The hero's current skill bar under the cards, with tooltips: what each skill does now. */
+function drawCurrentSkills(ctx: CanvasRenderingContext2D, app: App): void {
+  const hero = app.state.hero;
+  const n = PROGRESSION.skillSlots;
+  const gap = 10;
+  const total = n * MINI_SLOT + (n - 1) * gap;
+  const x0 = app.view.width / 2 - total / 2;
+  const y = CARD_Y + CARD_H + 34;
+  drawText(ctx, 'Ваші скіли зараз (наведіть, щоб подивитись):', x0 - 14, y + MINI_SLOT / 2, { size: 13, align: 'right', color: THEME.textDim });
+  const m = app.input.mouse;
+  let tip: string[] | null = null;
+  for (let i = 0; i < n; i++) {
+    const r = { x: x0 + i * (MINI_SLOT + gap), y, w: MINI_SLOT, h: MINI_SLOT };
+    const s = skillInSlot(hero, i);
+    roundRect(ctx, r.x, r.y, r.w, r.h, 8);
+    ctx.fillStyle = s ? '#232a3b' : 'rgba(35, 42, 59, 0.4)';
+    ctx.fill();
+    ctx.strokeStyle = s ? THEME.accent : THEME.panelBorder;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    if (!s) continue;
+    const def = getSkill(s.id);
+    drawSkillIcon(ctx, def.icon, r.x + r.w / 2, r.y + r.h / 2 - 3, r.w * 0.55, '#f4f1e8');
+    for (let k = 0; k < RANKS.max; k++) {
+      ctx.fillStyle = k < s.rank ? THEME.accent : 'rgba(255,255,255,0.15)';
+      ctx.beginPath();
+      ctx.arc(r.x + r.w / 2 + (k - 1) * 8, r.y + r.h - 6, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (inRect(r, m.x, m.y)) {
+      tip = [`${def.name} — ранг ${s.rank}`, ...wrapPlain(describeSkill(s.id, s.rank), 56)];
+      if (s.rank >= RANKS.max) tip.push(...wrapPlain(`Ранг 3: ${def.rank3Modifier.text}`, 56));
+    }
+  }
+  if (tip) drawTooltip(ctx, tip, m.x, m.y - 120, app.view.width, app.view.height);
 }
