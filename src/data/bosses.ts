@@ -134,7 +134,7 @@ export const BOSSES: Record<string, BossDef> = {
           { length: 300, width: 46, damage: 4, speed: 950, minRange: 40 },
           { length: 300, width: 46, damage: 4, speed: 950, minRange: 40 },
         ],
-        followUp: { id: 'leap', chance: 0.4 },
+        followUp: { id: 'leap', chance: 0.2 },
       },
       {
         id: 'leap',
@@ -147,7 +147,7 @@ export const BOSSES: Record<string, BossDef> = {
           { radius: 64, damage: 3.5, minRange: 90, maxRange: 340 },
           { radius: 64, damage: 3.5, minRange: 90, maxRange: 340 },
         ],
-        followUp: { id: 'lunge', chance: 0.35 },
+        followUp: { id: 'lunge', chance: 0.15 },
       },
       {
         id: 'howl',

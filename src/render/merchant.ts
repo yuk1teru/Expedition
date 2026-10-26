@@ -1,10 +1,11 @@
-// Town merchant: buy magnifiers and healing herbs, sell items from the bag.
+// Town merchant: buy magnifiers and healing herbs; identify, wear or sell bag items
+// right here; the full equipment window opens on top (Tab).
 
 import type { InputEvent } from '../core/input';
 import type { Modal } from '../core/screens';
 import { CONSUMABLES, type ConsumableId } from '../data/consumables';
 import { RARITIES } from '../data/items';
-import { buyConsumable, canBuy, displayName, sellItem, sellPrice } from '../systems/items';
+import { buyConsumable, canBuy, displayName, equipFromBag, identifyItem, sellItem, sellPrice } from '../systems/items';
 import type { App } from './app';
 import { drawConsumableIcon } from './icons';
 import { itemTooltip } from './inventory';
@@ -42,19 +43,52 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
         },
       }),
   );
+  const say = (text: string): void => {
+    flash = text;
+    flashTime = 1.8;
+  };
+  const ACT_Y = SELL_Y + ROWS * CELL + 24;
+  const ACT_W = 108;
+  const identifyBtn = new Button({
+    label: 'Розпізнати',
+    rect: { x: SELL_X, y: ACT_Y, w: ACT_W, h: 36 },
+    hotkey: 'KeyR',
+    fontSize: 13,
+    onClick: () => {
+      const item = app.state.hero.bag[selected];
+      if (item && identifyItem(app.state.hero, selected)) say(`Розпізнано: ${displayName(item)}`);
+    },
+  });
+  const equipBtn = new Button({
+    label: 'Вдягнути',
+    rect: { x: SELL_X + ACT_W + 8, y: ACT_Y, w: ACT_W, h: 36 },
+    hotkey: 'KeyE',
+    fontSize: 13,
+    onClick: () => {
+      const item = app.state.hero.bag[selected];
+      if (!item || !equipFromBag(app.state.hero, selected)) return;
+      say(`Вдягнуто: ${displayName(item)}`);
+      selected = -1;
+    },
+  });
   const sellBtn = new Button({
     label: 'Продати',
-    rect: { x: SELL_X, y: SELL_Y + ROWS * CELL + 16, w: 340, h: 40 },
-    fontSize: 15,
+    rect: { x: SELL_X + 2 * (ACT_W + 8), y: ACT_Y, w: ACT_W, h: 36 },
+    fontSize: 13,
     onClick: () => {
       if (selected < 0) return;
       const item = app.state.hero.bag[selected];
       if (!item) return;
       const price = sellItem(app.state, selected);
-      flash = `Продано «${displayName(item)}» за ${price} зол.`;
-      flashTime = 1.8;
+      say(`Продано «${displayName(item)}» за ${price} зол.`);
       selected = -1;
     },
+  });
+  const gearBtn = new Button({
+    label: 'Спорядження [Tab]',
+    rect: { x: PANEL.x + 30, y: PANEL.y + 300, w: 200, h: 36 },
+    fontSize: 14,
+    onClick: () => app.openInventoryOver(),
   });
   const closeBtn = new Button({
     label: 'Назад до міста',
@@ -63,18 +97,27 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
     fontSize: 15,
     onClick: onClose,
   });
-  const buttons = new ButtonGroup([...buyButtons, sellBtn, closeBtn]);
+  const buttons = new ButtonGroup([...buyButtons, identifyBtn, equipBtn, sellBtn, gearBtn, closeBtn]);
 
   return {
     id: 'merchant',
     update(dt) {
       flashTime = Math.max(0, flashTime - dt);
       GOODS.forEach((id, i) => (buyButtons[i]!.enabled = canBuy(app.state, id)));
-      const item = selected >= 0 ? app.state.hero.bag[selected] : undefined;
+      const hero = app.state.hero;
+      const item = selected >= 0 ? hero.bag[selected] : undefined;
+      if (!item) selected = -1;
+      identifyBtn.enabled = !!item && !item.identified && hero.consumables.magnifier > 0;
+      identifyBtn.label = `Лупа (×${hero.consumables.magnifier})`;
+      equipBtn.enabled = !!item && item.identified;
       sellBtn.enabled = !!item;
-      sellBtn.label = item ? `Продати «${displayName(item)}» — ${sellPrice(item)} зол.` : 'Оберіть річ для продажу';
+      sellBtn.label = item ? `Продати ${sellPrice(item)}` : 'Продати';
     },
     onInput(e: InputEvent) {
+      if (e.type === 'key' && e.code === 'Tab') {
+        app.openInventoryOver();
+        return;
+      }
       if (e.type === 'mousedown') {
         for (let i = 0; i < app.state.hero.bag.length && i < COLS * ROWS; i++) {
           if (inRect(sellCell(i), e.x, e.y)) {
@@ -106,7 +149,7 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
         drawText(ctx, def.description, PANEL.x + 30, y + 78, { size: 11, color: THEME.textDim });
       });
 
-      drawText(ctx, 'Продати (оберіть річ)', SELL_X, SELL_Y - 22, { size: 16, bold: true, color: THEME.accent });
+      drawText(ctx, 'Ваша сумка (клік — обрати річ)', SELL_X, SELL_Y - 22, { size: 16, bold: true, color: THEME.accent });
       for (let i = 0; i < COLS * ROWS; i++) {
         const r = sellCell(i);
         const item = st.hero.bag[i];
@@ -124,6 +167,12 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
       if (st.hero.bag.length === 0) {
         drawText(ctx, 'Сумка порожня', SELL_X + (COLS * CELL) / 2, SELL_Y + 100, { size: 14, align: 'center', color: THEME.textDim });
       }
+      const chosen = selected >= 0 ? st.hero.bag[selected] : undefined;
+      drawText(ctx, chosen ? displayName(chosen) : 'Оберіть річ: розпізнати лупою, вдягнути або продати', SELL_X, ACT_Y - 10, {
+        size: 12,
+        bold: !!chosen,
+        color: chosen ? RARITIES[chosen.rarity].color : THEME.textDim,
+      });
       buttons.draw(ctx);
       if (flashTime > 0) {
         ctx.globalAlpha = Math.min(1, flashTime);
@@ -132,7 +181,7 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
       }
       const m = app.input.mouse;
       for (let i = 0; i < st.hero.bag.length && i < COLS * ROWS; i++) {
-        if (inRect(sellCell(i), m.x, m.y)) drawTooltip(ctx, itemTooltip(st.hero.bag[i]!, ['Клік — обрати для продажу']), m.x, m.y, app.view.width, app.view.height);
+        if (inRect(sellCell(i), m.x, m.y)) drawTooltip(ctx, itemTooltip(st.hero.bag[i]!, ['Клік — обрати: розпізнати (R), вдягнути (E) або продати']), m.x, m.y, app.view.width, app.view.height);
       }
     },
   };

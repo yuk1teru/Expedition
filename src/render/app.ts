@@ -128,6 +128,12 @@ export class App {
     this.screens.pushModal(createInventoryModal(this, () => this.screens.popModal()));
   }
 
+  /** Inventory on top of another window (the merchant): closing it returns there. */
+  openInventoryOver(): void {
+    if (this.screens.topModal?.id === 'inventory') return;
+    this.screens.pushModal(createInventoryModal(this, () => this.screens.popModal()));
+  }
+
   /** Pause → "Завершити забіг": the run ends as a defeat with a summary screen. */
   abandonRun(): void {
     this.screens.clearModals();
