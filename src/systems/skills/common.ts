@@ -48,6 +48,20 @@ export function aimAngle(b: Battle, hero: Hero, aim: Vec | null, range = Infinit
   return e ? Math.atan2(e.pos.y - hero.pos.y, e.pos.x - hero.pos.x) : null;
 }
 
+/**
+ * Where an aimed skill goes: the cursor on the arena; with the cursor over the HUD
+ * (e.g. clicking a slot) — the same direction, pulled onto the arena edge.
+ * The bot has no cursor: automatic targeting.
+ */
+export function skillAim(b: Battle): Vec | null {
+  const c = b.input.cursor;
+  if (b.input.aim || !c) return b.input.aim;
+  return {
+    x: Math.max(ARENA.x + 1, Math.min(ARENA.x + ARENA.w - 1, c.x)),
+    y: Math.max(ARENA.y + 1, Math.min(ARENA.y + ARENA.h - 1, c.y)),
+  };
+}
+
 export function unit(angle: number): Vec {
   return normalize({ x: Math.cos(angle), y: Math.sin(angle) });
 }

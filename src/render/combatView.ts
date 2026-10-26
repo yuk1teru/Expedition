@@ -1,14 +1,14 @@
 // Combat screen: arena, entities, effects, HUD; drives the battle simulation.
 
-import { drawClassProjectile, drawClassZone, drawElementalStatus, drawShieldBubble } from './classFx';
+import { heroColor } from './names';
+import { drawAimLine, drawAlly, drawBranchProjectile, drawBranchZone, drawClassProjectile, drawClassZone, drawElementalStatus, drawShieldBubble } from './classFx';
 import { heroShield } from '../systems/hero';
 import type { InputEvent } from '../core/input';
 import { Rng } from '../core/rng';
 import type { Screen } from '../core/screens';
-import { ARENA, TRAPS } from '../data/balance';
+import { ARENA, PROGRESSION, TRAPS } from '../data/balance';
 import { WEATHER } from '../data/weather';
 import { getEnemyDef } from '../data/enemies';
-import { getClass } from '../data/classes';
 import type { BiomeDef, DecorKind } from '../data/biomes';
 import { FX } from '../data/fx';
 import { RARITIES } from '../data/items';
@@ -150,6 +150,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
         confirmUntil = 0;
       }
       else if (/^Digit[1-4]$/.test(e.code) && battle && !app.loop.paused) hud.useSlot(Number(e.code.slice(5)) - 1);
+      else if (e.code === 'KeyR' && battle && !app.loop.paused) hud.useSlot(PROGRESSION.signatureSlot);
     },
 
     render(ctx) {
@@ -169,6 +170,12 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       for (const e of b.enemies) {
         if (e.boss) drawBoss(ctx, e, b, app.time);
         else drawEnemy(ctx, e, b, app.time);
+      }
+      const allyColor = heroColor(b.hero.classId, b.hero.promotion) ?? '#b08a5a';
+      for (const a of b.allies) drawAlly(ctx, a, allyColor, app.time, b.time);
+      for (const c of b.charges) {
+        const to = b.input.aim ?? b.input.cursor;
+        if (c.kind === 'aimedShot' && to) drawAimLine(ctx, b.hero.pos, to, Math.min(1, c.time / c.delay));
       }
       if (b.input.control === 'player' && !b.hero.dead) drawAttackArc(ctx, b.hero);
       drawHero(ctx, b.hero, b, app.time, fx.lungeOffset());
@@ -335,6 +342,9 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
       fx.ring(b.hero.pos, FX.levelUpRing.radius, THEME.accent, FX.levelUpRing.life, 6);
       fx.burst(b.hero.pos, P.levelUp, THEME.accent);
       fx.text({ x: b.hero.pos.x, y: b.hero.pos.y - 40 }, `Рівень ${e.level}!  +${e.hp} HP, +${e.attack} атаки`, THEME.accent, 16, 1.6);
+      break;
+    case 'allyDeath':
+      fx.burst(e.pos, P.death, '#b08a5a');
       break;
     case 'heroDeath':
       fx.burst(e.pos, P.eliteDeath, '#f4f1e8');
@@ -665,7 +675,7 @@ function drawHero(ctx: CanvasRenderingContext2D, h: Hero, b: Battle, t: number, 
   ctx.closePath();
   ctx.fill();
   ctx.fillStyle = isFlashing(b, h.hitAt) ? '#ff8a80' : '#f4f1e8';
-  ctx.strokeStyle = h.classId ? getClass(h.classId).color : '#1b1e27';
+  ctx.strokeStyle = heroColor(h.classId, h.promotion) ?? '#1b1e27';
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI * 2);
@@ -675,7 +685,7 @@ function drawHero(ctx: CanvasRenderingContext2D, h: Hero, b: Battle, t: number, 
 }
 
 function drawProjectile(ctx: CanvasRenderingContext2D, p: Projectile, t: number): void {
-  if (p.team === 'hero' && drawClassProjectile(ctx, p, t)) return;
+  if (p.team === 'hero' && (drawClassProjectile(ctx, p, t) || drawBranchProjectile(ctx, p))) return;
   if (p.team === 'enemy') {
     ctx.fillStyle = p.kind === 'gale' ? '#9fe3ff' : '#d86bf0';
     ctx.beginPath();
@@ -715,7 +725,7 @@ function drawProjectile(ctx: CanvasRenderingContext2D, p: Projectile, t: number)
 }
 
 function drawZone(ctx: CanvasRenderingContext2D, z: Zone, b: Battle, t: number): void {
-  if (drawClassZone(ctx, z, t)) return;
+  if (drawClassZone(ctx, z, t) || drawBranchZone(ctx, z, t)) return;
   const life = 1 - z.time / z.duration;
   ctx.save();
   ctx.translate(z.pos.x, z.pos.y);

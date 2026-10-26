@@ -11,6 +11,7 @@ import type { Battle } from './battle';
 import type { Item } from './items';
 import { TOWN_ID, type WorldKind, areAdjacent, createWorld, getNode, markCleared } from './mapgen';
 import { clearBonusGold } from './scaling';
+import { promote } from './promotion';
 
 /** `world`: the full world (the game) or the vertical-slice world (`?slice=1`, tests, slice simulation). */
 export function createGameState(seed: number, world: WorldKind = 'full'): GameState {
@@ -195,6 +196,11 @@ export function isRunWon(state: GameState): boolean {
 /** Level-3 class choice with the picked starting skills. */
 export function chooseClass(state: GameState, classId: string, picks?: string[]): void {
   assignClass(state.hero, classId, picks);
+}
+
+/** Level-13 branch choice. */
+export function choosePromotion(state: GameState, branchId: string): void {
+  promote(state.hero, branchId);
 }
 
 /** Offer for the next card choice (uses the run's card stream). */

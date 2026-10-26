@@ -61,8 +61,22 @@ export function skillFx(fx: Fx, e: GameEvent): void {
         if (e.target) fx.lineBurst(e.pos, e.target, P.chargeTrail, e.skillId === 'vault' ? C.nature : '#fff1b8');
         break;
       case 'barrage':
+      case 'rage':
         fx.ring(e.pos, 34, FX.battleCryRing.color, 0.4, 5);
-        fx.burst(e.pos, P.battleCry, FX.battleCryRing.color);
+        fx.burst(e.pos, P.battleCry, e.skillId === 'rage' ? C.blood : FX.battleCryRing.color);
+        if (e.skillId === 'rage') fx.shake(FX.shake.charge);
+        break;
+      case 'holyShield':
+        fx.ring(e.pos, 60, '#f2d16b', 0.6, 7);
+        fx.burst(e.pos, P.levelUp, '#f2d16b');
+        fx.screenFlash('#fff4c2', 0.25);
+        break;
+      case 'blizzard':
+        fx.ring(e.pos, p.radius ?? 0, C.frost, 0.5, 5);
+        break;
+      case 'callOfPack':
+        fx.ring(e.pos, 50, C.nature, 0.5, 5);
+        fx.burst(e.pos, P.battleCry, '#b08a5a');
         break;
       case 'whirlwind':
         fx.shake(FX.shake.whirlwind);
@@ -114,6 +128,26 @@ export function skillFx(fx: Fx, e: GameEvent): void {
       }
       case 'boltSplash':
         fx.ring(e.pos, e.radius, C.fire, 0.2, 3);
+        break;
+      case 'meteorBlast':
+        fx.ring(e.pos, e.radius, C.fire, 0.55, 8);
+        fx.burst(e.pos, P.eliteDeath, C.fire);
+        fx.shake(FX.shake.groundSlam);
+        fx.stop(FX.hitStop.skill);
+        break;
+      case 'holyBurst':
+        fx.ring(e.pos, e.radius, '#f2d16b', 0.45, 6);
+        fx.ringBurst(e.pos, e.radius * 0.8, P.spark, '#fff4c2');
+        break;
+      case 'shatter':
+        fx.burst(e.pos, P.frost, C.frost);
+        break;
+      case 'aegis':
+        fx.ring(e.pos, e.radius, '#f2d16b', 0.4, 4);
+        break;
+      case 'aimedShot':
+        fx.burst(e.pos, P.spark, '#fff1b8');
+        fx.shake(FX.shake.charge);
         break;
       case 'frostRing':
       case 'frostNova':

@@ -3,7 +3,7 @@
 import { ARENA } from '../../data/balance';
 import { BOOT_DASH_SPEED } from '../../data/items';
 import { getSkill, skillParams } from '../../data/skills';
-import { type Vec, normalize } from '../entities';
+import { normalize } from '../entities';
 import { startDash } from '../effects';
 import { bootDash } from '../items';
 import type { Battle } from '../battle';
@@ -13,11 +13,16 @@ import type { SkillImpl } from './types';
 import { ARCHER_SKILLS } from './archer';
 import { MAGE_SKILLS } from './mage';
 import { WARRIOR_SKILLS } from './warrior';
+import { PROMOTION_SKILLS } from './promotion';
+import { skillAim } from './common';
+
+export { skillAim };
 
 export const SKILL_IMPLS: Record<string, SkillImpl> = {
   ...WARRIOR_SKILLS,
   ...MAGE_SKILLS,
   ...ARCHER_SKILLS,
+  ...PROMOTION_SKILLS,
 };
 
 export type SkillUseResult = 'cast' | 'cooldown' | 'noTarget' | 'busy' | 'empty';
@@ -46,19 +51,6 @@ export function useSkill(b: Battle, slot: number): SkillUseResult {
   return 'cast';
 }
 
-/**
- * Where an aimed skill goes: the cursor on the arena; with the cursor over the HUD
- * (e.g. clicking a slot) — the same direction, pulled onto the arena edge.
- * The bot has no cursor: automatic targeting.
- */
-export function skillAim(b: Battle): Vec | null {
-  const c = b.input.cursor;
-  if (b.input.aim || !c) return b.input.aim;
-  return {
-    x: Math.max(ARENA.x + 1, Math.min(ARENA.x + ARENA.w - 1, c.x)),
-    y: Math.max(ARENA.y + 1, Math.min(ARENA.y + ARENA.h - 1, c.y)),
-  };
-}
 
 /** Shift: a short dash in the direction of movement from the worn boots (uncommon and better). */
 export function useBootDash(b: Battle): 'cast' | 'cooldown' | 'busy' | 'none' {

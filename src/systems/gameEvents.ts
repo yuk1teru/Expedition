@@ -36,6 +36,7 @@ export type GameEvent =
   | { type: 'skillTick'; skillId: string; pos: Vec; radius: number }
   /** A jumping effect (Chain Lightning): the hero and every target in order. */
   | { type: 'chain'; skillId: string; points: Vec[] }
+  | { type: 'allyDeath'; pos: Vec }
   /** A barrier absorbed a hit. */
   | { type: 'shieldHit'; pos: Vec; amount: number; broken: boolean }
   /** A skill could not be used: no target, or the hero is rooted. */
@@ -45,4 +46,4 @@ export type GameEvent =
   | { type: 'enemyShot'; pos: Vec }
   | { type: 'battleEnd'; won: boolean };
 
-export type HitSource = 'basic' | 'splash' | 'skill' | 'zone' | 'thorns' | 'burn';
+export type HitSource = 'basic' | 'splash' | 'skill' | 'zone' | 'thorns' | 'burn' | 'ally';

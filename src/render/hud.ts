@@ -55,6 +55,13 @@ function waveTitle(b: Battle): string {
 }
 const DRAG_THRESHOLD = 6;
 const SLOT_GAP = 14;
+/** Extra space before the signature slot (R). */
+const SIGNATURE_GAP = 8;
+
+/** Key shown on a skill-bar slot. */
+function slotKey(i: number): string {
+  return i === PROGRESSION.signatureSlot ? 'R' : String(i + 1);
+}
 
 export function createHud(app: App, _fx: Fx): Hud {
   const W = app.view.width;
@@ -80,10 +87,14 @@ export function createHud(app: App, _fx: Fx): Hud {
   });
   const skipGroup = new ButtonGroup([skipBtn]);
   const slots: Rect[] = [];
-  const n = PROGRESSION.skillSlots;
-  const total = n * SLOT + (n - 1) * SLOT_GAP;
+  // Class slots 1–4, then (a little apart) the promotion signature slot R.
+  const n = PROGRESSION.signatureSlot + 1;
+  const total = n * SLOT + (n - 1) * SLOT_GAP + SIGNATURE_GAP;
   const barY = ARENA.y + ARENA.h + XP_BAR.top + XP_BAR.h + 6;
-  for (let i = 0; i < n; i++) slots.push({ x: (W - total) / 2 + i * (SLOT + SLOT_GAP), y: barY, w: SLOT, h: SLOT });
+  for (let i = 0; i < n; i++) {
+    const extra = i >= PROGRESSION.signatureSlot ? SIGNATURE_GAP : 0;
+    slots.push({ x: (W - total) / 2 + i * (SLOT + SLOT_GAP) + extra, y: barY, w: SLOT, h: SLOT });
+  }
   const noTargetT = new Array<number>(n).fill(0);
   const noTargetText = new Array<string>(n).fill('');
   let hoverSlot = -1;
@@ -149,7 +160,7 @@ export function createHud(app: App, _fx: Fx): Hud {
       ctx.fillRect(0, 0, W, ARENA.y);
       ctx.fillRect(0, ARENA.y + ARENA.h, W, app.view.height - ARENA.y - ARENA.h);
 
-      drawText(ctx, className(hero.classId), 16, 19, { size: 15, bold: true, color: hero.classId ? THEME.text : THEME.textDim });
+      drawText(ctx, className(hero.classId, hero.promotion), 16, 19, { size: 15, bold: true, color: hero.classId ? THEME.text : THEME.textDim });
       drawText(ctx, `Атака ${Math.round(hero.stats.attack)} · ${heroAttackSpeed(hero).toFixed(2)}/с · Броня ${Math.round(hero.stats.armor)}`, 16, 39, {
         size: 12,
         color: THEME.textDim,
@@ -370,8 +381,10 @@ function drawSkillBar(ctx: CanvasRenderingContext2D, b: Battle, slots: Rect[], n
   const hero = b.hero;
   slots.forEach((r, i) => {
     const s = skillInSlot(hero, i);
+    // The signature slot appears only after the promotion.
+    if (!s && i === PROGRESSION.signatureSlot) return;
     roundRect(ctx, r.x, r.y, r.w, r.h, 10);
-    ctx.fillStyle = s ? '#232a3b' : 'rgba(35, 42, 59, 0.4)';
+    ctx.fillStyle = s ? (i === PROGRESSION.signatureSlot ? '#3a2f22' : '#232a3b') : 'rgba(35, 42, 59, 0.4)';
     ctx.fill();
     if (!s) {
       ctx.setLineDash([4, 4]);
@@ -379,7 +392,7 @@ function drawSkillBar(ctx: CanvasRenderingContext2D, b: Battle, slots: Rect[], n
       ctx.lineWidth = 1.5;
       ctx.stroke();
       ctx.setLineDash([]);
-      drawText(ctx, String(i + 1), r.x + 8, r.y + 10, { size: 11, color: THEME.textMuted });
+      drawText(ctx, slotKey(i), r.x + 8, r.y + 10, { size: 11, color: THEME.textMuted });
       return;
     }
     const def = getSkill(s.id);
@@ -411,7 +424,7 @@ function drawSkillBar(ctx: CanvasRenderingContext2D, b: Battle, slots: Rect[], n
     ctx.strokeStyle = nt > 0 ? THEME.bad : ready ? THEME.accent : THEME.panelBorder;
     ctx.stroke();
     // Key and rank dots.
-    drawText(ctx, String(i + 1), r.x + 8, r.y + 10, { size: 11, bold: true, color: THEME.textDim });
+    drawText(ctx, slotKey(i), r.x + 8, r.y + 10, { size: 11, bold: true, color: i === PROGRESSION.signatureSlot ? THEME.accent : THEME.textDim });
     drawRankDots(ctx, r.x + r.w / 2, r.y + r.h - 6, s.rank, 7, 2.5);
     if (nt > 0) {
       ctx.globalAlpha = Math.min(1, nt / (FX.noTargetFlash * 0.5));

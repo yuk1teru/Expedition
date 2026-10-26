@@ -28,6 +28,8 @@ export interface ZoneSpec {
   finale?: Blast;
   /** A wall along a–b instead of a circle (`radius` = half its thickness). */
   line?: { a: Vec; b: Vec };
+  freezeChance?: number;
+  freezeTime?: number;
   /** Tick immediately on creation. */
   tickNow?: boolean;
 }
@@ -54,6 +56,8 @@ export function addZone(b: Battle, spec: ZoneSpec): Zone {
     trigger: spec.trigger ?? 0,
     finale: spec.finale ?? null,
     line: spec.line ? { a: { ...spec.line.a }, b: { ...spec.line.b } } : null,
+    freezeChance: spec.freezeChance ?? 0,
+    freezeTime: spec.freezeTime ?? 0,
     dead: false,
   };
   b.zones.push(z);
@@ -145,6 +149,7 @@ function tickZone(b: Battle, z: Zone): void {
     if (z.stun > 0) addStatus(e, 'stun', z.stun);
     if (z.slow > 0) addStatus(e, 'slow', z.slowTime, z.slow);
     if (z.burn > 0) addStatus(e, 'burn', z.burnTime, z.burn);
+    if (z.freezeChance > 0 && !e.boss && b.rng.chance(z.freezeChance)) addStatus(e, 'freeze', z.freezeTime);
   }
   b.events.emit({ type: 'skillTick', skillId: z.kind, pos: { ...z.pos }, radius: z.radius });
 }

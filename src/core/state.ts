@@ -18,7 +18,7 @@ export interface RunStats {
   deaths: number;
 }
 
-export type ModalRequest = { kind: 'classChoice' } | { kind: 'cardChoice'; level: number };
+export type ModalRequest = { kind: 'classChoice' } | { kind: 'cardChoice'; level: number } | { kind: 'promotion' };
 
 export interface GameState {
   seed: number;

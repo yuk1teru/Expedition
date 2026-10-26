@@ -16,6 +16,7 @@ import {
   canTravel,
   chooseCard,
   chooseClass,
+  choosePromotion,
   completeBattle,
   createGameState,
   nextCardOffer,
@@ -39,6 +40,7 @@ import { createMerchantModal } from './merchant';
 import { createSkillPickModal } from './skillPick';
 import { createMapScreen } from './mapView';
 import { createCardChoiceModal, createClassChoiceModal } from './modals';
+import { createPromotionModal } from './promotionModal';
 import { THEME } from './theme';
 import { createTownScreen } from './townView';
 import { createWaveStartModal } from './waveStart';
@@ -264,6 +266,15 @@ export class App {
       return;
     }
     if (!this.state.hero.classId) return;
+    if (req.kind === 'promotion') {
+      this.screens.pushModal(
+        createPromotionModal(this, (branchId) => {
+          choosePromotion(this.state, branchId);
+          this.screens.popModal();
+        }),
+      );
+      return;
+    }
     const offer = nextCardOffer(this.state);
     if (offer.length === 0) return;
     this.screens.pushModal(

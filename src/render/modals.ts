@@ -25,7 +25,7 @@ function cardRects(viewW: number, n: number): Rect[] {
   return Array.from({ length: n }, (_, i) => ({ x: x0 + i * (CARD_W + CARD_GAP), y: CARD_Y, w: CARD_W, h: CARD_H }));
 }
 
-function dim(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+export function dim(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   ctx.fillStyle = 'rgba(5, 6, 10, 0.72)';
   ctx.fillRect(0, 0, w, h);
 }
@@ -429,7 +429,7 @@ export function createCardChoiceModal(app: App, firstOffer: Card[], level: numbe
 }
 
 /** One-line "choice in N s" bar: cards ignore input for a moment so skill keys don't pick one. */
-function drawInputDelay(ctx: CanvasRenderingContext2D, cx: number, y: number, t: number): void {
+export function drawInputDelay(ctx: CanvasRenderingContext2D, cx: number, y: number, t: number): void {
   if (t >= CARDS.inputDelay) return;
   const w = 140;
   const x = cx - w / 2 - 50;
@@ -445,7 +445,8 @@ const MINI_SLOT = 40;
 /** The hero's current skill bar under the cards, with tooltips: what each skill does now. */
 function drawCurrentSkills(ctx: CanvasRenderingContext2D, app: App): void {
   const hero = app.state.hero;
-  const n = PROGRESSION.skillSlots;
+  // The signature slot (R) shows up after the promotion.
+  const n = skillInSlot(hero, PROGRESSION.signatureSlot) ? PROGRESSION.signatureSlot + 1 : PROGRESSION.skillSlots;
   const gap = 10;
   const total = n * MINI_SLOT + (n - 1) * gap;
   const x0 = app.view.width / 2 - total / 2;

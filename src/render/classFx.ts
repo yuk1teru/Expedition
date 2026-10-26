@@ -2,7 +2,7 @@
 // enemies and the hero's barrier. Each draw function returns false for kinds it
 // does not know, so combatView falls back to its own drawing.
 
-import type { Enemy, Hero, Projectile, Zone } from '../systems/entities';
+import type { Ally, Enemy, Hero, Projectile, Zone } from '../systems/entities';
 import { heroShield } from '../systems/hero';
 
 const crit = (kind: string): boolean => kind.endsWith('Crit');
@@ -356,6 +356,147 @@ export function drawShieldBubble(ctx: CanvasRenderingContext2D, h: Hero, t: numb
     if (i === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   }
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** The hero's wolves: a lean wolf shape in the branch colour, HP bar when hurt, fading at the end. */
+export function drawAlly(ctx: CanvasRenderingContext2D, a: Ally, color: string, t: number, now: number): void {
+  const r = a.radius;
+  ctx.save();
+  ctx.translate(a.pos.x, a.pos.y);
+  if (a.life < 1) ctx.globalAlpha = Math.max(0.2, a.life);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(0, r * 0.7, r, r * 0.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.rotate(a.facing);
+  const flash = now - a.hitAt < 0.08;
+  ctx.fillStyle = flash ? '#ffffff' : color;
+  ctx.strokeStyle = a.companion ? '#f4f1e8' : 'rgba(244, 241, 232, 0.5)';
+  ctx.lineWidth = 2;
+  const bob = Math.sin(t * 14 + a.id) * 1.2;
+  ctx.beginPath();
+  ctx.moveTo(r * 1.3, bob);
+  ctx.lineTo(r * 0.2, -r * 0.75);
+  ctx.lineTo(-r * 1.1, -r * 0.45);
+  ctx.lineTo(-r * 1.4, 0);
+  ctx.lineTo(-r * 1.1, r * 0.45);
+  ctx.lineTo(r * 0.2, r * 0.75);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#1b1e27';
+  ctx.beginPath();
+  ctx.arc(r * 0.7, -r * 0.2, 1.8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  if (a.hp < a.maxHp) {
+    const w = 22;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(a.pos.x - w / 2 - 1, a.pos.y - r - 10, w + 2, 5);
+    ctx.fillStyle = '#7fbf5a';
+    ctx.fillRect(a.pos.x - w / 2, a.pos.y - r - 9, w * Math.max(0, a.hp / a.maxHp), 3);
+  }
+}
+
+/** Branch zones and projectiles: the falling meteor mark, the blizzard, ice shards, the aimed shot. */
+export function drawBranchZone(ctx: CanvasRenderingContext2D, z: Zone, t: number): boolean {
+  if (z.kind === 'meteor') {
+    // Like a boss telegraph, but orange: fills up until the impact.
+    const k = Math.min(1, z.time / Math.max(z.duration, 1e-6));
+    ctx.save();
+    ctx.translate(z.pos.x, z.pos.y);
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = '#ff7a2f';
+    ctx.beginPath();
+    ctx.arc(0, 0, z.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.45;
+    ctx.beginPath();
+    ctx.arc(0, 0, z.radius * k, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = '#ffb347';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, z.radius, 0, Math.PI * 2);
+    ctx.stroke();
+    // The rock coming down.
+    const h = (1 - k) * 160;
+    ctx.fillStyle = '#5a3a2a';
+    ctx.beginPath();
+    ctx.arc(h * 0.4, -h, 10 + 6 * k, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return true;
+  }
+  if (z.kind === 'blizzard') {
+    ctx.save();
+    ctx.translate(z.pos.x, z.pos.y);
+    ctx.globalAlpha = 0.16;
+    ctx.fillStyle = '#d8f0ff';
+    ctx.beginPath();
+    ctx.arc(0, 0, z.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < 26; i++) {
+      const a = i * 2.39996 + t * (1.2 + (i % 3) * 0.4);
+      const rr = z.radius * (0.15 + 0.85 * ((i * 0.618) % 1));
+      ctx.fillRect(Math.cos(a) * rr - 1.5, Math.sin(a) * rr - 1.5, 3, 3);
+    }
+    ctx.restore();
+    return true;
+  }
+  return false;
+}
+
+export function drawBranchProjectile(ctx: CanvasRenderingContext2D, p: Projectile): boolean {
+  const kind = p.kind.replace(/Crit$/, '');
+  if (kind !== 'shard' && kind !== 'aimedShot') return false;
+  const a = Math.atan2(p.vel.y, p.vel.x);
+  ctx.save();
+  ctx.translate(p.pos.x, p.pos.y);
+  ctx.rotate(a);
+  if (kind === 'shard') {
+    ctx.fillStyle = '#d8f0ff';
+    ctx.beginPath();
+    ctx.moveTo(8, 0);
+    ctx.lineTo(-4, -3);
+    ctx.lineTo(-4, 3);
+    ctx.closePath();
+    ctx.fill();
+  } else {
+    ctx.globalAlpha = 0.4;
+    ctx.strokeStyle = '#fff1b8';
+    ctx.lineWidth = 12;
+    ctx.beginPath();
+    ctx.moveTo(-60, 0);
+    ctx.lineTo(0, 0);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = crit(p.kind) ? '#ffe066' : '#ffffff';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(-34, 0);
+    ctx.lineTo(10, 0);
+    ctx.stroke();
+  }
+  ctx.restore();
+  return true;
+}
+
+/** Aimed Shot being channelled: a thin laser from the hero towards the cursor. */
+export function drawAimLine(ctx: CanvasRenderingContext2D, from: { x: number; y: number }, to: { x: number; y: number }, k: number): void {
+  const a = Math.atan2(to.y - from.y, to.x - from.x);
+  ctx.save();
+  ctx.strokeStyle = `rgba(255, 90, 80, ${0.35 + 0.5 * k})`;
+  ctx.lineWidth = 1 + 2 * k;
+  ctx.setLineDash([8, 6]);
+  ctx.beginPath();
+  ctx.moveTo(from.x, from.y);
+  ctx.lineTo(from.x + Math.cos(a) * 1200, from.y + Math.sin(a) * 1200);
   ctx.stroke();
   ctx.restore();
 }

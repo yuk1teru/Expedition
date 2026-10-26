@@ -226,6 +226,82 @@ export function drawClassSkillIcon(ctx: CanvasRenderingContext2D, icon: SkillIco
         ctx.fill();
       }
       return true;
+    case 'rage':
+      // Snarling fang shape.
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.8, -r * 0.5);
+      ctx.lineTo(-r * 0.3, r * 0.7);
+      ctx.lineTo(0, -r * 0.1);
+      ctx.lineTo(r * 0.3, r * 0.7);
+      ctx.lineTo(r * 0.8, -r * 0.5);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, -r * 0.55, r * 0.22, 0, Math.PI * 2);
+      ctx.fill();
+      return true;
+    case 'holy':
+      ctx.beginPath();
+      ctx.moveTo(0, -r * 0.85);
+      ctx.lineTo(r * 0.7, -r * 0.5);
+      ctx.quadraticCurveTo(r * 0.6, r * 0.45, 0, r * 0.85);
+      ctx.quadraticCurveTo(-r * 0.6, r * 0.45, -r * 0.7, -r * 0.5);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.fillRect(-r * 0.08, -r * 0.5, r * 0.16, r * 0.95);
+      ctx.fillRect(-r * 0.35, -r * 0.2, r * 0.7, r * 0.16);
+      return true;
+    case 'meteor':
+      ctx.beginPath();
+      ctx.arc(r * 0.3, r * 0.3, r * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(r * (0.05 - i * 0.12), r * (0.05 + i * 0.12) - r * 0.2);
+        ctx.lineTo(-r * (0.85 - i * 0.1), -r * (0.85 - i * 0.25));
+        ctx.stroke();
+      }
+      return true;
+    case 'blizzard':
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.arc(0, 0, r * (0.3 + i * 0.25), i * 1.3, i * 1.3 + 2.6);
+        ctx.stroke();
+      }
+      for (let i = 0; i < 5; i++) {
+        const a = i * 1.25;
+        ctx.fillRect(Math.cos(a) * r * 0.75 - 2, Math.sin(a) * r * 0.75 - 2, 4, 4);
+      }
+      return true;
+    case 'scope':
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.65, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.9, 0);
+      ctx.lineTo(-r * 0.2, 0);
+      ctx.moveTo(r * 0.2, 0);
+      ctx.lineTo(r * 0.9, 0);
+      ctx.moveTo(0, -r * 0.9);
+      ctx.lineTo(0, -r * 0.2);
+      ctx.moveTo(0, r * 0.2);
+      ctx.lineTo(0, r * 0.9);
+      ctx.stroke();
+      return true;
+    case 'pack':
+      // Three wolf heads.
+      for (const [dx, dy, s] of [[-0.45, 0.25, 0.8], [0.45, 0.25, 0.8], [0, -0.25, 1]] as const) {
+        ctx.beginPath();
+        ctx.moveTo(r * (dx - 0.3 * s), r * (dy + 0.25 * s));
+        ctx.lineTo(r * (dx - 0.3 * s), r * (dy - 0.3 * s));
+        ctx.lineTo(r * (dx - 0.1 * s), r * (dy - 0.1 * s));
+        ctx.lineTo(r * (dx + 0.1 * s), r * (dy - 0.1 * s));
+        ctx.lineTo(r * (dx + 0.3 * s), r * (dy - 0.3 * s));
+        ctx.lineTo(r * (dx + 0.3 * s), r * (dy + 0.25 * s));
+        ctx.lineTo(r * dx, r * (dy + 0.45 * s));
+        ctx.closePath();
+        ctx.fill();
+      }
+      return true;
     default:
       return false;
   }
@@ -286,6 +362,17 @@ export function drawClassPassiveIcon(ctx: CanvasRenderingContext2D, stat: string
         ctx.lineTo(r * (dx + 0.25), 0);
         ctx.lineTo(r * (dx - 0.25), r * 0.6);
         ctx.stroke();
+      }
+      return true;
+    case 'petDamagePct':
+      // Paw print.
+      ctx.beginPath();
+      ctx.ellipse(0, r * 0.3, r * 0.4, r * 0.32, 0, 0, Math.PI * 2);
+      ctx.fill();
+      for (const [x, y] of [[-0.5, -0.2], [-0.18, -0.5], [0.18, -0.5], [0.5, -0.2]] as const) {
+        ctx.beginPath();
+        ctx.arc(r * x, r * y, r * 0.15, 0, Math.PI * 2);
+        ctx.fill();
       }
       return true;
     case 'pierce':

@@ -2,6 +2,7 @@
 
 import { HERO, PROGRESSION } from '../data/balance';
 import { type BasicAttackDef, NOVICE_ATTACK, getClass } from '../data/classes';
+import { getPromotion } from '../data/promotions';
 import { getPassive } from '../data/skills';
 import type { Hero, HeroSkill, HeroStats } from './entities';
 import { equippedStat } from './items';
@@ -40,6 +41,9 @@ export function createHero(id: number): Hero {
     healCooldown: 0,
     dodgeCooldown: 0,
     pendingBuffs: [],
+    promotion: null,
+    promoTimer: 0,
+    companionTimer: 0,
   };
   recomputeHeroStats(hero);
   hero.hp = hero.maxHp;
@@ -64,6 +68,7 @@ function baseStats(level: number): HeroStats {
     cooldownMult: 1,
     killCdr: 0,
     pierce: 0,
+    petDamageMult: 1,
   };
 }
 
@@ -135,6 +140,16 @@ export function recomputeHeroStats(hero: Hero): void {
       case 'pierce':
         s.pierce += v;
         break;
+      case 'petDamagePct':
+        s.petDamageMult *= 1 + v;
+        break;
+    }
+  }
+  if (hero.promotion) {
+    const fx = getPromotion(hero.promotion).effect;
+    if (fx.kind === 'marksman') {
+      s.critChance += fx.crit;
+      s.pierce += fx.pierce;
     }
   }
   // Equipment.
@@ -151,11 +166,22 @@ export function recomputeHeroStats(hero: Hero): void {
   hero.hp = Math.min(hero.hp, hero.maxHp);
 }
 
-/** Attack including temporary damage buffs. */
+/** Attack including temporary damage buffs and the Berserker's missing-HP bonus. */
 export function heroAttack(hero: Hero): number {
   let a = hero.stats.attack;
   for (const b of hero.buffs) a *= b.damageMult ?? 1;
+  if (hero.promotion) {
+    const fx = getPromotion(hero.promotion).effect;
+    if (fx.kind === 'berserk') a *= 1 + Math.min(fx.maxBonus, Math.max(0, 1 - hero.hp / hero.maxHp));
+  }
   return a;
+}
+
+/** Lifesteal including temporary buffs (Rage). */
+export function heroLifesteal(hero: Hero): number {
+  let l = hero.stats.lifesteal;
+  for (const b of hero.buffs) l += b.lifesteal ?? 0;
+  return l;
 }
 
 /** Move speed including temporary buffs (statuses like slow are applied by the AI). */
@@ -194,9 +220,9 @@ export function firstFreeSlot(hero: Hero): number {
   return -1;
 }
 
-/** Moves a skill to another slot; swaps if that slot is occupied. */
+/** Moves a skill to another slot; swaps if that slot is occupied. The signature slot (R) stays put. */
 export function moveSkill(hero: Hero, from: number, to: number): void {
-  if (from === to || to < 0 || to >= PROGRESSION.skillSlots) return;
+  if (from === to || to < 0 || to >= PROGRESSION.skillSlots || from >= PROGRESSION.skillSlots) return;
   const a = skillInSlot(hero, from);
   if (!a) return;
   const b = skillInSlot(hero, to);

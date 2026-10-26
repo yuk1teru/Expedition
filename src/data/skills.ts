@@ -39,7 +39,13 @@ export type SkillIcon =
   | 'pierce'
   | 'mark'
   | 'net'
-  | 'barrage';
+  | 'barrage'
+  | 'rage'
+  | 'holy'
+  | 'meteor'
+  | 'blizzard'
+  | 'scope'
+  | 'pack';
 
 export interface SkillUpgrade {
   /** New absolute parameter values from this rank on. */
@@ -480,6 +486,106 @@ export const SKILLS: Record<string, SkillDef> = {
       { set: { damageBonus: 0.3 }, text: 'Під час шквалу атаки на 30% сильніші.' },
     ],
   }),
+
+  // ---- Promotion signature skills (slot R) ----
+  rage: skill({
+    id: 'rage',
+    name: 'Лють',
+    classId: 'warrior',
+    branch: 'berserker',
+    targeting: 'any',
+    icon: 'rage',
+    description: 'На {duration} с: +{attackSpeed%} швидкості атаки і {lifesteal%} вампіризму.',
+    base: { cooldown: 20, duration: 6, attackSpeed: 0.5, lifesteal: 0.15, guard: 0, ccImmune: 0 },
+    upgrades: [
+      { set: { duration: 7 } },
+      { set: { guard: 0.3 }, text: 'Під час люті −30% отриманої шкоди.' },
+      { set: { attackSpeed: 0.7, cooldown: 18 } },
+      { set: { ccImmune: 1 }, text: 'Під час люті — несприйнятливість до оглушень, сповільнень і пасток.' },
+    ],
+  }),
+  holyShield: skill({
+    id: 'holyShield',
+    name: 'Священний щит',
+    classId: 'warrior',
+    branch: 'paladin',
+    targeting: 'any',
+    icon: 'holy',
+    description: '{duration} с невразливості й лікування на {heal%} макс. HP героя.',
+    base: { cooldown: 25, duration: 3, heal: 0.25, burst: 0, burstDamage: 1.5, burstRadius: 120, afterShield: 0, afterShieldTime: 5 },
+    upgrades: [
+      { set: { heal: 0.3 } },
+      { set: { burst: 1 }, text: 'Спалах світла: 150% атаки героя ворогам у радіусі 120 px і відкидання.' },
+      { set: { duration: 4, cooldown: 22 } },
+      { set: { afterShield: 0.2 }, text: 'Після невразливості 5 с діє бар’єр на 20% макс. HP.' },
+    ],
+  }),
+  meteor: skill({
+    id: 'meteor',
+    name: 'Метеор',
+    classId: 'mage',
+    branch: 'pyromancer',
+    targeting: 'densest',
+    aimable: true,
+    icon: 'meteor',
+    description: 'Метеор падає в точку курсора (до {range} px) через {delay} с: {damage%} атаки героя всім у радіусі {radius} px.',
+    base: { cooldown: 18, range: 420, delay: 1, radius: 140, damage: 6, ground: 0, groundTime: 4, groundDamage: 0.4, extra: 0 },
+    upgrades: [
+      { set: { damage: 7 } },
+      { set: { ground: 1 }, text: 'Залишає палаюче коло на 4 с.' },
+      { set: { radius: 170, cooldown: 16 } },
+      { set: { extra: 2 }, text: 'Ще 2 менші метеори поруч.' },
+    ],
+  }),
+  blizzard: skill({
+    id: 'blizzard',
+    name: 'Хуртовина',
+    classId: 'mage',
+    branch: 'cryomancer',
+    targeting: 'self',
+    icon: 'blizzard',
+    description: 'Хуртовина навколо героя на {duration} с (радіус {radius} px): сповільнення ворогів на {slow%} і {damage%} атаки героя кожні 0.5 с.',
+    base: { cooldown: 16, duration: 4, radius: 160, castRange: 200, slow: 0.5, damage: 0.3, tick: 0.5, freezeChance: 0 },
+    upgrades: [
+      { set: { damage: 0.4 } },
+      { set: { radius: 200, castRange: 240 }, text: 'Ширша хуртовина.' },
+      { set: { duration: 6, cooldown: 14 } },
+      { set: { freezeChance: 0.2 }, text: 'Кожен порив з шансом 20% заморожує ворога на 1 с.' },
+    ],
+  }),
+  aimedShot: skill({
+    id: 'aimedShot',
+    name: 'Прицільний постріл',
+    classId: 'archer',
+    branch: 'sniper',
+    targeting: 'cone',
+    aimable: true,
+    icon: 'scope',
+    description: 'Наведення {aim} с, потім постріл у бік курсора через усю арену: {damage%} атаки героя кожному на лінії.',
+    base: { cooldown: 14, aim: 1, damage: 5, speed: 1600, range: 1000, vuln: 0, vulnTime: 4, extra: 0, spreadDeg: 8 },
+    upgrades: [
+      { set: { damage: 6 } },
+      { set: { vuln: 0.25 }, text: 'Влучені вороги 4 с отримують +25% шкоди.' },
+      { set: { aim: 0.6, cooldown: 12 } },
+      { set: { extra: 2 }, text: 'Ще 2 постріли віялом.' },
+    ],
+  }),
+  callOfPack: skill({
+    id: 'callOfPack',
+    name: 'Поклик зграї',
+    classId: 'archer',
+    branch: 'beastmaster',
+    targeting: 'any',
+    icon: 'pack',
+    description: 'Кличе {count} вовків на {duration} с: кожен б’є на {wolfDamage%} атаки героя.',
+    base: { cooldown: 20, count: 3, duration: 8, wolfDamage: 0.4, stun: 0 },
+    upgrades: [
+      { set: { duration: 10 } },
+      { set: { count: 4 }, text: 'Четвертий вовк.' },
+      { set: { cooldown: 17, wolfDamage: 0.5 } },
+      { set: { stun: 0.5 }, text: 'Укус вовків зграї оглушує на 0.5 с.' },
+    ],
+  }),
 };
 
 /** How numeric parameter changes are shown in rank descriptions (others are hidden). */
@@ -505,6 +611,10 @@ const PARAM_INFO: Record<string, { label: string; unit: 'pct' | 's' | 'px' | 'de
   length: { label: 'довжина', unit: 'px' },
   max: { label: 'пасток одночасно', unit: 'n' },
   vuln: { label: 'додаткова шкода по цілі', unit: 'pct' },
+  lifesteal: { label: 'вампіризм', unit: 'pct' },
+  delay: { label: 'затримка', unit: 's' },
+  aim: { label: 'наведення', unit: 's' },
+  wolfDamage: { label: 'шкода вовка (% атаки героя)', unit: 'pct' },
 };
 
 export interface PassiveDef {
@@ -515,7 +625,7 @@ export interface PassiveDef {
   maxStacks: number;
   /** {value} placeholder = per-stack value. */
   description: string;
-  stat: 'armor' | 'lifesteal' | 'thorns' | 'critChance' | 'attackSpeedPct' | 'hpPct' | 'skillDamagePct' | 'cooldownPct' | 'killCdr' | 'pierce';
+  stat: 'armor' | 'lifesteal' | 'thorns' | 'critChance' | 'attackSpeedPct' | 'hpPct' | 'skillDamagePct' | 'cooldownPct' | 'killCdr' | 'pierce' | 'petDamagePct';
   /** Per stack. */
   value: number;
   /** How to print the value: plain number, percent or seconds. */
@@ -603,6 +713,19 @@ export const PASSIVES: Record<string, PassiveDef> = {
     value: 0.08,
     format: 'percent',
   },
+  // ---- Promotion passives ----
+  bloodlust: { id: 'bloodlust', name: 'Кровожерливість', classId: 'warrior', branch: 'berserker', maxStacks: 5, description: '+{value} вампіризму.', stat: 'lifesteal', value: 0.03, format: 'percent' },
+  unstoppable: { id: 'unstoppable', name: 'Нестримність', classId: 'warrior', branch: 'berserker', maxStacks: 5, description: '+{value} швидкості атаки.', stat: 'attackSpeedPct', value: 0.06, format: 'percent' },
+  blessing: { id: 'blessing', name: 'Благословення', classId: 'warrior', branch: 'paladin', maxStacks: 5, description: '+{value} макс. HP героя.', stat: 'hpPct', value: 0.08, format: 'percent' },
+  sacredArmor: { id: 'sacredArmor', name: 'Освячена броня', classId: 'warrior', branch: 'paladin', maxStacks: 5, description: '+{value} броні.', stat: 'armor', value: 5, format: 'flat' },
+  embers: { id: 'embers', name: 'Жар', classId: 'mage', branch: 'pyromancer', maxStacks: 5, description: 'Скіли героя б’ють на {value} сильніше.', stat: 'skillDamagePct', value: 0.08, format: 'percent' },
+  ashes: { id: 'ashes', name: 'Попіл', classId: 'mage', branch: 'pyromancer', maxStacks: 5, description: 'Перезарядка всіх скілів коротша на {value}.', stat: 'cooldownPct', value: 0.05, format: 'percent' },
+  coldHeart: { id: 'coldHeart', name: 'Холодне серце', classId: 'mage', branch: 'cryomancer', maxStacks: 5, description: '+{value} макс. HP героя.', stat: 'hpPct', value: 0.08, format: 'percent' },
+  rime: { id: 'rime', name: 'Іній', classId: 'mage', branch: 'cryomancer', maxStacks: 5, description: 'Перезарядка всіх скілів коротша на {value}.', stat: 'cooldownPct', value: 0.05, format: 'percent' },
+  hawkEye: { id: 'hawkEye', name: 'Око яструба', classId: 'archer', branch: 'sniper', maxStacks: 5, description: '+{value} шансу критичного удару.', stat: 'critChance', value: 0.03, format: 'percent' },
+  steadyHand: { id: 'steadyHand', name: 'Тверда рука', classId: 'archer', branch: 'sniper', maxStacks: 5, description: '+{value} швидкості атаки.', stat: 'attackSpeedPct', value: 0.06, format: 'percent' },
+  packLeader: { id: 'packLeader', name: 'Вожак', classId: 'archer', branch: 'beastmaster', maxStacks: 5, description: 'Вовки б’ють на {value} сильніше.', stat: 'petDamagePct', value: 0.15, format: 'percent' },
+  instinct: { id: 'instinct', name: 'Мисливський інстинкт', classId: 'archer', branch: 'beastmaster', maxStacks: 5, description: '+{value} швидкості атаки.', stat: 'attackSpeedPct', value: 0.06, format: 'percent' },
   piercing: {
     id: 'piercing',
     name: 'Пробиття',

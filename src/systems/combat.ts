@@ -9,7 +9,8 @@ import type { HitSource } from './gameEvents';
 import { getBoss } from '../data/bosses';
 import { LOOT } from '../data/items';
 import { displayName, dropItemLevel, itemLevelRange, rollItem, rollRarity, stashLoot } from './items';
-import { heroAttack, heroRegen } from './hero';
+import { heroAttack, heroLifesteal, heroRegen } from './hero';
+import { getPromotion } from '../data/promotions';
 import { gainXp } from './leveling';
 import { applyArmor, xpReward } from './scaling';
 
@@ -40,14 +41,15 @@ export interface HitOptions {
 export function damageEnemy(b: Battle, e: Enemy, roll: Roll, opts: HitOptions): number {
   if (e.dead) return 0;
   const vuln = e.statuses.vuln;
-  const amount = applyArmor(roll.amount, e.armor) * (vuln && vuln.time > 0 ? 1 + vuln.value : 1);
+  const amount = applyArmor(roll.amount, e.armor) * (vuln && vuln.time > 0 ? 1 + vuln.value : 1) * frozenBonus(b.hero, e);
   e.hp -= amount;
   e.hitAt = b.time;
   b.stats.damageDealt += amount;
   const hero = b.hero;
-  if (hero.stats.lifesteal > 0 && opts.source !== 'thorns') {
+  const lifesteal = heroLifesteal(hero);
+  if (lifesteal > 0 && opts.source !== 'thorns' && opts.source !== 'ally') {
     // Every damage source heals, skills included; the numbers are summed for display.
-    healHero(b, amount * hero.stats.lifesteal, 'aggregate');
+    healHero(b, amount * lifesteal, 'aggregate');
   }
   if (opts.knockFrom && opts.knockback) knock(e, opts.knockFrom, opts.knockback);
   b.events.emit({
@@ -87,6 +89,42 @@ export function killEnemy(b: Battle, e: Enemy): void {
     gainXp(b.state, xp);
   }
   if (e.boss) dropLoot(b, e);
+  if (hasStatus(e, 'freeze')) shatter(b, e);
+}
+
+/** Cryomancer: frozen enemies take more damage. */
+function frozenBonus(hero: Hero, e: Enemy): number {
+  if (!hero.promotion || !hasStatus(e, 'freeze')) return 1;
+  const fx = getPromotion(hero.promotion).effect;
+  return fx.kind === 'shatter' ? 1 + fx.frozenBonus : 1;
+}
+
+/** Cryomancer: an enemy dying frozen bursts into ice shards flying outwards. */
+function shatter(b: Battle, e: Enemy): void {
+  const hero = b.hero;
+  if (!hero.promotion) return;
+  const fx = getPromotion(hero.promotion).effect;
+  if (fx.kind !== 'shatter') return;
+  for (let i = 0; i < fx.shards; i++) {
+    const a = (i / fx.shards) * Math.PI * 2;
+    b.projectiles.push({
+      id: b.nextId++,
+      pos: { ...e.pos },
+      vel: { x: Math.cos(a) * fx.shardSpeed, y: Math.sin(a) * fx.shardSpeed },
+      radius: 5,
+      damage: heroAttack(hero) * fx.shardDamage * hero.stats.skillDamageMult,
+      team: 'hero',
+      life: fx.shardRange / fx.shardSpeed,
+      pierce: 0,
+      ricochet: 0,
+      hit: [e.id],
+      kind: 'shard',
+      melee: false,
+      source: 'skill',
+      dead: false,
+    });
+  }
+  b.events.emit({ type: 'skillTick', skillId: 'shatter', pos: { ...e.pos }, radius: e.radius + 20 });
 }
 
 /**

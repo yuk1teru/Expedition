@@ -5,7 +5,9 @@ import { type EnemyDef, getEnemyDef } from '../data/enemies';
 import type { Battle } from './battle';
 import { addTelegraph } from './boss';
 import { damageEnemy, damageHero, debuffHero, hasStatus, heroDamage, isDisabled, speedMult } from './combat';
-import type { Enemy, Hero, Projectile, Vec } from './entities';
+import type { Ally, Enemy, Hero, Projectile, Vec } from './entities';
+import { damageAlly } from './allies';
+import { igniteFor } from './promotion';
 import { angleOf, dist, normalize } from './entities';
 import { basicAttackOf, heroMoveSpeed } from './hero';
 import { coneTargets, nearestEnemy } from './targeting';
@@ -155,6 +157,8 @@ function shootAlong(b: Battle, hero: Hero, angle: number): void {
   const dir = { x: Math.cos(angle), y: Math.sin(angle) };
   const roll = heroDamage(b, 1, 'basic');
   const kind = def?.projectile ?? 'hero';
+  // Pyromancer: the bolt sets the target and the splash on fire.
+  const burn = kind === 'bolt' ? igniteFor(hero, 'bolt') : {};
   let pierceBonus = 0;
   for (const buff of hero.buffs) pierceBonus += buff.pierceBonus ?? 0;
   spawnProjectile(b, {
@@ -171,8 +175,9 @@ function shootAlong(b: Battle, hero: Hero, angle: number): void {
     melee: false,
     explode:
       def && def.splash > 0
-        ? { kind: 'boltSplash', radius: def.splashRadius, damage: roll.amount * def.splash, excludeHit: true }
+        ? { kind: 'boltSplash', radius: def.splashRadius, damage: roll.amount * def.splash, excludeHit: true, ...burn }
         : undefined,
+    onHit: burn.burn ? { id: 'burn', time: burn.burnTime ?? 0, value: burn.burn } : undefined,
   });
 }
 
@@ -232,7 +237,18 @@ export function updateEnemyAI(b: Battle, e: Enemy, dt: number): void {
     }
   }
 
-  // chaser / tank / fast / taunted shooter: close in and hit.
+  // chaser / tank / fast / taunted shooter: close in and hit — the hero or a wolf, whichever is nearer.
+  const wolf = nearestAllyTarget(b, e, d);
+  if (wolf) {
+    const wolfReach = e.radius + wolf.radius + ENEMY_COMMON.meleeReach;
+    e.facing = angleOf({ x: wolf.pos.x - e.pos.x, y: wolf.pos.y - e.pos.y });
+    if (dist(e.pos, wolf.pos) > wolfReach) moveTowards(e, wolf.pos, speed);
+    else if (e.attackTimer <= 0) {
+      e.attackTimer = def.attackInterval;
+      damageAlly(b, wolf, e.damage);
+    }
+    return;
+  }
   if (def.stomp) {
     // Tanks stomp around themselves: start when the hero is in reach of the stomp circle.
     const stompR = e.radius + def.stomp.reach;
@@ -250,6 +266,22 @@ export function updateEnemyAI(b: Battle, e: Enemy, dt: number): void {
   } else {
     tryMelee(b, e, def);
   }
+}
+
+/** A wolf closer to this enemy than the hero (taunted enemies only see the hero). */
+function nearestAllyTarget(b: Battle, e: Enemy, heroDist: number): Ally | null {
+  if (b.allies.length === 0 || hasStatus(e, 'taunt')) return null;
+  let best: Ally | null = null;
+  let bestD = heroDist;
+  for (const a of b.allies) {
+    if (a.dead) continue;
+    const d = dist(e.pos, a.pos);
+    if (d < bestD) {
+      bestD = d;
+      best = a;
+    }
+  }
+  return best;
 }
 
 function tryMelee(b: Battle, e: Enemy, def: EnemyDef): void {

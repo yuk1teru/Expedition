@@ -2,6 +2,7 @@
 
 import { CARDS, PROGRESSION, RANKS } from '../data/balance';
 import { getClass } from '../data/classes';
+import { getPromotion } from '../data/promotions';
 import { getPassive } from '../data/skills';
 import type { Rng } from '../core/rng';
 import type { Hero, HeroBuff } from './entities';
@@ -18,11 +19,21 @@ function cardKey(c: Card): string {
   return c.kind === 'passive' ? `passive:${c.passiveId}` : `${c.kind}:${c.skillId}`;
 }
 
-/** Skill and passive ids the hero can draw from (class pool; branches extend it later). */
+/** Skill and passive ids the hero can draw from: the class pool, plus the branch after the promotion. */
 export function cardPool(hero: Hero): { skills: string[]; passives: string[] } {
   if (!hero.classId) return { skills: [], passives: [] };
   const c = getClass(hero.classId);
-  return { skills: c.skills, passives: c.passives };
+  if (!hero.promotion) return { skills: c.skills, passives: c.passives };
+  const p = getPromotion(hero.promotion);
+  return { skills: [...c.skills, p.signature], passives: [...c.passives, ...p.passives] };
+}
+
+/** Branch cards weigh more after the promotion (PROGRESSION.branchCardWeight). */
+function cardWeight(hero: Hero, c: Card): number {
+  if (!hero.promotion) return 1;
+  const p = getPromotion(hero.promotion);
+  const branch = c.kind === 'passive' ? p.passives.includes(c.passiveId) : c.skillId === p.signature;
+  return branch ? PROGRESSION.branchCardWeight : 1;
 }
 
 /** All valid cards for the hero right now, grouped by kind. */
@@ -60,8 +71,11 @@ export function offerCards(hero: Hero, rng: Rng, size: number = CARDS.offerSize)
   const offer: Card[] = [];
   const taken = new Set<string>();
   const take = (kind: CardKind): void => {
-    const card = remaining[kind].shift();
-    if (card && !taken.has(cardKey(card))) {
+    const list = remaining[kind];
+    if (list.length === 0) return;
+    const card = rng.weighted(list.map((c) => ({ item: c, weight: cardWeight(hero, c) })));
+    list.splice(list.indexOf(card), 1);
+    if (!taken.has(cardKey(card))) {
       taken.add(cardKey(card));
       offer.push(card);
     }

@@ -11,7 +11,9 @@ import './bosses';
 import { type Pickup, updatePickups } from './pickups';
 import { clampToArena, insideArena, separateBodies } from './collision';
 import { addStatus, damageEnemy, damageHero, debuffHero, decayKnockback, killEnemy, updateHeroHealing, updateStatuses } from './combat';
-import type { Body, Enemy, Hero, Projectile, Telegraph, Vec, Zone } from './entities';
+import type { Ally, Body, Enemy, Hero, HeroCharge, Projectile, Telegraph, Vec, Zone } from './entities';
+import { updateAllies } from './allies';
+import { startPromotionEffects, updatePromotion } from './promotion';
 import { dist, normalize } from './entities';
 import { nearestEnemy } from './targeting';
 import { blast, updateBuffs, updateDash, updateZones } from './effects';
@@ -65,6 +67,10 @@ export interface Battle {
   nextId: number;
   hero: Hero;
   enemies: Enemy[];
+  /** The hero's wolves (Beastmaster). */
+  allies: Ally[];
+  /** Skills being channelled by the hero (Aimed Shot). */
+  charges: HeroCharge[];
   projectiles: Projectile[];
   zones: Zone[];
   telegraphs: Telegraph[];
@@ -111,6 +117,8 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0): B
     nextId: 1,
     hero,
     enemies: [],
+    allies: [],
+    charges: [],
     projectiles: [],
     zones: [],
     telegraphs: [],
@@ -129,6 +137,7 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0): B
     finished: false,
   };
   if (b.kind === 'boss') setupBossBattle(b);
+  startPromotionEffects(b);
   return b;
 }
 
@@ -168,6 +177,9 @@ export function stepBattle(b: Battle, dt: number): void {
   hero.dodgeCooldown = Math.max(0, hero.dodgeCooldown - dt);
   updateDash(hero, dt);
   updateHeroAI(b, dt);
+  updatePromotion(b, dt);
+  updateCharges(b, dt);
+  updateAllies(b, dt);
 
   // Spawning and boss logic.
   updateWaves(b, dt);
@@ -187,6 +199,7 @@ export function stepBattle(b: Battle, dt: number): void {
     if (e.yank) yankStep(e, dt);
     else integrate(e, dt, false);
   }
+  for (const a of b.allies) if (!a.dead) integrate(a, dt, false);
 
   updateZones(b, dt);
   updateTelegraphs(b, dt);
@@ -196,7 +209,7 @@ export function stepBattle(b: Battle, dt: number): void {
   updateProjectiles(b, dt);
 
   // Collisions.
-  const bodies: Body[] = [hero, ...b.enemies.filter((e) => !e.dead)];
+  const bodies: Body[] = [hero, ...b.allies.filter((a) => !a.dead), ...b.enemies.filter((e) => !e.dead)];
   if (!hero.dash) separateBodies(bodies);
   else separateBodies(bodies.slice(1));
   for (const body of bodies) clampToArena(body);
@@ -305,8 +318,18 @@ function ricochet(b: Battle, p: Projectile): boolean {
   return true;
 }
 
+/** Channelled hero skills fire when their time is up (cancelled if the hero dies). */
+function updateCharges(b: Battle, dt: number): void {
+  if (b.charges.length === 0) return;
+  for (const c of b.charges) c.time += dt;
+  const ready = b.charges.filter((c) => c.time >= c.delay);
+  b.charges = b.hero.dead ? [] : b.charges.filter((c) => c.time < c.delay);
+  for (const c of ready) c.onFire();
+}
+
 function cleanup(b: Battle): void {
   if (b.enemies.some((e) => e.dead)) b.enemies = b.enemies.filter((e) => !e.dead);
+  if (b.allies.some((a) => a.dead)) b.allies = b.allies.filter((a) => !a.dead);
   if (b.projectiles.some((p) => p.dead)) b.projectiles = b.projectiles.filter((p) => !p.dead);
   if (b.zones.some((z) => z.dead)) b.zones = b.zones.filter((z) => !z.dead);
   if (b.telegraphs.some((t) => t.dead)) b.telegraphs = b.telegraphs.filter((t) => !t.dead);
@@ -330,6 +353,7 @@ function finish(b: Battle, outcome: BattleOutcome, delay: number): void {
   b.endTimer = delay;
   b.zones = [];
   b.telegraphs = [];
+  b.charges = [];
   b.events.emit({ type: 'battleEnd', won: outcome === 'won' });
 }
 

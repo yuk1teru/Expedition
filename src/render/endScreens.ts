@@ -234,7 +234,7 @@ function createRunSummaryScreen(app: App, victory: boolean): Screen<CanvasRender
       const items: [string, string][] = [
         ['Днів', String(st.day)],
         ['Рівень', String(hero.level)],
-        ['Клас', className(hero.classId)],
+        ['Клас', className(hero.classId, hero.promotion)],
         ['Вбито ворогів', String(st.stats.kills)],
         ['Нанесено шкоди', String(Math.round(st.stats.damageDealt))],
         ['Переможено босів', `${st.bossesDefeated.length}/${app.totalBosses()}`],

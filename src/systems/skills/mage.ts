@@ -6,6 +6,7 @@ import { addStatus, damageEnemy, heroDamage } from '../combat';
 import { addBuff, addZone, blast, teleport as teleportHero } from '../effects';
 import { type Enemy, type Vec, dist } from '../entities';
 import { nearestEnemy, safestDirection } from '../targeting';
+import { igniteFor } from '../promotion';
 import { areaPoint, clampToArenaPoint, pointWithin, skillAmount, targetNearAim } from './common';
 import type { SkillImpl } from './types';
 
@@ -34,6 +35,7 @@ const fireball: SkillImpl = ({ b, hero, p, def, rank, aim }) => {
       damage: skillAmount(hero, p.damage!),
       stun: p.stun!,
       knockback: p.knockback!,
+      ...igniteFor(hero, def.id),
       zone:
         p.ground! > 0
           ? { kind: 'burnGround', radius: p.radius! * 0.8, duration: p.groundTime!, tickInterval: p.groundTick!, damage: skillAmount(hero, p.groundDamage!) }
@@ -161,8 +163,9 @@ const flameWall: SkillImpl = ({ b, hero, p, def, rank, aim }) => {
     duration: p.duration!,
     tickInterval: p.tick!,
     damage: skillAmount(hero, p.damage!),
-    burn: p.burn! > 0 ? skillAmount(hero, p.burnDps!) : 0,
-    burnTime: p.burnTime!,
+    // Pyromancer: the wall always burns.
+    burn: p.burn! > 0 ? skillAmount(hero, p.burnDps!) : (igniteFor(hero, def.id).burn ?? 0),
+    burnTime: p.burn! > 0 ? p.burnTime! : (igniteFor(hero, def.id).burnTime ?? 0),
     slow: p.slow!,
     slowTime: p.slow! > 0 ? p.tick! + 0.1 : 0,
     tickNow: true,

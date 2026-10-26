@@ -5,7 +5,8 @@ import type { GameState } from '../src/core/state';
 import { LOOP, SIM } from '../src/data/balance';
 import { CLASS_ORDER, getClass } from '../src/data/classes';
 import { type Battle, createBattle, stepBattle } from '../src/systems/battle';
-import { chooseCard, chooseClass, completeBattle, type BattleSummary, nextCardOffer } from '../src/systems/run';
+import { chooseCard, chooseClass, choosePromotion, completeBattle, type BattleSummary, nextCardOffer } from '../src/systems/run';
+import { promotionChoices } from '../src/systems/promotion';
 import { useSkill } from '../src/systems/skills';
 import { botIdentifyAndEquip } from '../src/systems/items';
 import { useHealItem } from '../src/systems/pickups';
@@ -30,6 +31,9 @@ export function resolveModals(state: GameState, rng: Rng, classId?: string): voi
     if (req.kind === 'classChoice') {
       const id = classId ?? CLASS_ORDER.find((c) => !getClass(c).locked);
       if (id) chooseClass(state, id, getClass(id).defaultPicks);
+    } else if (req.kind === 'promotion') {
+      const branches = promotionChoices(state.hero);
+      if (branches.length > 0) choosePromotion(state, rng.pick(branches).id);
     } else if (state.hero.classId) {
       const offer = nextCardOffer(state);
       if (offer.length > 0) chooseCard(state, rng.pick(offer));

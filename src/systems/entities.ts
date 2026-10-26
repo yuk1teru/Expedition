@@ -76,6 +76,8 @@ export interface HeroBuff {
   freezeAttackers?: number;
   /** Extra enemies the hero's basic projectiles pass through. */
   pierceBonus?: number;
+  /** Extra lifesteal while active (Rage). */
+  lifesteal?: number;
 }
 
 /**
@@ -127,6 +129,8 @@ export interface HeroStats {
   killCdr: number;
   /** Extra enemies the basic projectiles pass through (Archer: Piercing). */
   pierce: number;
+  /** Damage multiplier of the hero's wolves (Beastmaster). */
+  petDamageMult: number;
 }
 
 export interface Dash {
@@ -168,6 +172,34 @@ export interface Hero extends Body {
   dodgeCooldown: number;
   /** Buffs earned outside battle (e.g. a skipped card), applied when the next battle starts. */
   pendingBuffs: HeroBuff[];
+  /** Branch chosen at the promotion (level 13), null before it. */
+  promotion: string | null;
+  /** Seconds until the next periodic branch effect (Paladin barrier). */
+  promoTimer: number;
+  /** Seconds until the Beastmaster's wolf comes back. */
+  companionTimer: number;
+}
+
+/** A body on the hero's side (wolves of the Beastmaster): chases and bites enemies. */
+export interface Ally extends Body {
+  kind: 'wolf';
+  /** Bite damage = hero attack × this (× pet bonus). */
+  damageMult: number;
+  attackTimer: number;
+  /** Seconds left; Infinity for the permanent companion. */
+  life: number;
+  /** Stun on bite, s. */
+  stunOnHit: number;
+  /** The permanent companion (respawns), not a summoned pack wolf. */
+  companion: boolean;
+}
+
+/** A hero skill being channelled (Aimed Shot): fires `onFire` after `delay`. */
+export interface HeroCharge {
+  kind: string;
+  time: number;
+  delay: number;
+  onFire: () => void;
 }
 
 export interface BossRuntime {
@@ -276,6 +308,9 @@ export interface Zone {
   finale: Blast | null;
   /** A wall: the zone covers the segment a–b (`radius` = half its thickness) instead of a circle. */
   line: { a: Vec; b: Vec } | null;
+  /** Each tick freezes an enemy inside with this chance for `freezeTime` s (Blizzard). */
+  freezeChance: number;
+  freezeTime: number;
   dead: boolean;
 }
 

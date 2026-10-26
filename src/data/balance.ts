@@ -67,13 +67,18 @@ export const PROGRESSION = {
   classChoiceLevel: 3,
   /** Skills chosen from the class pool at the class choice (the rest come from cards). */
   startingSkillPicks: 3,
-  /** Slice cap (skills have 5 ranks, so there are more cards to take); the full prototype goes to 20. */
-  maxLevel: 15,
+  /** Level of the class promotion (two branches; a signature skill on its own slot). */
+  promotionLevel: 13,
+  maxLevel: 20,
   /** xpToNext(level) = round(base × level^exponent). */
   xpCurve: { base: 20, exponent: 1.6 },
   /** XP drops to `mult` when heroLevel − recommendedLevel > `levelGap`. */
   xpPenalty: { levelGap: 3, mult: 0.25 },
   skillSlots: 4,
+  /** Skill-bar index of the promotion signature skill (key R), after the class slots. */
+  signatureSlot: 4,
+  /** Branch cards (signature upgrades, branch passives) are this many times likelier after the promotion. */
+  branchCardWeight: 2,
 } as const;
 
 export const SCALING = {
