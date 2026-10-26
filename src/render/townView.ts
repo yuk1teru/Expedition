@@ -9,7 +9,7 @@ import { Button, ButtonGroup, drawBar, drawPanel, drawText } from './ui';
 
 export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
   const W = app.view.width;
-  const panel = { x: W / 2 - 220, y: 120, w: 440, h: 330 };
+  const panel = { x: W / 2 - 220, y: 90, w: 440, h: 400 };
   let restedFlash = 0;
   const buttons = new ButtonGroup([
     new Button({
@@ -22,9 +22,15 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
       },
     }),
     new Button({
-      label: 'Вирушити',
-      rect: { x: panel.x + 60, y: panel.y + 236, w: 320, h: 48 },
+      label: 'Спорядження',
+      rect: { x: panel.x + 60, y: panel.y + 232, w: 320, h: 48 },
       hotkey: 'Digit2',
+      onClick: () => app.goGear(),
+    }),
+    new Button({
+      label: 'Вирушити',
+      rect: { x: panel.x + 60, y: panel.y + 294, w: 320, h: 48 },
+      hotkey: 'Digit3',
       onClick: () => app.goMap(),
     }),
   ]);
@@ -63,11 +69,11 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
       if (restedFlash > 0) {
         ctx.save();
         ctx.globalAlpha = Math.min(1, restedFlash);
-        drawText(ctx, 'HP повністю відновлено', W / 2, panel.y + 148, { size: 14, align: 'center', color: THEME.good, bold: true });
+        drawText(ctx, 'HP відновлено · прогрес збережено', W / 2, panel.y + 148, { size: 14, align: 'center', color: THEME.good, bold: true });
         ctx.restore();
       }
       buttons.draw(ctx);
-      drawText(ctx, '1 — відпочити · 2 — вирушити', W / 2, panel.y + panel.h - 20, {
+      drawText(ctx, '1 — відпочити (зберігає чекпоінт) · 2 — спорядження · 3 — вирушити', W / 2, panel.y + panel.h - 20, {
         size: 12,
         align: 'center',
         color: THEME.textMuted,

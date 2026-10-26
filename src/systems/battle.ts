@@ -14,6 +14,7 @@ import type { Body, Enemy, Hero, Projectile, Telegraph, Vec, Zone } from './enti
 import { dist, normalize } from './entities';
 import { nearestEnemy } from './targeting';
 import { updateBuffs, updateDash, updateZones } from './effects';
+import type { Item } from './items';
 import type { GameEvent } from './gameEvents';
 import { type MapNode, getNode } from './mapgen';
 import { type WaveState, checkPortalEntry, createWaves, updateWaves } from './waves';
@@ -24,6 +25,8 @@ export interface BattleStats {
   gold: number;
   damageDealt: number;
   damageTaken: number;
+  /** Items dropped by bosses and minibosses. */
+  loot: Item[];
 }
 
 export type BattleOutcome = 'running' | 'won' | 'lost';
@@ -93,7 +96,7 @@ export function createBattle(state: GameState, nodeId: string): Battle {
     waves: node.isBoss ? null : createWaves(),
     portal: null,
     boss: null,
-    stats: { kills: 0, xp: 0, gold: 0, damageDealt: 0, damageTaken: 0 },
+    stats: { kills: 0, xp: 0, gold: 0, damageDealt: 0, damageTaken: 0, loot: [] },
     outcome: 'running',
     endTimer: 0,
     finished: false,

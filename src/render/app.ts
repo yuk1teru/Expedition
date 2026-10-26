@@ -20,6 +20,7 @@ import {
   isRunOver,
   isRunWon,
   nextCardOffer,
+  restoreCheckpoint,
   teleport,
   travel,
 } from '../systems/run';
@@ -27,6 +28,7 @@ import { type View, beginFrame, endFrame } from './canvas';
 import { createCombatScreen } from './combatView';
 import { type DebugPanel, createDebugPanel } from './debugPanel';
 import { createDeathScreen, createRewardScreen, createVictoryScreen } from './endScreens';
+import { createGearScreen } from './gearView';
 import { createMapScreen } from './mapView';
 import { createCardChoiceModal, createClassChoiceModal } from './modals';
 import { THEME } from './theme';
@@ -54,6 +56,7 @@ export class App {
     this.screens.onChange = (id) => (this.state.screen = id);
     this.screens.register('map', createMapScreen(this));
     this.screens.register('town', createTownScreen(this));
+    this.screens.register('gear', createGearScreen(this));
     this.screens.register('combat', createCombatScreen(this));
     this.screens.register('reward', createRewardScreen(this));
     this.screens.register('death', createDeathScreen(this));
@@ -92,6 +95,19 @@ export class App {
   }
 
   goTown(): void {
+    this.screens.go('town');
+  }
+
+  goGear(): void {
+    this.screens.go('gear');
+  }
+
+  /** After death: back to town with the progress of the last rest. */
+  respawn(): void {
+    this.screens.clearModals();
+    this.loop.paused = false;
+    this.battle = null;
+    restoreCheckpoint(this.state);
     this.screens.go('town');
   }
 

@@ -14,6 +14,8 @@ export interface RunStats {
   /** Seconds of play. */
   playTime: number;
   locationsCleared: number;
+  /** Times the hero died and returned to the checkpoint. */
+  deaths: number;
 }
 
 export type ModalRequest = { kind: 'classChoice' } | { kind: 'cardChoice'; level: number };
@@ -24,6 +26,10 @@ export interface GameState {
   rng: Rng;
   /** Card offers stream (`rng.fork("cards")`). */
   cardRng: Rng;
+  /** Loot stream (`rng.fork("loot")`). */
+  lootRng: Rng;
+  /** Next item uid. */
+  nextItemUid: number;
   /** Number of battles started, used to fork per-battle RNG streams. */
   battleCount: number;
   day: number;
@@ -38,8 +44,19 @@ export interface GameState {
   modalQueue: ModalRequest[];
   /** Logic → render notifications. Nobody listens in headless simulation. */
   events: EventBus<GameEvent>;
+  /** Progress saved at the last rest in town; death returns here. */
+  checkpoint: Checkpoint;
+}
+
+/** Snapshot of run progress restored after death. */
+export interface Checkpoint {
+  hero: Hero;
+  gold: number;
+  day: number;
+  world: World;
+  bossesDefeated: string[];
 }
 
 export function createRunStats(): RunStats {
-  return { kills: 0, damageDealt: 0, damageTaken: 0, playTime: 0, locationsCleared: 0 };
+  return { kills: 0, damageDealt: 0, damageTaken: 0, playTime: 0, locationsCleared: 0, deaths: 0 };
 }

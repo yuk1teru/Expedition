@@ -6,6 +6,9 @@ import type { Battle } from './battle';
 import type { Body, Enemy, StatusId, Vec } from './entities';
 import { normalize } from './entities';
 import type { HitSource } from './gameEvents';
+import { getBoss } from '../data/bosses';
+import { LOOT } from '../data/items';
+import { equipOrStash, rollItem } from './items';
 import { gainXp } from './leveling';
 import { applyArmor, xpReward } from './scaling';
 
@@ -74,6 +77,20 @@ export function killEnemy(b: Battle, e: Enemy): void {
     const xp = xpReward(e.xp, b.tier, b.hero.level);
     b.stats.xp += xp;
     gainXp(b.state, xp);
+  }
+  if (e.boss) dropLoot(b, e);
+}
+
+/** Bosses drop strong items, minibosses weak ones. New items go straight to the hero. */
+function dropLoot(b: Battle, e: Enemy): void {
+  const def = getBoss(e.boss!.defId);
+  const table = def.miniboss ? LOOT.miniboss : LOOT.boss;
+  const st = b.state;
+  for (let i = 0; i < table.count; i++) {
+    const item = rollItem(st.lootRng, table.rarity, st.nextItemUid++);
+    const equipped = equipOrStash(b.hero, item);
+    b.stats.loot.push(item);
+    b.events.emit({ type: 'loot', pos: { ...e.pos }, name: item.name, rarity: item.rarity, equipped });
   }
 }
 

@@ -4,6 +4,7 @@ import { HERO } from '../data/balance';
 import { getClass } from '../data/classes';
 import { getPassive } from '../data/skills';
 import type { Hero, HeroStats } from './entities';
+import { equippedStat } from './items';
 
 export function createHero(id: number): Hero {
   const hero: Hero = {
@@ -32,6 +33,8 @@ export function createHero(id: number): Hero {
     dash: null,
     invulnerable: 0,
     immortal: false,
+    equipment: {},
+    bag: [],
   };
   recomputeHeroStats(hero);
   hero.hp = hero.maxHp;
@@ -111,6 +114,13 @@ export function recomputeHeroStats(hero: Hero): void {
         break;
     }
   }
+  // Equipment.
+  s.attack += equippedStat(hero, 'attack');
+  s.critChance += equippedStat(hero, 'critChance');
+  s.armor += equippedStat(hero, 'armor');
+  s.attackSpeed *= 1 + equippedStat(hero, 'attackSpeedPct');
+  s.moveSpeed *= 1 + equippedStat(hero, 'moveSpeedPct');
+  hpPct += equippedStat(hero, 'hpPct');
   s.maxHp *= 1 + hpPct;
   hero.stats = s;
   hero.maxHp = Math.round(s.maxHp);

@@ -7,6 +7,7 @@ import { ARENA, WAVES } from '../data/balance';
 import { getClass } from '../data/classes';
 import type { BiomeDef, DecorKind } from '../data/biomes';
 import { FX } from '../data/fx';
+import { RARITIES } from '../data/items';
 import { type Battle, stepBattle } from '../systems/battle';
 import type { Enemy, Hero, Projectile, Telegraph, Zone } from '../systems/entities';
 import type { GameEvent } from '../systems/gameEvents';
@@ -181,6 +182,18 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
       fx.showBanner(`Мінібос: ${e.name}`, THEME.bad);
       fx.burst(e.pos, P.eliteDeath, THEME.bad);
       break;
+    case 'loot': {
+      const color = RARITIES[e.rarity].color;
+      fx.showBanner(`Здобич: ${e.name}${e.equipped ? ' (вдягнуто)' : ' (у сумці)'}`, color);
+      const at = {
+        x: Math.max(ARENA.x + 120, Math.min(ARENA.x + ARENA.w - 120, e.pos.x)),
+        y: Math.max(ARENA.y + 40, Math.min(ARENA.y + ARENA.h - 20, e.pos.y - 40)),
+      };
+      fx.text(at, e.name, color, 17, 2.4);
+      fx.ring(e.pos, 60, RARITIES[e.rarity].color, 0.8, 5);
+      fx.burst(e.pos, P.levelUp, RARITIES[e.rarity].color);
+      break;
+    }
     case 'portalOpen':
       fx.showBanner('Портал відкрито!', '#b98cff');
       fx.ring(e.pos, 80, '#b98cff', 0.8, 6);

@@ -1,5 +1,8 @@
 // Entity types shared by combat, AI, skills, bosses and render.
 
+import type { ItemSlot } from '../data/items';
+import type { Item } from './items';
+
 export interface Vec {
   x: number;
   y: number;
@@ -102,6 +105,10 @@ export interface Hero extends Body {
   invulnerable: number;
   /** Debug god mode. */
   immortal: boolean;
+  /** Worn items by slot. */
+  equipment: Partial<Record<ItemSlot, Item>>;
+  /** Items found but not worn. */
+  bag: Item[];
 }
 
 export interface BossRuntime {
