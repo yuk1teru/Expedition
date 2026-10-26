@@ -112,7 +112,11 @@ function updateOneBoss(b: Battle, boss: Enemy, dt: number): void {
     // Straight dash (e.g. lunge): positions are integrated by the battle step.
     const d = dist(boss.pos, rt.dash.to);
     const step = rt.dash.speed * dt;
-    if (d <= step) {
+    rt.dash.timeLeft -= dt;
+    if (rt.dash.timeLeft <= 0) {
+      // Blocked (the hero's body, an arena wall): stop where it is instead of pushing forever.
+      rt.dash = null;
+    } else if (d <= step) {
       boss.pos = { ...rt.dash.to };
       rt.dash = null;
     } else {
@@ -177,9 +181,18 @@ export function bossBusy(boss: Enemy, seconds: number): void {
   if (boss.boss) boss.boss.busy = Math.max(boss.boss.busy, seconds);
 }
 
-/** Starts a straight dash of a boss-driven enemy. */
+/** Extra time a dash may take beyond distance / speed before it gives up, s. */
+const DASH_SLACK = 0.25;
+
+/** Starts a straight dash of a boss-driven enemy towards a point inside the arena. */
 export function bossDash(boss: Enemy, to: Vec, speed: number): void {
-  if (boss.boss) boss.boss.dash = { to: { ...to }, speed };
+  if (!boss.boss) return;
+  const r = boss.radius;
+  const target = {
+    x: Math.max(ARENA.x + r, Math.min(ARENA.x + ARENA.w - r, to.x)),
+    y: Math.max(ARENA.y + r, Math.min(ARENA.y + ARENA.h - r, to.y)),
+  };
+  boss.boss.dash = { to: target, speed, timeLeft: dist(boss.pos, target) / Math.max(1, speed) + DASH_SLACK };
 }
 
 export function addTelegraph(

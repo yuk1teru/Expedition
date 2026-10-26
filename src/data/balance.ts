@@ -32,7 +32,7 @@ export const HERO = {
   critMult: 1.5,
   radius: 14,
   mass: 3,
-  /** Melee reach, px from the hero centre to the target's edge. */
+  /** Melee reach, px from the hero's edge to the target's edge (the drawn attack wedge). */
   meleeRange: 40,
   /** Player control: ranged heroes shoot along the aim when an enemy is inside this cone, degrees. */
   rangedAimConeDeg: 50,

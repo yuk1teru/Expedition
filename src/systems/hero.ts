@@ -37,6 +37,7 @@ export function createHero(id: number): Hero {
     bag: [],
     consumables: { magnifier: 0, herb: 0 },
     herbCooldown: 0,
+    dodgeCooldown: 0,
     pendingBuffs: [],
   };
   recomputeHeroStats(hero);

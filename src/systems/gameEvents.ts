@@ -19,6 +19,8 @@ export type GameEvent =
   | { type: 'weatherEnd' }
   | { type: 'trapSnap'; pos: Vec }
   | { type: 'bossCombo'; pos: Vec }
+  /** Boot dash (Shift). */
+  | { type: 'heroDodge'; from: Vec; to: Vec }
   | { type: 'miniboss'; name: string; pos: Vec }
   | { type: 'portalOpen'; pos: Vec; seconds: number }
   | { type: 'pickupSpawn'; kind: PickupKind; pos: Vec }

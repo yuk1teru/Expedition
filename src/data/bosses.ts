@@ -54,7 +54,7 @@ export const BOSSES: Record<string, BossDef> = {
     name: 'Старий Енат',
     biome: 'forest',
     hp: 3200,
-    damage: 30,
+    damage: 35,
     armor: 15,
     speed: 34,
     radius: 38,
@@ -169,15 +169,16 @@ export const BOSSES: Record<string, BossDef> = {
     name: 'Дух бурі',
     biome: 'forest',
     miniboss: true,
-    hp: 340,
+    // Fragile sniper: dies quickly once reached; its bolts only slow.
+    hp: 110,
     damage: 2.2,
     armor: 0,
-    speed: 70,
+    speed: 60,
     radius: 22,
     mass: 5,
     xp: 60,
     gold: 12,
-    keepDistance: 230,
+    keepDistance: 400,
     telegraphDelay: 0.6,
     minPause: 0.9,
     attacks: [
@@ -185,24 +186,24 @@ export const BOSSES: Record<string, BossDef> = {
         id: 'volley',
         weight: 3,
         phases: [1],
-        cooldown: [2.2, 2.2],
-        initialCooldown: 1.5,
-        // `count` fast bolts `spreadDeg` apart; each hit slows the hero by `slow` for `slowTime` s.
+        cooldown: [3.6, 3.6],
+        initialCooldown: 2,
+        // `count` fast bolts `spreadDeg` apart, no damage: each hit slows the hero by `slow` for `slowTime` s.
         params: [
-          { count: 3, spreadDeg: 12, speed: 470, range: 520, slow: 0.3, slowTime: 1.8 },
-          { count: 3, spreadDeg: 12, speed: 470, range: 520, slow: 0.3, slowTime: 1.8 },
+          { count: 3, spreadDeg: 10, speed: 520, range: 820, slow: 0.35, slowTime: 2 },
+          { count: 3, spreadDeg: 10, speed: 520, range: 820, slow: 0.35, slowTime: 2 },
         ],
       },
       {
         id: 'blink',
         weight: 5,
         phases: [1],
-        cooldown: [6, 6],
-        initialCooldown: 2,
-        // Hero closer than `trigger`: a gust circle where it stood and a jump `distance` px away.
+        cooldown: [30, 30],
+        initialCooldown: 0,
+        // Hero closer than `trigger`: a gust circle where it stood and a jump `distance` px away. Once per 30 s.
         params: [
-          { trigger: 110, distance: 260, radius: 80, damage: 2.5 },
-          { trigger: 110, distance: 260, radius: 80, damage: 2.5 },
+          { trigger: 110, distance: 300, radius: 80, damage: 1.5 },
+          { trigger: 110, distance: 300, radius: 80, damage: 1.5 },
         ],
       },
     ],

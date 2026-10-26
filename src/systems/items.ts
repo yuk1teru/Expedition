@@ -4,6 +4,7 @@ import type { Rng } from '../core/rng';
 import type { GameState } from '../core/state';
 import { CONSUMABLES, type ConsumableId } from '../data/consumables';
 import {
+  BOOT_DASH,
   ITEM_ACCENTS,
   ITEM_BASES,
   ITEM_KINDS,
@@ -182,6 +183,18 @@ export function formatStat(s: ItemStatValue): string {
 }
 
 /** Sum of a stat over all equipped items. */
+/** The Shift dash of the worn boots, if they have one. */
+export function bootDash(hero: Hero): { distance: number; cooldown: number } | null {
+  const boots = hero.equipment.boots;
+  return boots ? (BOOT_DASH[boots.rarity] ?? null) : null;
+}
+
+/** Extra item lines beyond stats (the boot dash). */
+export function itemPerks(item: Item): string[] {
+  const dash = item.slot === 'boots' ? BOOT_DASH[item.rarity] : undefined;
+  return dash ? [`Shift — ривок до курсора на ${dash.distance} px (перезарядка ${dash.cooldown} с)`] : [];
+}
+
 export function equippedStat(hero: Hero, stat: ItemStat): number {
   let sum = 0;
   for (const item of Object.values(hero.equipment)) {

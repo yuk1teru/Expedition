@@ -270,7 +270,7 @@ export function createClassChoiceModal(app: App, onChosen: (classId: string) => 
         const ps = lines.passives.find((l) => inRect(l.rect, m.x, m.y));
         if (sk?.skillId) {
           const tip = skillTooltip(sk.skillId, 0);
-          drawTooltip(ctx, tip.lines, m.x, 20, app.view.width, app.view.height, tip.colors);
+          drawTooltip(ctx, tip.lines, m.x, m.y, app.view.width, app.view.height, tip.colors);
           return;
         }
         let tip: string[] | null = null;

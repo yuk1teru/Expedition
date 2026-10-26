@@ -8,10 +8,11 @@ import { Button, ButtonGroup, drawPanel, drawText } from './ui';
 
 export const CONTROLS: [string, string][] = [
   ['WASD / стрілки', 'рух героя'],
-  ['Миша', 'напрямок автоатаки, Ривка й Удару об землю'],
+  ['Миша', 'напрямок автоатаки й скілів'],
   ['1–4 або клік по слоту', 'скіли; слоти можна перетягувати'],
   ['E / кнопка біля порталу', 'вийти з локації після 3-ї хвилі'],
-  ['N', 'у перерві — наступна хвиля одразу (не чекати портал)'],
+  ['N', 'одразу наступна хвиля (у перерві)'],
+  ['Shift', 'ривок черевиків до курсора (зелені й кращі)'],
   ['G', 'з’їсти цілющу траву (+10% HP)'],
   ['Tab', 'інвентар (речі, сумка)'],
   ['Esc', 'пауза'],
@@ -64,7 +65,8 @@ export function createHelpModal(app: App, onClose: () => void): Modal<CanvasRend
         align: 'center',
         color: THEME.textDim,
       });
-      drawControls(ctx, W / 2 - 20, panel.y + 130);
+      // Keys are short, actions long: the divider sits left of centre so both fit the panel.
+      drawControls(ctx, W / 2 - 90, panel.y + 126, 15, 24);
       buttons.draw(ctx);
     },
   };

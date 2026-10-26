@@ -1,5 +1,5 @@
-// Дух бурі (event-wave elemental): lots of HP, keeps its distance, fires fast
-// slowing bolts and blinks away with a gust when the hero gets close.
+// Дух бурі (event-wave elemental): a fragile sniper far away; its fast bolts deal no
+// damage, only slow. Blinks away with a gust when the hero gets close (once per 30 s).
 
 import { ARENA } from '../../data/balance';
 import { getBoss } from '../../data/bosses';
@@ -19,7 +19,7 @@ registerBoss('galeSpirit', {
           pos: { x: boss.pos.x + dir.x * boss.radius, y: boss.pos.y + dir.y * boss.radius },
           vel: { x: dir.x * p.speed!, y: dir.y * p.speed! },
           radius: 7,
-          damage: boss.damage,
+          damage: 0,
           team: 'enemy',
           life: p.range! / p.speed!,
           pierce: 0,

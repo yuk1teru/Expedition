@@ -1,6 +1,11 @@
 // Skill registry (skillId → implementation) and manual skill use.
 
+import { ARENA } from '../../data/balance';
+import { BOOT_DASH_SPEED } from '../../data/items';
 import { getSkill, skillParams } from '../../data/skills';
+import { type Vec, normalize } from '../entities';
+import { startDash } from '../effects';
+import { bootDash } from '../items';
 import type { Battle } from '../battle';
 import { hasStatus, isDisabled } from '../combat';
 import { skillInSlot } from '../hero';
@@ -28,12 +33,52 @@ export function useSkill(b: Battle, slot: number): SkillUseResult {
     b.events.emit({ type: 'noTarget', slot, reason: 'rooted' });
     return 'busy';
   }
-  const ok = impl({ b, hero, def, rank: s.rank, p, aim: def.aimable ? b.input.aim : null });
+  const ok = impl({ b, hero, def, rank: s.rank, p, aim: def.aimable ? skillAim(b) : null });
   if (!ok) {
     b.events.emit({ type: 'noTarget', slot });
     return 'noTarget';
   }
   s.cooldown = (p.cooldown ?? 0) * hero.stats.cooldownMult;
+  return 'cast';
+}
+
+/**
+ * Where an aimed skill goes: the cursor on the arena; with the cursor over the HUD
+ * (e.g. clicking a slot) — the same direction, pulled onto the arena edge.
+ * The bot has no cursor: automatic targeting.
+ */
+export function skillAim(b: Battle): Vec | null {
+  const c = b.input.cursor;
+  if (b.input.aim || !c) return b.input.aim;
+  return {
+    x: Math.max(ARENA.x + 1, Math.min(ARENA.x + ARENA.w - 1, c.x)),
+    y: Math.max(ARENA.y + 1, Math.min(ARENA.y + ARENA.h - 1, c.y)),
+  };
+}
+
+/** Shift: a short dash towards the cursor from the worn boots (uncommon and better). */
+export function useBootDash(b: Battle): 'cast' | 'cooldown' | 'busy' | 'none' {
+  const hero = b.hero;
+  const dash = bootDash(hero);
+  if (!dash) return 'none';
+  if (b.outcome !== 'running' || hero.dead || hero.dash || isDisabled(hero) || hasStatus(hero, 'root')) return 'busy';
+  if (hero.dodgeCooldown > 0) return 'cooldown';
+  const aim = skillAim(b);
+  let dir = aim ? normalize({ x: aim.x - hero.pos.x, y: aim.y - hero.pos.y }) : { x: 0, y: 0 };
+  if (dir.x === 0 && dir.y === 0) dir = normalize(b.input.move);
+  if (dir.x === 0 && dir.y === 0) dir = { x: Math.cos(hero.facing), y: Math.sin(hero.facing) };
+  const r = hero.radius;
+  const to = {
+    x: Math.max(ARENA.x + r, Math.min(ARENA.x + ARENA.w - r, hero.pos.x + dir.x * dash.distance)),
+    y: Math.max(ARENA.y + r, Math.min(ARENA.y + ARENA.h - r, hero.pos.y + dir.y * dash.distance)),
+  };
+  const from = { ...hero.pos };
+  const facing = hero.facing;
+  startDash(hero, to, BOOT_DASH_SPEED, null);
+  // A sidestep, not a turn: keep attacking where the player aims.
+  hero.facing = facing;
+  hero.dodgeCooldown = dash.cooldown;
+  b.events.emit({ type: 'heroDodge', from, to: { ...to } });
   return 'cast';
 }
 

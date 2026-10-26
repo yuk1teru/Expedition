@@ -9,4 +9,5 @@ export function syncBattleInput(input: Input, b: Battle): void {
   b.input.control = 'player';
   b.input.move = input.moveVector();
   b.input.aim = insideArena(m.x, m.y) ? { x: m.x, y: m.y } : null;
+  b.input.cursor = { x: m.x, y: m.y };
 }

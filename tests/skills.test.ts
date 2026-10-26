@@ -8,7 +8,10 @@ import { createBossEnemy } from '../src/systems/boss';
 import { assignClass, recomputeHeroStats } from '../src/systems/hero';
 import { SLICE_GROVE_ID } from '../src/systems/mapgen';
 import { createGameState, teleport } from '../src/systems/run';
-import { useSkill } from '../src/systems/skills';
+import { useBootDash, useSkill } from '../src/systems/skills';
+import { BOOT_DASH } from '../src/data/items';
+import { rollItem } from '../src/systems/items';
+import { Rng } from '../src/core/rng';
 import { spawnEnemy } from '../src/systems/waves';
 
 function battle(skills: string[]) {
@@ -96,5 +99,60 @@ describe('miniboss combos', () => {
       }
     }
     expect(combos).toBeGreaterThan(0);
+  });
+});
+
+describe('boots, aim and enemies after the second playtest', () => {
+  it('green and better boots dash towards the cursor on Shift; cooldown 15 s, −1 s per rarity', () => {
+    expect(BOOT_DASH.uncommon!.cooldown).toBe(15);
+    expect(BOOT_DASH.legendary!.cooldown).toBe(12);
+    expect(BOOT_DASH.legendary!.distance).toBeGreaterThan(BOOT_DASH.uncommon!.distance);
+    const b = battle(['whirlwind', 'charge', 'hook']);
+    expect(useBootDash(b)).toBe('none');
+    const boots = rollItem(new Rng(1), 'rare', 1, 'boots');
+    boots.identified = true;
+    b.hero.equipment.boots = boots;
+    const start = { ...b.hero.pos };
+    b.input.aim = { x: start.x + 300, y: start.y };
+    expect(useBootDash(b)).toBe('cast');
+    for (let t = 0; t < 0.3; t += 1 / 60) stepBattle(b, 1 / 60);
+    expect(b.hero.pos.x - start.x).toBeCloseTo(BOOT_DASH.rare!.distance, 0);
+    expect(useBootDash(b)).toBe('cooldown');
+  });
+
+  it('Charge cast with the cursor over the HUD goes towards the cursor', () => {
+    const b = battle(['charge', 'whirlwind', 'hook']);
+    b.input.control = 'player';
+    b.input.aim = null;
+    b.input.cursor = { x: b.hero.pos.x, y: 530 };
+    const y0 = b.hero.pos.y;
+    expect(useSkill(b, 0)).toBe('cast');
+    for (let t = 0; t < 0.5; t += 1 / 60) stepBattle(b, 1 / 60);
+    expect(b.hero.pos.y).toBeGreaterThan(y0 + 100);
+  });
+
+  it('Gale Spirit bolts only slow, never hurt', () => {
+    const b = battle(['whirlwind', 'charge', 'hook']);
+    b.input.control = 'player';
+    const spirit = createBossEnemy(b, 'galeSpirit', { x: b.hero.pos.x + 300, y: b.hero.pos.y });
+    const hp = b.hero.hp;
+    let slowed = false;
+    for (let t = 0; t < 6; t += 1 / 60) {
+      stepBattle(b, 1 / 60);
+      if ((b.hero.statuses.slow?.time ?? 0) > 0) slowed = true;
+      if (spirit.dead) break;
+    }
+    expect(slowed).toBe(true);
+    expect(b.hero.hp).toBeGreaterThanOrEqual(hp);
+  });
+
+  it('a miniboss dash blocked by the hero against the wall ends instead of sticking', () => {
+    const b = battle(['whirlwind', 'charge', 'hook']);
+    b.input.control = 'player';
+    const alpha = createBossEnemy(b, 'alpha', { x: 480, y: 300 });
+    b.hero.pos = { x: 480, y: 458 };
+    alpha.boss!.dash = { to: { x: 480, y: 458 }, speed: 900, timeLeft: 0.5 };
+    for (let t = 0; t < 1; t += 1 / 60) stepBattle(b, 1 / 60);
+    expect(alpha.boss!.dash).toBeNull();
   });
 });

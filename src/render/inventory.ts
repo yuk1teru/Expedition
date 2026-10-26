@@ -13,6 +13,7 @@ import {
   displayName,
   equipFromBag,
   formatStat,
+  itemPerks,
   identifyItem,
   markItemsSeen,
   sellPrice,
@@ -72,7 +73,7 @@ function slotName(slot: ItemSlot): string {
 
 export function itemTooltip(item: Item, extra: string[]): string[] {
   const lines = [displayName(item), `${slotName(item.slot)} · ${RARITIES[item.rarity].name}`];
-  if (item.identified) lines.push(...item.stats.map(formatStat));
+  if (item.identified) lines.push(...item.stats.map(formatStat), ...itemPerks(item));
   else lines.push('Не розпізнано: використайте лупу', '(ПКМ → «Розпізнати» або перетягніть лупу на річ)');
   lines.push(`Ціна продажу: ${sellPrice(item)} зол.`, ...extra);
   return lines;

@@ -111,13 +111,27 @@ export const ITEM_BASES: Record<ItemSlot, ItemBase> = {
     ],
   },
   boots: {
-    main: { stat: 'moveSpeedPct', range: [0.06, 0.08] },
+    main: { stat: 'moveSpeedPct', range: [0.1, 0.13] },
     extras: [
       { stat: 'hpPct', range: [0.03, 0.04] },
       { stat: 'attackSpeedPct', range: [0.02, 0.03] },
     ],
   },
 };
+
+/**
+ * Boots of uncommon rarity and better give a short dash on Shift towards the cursor:
+ * the better the boots, the longer the dash and the shorter its cooldown.
+ */
+export const BOOT_DASH: Partial<Record<Rarity, { distance: number; cooldown: number }>> = {
+  uncommon: { distance: 45, cooldown: 15 },
+  rare: { distance: 70, cooldown: 14 },
+  epic: { distance: 95, cooldown: 13 },
+  legendary: { distance: 125, cooldown: 12 },
+};
+
+/** Boot dash flight speed, px/s (the hero is invulnerable for the short flight). */
+export const BOOT_DASH_SPEED = 1100;
 
 /** What drops from minibosses and bosses: count and rarity weights. */
 export const LOOT: Record<'miniboss' | 'boss', { count: number; weights: Partial<Record<Rarity, number>> }> = {

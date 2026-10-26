@@ -11,7 +11,8 @@ import { isMaxLevel, xpFraction } from '../systems/leveling';
 import { xpToNext } from '../systems/scaling';
 import { inBreak, nextWaveIn, portalActive, skipBreak, wavesToPortal } from '../systems/waves';
 import { moveSkill, skillInSlot } from '../systems/hero';
-import { hasNewItems } from '../systems/items';
+import { bootDash, hasNewItems } from '../systems/items';
+import type { Hero } from '../systems/entities';
 import { slotCooldown, useSkill } from '../systems/skills';
 import type { App } from './app';
 import { syncBattleInput } from './battleInput';
@@ -204,9 +205,10 @@ export function createHud(app: App, _fx: Fx): Hud {
       buttons.draw(ctx);
 
       drawSkillBar(ctx, b, slots, noTargetT, noTargetText, hoverSlot);
-      if (hasNewItems(hero)) drawNewItemHint(ctx, W - 14, ARENA.y + ARENA.h + 40, app.time, 'right');
+      if (hasNewItems(hero)) drawNewItemHint(ctx, W - 14, ARENA.y + ARENA.h + 12, app.time, 'right');
       drawLevelAndXp(ctx, hero.level, hero.xp, slots, ARENA.y + ARENA.h + XP_BAR.top);
       drawHerbSlot(ctx, hero.consumables.herb, hero.herbCooldown, slots);
+      drawDodgeSlot(ctx, hero, slots);
       if (dragFrom >= 0 && dragMoved) drawDragGhost(ctx, b, dragFrom, slots, app.input.mouse);
 
     },
@@ -229,6 +231,45 @@ export function drawNewItemHint(ctx: CanvasRenderingContext2D, x: number, y: num
   ctx.globalAlpha = 0.45 + 0.55 * Math.abs(Math.sin(t * 3.5));
   drawText(ctx, '★ Нова річ — Tab, щоб вдягнути', x, y, { size: 13, bold: true, align, color: THEME.accent });
   ctx.globalAlpha = 1;
+}
+
+/** Boot dash (Shift), right of the herb slot; only with boots that have it. */
+function drawDodgeSlot(ctx: CanvasRenderingContext2D, hero: Hero, slots: Rect[]): void {
+  const dash = bootDash(hero);
+  const last = slots[slots.length - 1];
+  if (!dash || !last) return;
+  const r = { x: last.x + 2 * (last.w + SLOT_GAP) + 4, y: last.y, w: last.w, h: last.h };
+  const ready = hero.dodgeCooldown <= 0;
+  roundRect(ctx, r.x, r.y, r.w, r.h, 10);
+  ctx.fillStyle = '#1f2a38';
+  ctx.fill();
+  ctx.strokeStyle = ready ? '#8fd3ff' : THEME.panelBorder;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  // Boot with speed lines.
+  ctx.save();
+  ctx.translate(r.x + r.w / 2 + 3, r.y + r.h / 2 + 2);
+  ctx.fillStyle = ready ? '#d8ecf7' : '#6b7486';
+  ctx.beginPath();
+  ctx.moveTo(-6, -12);
+  ctx.lineTo(2, -12);
+  ctx.lineTo(2, 2);
+  ctx.lineTo(11, 5);
+  ctx.lineTo(11, 10);
+  ctx.lineTo(-6, 10);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = ready ? '#8fd3ff' : '#6b7486';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (const y of [-6, 0, 6]) {
+    ctx.moveTo(-17, y);
+    ctx.lineTo(-10, y);
+  }
+  ctx.stroke();
+  ctx.restore();
+  drawText(ctx, 'Shift', r.x + 5, r.y + 9, { size: 9, bold: true, color: THEME.textDim });
+  if (!ready) drawText(ctx, String(Math.ceil(hero.dodgeCooldown)), r.x + r.w / 2, r.y + r.h / 2, { size: 17, bold: true, align: 'center' });
 }
 
 /** Carried healing herbs, used with G, right of the skill bar. */

@@ -48,6 +48,8 @@ export interface HeroInput {
   control: 'player' | 'bot';
   move: Vec;
   aim: Vec | null;
+  /** Mouse position even outside the arena (over the HUD); null for the bot. */
+  cursor: Vec | null;
 }
 
 export interface Battle {
@@ -104,7 +106,7 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0): B
     kind: node.isBoss ? 'boss' : 'waves',
     rng: state.rng.fork(`battle-${state.battleCount}`),
     events: state.events,
-    input: { control: 'bot', move: { x: 0, y: 0 }, aim: null },
+    input: { control: 'bot', move: { x: 0, y: 0 }, aim: null, cursor: null },
     time: 0,
     nextId: 1,
     hero,
@@ -144,6 +146,7 @@ function resetHeroForBattle(hero: Hero): void {
   hero.dead = hero.hp <= 0;
   hero.hitAt = -Infinity;
   for (const s of hero.skills) s.cooldown = 0;
+  hero.dodgeCooldown = 0;
 }
 
 export function stepBattle(b: Battle, dt: number): void {
@@ -162,6 +165,7 @@ export function stepBattle(b: Battle, dt: number): void {
   updateBuffs(hero, dt);
   if (!hero.dead) updateHeroHealing(b, dt);
   for (const s of hero.skills) s.cooldown = Math.max(0, s.cooldown - dt);
+  hero.dodgeCooldown = Math.max(0, hero.dodgeCooldown - dt);
   updateDash(hero, dt);
   updateHeroAI(b, dt);
 
@@ -240,7 +244,9 @@ function updateProjectiles(b: Battle, dt: number): void {
       const hero = b.hero;
       if (!hero.dead && dist(p.pos, hero.pos) <= p.radius + hero.radius) {
         p.dead = true;
-        if (damageHero(b, p.damage, { melee: p.melee }) > 0 && p.slow) debuffHero(b, 'slow', p.slow.time, p.slow.value);
+        // Some projectiles only slow (no damage, no hurt number).
+        if (p.damage > 0) damageHero(b, p.damage, { melee: p.melee });
+        if (p.slow) debuffHero(b, 'slow', p.slow.time, p.slow.value);
       }
     } else {
       for (const e of b.enemies) {

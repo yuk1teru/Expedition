@@ -71,8 +71,16 @@ function playerHero(b: Battle, hero: Hero): void {
   const attack = basicAttackOf(hero);
   if (attack.kind !== 'melee') return;
   const arc = (attack.arcDeg * Math.PI) / 180;
-  const target = nearestEnemy(coneTargets(b.enemies, hero.pos, hero.facing, arc, hero.stats.range), hero.pos);
+  const target = nearestEnemy(coneTargets(b.enemies, hero.pos, hero.facing, arc, meleeReach(hero)), hero.pos);
   if (target) meleeStrike(b, hero, target, hero.facing);
+}
+
+/**
+ * Melee reach from the hero's centre: the class range counts from the hero's edge,
+ * exactly the wedge drawn on the arena. An enemy is hit if any part of it is inside.
+ */
+export function meleeReach(hero: Hero): number {
+  return hero.stats.range + hero.radius;
 }
 
 /**
@@ -84,12 +92,12 @@ function meleeStrike(b: Battle, hero: Hero, target: Enemy, angle: number): void 
   const arc = attack.kind === 'melee' ? (attack.arcDeg * Math.PI) / 180 : 0;
   const splash = attack.kind === 'melee' ? attack.splash : 0;
   hero.attackTimer = 1 / heroAttackSpeed(hero);
-  const others = splash > 0 ? coneTargets(b.enemies, hero.pos, angle, arc, hero.stats.range).filter((e) => e !== target) : [];
+  const others = splash > 0 ? coneTargets(b.enemies, hero.pos, angle, arc, meleeReach(hero)).filter((e) => e !== target) : [];
   b.events.emit({
     type: 'heroAttack',
     pos: { ...hero.pos },
     angle,
-    reach: hero.stats.range + hero.radius,
+    reach: meleeReach(hero),
     arc,
     ranged: false,
     targets: 1 + others.length,
@@ -103,7 +111,7 @@ function meleeStrike(b: Battle, hero: Hero, target: Enemy, angle: number): void 
 
 /** Hits the target if it is in melee reach and the attack is ready. Returns true if in reach. */
 function tryMeleeHit(b: Battle, hero: Hero, target: Enemy): boolean {
-  if (dist(hero.pos, target.pos) - target.radius > hero.stats.range) return false;
+  if (dist(hero.pos, target.pos) - target.radius > meleeReach(hero)) return false;
   hero.facing = angleOf({ x: target.pos.x - hero.pos.x, y: target.pos.y - hero.pos.y });
   if (hero.attackTimer <= 0) meleeStrike(b, hero, target, hero.facing);
   return true;

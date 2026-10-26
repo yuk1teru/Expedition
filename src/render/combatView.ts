@@ -10,7 +10,7 @@ import { getClass } from '../data/classes';
 import type { BiomeDef, DecorKind } from '../data/biomes';
 import { FX } from '../data/fx';
 import { RARITIES } from '../data/items';
-import { heroAttackSpeed, nextShotIsVolley } from '../systems/ai';
+import { heroAttackSpeed, meleeReach, nextShotIsVolley } from '../systems/ai';
 import { type Trap, trapArmed } from '../systems/traps';
 import { basicAttackOf } from '../systems/hero';
 import { type Battle, stepBattle } from '../systems/battle';
@@ -18,6 +18,7 @@ import { type Pickup, pickupReady, useHerb } from '../systems/pickups';
 import { portalActive, portalInReach, requestPortalEntry } from '../systems/waves';
 import { PICKUPS, PICKUP_SPAWN } from '../data/consumables';
 import { drawConsumableIcon } from './icons';
+import { useBootDash } from '../systems/skills';
 import type { Enemy, Hero, Projectile, Telegraph, Zone } from '../systems/entities';
 import type { GameEvent } from '../systems/gameEvents';
 import type { App } from './app';
@@ -58,7 +59,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
   let confirmUntil = 0;
   const W = app.view.width;
   // Compact, see-through pause panel: the arena stays visible.
-  const PAUSE_PANEL = { x: W / 2 - 270, y: ARENA.y + ARENA.h / 2 - 152, w: 540, h: 304 };
+  const PAUSE_PANEL = { x: W / 2 - 270, y: ARENA.y + ARENA.h / 2 - 166, w: 540, h: 332 };
   const resumeBtn = new Button({
     label: 'Продовжити (Esc)',
     rect: { x: W / 2 - 215, y: PAUSE_PANEL.y + PAUSE_PANEL.h - 50, w: 200, h: 36 },
@@ -136,6 +137,11 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
         useHerb(battle);
         return;
       }
+      if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && battle && !app.loop.paused) {
+        syncBattleInput(app.input, battle);
+        useBootDash(battle);
+        return;
+      }
       if (e.code === 'Escape') {
         app.loop.paused = !app.loop.paused;
         confirmUntil = 0;
@@ -188,7 +194,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
         ctx.fillRect(0, ARENA.y, app.view.width, ARENA.h);
         drawPanel(ctx, PAUSE_PANEL, 'rgba(14, 16, 24, 0.72)');
         drawText(ctx, 'Пауза', W / 2, PAUSE_PANEL.y + 24, { size: 22, bold: true, align: 'center' });
-        drawControls(ctx, W / 2 - 50, PAUSE_PANEL.y + 54, 12, 21, THEME.textDim);
+        drawControls(ctx, W / 2 - 70, PAUSE_PANEL.y + 54, 12, 21, THEME.textDim);
         const confirming = app.time < confirmUntil;
         abandonBtn.label = confirming ? 'Точно? Клацніть ще раз' : 'Завершити забіг (поразка)';
         pauseButtons.draw(ctx);
@@ -271,6 +277,9 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
       fx.text({ x: e.pos.x, y: e.pos.y - 30 }, 'Пастка!', '#ff9a5e', 16, 1.2);
       fx.burst(e.pos, P.telegraph, '#b8b2a6');
       fx.shake(FX.shake.heroHurtBig);
+      break;
+    case 'heroDodge':
+      fx.lineBurst(e.from, e.to, P.chargeTrail, '#bfe8ff');
       break;
     case 'bossCombo':
       fx.text({ x: e.pos.x, y: e.pos.y - 48 }, 'Комбо!', THEME.bad, 17, 1);
@@ -866,7 +875,7 @@ function drawAttackArc(ctx: CanvasRenderingContext2D, h: Hero): void {
   const attack = basicAttackOf(h);
   if (attack.kind !== 'melee') return;
   const half = (attack.arcDeg * Math.PI) / 360;
-  const r = h.stats.ranged ? h.radius * 3 : h.stats.range + h.radius;
+  const r = h.stats.ranged ? h.radius * 3 : meleeReach(h);
   ctx.save();
   ctx.globalAlpha = 0.14;
   ctx.fillStyle = '#f2c14e';

@@ -127,6 +127,8 @@ export interface Hero extends Body {
   consumables: Record<ConsumableId, number>;
   /** Seconds until the herb (G) can be used again. */
   herbCooldown: number;
+  /** Seconds until the boot dash (Shift) is ready. */
+  dodgeCooldown: number;
   /** Buffs earned outside battle (e.g. a skipped card), applied when the next battle starts. */
   pendingBuffs: HeroBuff[];
 }
@@ -142,8 +144,8 @@ export interface BossRuntime {
   timers: Record<string, number>;
   /** Wind-up: the boss stands still while > 0. */
   busy: number;
-  /** Straight dash in progress. */
-  dash: { to: Vec; speed: number } | null;
+  /** Straight dash in progress; ends on arrival or when `timeLeft` runs out (blocked by bodies or walls). */
+  dash: { to: Vec; speed: number; timeLeft: number } | null;
   /** Combo attack to run as soon as the current one is over. */
   queued: string | null;
 }
