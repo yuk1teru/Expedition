@@ -138,7 +138,7 @@ export function createDeathScreen(app: App): Screen<CanvasRenderingContext2D> {
       ctx.fillRect(0, 0, W, app.view.height);
       drawPanel(ctx, panel);
       drawText(ctx, 'Ви загинули', W / 2, panel.y + 40, { size: 30, bold: true, align: 'center', color: THEME.bad });
-      drawText(ctx, 'Забіг триває: герой прокинеться в місті з прогресом останнього відпочинку.', W / 2, panel.y + 74, {
+      drawText(ctx, 'Забіг триває: герой прокинеться в місті з прогресом останнього візиту туди.', W / 2, panel.y + 74, {
         size: 13,
         align: 'center',
         color: THEME.textDim,

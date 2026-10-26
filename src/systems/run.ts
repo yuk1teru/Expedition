@@ -91,7 +91,7 @@ export function teleport(state: GameState, nodeId: string): TravelResult {
   return getNode(state.world, nodeId).isTown ? { kind: 'town' } : { kind: 'battle', nodeId };
 }
 
-/** Full heal; also saves the checkpoint. */
+/** Full heal and checkpoint; happens automatically every time the hero arrives in town. */
 export function restInTown(state: GameState): void {
   healFull(state.hero);
   saveCheckpoint(state);

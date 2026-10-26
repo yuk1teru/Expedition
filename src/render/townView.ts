@@ -1,4 +1,4 @@
-// Town screen: rest (full heal) and set out.
+// Town screen: arriving rests the hero automatically (full heal + checkpoint).
 
 import type { Screen } from '../core/screens';
 import { restInTown } from '../systems/run';
@@ -7,43 +7,39 @@ import { THEME } from './theme';
 import { TOP_BAR_H, drawTopBar } from './topBar';
 import { Button, ButtonGroup, drawBar, drawPanel, drawText } from './ui';
 
+/** Seconds the "rested and saved" note stays visible after arriving. */
+const TOWN_REST_FLASH = 2.5;
+
 export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
   const W = app.view.width;
-  const panel = { x: W / 2 - 220, y: 60, w: 440, h: 440 };
+  const panel = { x: W / 2 - 220, y: 80, w: 440, h: 380 };
   let restedFlash = 0;
   const buttons = new ButtonGroup([
     new Button({
-      label: 'Відпочити',
+      label: 'Спорядження',
       rect: { x: panel.x + 60, y: panel.y + 172, w: 320, h: 46 },
       hotkey: 'Digit1',
-      onClick: () => {
-        restInTown(app.state);
-        restedFlash = 1.2;
-      },
-    }),
-    new Button({
-      label: 'Спорядження',
-      rect: { x: panel.x + 60, y: panel.y + 226, w: 320, h: 46 },
-      hotkey: 'Digit2',
       onClick: () => app.toggleInventory(),
     }),
     new Button({
       label: 'Торговець',
-      rect: { x: panel.x + 60, y: panel.y + 280, w: 320, h: 46 },
-      hotkey: 'Digit3',
+      rect: { x: panel.x + 60, y: panel.y + 226, w: 320, h: 46 },
+      hotkey: 'Digit2',
       onClick: () => app.openMerchant(),
     }),
     new Button({
       label: 'Вирушити',
-      rect: { x: panel.x + 60, y: panel.y + 334, w: 320, h: 46 },
-      hotkey: 'Digit4',
+      rect: { x: panel.x + 60, y: panel.y + 280, w: 320, h: 46 },
+      hotkey: 'Digit3',
       onClick: () => app.goMap(),
     }),
   ]);
 
   return {
     enter() {
-      restedFlash = 0;
+      // Every arrival in town is a rest: full HP and a saved checkpoint.
+      restInTown(app.state);
+      restedFlash = TOWN_REST_FLASH;
     },
     update(dt) {
       restedFlash = Math.max(0, restedFlash - dt);
@@ -59,7 +55,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
       drawSkyline(ctx, W, app.view.height);
       drawPanel(ctx, panel);
       drawText(ctx, 'Місто', W / 2, panel.y + 40, { size: 30, bold: true, align: 'center' });
-      drawText(ctx, 'Тут безпечно. Відпочиньте перед дорогою.', W / 2, panel.y + 76, {
+      drawText(ctx, 'Тут безпечно: герой відпочиває, прогрес зберігається.', W / 2, panel.y + 76, {
         size: 15,
         align: 'center',
         color: THEME.textDim,
@@ -79,7 +75,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
         ctx.restore();
       }
       buttons.draw(ctx);
-      drawText(ctx, '1 — відпочити · 2 / Tab — спорядження · 3 — торговець · 4 — вирушити', W / 2, panel.y + panel.h - 20, {
+      drawText(ctx, '1 / Tab — спорядження · 2 — торговець · 3 — вирушити', W / 2, panel.y + panel.h - 20, {
         size: 12,
         align: 'center',
         color: THEME.textMuted,

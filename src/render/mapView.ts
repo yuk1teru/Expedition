@@ -117,7 +117,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
 }
 
 function tooltipLines(n: MapNode, current: string): string[] {
-  if (n.isTown) return [n.name, 'Відпочинок: повне відновлення HP', n.id === current ? 'Ви тут' : 'Клік — повернутися'];
+  if (n.isTown) return [n.name, 'Відпочинок і збереження при кожному візиті', n.id === current ? 'Ви тут' : 'Клік — повернутися'];
   const biome = n.biome ? getBiome(n.biome).name : '—';
   const lines = [
     n.name,
