@@ -28,11 +28,12 @@ export interface RarityDef {
 }
 
 export const RARITIES: Record<Rarity, RarityDef> = {
+  // Stats per item: common 1, uncommon and rare 2, epic 3, legendary 4.
   common: { name: 'Звичайна', color: '#c9ced8', power: 1, extraStats: 0, sellPrice: 4 },
-  uncommon: { name: 'Незвичайна', color: '#5fd35f', power: 1.35, extraStats: 0, sellPrice: 8 },
+  uncommon: { name: 'Незвичайна', color: '#5fd35f', power: 1.35, extraStats: 1, sellPrice: 8 },
   rare: { name: 'Рідкісна', color: '#4aa3ff', power: 1.75, extraStats: 1, sellPrice: 15 },
-  epic: { name: 'Епічна', color: '#c77dff', power: 2.3, extraStats: 1, sellPrice: 30 },
-  legendary: { name: 'Легендарна', color: '#ff9f1c', power: 3, extraStats: 2, sellPrice: 60 },
+  epic: { name: 'Епічна', color: '#c77dff', power: 2.3, extraStats: 2, sellPrice: 30 },
+  legendary: { name: 'Легендарна', color: '#ff9f1c', power: 3, extraStats: 3, sellPrice: 60 },
 };
 
 /** Unidentified items sell for this fraction of the price. */
@@ -88,11 +89,13 @@ export interface ItemBase {
 }
 
 export const ITEM_BASES: Record<ItemSlot, ItemBase> = {
+  // Every slot has 3 extras, so a legendary item rolls all of them.
   weapon: {
     main: { stat: 'attack', range: [3, 4] },
     extras: [
       { stat: 'critChance', range: [0.02, 0.03] },
       { stat: 'attackSpeedPct', range: [0.03, 0.05] },
+      { stat: 'hpPct', range: [0.02, 0.03] },
     ],
   },
   hat: {
@@ -100,6 +103,7 @@ export const ITEM_BASES: Record<ItemSlot, ItemBase> = {
     extras: [
       { stat: 'attackSpeedPct', range: [0.03, 0.04] },
       { stat: 'hpPct', range: [0.03, 0.04] },
+      { stat: 'armor', range: [2, 3] },
     ],
   },
   armor: {
@@ -108,6 +112,7 @@ export const ITEM_BASES: Record<ItemSlot, ItemBase> = {
     extras: [
       { stat: 'hpPct', range: [0.03, 0.05] },
       { stat: 'critChance', range: [0.01, 0.02] },
+      { stat: 'moveSpeedPct', range: [0.02, 0.03] },
     ],
   },
   boots: {
@@ -115,19 +120,27 @@ export const ITEM_BASES: Record<ItemSlot, ItemBase> = {
     extras: [
       { stat: 'hpPct', range: [0.03, 0.04] },
       { stat: 'attackSpeedPct', range: [0.02, 0.03] },
+      { stat: 'armor', range: [2, 3] },
     ],
   },
 };
 
 /**
- * Boots of uncommon rarity and better give a short dash on Shift towards the cursor:
+ * Boots of uncommon rarity and better give a short dash on Shift in the direction of
+ * movement (standing still: where the hero faces):
  * the better the boots, the longer the dash and the shorter its cooldown.
  */
 export const BOOT_DASH: Partial<Record<Rarity, { distance: number; cooldown: number }>> = {
-  uncommon: { distance: 45, cooldown: 15 },
-  rare: { distance: 70, cooldown: 14 },
-  epic: { distance: 95, cooldown: 13 },
-  legendary: { distance: 125, cooldown: 12 },
+  uncommon: { distance: 70, cooldown: 15 },
+  rare: { distance: 95, cooldown: 14 },
+  epic: { distance: 120, cooldown: 13 },
+  legendary: { distance: 150, cooldown: 12 },
+};
+
+/** The merchant sells a random identified item for a chosen slot: expensive, uncommon to epic. */
+export const MERCHANT_ITEMS = {
+  price: 120,
+  weights: { uncommon: 60, rare: 30, epic: 10 } as Partial<Record<Rarity, number>>,
 };
 
 /** Boot dash flight speed, px/s (the hero is invulnerable for the short flight). */

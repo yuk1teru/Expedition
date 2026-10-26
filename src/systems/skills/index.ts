@@ -56,16 +56,15 @@ export function skillAim(b: Battle): Vec | null {
   };
 }
 
-/** Shift: a short dash towards the cursor from the worn boots (uncommon and better). */
+/** Shift: a short dash in the direction of movement from the worn boots (uncommon and better). */
 export function useBootDash(b: Battle): 'cast' | 'cooldown' | 'busy' | 'none' {
   const hero = b.hero;
   const dash = bootDash(hero);
   if (!dash) return 'none';
   if (b.outcome !== 'running' || hero.dead || hero.dash || isDisabled(hero) || hasStatus(hero, 'root')) return 'busy';
   if (hero.dodgeCooldown > 0) return 'cooldown';
-  const aim = skillAim(b);
-  let dir = aim ? normalize({ x: aim.x - hero.pos.x, y: aim.y - hero.pos.y }) : { x: 0, y: 0 };
-  if (dir.x === 0 && dir.y === 0) dir = normalize(b.input.move);
+  // Where the hero runs (WASD); standing still — where it faces.
+  let dir = normalize(b.input.move);
   if (dir.x === 0 && dir.y === 0) dir = { x: Math.cos(hero.facing), y: Math.sin(hero.facing) };
   const r = hero.radius;
   const to = {

@@ -6,6 +6,7 @@ import { CONSUMABLES, type ConsumableId, HEAL_ORDER, type HealId } from '../data
 import {
   BOOT_DASH,
   ITEM_ACCENTS,
+  MERCHANT_ITEMS,
   ITEM_BASES,
   ITEM_KINDS,
   ITEM_SLOTS,
@@ -172,6 +173,17 @@ export function assignQuickSlot(hero: Hero, slot: number, id: HealId | null): vo
   hero.quickSlots[slot] = id;
 }
 
+/** Merchant: a random identified item for `slot` (uncommon to epic) into the bag; null if no gold. */
+export function buyItem(state: GameState, slot: ItemSlot): Item | null {
+  if (state.gold < MERCHANT_ITEMS.price) return null;
+  state.gold -= MERCHANT_ITEMS.price;
+  const item = rollItem(state.lootRng, rollRarity(state.lootRng, MERCHANT_ITEMS.weights), state.nextItemUid++, slot);
+  item.identified = true;
+  item.isNew = true;
+  state.hero.bag.push(item);
+  return item;
+}
+
 export function canBuy(state: GameState, id: ConsumableId): boolean {
   const def = CONSUMABLES[id];
   return def.price > 0 && state.gold >= def.price && state.hero.consumables[id] < def.max;
@@ -217,7 +229,7 @@ export function bootDash(hero: Hero): { distance: number; cooldown: number } | n
 /** Extra item lines beyond stats (the boot dash). */
 export function itemPerks(item: Item): string[] {
   const dash = item.slot === 'boots' ? BOOT_DASH[item.rarity] : undefined;
-  return dash ? [`Shift — ривок до курсора на ${dash.distance} px (перезарядка ${dash.cooldown} с)`] : [];
+  return dash ? [`Shift — ривок у напрямку руху на ${dash.distance} px (перезарядка ${dash.cooldown} с)`] : [];
 }
 
 export function equippedStat(hero: Hero, stat: ItemStat): number {

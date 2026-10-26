@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../src/core/rng';
 import { CONSUMABLES } from '../src/data/consumables';
-import { ITEM_BASES, LOOT, RARITIES, RARITY_ORDER, UNIDENTIFIED_SELL_MULT } from '../src/data/items';
+import { ITEM_BASES, LOOT, MERCHANT_ITEMS, RARITIES, RARITY_ORDER, UNIDENTIFIED_SELL_MULT } from '../src/data/items';
 import { createBattle, stepBattle } from '../src/systems/battle';
 import { damageEnemy } from '../src/systems/combat';
 import { createBossEnemy } from '../src/systems/boss';
 import { assignClass } from '../src/systems/hero';
 import {
   buyConsumable,
+  buyItem,
   equipFromBag,
   hasNewItems,
   identifyItem,
@@ -154,5 +155,33 @@ describe('checkpoint', () => {
     gainXp(s, 1000);
     restoreCheckpoint(s);
     expect(s.hero.level).toBe(1);
+  });
+});
+
+describe('item stats and the merchant item shop', () => {
+  it('stats per item: uncommon 2, epic 3, legendary 4, all different', () => {
+    const rng = new Rng(77);
+    const count = { common: 1, uncommon: 2, rare: 2, epic: 3, legendary: 4 } as const;
+    for (const rarity of RARITY_ORDER) {
+      for (let i = 0; i < 20; i++) {
+        const it = rollItem(rng, rarity, i);
+        expect(it.stats).toHaveLength(count[rarity]);
+        expect(new Set(it.stats.map((x) => x.stat)).size).toBe(it.stats.length);
+      }
+    }
+  });
+
+  it('the merchant sells a random identified item for the chosen slot, never legendary or common', () => {
+    const s = createGameState(12);
+    s.gold = MERCHANT_ITEMS.price * 30;
+    for (let i = 0; i < 30; i++) {
+      const it = buyItem(s, 'boots')!;
+      expect(it.slot).toBe('boots');
+      expect(it.identified).toBe(true);
+      expect(['uncommon', 'rare', 'epic']).toContain(it.rarity);
+    }
+    expect(s.gold).toBe(0);
+    expect(buyItem(s, 'hat')).toBeNull();
+    expect(s.hero.bag).toHaveLength(30);
   });
 });

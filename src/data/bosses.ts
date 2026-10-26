@@ -53,8 +53,8 @@ export const BOSSES: Record<string, BossDef> = {
     id: 'enat',
     name: 'Старий Енат',
     biome: 'forest',
-    hp: 3200,
-    damage: 35,
+    hp: 3000,
+    damage: 32,
     armor: 15,
     speed: 34,
     radius: 38,
@@ -74,8 +74,8 @@ export const BOSSES: Record<string, BossDef> = {
         initialCooldown: 1.5,
         // `count` circles of `radius`: one under the hero, the rest `spreadMin`–`spread` px around.
         params: [
-          { count: 3, radius: 60, spreadMin: 80, spread: 130, damage: 0.6 },
-          { count: 5, radius: 60, spreadMin: 80, spread: 150, damage: 0.6 },
+          { count: 3, radius: 48, spreadMin: 80, spread: 130, damage: 0.6 },
+          { count: 5, radius: 48, spreadMin: 80, spread: 150, damage: 0.6 },
         ],
       },
       {
@@ -99,8 +99,8 @@ export const BOSSES: Record<string, BossDef> = {
         initialCooldown: 3,
         // Circle of `radius` around the boss, used when the hero is closer than `trigger`.
         params: [
-          { radius: 150, trigger: 120, damage: 1.2 },
-          { radius: 150, trigger: 120, damage: 1.2 },
+          { radius: 120, trigger: 100, damage: 1.2 },
+          { radius: 120, trigger: 100, damage: 1.2 },
         ],
       },
     ],

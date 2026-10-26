@@ -103,7 +103,8 @@ describe('miniboss combos', () => {
 });
 
 describe('boots, aim and enemies after the second playtest', () => {
-  it('green and better boots dash towards the cursor on Shift; cooldown 15 s, −1 s per rarity', () => {
+  it('green and better boots dash in the movement direction on Shift; 70+ px, cooldown 15 s, −1 s per rarity', () => {
+    expect(BOOT_DASH.uncommon!.distance).toBeGreaterThanOrEqual(70);
     expect(BOOT_DASH.uncommon!.cooldown).toBe(15);
     expect(BOOT_DASH.legendary!.cooldown).toBe(12);
     expect(BOOT_DASH.legendary!.distance).toBeGreaterThan(BOOT_DASH.uncommon!.distance);
@@ -113,10 +114,14 @@ describe('boots, aim and enemies after the second playtest', () => {
     boots.identified = true;
     b.hero.equipment.boots = boots;
     const start = { ...b.hero.pos };
-    b.input.aim = { x: start.x + 300, y: start.y };
+    // The dash follows movement, not the cursor.
+    b.input.aim = { x: start.x, y: start.y - 200 };
+    b.input.move = { x: 1, y: 0 };
     expect(useBootDash(b)).toBe('cast');
+    b.input.move = { x: 0, y: 0 };
     for (let t = 0; t < 0.3; t += 1 / 60) stepBattle(b, 1 / 60);
     expect(b.hero.pos.x - start.x).toBeCloseTo(BOOT_DASH.rare!.distance, 0);
+    expect(b.hero.pos.y).toBeCloseTo(start.y, 0);
     expect(useBootDash(b)).toBe('cooldown');
   });
 

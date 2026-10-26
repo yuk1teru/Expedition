@@ -1,11 +1,11 @@
-// Town merchant: buy magnifiers and potions; identify, wear or sell bag items
-// right here; the full equipment window opens on top (Tab).
+// Town merchant: buy magnifiers, potions and random items for a chosen slot; identify,
+// wear or sell bag items right here; the full equipment window opens on top (Tab).
 
 import type { InputEvent } from '../core/input';
 import type { Modal } from '../core/screens';
 import { CONSUMABLES, type ConsumableId, describeConsumable } from '../data/consumables';
-import { RARITIES } from '../data/items';
-import { buyConsumable, canBuy, displayName, equipFromBag, identifyItem, sellItem, sellPrice } from '../systems/items';
+import { ITEM_SLOTS, MERCHANT_ITEMS, RARITIES } from '../data/items';
+import { buyConsumable, buyItem, canBuy, displayName, equipFromBag, identifyItem, sellItem, sellPrice } from '../systems/items';
 import type { App } from './app';
 import { drawConsumableIcon } from './icons';
 import { itemTooltip } from './inventory';
@@ -19,7 +19,7 @@ const GOODS_Y = 90;
 const GOODS_ROW = 64;
 const CELL = 58;
 const COLS = 6;
-const ROWS = 4;
+const ROWS = 3;
 const SELL_X = 470;
 const SELL_Y = 120;
 
@@ -86,6 +86,19 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
       selected = -1;
     },
   });
+  const ITEM_Y = ACT_Y + 74;
+  const itemButtons = ITEM_SLOTS.map(
+    (slot, i) =>
+      new Button({
+        label: slot.name,
+        rect: { x: SELL_X + i * 87, y: ITEM_Y, w: 80, h: 32 },
+        fontSize: 12,
+        onClick: () => {
+          const item = buyItem(app.state, slot.id);
+          if (item) say(`Куплено: ${displayName(item)} (${RARITIES[item.rarity].name.toLowerCase()}) — у сумці`);
+        },
+      }),
+  );
   const gearBtn = new Button({
     label: 'Спорядження [Tab]',
     rect: { x: PANEL.x + 30, y: PANEL.y + PANEL.h - 54, w: 190, h: 36 },
@@ -99,7 +112,7 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
     fontSize: 15,
     onClick: onClose,
   });
-  const buttons = new ButtonGroup([...buyButtons, identifyBtn, equipBtn, sellBtn, gearBtn, closeBtn]);
+  const buttons = new ButtonGroup([...buyButtons, identifyBtn, equipBtn, sellBtn, ...itemButtons, gearBtn, closeBtn]);
 
   return {
     id: 'merchant',
@@ -114,6 +127,7 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
       equipBtn.enabled = !!item && item.identified;
       sellBtn.enabled = !!item;
       sellBtn.label = item ? `Продати ${sellPrice(item)}` : 'Продати';
+      for (const b of itemButtons) b.enabled = app.state.gold >= MERCHANT_ITEMS.price;
     },
     onInput(e: InputEvent) {
       if (e.type === 'key' && e.code === 'Tab') {
@@ -170,6 +184,14 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
           drawText(ctx, `${sellPrice(item)}`, r.x + r.w / 2, r.y + r.h - 8, { size: 10, bold: true, align: 'center', color: THEME.accent });
         }
       }
+      if (st.hero.bag.length > COLS * ROWS) {
+        drawText(ctx, `…ще ${st.hero.bag.length - COLS * ROWS} у сумці (Tab)`, SELL_X + COLS * CELL - 6, SELL_Y - 22, { size: 11, align: 'right', color: THEME.textDim });
+      }
+      drawText(ctx, `Купити річ — ${MERCHANT_ITEMS.price} зол. (випадкова: зелена, синя або епічна)`, SELL_X, ITEM_Y - 14, {
+        size: 12,
+        bold: true,
+        color: THEME.accent,
+      });
       if (st.hero.bag.length === 0) {
         drawText(ctx, 'Сумка порожня', SELL_X + (COLS * CELL) / 2, SELL_Y + 100, { size: 14, align: 'center', color: THEME.textDim });
       }
@@ -182,7 +204,7 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
       buttons.draw(ctx);
       if (flashTime > 0) {
         ctx.globalAlpha = Math.min(1, flashTime);
-        drawText(ctx, flash, PANEL.x + PANEL.w / 2, PANEL.y + PANEL.h - 76, { size: 14, bold: true, align: 'center', color: THEME.good });
+        drawText(ctx, flash, PANEL.x + 30, PANEL.y + GOODS_Y + GOODS.length * GOODS_ROW + 30, { size: 13, bold: true, color: THEME.good });
         ctx.globalAlpha = 1;
       }
       const m = app.input.mouse;
