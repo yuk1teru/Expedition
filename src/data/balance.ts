@@ -97,10 +97,10 @@ export const WAVES = {
   extraPerWave: 2,
   /**
    * HP, damage, XP and gold multiplier of wave i (0-based): 1 + statPerWave·i + statPerWave2·i².
-   * Gentle at first, steep later: wave 3 ×1.24, wave 6 ×1.9, wave 10 ×3.3, wave 15 ×6.
+   * Gentle at first, steep later: wave 3 ×1.22, wave 6 ×2.0, wave 10 ×3.9, wave 15 ×7.6.
    */
   statPerWave: 0.05,
-  statPerWave2: 0.018,
+  statPerWave2: 0.03,
   groupSize: 4,
   /** Seconds between spawn groups. */
   groupInterval: 0.5,
