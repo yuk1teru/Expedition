@@ -16,7 +16,7 @@ import type { App } from './app';
 import { syncBattleInput } from './battleInput';
 import type { Fx } from './fx';
 import { drawBossBar } from './bossView';
-import { drawSkillIcon } from './icons';
+import { drawConsumableIcon, drawSkillIcon } from './icons';
 import { className } from './names';
 import { THEME } from './theme';
 import { Button, ButtonGroup, type Rect, drawBar, drawText, drawTooltip, inRect, roundRect } from './ui';
@@ -172,6 +172,7 @@ export function createHud(app: App, _fx: Fx): Hud {
       drawSkillBar(ctx, b, slots, noTargetT, hoverSlot);
       if (hasNewItems(hero)) drawNewItemHint(ctx, W - 14, ARENA.y + ARENA.h + 40, app.time, 'right');
       drawLevelAndXp(ctx, hero.level, hero.xp, slots, ARENA.y + ARENA.h + XP_BAR.top);
+      drawHerbSlot(ctx, hero.consumables.herb, hero.herbCooldown, slots);
       if (dragFrom >= 0 && dragMoved) drawDragGhost(ctx, b, dragFrom, slots, app.input.mouse);
 
     },
@@ -200,6 +201,24 @@ export function drawNewItemHint(ctx: CanvasRenderingContext2D, x: number, y: num
   ctx.globalAlpha = 0.45 + 0.55 * Math.abs(Math.sin(t * 3.5));
   drawText(ctx, '★ Нова річ — Tab, щоб вдягнути', x, y, { size: 13, bold: true, align, color: THEME.accent });
   ctx.globalAlpha = 1;
+}
+
+/** Carried healing herbs, used with G, right of the skill bar. */
+function drawHerbSlot(ctx: CanvasRenderingContext2D, count: number, cooldown: number, slots: Rect[]): void {
+  const last = slots[slots.length - 1];
+  if (!last) return;
+  const r = { x: last.x + last.w + SLOT_GAP + 8, y: last.y, w: last.w, h: last.h };
+  roundRect(ctx, r.x, r.y, r.w, r.h, 10);
+  ctx.fillStyle = count > 0 ? '#1f3324' : 'rgba(35, 42, 59, 0.4)';
+  ctx.fill();
+  ctx.strokeStyle = count > 0 && cooldown <= 0 ? THEME.good : THEME.panelBorder;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.globalAlpha = count > 0 ? 1 : 0.35;
+  drawConsumableIcon(ctx, 'herb', r.x + r.w / 2, r.y + r.h / 2, r.w * 0.6);
+  ctx.globalAlpha = 1;
+  drawText(ctx, 'G', r.x + 7, r.y + 10, { size: 11, bold: true, color: THEME.textDim });
+  drawText(ctx, `×${count}`, r.x + r.w - 4, r.y + r.h - 8, { size: 12, bold: true, align: 'right' });
 }
 
 /** Level badge left of the skill bar and the XP bar above it. */

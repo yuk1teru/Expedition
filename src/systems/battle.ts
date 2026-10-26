@@ -8,6 +8,7 @@ import type { GameState } from '../core/state';
 import { updateEnemyAI, updateHeroAI } from './ai';
 import { isBossDefeated, onBossDefeated, setupBossBattle, updateBoss, updateTelegraphs } from './boss';
 import './bosses';
+import { type Pickup, updatePickups } from './pickups';
 import { clampToArena, insideArena, separateBodies } from './collision';
 import { damageEnemy, damageHero, decayKnockback, killEnemy, updateHeroHealing, updateStatuses } from './combat';
 import type { Body, Enemy, Hero, Projectile, Telegraph, Vec, Zone } from './entities';
@@ -63,6 +64,8 @@ export interface Battle {
   projectiles: Projectile[];
   zones: Zone[];
   telegraphs: Telegraph[];
+  /** Plants growing on the arena. */
+  pickups: Pickup[];
   waves: WaveState | null;
   /** Exit portal (opens after the mandatory waves). */
   portal: Portal | null;
@@ -100,6 +103,7 @@ export function createBattle(state: GameState, nodeId: string): Battle {
     projectiles: [],
     zones: [],
     telegraphs: [],
+    pickups: [],
     waves: node.isBoss ? null : createWaves(),
     portal: null,
     boss: null,
@@ -164,6 +168,7 @@ export function stepBattle(b: Battle, dt: number): void {
 
   updateZones(b, dt);
   updateTelegraphs(b, dt);
+  updatePickups(b, dt);
   updateProjectiles(b, dt);
 
   // Collisions.

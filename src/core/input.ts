@@ -31,6 +31,7 @@ export const GAME_KEYS = [
   'Enter',
   'Tab',
   'KeyE',
+  'KeyG',
   ...Object.keys(MOVE_KEYS),
 ] as const;
 

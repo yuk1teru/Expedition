@@ -2,12 +2,13 @@
 
 import type { Rng } from '../src/core/rng';
 import type { GameState } from '../src/core/state';
-import { LOOP } from '../src/data/balance';
+import { LOOP, SIM } from '../src/data/balance';
 import { CLASS_ORDER, getClass } from '../src/data/classes';
 import { type Battle, createBattle, stepBattle } from '../src/systems/battle';
 import { chooseCard, chooseClass, completeBattle, type BattleSummary, nextCardOffer } from '../src/systems/run';
 import { useSkill } from '../src/systems/skills';
 import { botIdentifyAndEquip } from '../src/systems/items';
+import { useHerb } from '../src/systems/pickups';
 import { enterPortal } from '../src/systems/waves';
 
 export interface BotOptions {
@@ -46,6 +47,7 @@ export function runBattle(state: GameState, nodeId: string, opts: BotOptions): B
   const b = createBattle(state, nodeId);
   while (!b.finished && b.time < opts.maxBattleTime) {
     if (opts.useSkills) useReadySkills(b);
+    if (b.hero.hp < b.hero.maxHp * SIM.botHerbBelow) useHerb(b);
     if (b.portal) enterPortal(b);
     stepBattle(b, LOOP.step);
     resolveModals(state, opts.rng);

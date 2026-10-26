@@ -1,5 +1,6 @@
 // Events emitted by logic for render (floating numbers, particles, shake, banners).
 
+import type { PickupKind } from '../data/consumables';
 import type { Rarity } from '../data/items';
 import type { Vec } from './entities';
 
@@ -15,6 +16,8 @@ export type GameEvent =
   | { type: 'wave'; index: number; total: number; bonus: number }
   | { type: 'miniboss'; name: string; pos: Vec }
   | { type: 'portalOpen'; pos: Vec }
+  | { type: 'pickupSpawn'; kind: PickupKind; pos: Vec }
+  | { type: 'pickup'; kind: PickupKind; pos: Vec }
   | { type: 'loot'; pos: Vec; name: string; rarity: Rarity }
   | { type: 'levelUp'; level: number; hp: number; attack: number }
   | { type: 'heroDeath'; pos: Vec }

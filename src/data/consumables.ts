@@ -68,6 +68,7 @@ export const PICKUP_SPAWN = {
   /** Seconds to grow before it can be picked. */
   growTime: 2,
   radius: 14,
-  /** Distance from the arena edge, px. */
+  /** Distance from the arena edge, px; also keeps it away from the hero (×2). */
   inset: 60,
+  placementTries: 12,
 } as const;

@@ -11,7 +11,10 @@ import { RARITIES } from '../data/items';
 import { heroAttackSpeed } from '../systems/ai';
 import { basicAttackOf } from '../systems/hero';
 import { type Battle, stepBattle } from '../systems/battle';
+import { type Pickup, pickupReady, useHerb } from '../systems/pickups';
 import { portalActive, portalInReach, requestPortalEntry } from '../systems/waves';
+import { PICKUPS, PICKUP_SPAWN } from '../data/consumables';
+import { drawConsumableIcon } from './icons';
 import type { Enemy, Hero, Projectile, Telegraph, Zone } from '../systems/entities';
 import type { GameEvent } from '../systems/gameEvents';
 import type { App } from './app';
@@ -126,6 +129,10 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       }
       if (hud.handle(e)) return;
       if (e.type !== 'key') return;
+      if (e.code === 'KeyG' && battle && !app.loop.paused) {
+        useHerb(battle);
+        return;
+      }
       if (e.code === 'Escape') {
         app.loop.paused = !app.loop.paused;
         confirmUntil = 0;
@@ -144,6 +151,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       drawArena(ctx, b.biome, patches, decor);
       for (const z of b.zones) drawZone(ctx, z, b, app.time);
       if (b.portal) drawPortal(ctx, b.portal.pos, b.portal.radius, app.time, portalActive(b));
+      for (const p of b.pickups) drawPickup(ctx, p, b, app.time);
       for (const p of b.projectiles) drawProjectile(ctx, p);
       for (const e of b.enemies) {
         if (e.boss) drawBoss(ctx, e, b, app.time);
@@ -252,6 +260,17 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
       fx.text(at, e.name, color, 17, 2.4);
       fx.ring(e.pos, 60, RARITIES[e.rarity].color, 0.8, 5);
       fx.burst(e.pos, P.levelUp, RARITIES[e.rarity].color);
+      break;
+    }
+    case 'pickupSpawn':
+      fx.burst(e.pos, P.spawn, PICKUPS[e.kind].color);
+      break;
+    case 'pickup': {
+      const def = PICKUPS[e.kind];
+      const text = def.effect.kind === 'stash' ? `+${def.name} (G)` : `${def.name}! +${Math.round(def.effect.attackSpeed * 100)}% швидкості атаки`;
+      fx.text({ x: e.pos.x, y: e.pos.y - 24 }, text, def.color, 15, 1.8);
+      fx.ring(e.pos, 40, def.color, 0.5, 4);
+      fx.burst(e.pos, P.levelUp, def.color);
       break;
     }
     case 'portalOpen':
@@ -603,6 +622,43 @@ function drawZone(ctx: CanvasRenderingContext2D, z: Zone, b: Battle, t: number):
     ctx.beginPath();
     ctx.arc(0, 0, z.radius, 0, Math.PI * 2);
     ctx.fill();
+  }
+  ctx.restore();
+}
+
+/** A plant growing out of the ground; pulses when it can be picked up. */
+function drawPickup(ctx: CanvasRenderingContext2D, p: Pickup, b: Battle, t: number): void {
+  const def = PICKUPS[p.kind];
+  const grow = Math.min(1, (b.time - p.spawnedAt) / PICKUP_SPAWN.growTime);
+  const ready = pickupReady(b, p);
+  const r = PICKUP_SPAWN.radius;
+  ctx.save();
+  ctx.translate(p.pos.x, p.pos.y);
+  if (ready) {
+    ctx.globalAlpha = 0.25 + 0.15 * Math.sin(t * 5);
+    ctx.fillStyle = def.color;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(0, r * 0.6, r, r * 0.35, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.scale(grow, grow);
+  if (p.kind === 'herb') drawConsumableIcon(ctx, 'herb', 0, -r * 0.3, r * 2.4);
+  else {
+    ctx.fillStyle = '#3f7a32';
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = def.color;
+    for (const [bx, by] of [[-0.4, -0.3], [0.35, -0.2], [0, 0.3], [-0.1, -0.6]] as [number, number][]) {
+      ctx.beginPath();
+      ctx.arc(bx * r, by * r, r * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
   ctx.restore();
 }

@@ -7,6 +7,7 @@ import { getEnemyDef } from '../data/enemies';
 import type { Rng } from '../core/rng';
 import type { Battle } from './battle';
 import { createBossEnemy } from './boss';
+import { maybeSpawnPickup } from './pickups';
 import type { Enemy, Vec } from './entities';
 import { dist } from './entities';
 import { dayMultiplier, enemyStats, goldReward } from './scaling';
@@ -77,6 +78,7 @@ export function updateWaves(b: Battle, dt: number): void {
     w.queue = composeWave(b.rng, b.biome.id, b.tier, w.index);
     w.groupTimer = 0;
     b.events.emit({ type: 'wave', index: w.index + 1, total: w.total, bonus });
+    maybeSpawnPickup(b, w.index + 1);
     if (w.index + 1 === WAVES.minibossWave && b.biome.miniboss) spawnMiniboss(b, b.biome.miniboss);
   }
   if (w.queue.length > 0) {
