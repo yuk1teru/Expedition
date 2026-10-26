@@ -3,8 +3,10 @@
 import { ARENA } from '../../data/balance';
 import { addStatus, damageEnemy, heroDamage } from '../combat';
 import { addBuff, addZone, startDash } from '../effects';
-import { dist } from '../entities';
-import { bestConeAngle, coneTargets, densestPoint, enemiesInRadius, nearestEnemy } from '../targeting';
+import type { SkillParams } from '../../data/skills';
+import type { Battle } from '../battle';
+import { type Hero, type Vec, dist } from '../entities';
+import { bestConeAngle, coneTargets, densePoints, enemiesInRadius, nearestEnemy } from '../targeting';
 import type { SkillImpl } from './types';
 
 const whirlwind: SkillImpl = ({ b, hero, p, def, rank }) => {
@@ -25,12 +27,8 @@ const whirlwind: SkillImpl = ({ b, hero, p, def, rank }) => {
 };
 
 const charge: SkillImpl = ({ b, hero, p, def, rank }) => {
-  const target = densestPoint(b.enemies, p.radius!, hero.pos, p.range!);
-  if (!target) return false;
-  const dest = {
-    x: Math.max(ARENA.x + hero.radius, Math.min(ARENA.x + ARENA.w - hero.radius, target.pos.x)),
-    y: Math.max(ARENA.y + hero.radius, Math.min(ARENA.y + ARENA.h - hero.radius, target.pos.y)),
-  };
+  const dest = chargeLanding(b, hero, p);
+  if (!dest) return false;
   const from = { ...hero.pos };
   if (p.trail! > 0) {
     const len = dist(from, dest);
@@ -57,6 +55,32 @@ const charge: SkillImpl = ({ b, hero, p, def, rank }) => {
   b.events.emit({ type: 'skillCast', skillId: def.id, rank, pos: from, target: dest });
   return true;
 };
+
+/**
+ * Landing point for Charge: the densest group within range; while boss
+ * telegraphs are active, prefers a spot next to a group that is outside them.
+ */
+function chargeLanding(b: Battle, hero: Hero, p: SkillParams): Vec | null {
+  const clusters = densePoints(b.enemies, p.radius!, hero.pos, p.range!);
+  const first = clusters[0];
+  if (!first) return null;
+  const clamp = (v: Vec): Vec => ({
+    x: Math.max(ARENA.x + hero.radius, Math.min(ARENA.x + ARENA.w - hero.radius, v.x)),
+    y: Math.max(ARENA.y + hero.radius, Math.min(ARENA.y + ARENA.h - hero.radius, v.y)),
+  });
+  if (b.telegraphs.length === 0) return clamp(first.pos);
+  const safe = (v: Vec): boolean => b.telegraphs.every((t) => dist(v, t.pos) > t.shape.radius + hero.radius);
+  for (const c of clusters) {
+    const options = [c.pos];
+    for (let k = 0; k < p.landingSamples!; k++) {
+      const a = (k / p.landingSamples!) * Math.PI * 2;
+      options.push({ x: c.pos.x + Math.cos(a) * p.landingRing!, y: c.pos.y + Math.sin(a) * p.landingRing! });
+    }
+    const ok = options.map(clamp).filter((v) => safe(v) && dist(v, hero.pos) <= p.range! + p.landingRing!);
+    if (ok.length > 0) return ok.sort((x, y) => dist(x, c.pos) - dist(y, c.pos))[0] as Vec;
+  }
+  return clamp(first.pos);
+}
 
 const battleCry: SkillImpl = ({ b, hero, p, def, rank }) => {
   if (!nearestEnemy(b.enemies, hero.pos)) return false;

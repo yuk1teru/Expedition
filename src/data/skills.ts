@@ -79,6 +79,9 @@ export const SKILLS: Record<string, SkillDef> = {
       trailTick: 0.25,
       trailRadius: 24,
       trailSpacing: 30,
+      // Safe-landing search around a group while boss telegraphs are active.
+      landingRing: 80,
+      landingSamples: 12,
     },
     rank3Modifier: { text: 'Залишає вогняний слід на 2 с.', param: 'trail', value: 1 },
   }),

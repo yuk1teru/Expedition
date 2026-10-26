@@ -6,6 +6,8 @@ import type { EventBus } from '../core/events';
 import type { Rng } from '../core/rng';
 import type { GameState } from '../core/state';
 import { updateEnemyAI, updateHeroAI } from './ai';
+import { isBossDefeated, onBossDefeated, setupBossBattle, updateBoss, updateTelegraphs } from './boss';
+import './bosses';
 import { clampToArena, insideArena, separateBodies } from './collision';
 import { damageEnemy, damageHero, decayKnockback, killEnemy, updateStatuses } from './combat';
 import type { Body, Enemy, Hero, Projectile, Telegraph, Zone } from './entities';
@@ -51,19 +53,6 @@ export interface Battle {
   finished: boolean;
 }
 
-/** Hooks other systems register (boss logic) without battle.ts importing them. */
-export interface BattleHooks {
-  setup?: (b: Battle) => void;
-  update?: (b: Battle, dt: number) => void;
-  isWon?: (b: Battle) => boolean;
-}
-
-const hooks: BattleHooks[] = [];
-
-export function registerBattleHooks(h: BattleHooks): void {
-  hooks.push(h);
-}
-
 export function createBattle(state: GameState, nodeId: string): Battle {
   const node = getNode(state.world, nodeId);
   if (!node.biome) throw new Error(`Node ${nodeId} has no biome`);
@@ -92,7 +81,7 @@ export function createBattle(state: GameState, nodeId: string): Battle {
     endTimer: 0,
     finished: false,
   };
-  for (const h of hooks) h.setup?.(b);
+  if (b.kind === 'boss') setupBossBattle(b);
   return b;
 }
 
@@ -130,7 +119,7 @@ export function stepBattle(b: Battle, dt: number): void {
 
   // Spawning and boss logic.
   updateWaves(b, dt);
-  for (const h of hooks) h.update?.(b, dt);
+  updateBoss(b, dt);
 
   // Enemies.
   for (const e of b.enemies) {
@@ -144,6 +133,7 @@ export function stepBattle(b: Battle, dt: number): void {
   for (const e of b.enemies) if (!e.dead) integrate(e, dt, false);
 
   updateZones(b, dt);
+  updateTelegraphs(b, dt);
   updateProjectiles(b, dt);
 
   // Collisions.
@@ -227,8 +217,12 @@ function checkOutcome(b: Battle): void {
     finish(b, 'lost', FLOW.loseDelay);
     return;
   }
-  const won = hooks.some((h) => h.isWon?.(b)) || (b.waves !== null && b.waves.finished);
-  if (won) finish(b, 'won', FLOW.winDelay);
+  if (b.kind === 'boss' && isBossDefeated(b)) {
+    onBossDefeated(b);
+    finish(b, 'won', FLOW.bossWinDelay);
+  } else if (b.waves !== null && b.waves.finished) {
+    finish(b, 'won', FLOW.winDelay);
+  }
 }
 
 function finish(b: Battle, outcome: BattleOutcome, delay: number): void {

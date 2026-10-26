@@ -140,6 +140,8 @@ export const FLOW = {
   winDelay: 1.0,
   /** Delay after hero death before the death screen. */
   loseDelay: 1.2,
+  /** Longer pause to enjoy the boss falling. */
+  bossWinDelay: 2.2,
 } as const;
 
 /** General skill rank rule. */

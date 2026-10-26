@@ -113,6 +113,8 @@ export interface BossRuntime {
   pause: number;
   /** Timers for periodic abilities (summons etc.). */
   timers: Record<string, number>;
+  /** Wind-up: the boss stands still while > 0. */
+  busy: number;
 }
 
 export interface Enemy extends Body {

@@ -103,6 +103,8 @@ export function createHud(app: App, _fx: Fx): Hud {
         const w = b.waves;
         drawText(ctx, `Хвиля ${Math.min(w.total, w.index + 1)}/${w.total}`, W / 2, 20, { size: 17, bold: true, align: 'center' });
         drawText(ctx, b.node.name, W / 2, 41, { size: 12, align: 'center', color: THEME.textDim });
+      } else {
+        drawText(ctx, 'Бій з босом', W / 2, 28, { size: 17, bold: true, align: 'center', color: THEME.bad });
       }
 
       drawText(ctx, `${state.gold}`, W - 240, 20, { size: 16, bold: true, align: 'right', color: THEME.accent });

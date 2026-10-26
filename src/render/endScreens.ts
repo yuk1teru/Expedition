@@ -114,7 +114,7 @@ function createRunEndScreen(app: App, victory: boolean): Screen<CanvasRenderingC
         align: 'center',
         color: victory ? THEME.good : THEME.bad,
       });
-      drawText(ctx, victory ? 'Старий Енат повалений. Ліс вільний.' : 'Герой загинув у дорозі.', W / 2, panel.y + 76, {
+      drawText(ctx, victory ? 'Усіх босів переможено. Експедиція вдалася!' : 'Герой загинув у дорозі.', W / 2, panel.y + 76, {
         size: 15,
         align: 'center',
         color: THEME.textDim,

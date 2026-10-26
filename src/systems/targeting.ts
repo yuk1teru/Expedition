@@ -68,6 +68,25 @@ export function densestPoint(
   return best;
 }
 
+/** All candidate clusters (one per enemy as centre), most enemies first. */
+export function densePoints(enemies: readonly Enemy[], radius: number, from: Vec, maxRange: number): DensePoint[] {
+  const out: DensePoint[] = [];
+  for (const c of enemies) {
+    if (c.dead || dist(c.pos, from) > maxRange) continue;
+    let count = 0;
+    let sx = 0;
+    let sy = 0;
+    for (const e of enemies) {
+      if (e.dead || dist(e.pos, c.pos) > radius) continue;
+      count++;
+      sx += e.pos.x;
+      sy += e.pos.y;
+    }
+    out.push({ pos: { x: sx / count, y: sy / count }, count });
+  }
+  return out.sort((a, b) => b.count - a.count || dist(a.pos, from) - dist(b.pos, from));
+}
+
 /** Direction away from the centre of mass of enemies within `radius` (unit vector). */
 export function safestDirection(enemies: readonly Enemy[], from: Vec, radius: number): Vec | null {
   let sx = 0;

@@ -11,7 +11,7 @@ import { type Battle, stepBattle } from '../systems/battle';
 import type { Enemy, Hero, Projectile, Telegraph, Zone } from '../systems/entities';
 import type { GameEvent } from '../systems/gameEvents';
 import type { App } from './app';
-import { drawBoss } from './bossView';
+import { drawBoss, drawBossBar } from './bossView';
 import { Fx } from './fx';
 import { createHud } from './hud';
 import { skillFx } from './skillFx';
@@ -113,6 +113,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       ctx.restore();
       fx.drawFlash(ctx, app.view.width, app.view.height);
       hud.draw(ctx, b);
+      drawBossBar(ctx, b, app.view.width);
       fx.drawBanner(ctx, app.view.width / 2, ARENA.y + ARENA.h * 0.3);
       if (app.loop.paused && !app.screens.isPaused) {
         ctx.fillStyle = 'rgba(0,0,0,0.45)';
@@ -178,6 +179,17 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
     case 'heroDeath':
       fx.burst(e.pos, P.eliteDeath, '#f4f1e8');
       fx.screenFlash('#e5534b', 0.5);
+      break;
+    case 'bossPhase':
+      fx.screenFlash('#ff4d3a', 0.45);
+      fx.shake(FX.shake.bossPhase);
+      fx.showBanner('Фаза 2', THEME.bad);
+      fx.burst(e.pos, P.eliteDeath, '#ff4d3a');
+      break;
+    case 'telegraphFire':
+      fx.burst(e.pos, P.telegraph, e.kind === 'roots' ? '#7a5230' : '#c9a36b');
+      fx.ring(e.pos, e.radius, '#e5534b', 0.3, 5);
+      fx.shake(FX.shake.telegraph);
       break;
     case 'battleEnd':
       fx.showBanner(e.won ? 'Перемога!' : 'Поразка', e.won ? THEME.good : THEME.bad);
