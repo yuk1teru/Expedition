@@ -17,6 +17,7 @@ import {
   chooseClass,
   completeBattle,
   createGameState,
+  isRunOver,
   isRunWon,
   nextCardOffer,
   teleport,
@@ -173,7 +174,7 @@ export class App {
 
   private frameUpdate(dt: number): void {
     this.time += dt;
-    this.state.stats.playTime += dt;
+    if (!isRunOver(this.state)) this.state.stats.playTime += dt;
     for (const e of this.input.drain()) this.handleInput(e);
     this.processModalQueue();
   }

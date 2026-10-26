@@ -19,6 +19,8 @@ export interface ClassDef {
   startingSkillName: string;
   skills: string[];
   passives: string[];
+  /** Names shown in the class choice for classes without skill data yet. */
+  preview?: { skills: string[]; passives: string[]; passiveMaxStacks: number };
   /** Outline colour of the hero and class accents. */
   color: string;
   icon: ClassIcon;
@@ -58,6 +60,11 @@ export const CLASSES: Record<string, ClassDef> = {
     startingSkillName: 'Вогняна куля',
     skills: [],
     passives: [],
+    preview: {
+      skills: ['Вогняна куля', 'Крижане кільце', 'Ланцюгова блискавка', 'Телепорт'],
+      passives: ['Сила чар', 'Зосередження', "Магічний бар'єр"],
+      passiveMaxStacks: 5,
+    },
     color: '#3b7dd8',
     icon: 'orb',
   },
@@ -76,6 +83,11 @@ export const CLASSES: Record<string, ClassDef> = {
     startingSkillName: 'Мультипостріл',
     skills: [],
     passives: [],
+    preview: {
+      skills: ['Мультипостріл', 'Пастка', 'Дощ стріл', 'Відскок'],
+      passives: ['Влучність', 'Спритність', 'Пробиття'],
+      passiveMaxStacks: 5,
+    },
     color: '#3fa34d',
     icon: 'bow',
   },

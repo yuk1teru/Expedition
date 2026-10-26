@@ -118,3 +118,8 @@ export function nextCardOffer(state: GameState): Card[] {
 export function chooseCard(state: GameState, card: Card): void {
   applyCard(state.hero, card);
 }
+
+/** The run is over once the hero died or every boss is defeated (play time stops). */
+export function isRunOver(state: GameState): boolean {
+  return state.hero.dead || isRunWon(state);
+}
