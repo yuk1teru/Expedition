@@ -12,6 +12,7 @@ import { xpToNext } from '../systems/scaling';
 import { inBreak, nextWaveIn, portalActive, skipBreak, wavesToPortal } from '../systems/waves';
 import { moveSkill, skillInSlot } from '../systems/hero';
 import { bootDash, hasNewItems } from '../systems/items';
+import { CONSUMABLES, QUICK_SLOTS, describeConsumable } from '../data/consumables';
 import type { Hero } from '../systems/entities';
 import { slotCooldown, useSkill } from '../systems/skills';
 import type { App } from './app';
@@ -207,13 +208,23 @@ export function createHud(app: App, _fx: Fx): Hud {
       drawSkillBar(ctx, b, slots, noTargetT, noTargetText, hoverSlot);
       if (hasNewItems(hero)) drawNewItemHint(ctx, W - 14, ARENA.y + ARENA.h + 12, app.time, 'right');
       drawLevelAndXp(ctx, hero.level, hero.xp, slots, ARENA.y + ARENA.h + XP_BAR.top);
-      drawHerbSlot(ctx, hero.consumables.herb, hero.herbCooldown, slots);
+      drawQuickSlots(ctx, hero, slots);
       drawDodgeSlot(ctx, hero, slots);
       if (dragFrom >= 0 && dragMoved) drawDragGhost(ctx, b, dragFrom, slots, app.input.mouse);
 
     },
     drawOverlay(ctx, b) {
       const hero = app.state.hero;
+      const m = app.input.mouse;
+      for (let i = 0; i < QUICK_SLOTS.labels.length; i++) {
+        const r = quickRect(slots, i);
+        if (!r || !inRect(r, m.x, m.y)) continue;
+        const id = hero.quickSlots[i];
+        const lines = id
+          ? [`${CONSUMABLES[id].name} — ${QUICK_SLOTS.labels[i]}`, describeConsumable(id), `У вас: ${hero.consumables[id]}`, 'Що стоїть на слоті — обирається в інвентарі (Tab)']
+          : [`Слот ${QUICK_SLOTS.labels[i]} порожній`, 'Поставте траву чи зілля в інвентарі (Tab)'];
+        drawTooltip(ctx, lines, m.x, ARENA.y + ARENA.h - 120, W, app.view.height);
+      }
       const hs = hoverSlot >= 0 ? skillInSlot(hero, hoverSlot) : undefined;
       if (hs) {
         const def = getSkill(hs.id);
@@ -233,12 +244,13 @@ export function drawNewItemHint(ctx: CanvasRenderingContext2D, x: number, y: num
   ctx.globalAlpha = 1;
 }
 
-/** Boot dash (Shift), right of the herb slot; only with boots that have it. */
+/** Boot dash (Shift), right of the quick slots; only with boots that have it. */
 function drawDodgeSlot(ctx: CanvasRenderingContext2D, hero: Hero, slots: Rect[]): void {
   const dash = bootDash(hero);
   const last = slots[slots.length - 1];
   if (!dash || !last) return;
-  const r = { x: last.x + 2 * (last.w + SLOT_GAP) + 4, y: last.y, w: last.w, h: last.h };
+  const lastQuick = quickRect(slots, QUICK_SLOTS.labels.length - 1)!;
+  const r = { x: lastQuick.x + lastQuick.w + 10, y: last.y, w: last.w, h: last.h };
   const ready = hero.dodgeCooldown <= 0;
   roundRect(ctx, r.x, r.y, r.w, r.h, 10);
   ctx.fillStyle = '#1f2a38';
@@ -272,22 +284,43 @@ function drawDodgeSlot(ctx: CanvasRenderingContext2D, hero: Hero, slots: Rect[])
   if (!ready) drawText(ctx, String(Math.ceil(hero.dodgeCooldown)), r.x + r.w / 2, r.y + r.h / 2, { size: 17, bold: true, align: 'center' });
 }
 
-/** Carried healing herbs, used with G, right of the skill bar. */
-function drawHerbSlot(ctx: CanvasRenderingContext2D, count: number, cooldown: number, slots: Rect[]): void {
+const QUICK_GAP = 6;
+
+/** Quick slot boxes (Z / X / C) right of the skill bar. */
+function quickRect(slots: Rect[], i: number): Rect | null {
   const last = slots[slots.length - 1];
-  if (!last) return;
-  const r = { x: last.x + last.w + SLOT_GAP + 8, y: last.y, w: last.w, h: last.h };
-  roundRect(ctx, r.x, r.y, r.w, r.h, 10);
-  ctx.fillStyle = count > 0 ? '#1f3324' : 'rgba(35, 42, 59, 0.4)';
-  ctx.fill();
-  ctx.strokeStyle = count > 0 && cooldown <= 0 ? THEME.good : THEME.panelBorder;
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-  ctx.globalAlpha = count > 0 ? 1 : 0.35;
-  drawConsumableIcon(ctx, 'herb', r.x + r.w / 2, r.y + r.h / 2, r.w * 0.6);
-  ctx.globalAlpha = 1;
-  drawText(ctx, 'G', r.x + 7, r.y + 10, { size: 11, bold: true, color: THEME.textDim });
-  drawText(ctx, `×${count}`, r.x + r.w - 4, r.y + r.h - 8, { size: 12, bold: true, align: 'right' });
+  if (!last) return null;
+  return { x: last.x + last.w + SLOT_GAP + 8 + i * (last.w + QUICK_GAP), y: last.y, w: last.w, h: last.h };
+}
+
+/** Healing items on Z / X / C: icon, count and the shared cooldown. */
+function drawQuickSlots(ctx: CanvasRenderingContext2D, hero: Hero, slots: Rect[]): void {
+  QUICK_SLOTS.labels.forEach((key, i) => {
+    const r = quickRect(slots, i);
+    if (!r) return;
+    const id = hero.quickSlots[i] ?? null;
+    const count = id ? hero.consumables[id] : 0;
+    roundRect(ctx, r.x, r.y, r.w, r.h, 10);
+    ctx.fillStyle = count > 0 ? '#1f3324' : 'rgba(35, 42, 59, 0.4)';
+    ctx.fill();
+    ctx.strokeStyle = count > 0 && hero.healCooldown <= 0 ? THEME.good : THEME.panelBorder;
+    ctx.lineWidth = 1.5;
+    if (!id) ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (id) {
+      ctx.globalAlpha = count > 0 ? 1 : 0.35;
+      drawConsumableIcon(ctx, id, r.x + r.w / 2, r.y + r.h / 2, r.w * 0.6);
+      ctx.globalAlpha = 1;
+      drawText(ctx, `×${count}`, r.x + r.w - 4, r.y + r.h - 8, { size: 12, bold: true, align: 'right' });
+    }
+    drawText(ctx, key, r.x + 7, r.y + 10, { size: 11, bold: true, color: THEME.textDim });
+    if (id && count > 0 && hero.healCooldown > 0) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+      roundRect(ctx, r.x, r.y, r.w, r.h, 10);
+      ctx.fill();
+    }
+  });
 }
 
 /** Level badge left of the skill bar and the XP bar above it. */

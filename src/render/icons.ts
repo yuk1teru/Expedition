@@ -1,5 +1,6 @@
 // Geometric icons for skills, passives and classes.
 
+import { CONSUMABLES } from '../data/consumables';
 import type { ClassIcon } from '../data/classes';
 import type { SkillIcon } from '../data/skills';
 
@@ -289,7 +290,7 @@ export function drawItemIcon(ctx: CanvasRenderingContext2D, slot: string, x: num
   ctx.restore();
 }
 
-/** Consumables: magnifier (lens + handle), healing herb (sprig). */
+/** Consumables: magnifier (lens + handle), herbs (sprig in the herb's colour), potions (flask). */
 export function drawConsumableIcon(ctx: CanvasRenderingContext2D, id: string, x: number, y: number, size: number): void {
   const r = size / 2;
   ctx.save();
@@ -314,6 +315,35 @@ export function drawConsumableIcon(ctx: CanvasRenderingContext2D, id: string, x:
     ctx.beginPath();
     ctx.arc(-r * 0.15, -r * 0.15, r * 0.3, Math.PI * 1.1, Math.PI * 1.5);
     ctx.stroke();
+  } else if (id.startsWith('potion')) {
+    const big = id === 'potionLarge' ? 1.1 : id === 'potionMedium' ? 1 : 0.88;
+    const color = (CONSUMABLES as Record<string, { color: string }>)[id]?.color ?? '#e05a5a';
+    const br = r * 0.55 * big;
+    // Round flask with a neck and a cork.
+    ctx.fillStyle = 'rgba(220, 235, 255, 0.25)';
+    ctx.strokeStyle = '#d8e2ee';
+    ctx.lineWidth = r * 0.08;
+    ctx.beginPath();
+    ctx.arc(0, r * 0.25, br, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    // Liquid: the lower part of the bulb.
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(0, r * 0.25, br * 0.86, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.fillStyle = color;
+    ctx.fillRect(-br, r * 0.25 - br * 0.25, br * 2, br * 2);
+    ctx.restore();
+    ctx.fillStyle = 'rgba(220, 235, 255, 0.35)';
+    ctx.fillRect(-r * 0.14, r * 0.25 - br - r * 0.32, r * 0.28, r * 0.36);
+    ctx.strokeRect(-r * 0.14, r * 0.25 - br - r * 0.32, r * 0.28, r * 0.36);
+    ctx.fillStyle = '#8a6a44';
+    ctx.fillRect(-r * 0.17, r * 0.25 - br - r * 0.48, r * 0.34, r * 0.18);
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.beginPath();
+    ctx.arc(-br * 0.35, r * 0.25 - br * 0.25, br * 0.18, 0, Math.PI * 2);
+    ctx.fill();
   } else {
     ctx.strokeStyle = '#3f7a32';
     ctx.lineWidth = r * 0.12;
@@ -321,7 +351,7 @@ export function drawConsumableIcon(ctx: CanvasRenderingContext2D, id: string, x:
     ctx.moveTo(0, r * 0.85);
     ctx.quadraticCurveTo(-r * 0.1, 0, r * 0.05, -r * 0.8);
     ctx.stroke();
-    ctx.fillStyle = '#6fd16f';
+    ctx.fillStyle = (CONSUMABLES as Record<string, { color: string }>)[id]?.color ?? '#6fd16f';
     for (const [lx, ly, a] of [[-0.3, 0.2, -0.8], [0.3, -0.1, 0.8], [-0.25, -0.4, -0.6], [0.25, -0.6, 0.6]] as [number, number, number][]) {
       ctx.save();
       ctx.translate(lx * r, ly * r);

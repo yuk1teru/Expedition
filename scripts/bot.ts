@@ -8,7 +8,8 @@ import { type Battle, createBattle, stepBattle } from '../src/systems/battle';
 import { chooseCard, chooseClass, completeBattle, type BattleSummary, nextCardOffer } from '../src/systems/run';
 import { useSkill } from '../src/systems/skills';
 import { botIdentifyAndEquip } from '../src/systems/items';
-import { useHerb } from '../src/systems/pickups';
+import { useHealItem } from '../src/systems/pickups';
+import { HEAL_ORDER } from '../src/data/consumables';
 import { enterPortal } from '../src/systems/waves';
 import { telegraphContains } from '../src/systems/boss';
 import { normalize } from '../src/systems/entities';
@@ -32,6 +33,11 @@ export function resolveModals(state: GameState, rng: Rng): void {
       if (offer.length > 0) chooseCard(state, rng.pick(offer));
     }
   }
+}
+
+/** Eats / drinks the strongest healing item it carries. */
+export function botHeal(b: Battle): void {
+  for (const id of [...HEAL_ORDER].reverse()) if (useHealItem(b, id)) return;
 }
 
 /** Uses every ready skill that has a target. */
@@ -63,7 +69,7 @@ export function runBattle(state: GameState, nodeId: string, opts: BotOptions): B
   const b = createBattle(state, nodeId);
   while (!b.finished && b.time < opts.maxBattleTime) {
     if (opts.useSkills) useReadySkills(b);
-    if (b.hero.hp < b.hero.maxHp * SIM.botHerbBelow) useHerb(b);
+    if (b.hero.hp < b.hero.maxHp * SIM.botHerbBelow) botHeal(b);
     if (b.portal) enterPortal(b);
     dodgeTelegraphs(b);
     stepBattle(b, LOOP.step);

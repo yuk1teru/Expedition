@@ -35,8 +35,9 @@ export function createHero(id: number): Hero {
     immortal: false,
     equipment: {},
     bag: [],
-    consumables: { magnifier: 0, herb: 0 },
-    herbCooldown: 0,
+    consumables: { magnifier: 0, herbGreen: 0, herbRed: 0, herbWhite: 0, potionSmall: 0, potionMedium: 0, potionLarge: 0 },
+    quickSlots: [null, null, null],
+    healCooldown: 0,
     dodgeCooldown: 0,
     pendingBuffs: [],
   };

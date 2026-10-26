@@ -1,13 +1,13 @@
 // Arena pickups: plants grow now and then; walking into a grown one picks it up.
-// Healing herbs are carried and eaten with G (even in a later battle).
+// Herbs are carried and, like potions, used from the quick slots Z / X / C
+// (even in a later battle): they heal over a few seconds.
 
 import { ARENA } from '../data/balance';
-import { CONSUMABLES, HERB, PICKUPS, PICKUP_SPAWN, type PickupKind } from '../data/consumables';
+import { CONSUMABLES, type HealId, PICKUPS, PICKUP_SPAWN, type PickupKind, QUICK_SLOTS, healAmount } from '../data/consumables';
 import type { Battle } from './battle';
-import { healHero } from './combat';
 import { addBuff } from './effects';
-import type { Vec } from './entities';
-import { dist } from './entities';
+import { type Vec, dist } from './entities';
+import { gainConsumable } from './items';
 
 export interface Pickup {
   id: number;
@@ -47,15 +47,14 @@ export function maybeSpawnPickup(b: Battle, waveNumber: number): void {
 /** The hero picks up grown plants by walking into them. */
 export function updatePickups(b: Battle, dt: number): void {
   const hero = b.hero;
-  hero.herbCooldown = Math.max(0, hero.herbCooldown - dt);
+  hero.healCooldown = Math.max(0, hero.healCooldown - dt);
   if (hero.dead) return;
   for (const p of b.pickups) {
     if (p.dead || !pickupReady(b, p) || dist(hero.pos, p.pos) > hero.radius + PICKUP_SPAWN.radius) continue;
     const def = PICKUPS[p.kind];
     if (def.effect.kind === 'stash') {
-      const id = def.effect.consumable;
-      if (hero.consumables[id] >= CONSUMABLES[id].max) continue; // full: leave it growing
-      hero.consumables[id] += 1;
+      // Full: leave it growing.
+      if (!gainConsumable(hero, def.effect.consumable)) continue;
     } else {
       addBuff(hero, { id: p.kind, time: def.effect.duration, attackSpeedMult: 1 + def.effect.attackSpeed, damageTakenMult: 1 });
     }
@@ -65,12 +64,22 @@ export function updatePickups(b: Battle, dt: number): void {
   if (b.pickups.some((p) => p.dead)) b.pickups = b.pickups.filter((p) => !p.dead);
 }
 
-/** G: eat a carried herb. */
-export function useHerb(b: Battle): boolean {
+/** Uses a carried healing item: heals `pct` of max HP + `flat` over its duration. */
+export function useHealItem(b: Battle, id: HealId): boolean {
   const hero = b.hero;
-  if (hero.dead || hero.consumables.herb <= 0 || hero.herbCooldown > 0 || hero.hp >= hero.maxHp) return false;
-  hero.consumables.herb -= 1;
-  hero.herbCooldown = HERB.cooldown;
-  healHero(b, hero.maxHp * HERB.healPct, 'show');
+  const def = CONSUMABLES[id];
+  if (!def.heal || hero.dead || hero.consumables[id] <= 0 || hero.healCooldown > 0 || hero.hp >= hero.maxHp) return false;
+  hero.consumables[id] -= 1;
+  hero.healCooldown = QUICK_SLOTS.cooldown;
+  const total = healAmount(def.heal, hero.maxHp);
+  // Each use is its own buff, so two different items heal together.
+  hero.buffs.push({ id: `heal:${id}:${b.time}`, time: def.heal.duration, attackSpeedMult: 1, damageTakenMult: 1, regen: total / def.heal.duration });
+  b.events.emit({ type: 'healUse', id, pos: { ...hero.pos }, total, duration: def.heal.duration });
   return true;
+}
+
+/** Z / X / C: the healing item on a quick slot (0-based). */
+export function useQuickSlot(b: Battle, slot: number): boolean {
+  const id = b.hero.quickSlots[slot];
+  return id ? useHealItem(b, id) : false;
 }

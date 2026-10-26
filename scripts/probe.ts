@@ -9,9 +9,8 @@ import { createBattle, stepBattle } from '../src/systems/battle';
 import { SLICE_GROVE_ID } from '../src/systems/mapgen';
 import { grantLevel } from '../src/systems/leveling';
 import { createGameState, teleport } from '../src/systems/run';
-import { useHerb } from '../src/systems/pickups';
 import { enterPortal } from '../src/systems/waves';
-import { dodgeTelegraphs, resolveModals, useReadySkills } from './bot';
+import { botHeal, dodgeTelegraphs, resolveModals, useReadySkills } from './bot';
 
 const argv = process.argv.slice(2);
 const arg = (n: string, d: number): number => {
@@ -37,7 +36,7 @@ for (let r = 0; r < runs; r++) {
   const b = createBattle(state, SLICE_GROVE_ID);
   while (!b.finished && b.time < SIM.maxBattleTime) {
     useReadySkills(b);
-    if (b.hero.hp < b.hero.maxHp * SIM.botHerbBelow) useHerb(b);
+    if (b.hero.hp < b.hero.maxHp * SIM.botHerbBelow) botHeal(b);
     if (!endless && b.portal) enterPortal(b);
     dodgeTelegraphs(b);
     stepBattle(b, LOOP.step);

@@ -1,9 +1,9 @@
-// Town merchant: buy magnifiers and healing herbs; identify, wear or sell bag items
+// Town merchant: buy magnifiers and potions; identify, wear or sell bag items
 // right here; the full equipment window opens on top (Tab).
 
 import type { InputEvent } from '../core/input';
 import type { Modal } from '../core/screens';
-import { CONSUMABLES, type ConsumableId } from '../data/consumables';
+import { CONSUMABLES, type ConsumableId, describeConsumable } from '../data/consumables';
 import { RARITIES } from '../data/items';
 import { buyConsumable, canBuy, displayName, equipFromBag, identifyItem, sellItem, sellPrice } from '../systems/items';
 import type { App } from './app';
@@ -14,7 +14,9 @@ import { THEME } from './theme';
 import { Button, ButtonGroup, type Rect, drawPanel, drawText, drawTooltip, inRect, roundRect } from './ui';
 
 const PANEL: Rect = { x: 70, y: 40, w: 820, h: 460 };
-const GOODS: ConsumableId[] = ['magnifier', 'herb'];
+const GOODS: ConsumableId[] = ['magnifier', 'potionSmall', 'potionMedium', 'potionLarge'];
+const GOODS_Y = 90;
+const GOODS_ROW = 64;
 const CELL = 58;
 const COLS = 6;
 const ROWS = 4;
@@ -32,9 +34,9 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
   const buyButtons = GOODS.map(
     (id, i) =>
       new Button({
-        label: `Купити — ${CONSUMABLES[id].price} зол.`,
-        rect: { x: PANEL.x + 210, y: PANEL.y + 110 + i * 92, w: 170, h: 38 },
-        fontSize: 14,
+        label: `Купити — ${CONSUMABLES[id].price}`,
+        rect: { x: PANEL.x + 262, y: PANEL.y + GOODS_Y + i * GOODS_ROW, w: 128, h: 28 },
+        fontSize: 13,
         onClick: () => {
           if (buyConsumable(app.state, id)) {
             flash = `Куплено: ${CONSUMABLES[id].name}`;
@@ -86,7 +88,7 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
   });
   const gearBtn = new Button({
     label: 'Спорядження [Tab]',
-    rect: { x: PANEL.x + 30, y: PANEL.y + 300, w: 200, h: 36 },
+    rect: { x: PANEL.x + 30, y: PANEL.y + PANEL.h - 54, w: 190, h: 36 },
     fontSize: 14,
     onClick: () => app.openInventoryOver(),
   });
@@ -139,14 +141,18 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
       drawText(ctx, 'Купити', PANEL.x + 30, PANEL.y + 70, { size: 16, bold: true, color: THEME.accent });
       GOODS.forEach((id, i) => {
         const def = CONSUMABLES[id];
-        const y = PANEL.y + 96 + i * 92;
-        roundRect(ctx, PANEL.x + 30, y, 64, 64, 8);
+        const y = PANEL.y + GOODS_Y + i * GOODS_ROW;
+        roundRect(ctx, PANEL.x + 30, y, 52, 52, 8);
         ctx.fillStyle = '#2a241f';
         ctx.fill();
-        drawConsumableIcon(ctx, id, PANEL.x + 62, y + 32, 44);
-        drawText(ctx, def.name, PANEL.x + 108, y + 12, { size: 15, bold: true });
-        drawText(ctx, `у вас: ${st.hero.consumables[id]} / ${def.max}`, PANEL.x + 108, y + 32, { size: 12, color: THEME.textDim });
-        drawText(ctx, def.description, PANEL.x + 30, y + 78, { size: 11, color: THEME.textDim });
+        drawConsumableIcon(ctx, id, PANEL.x + 56, y + 26, 38);
+        drawText(ctx, def.name, PANEL.x + 94, y + 12, { size: 15, bold: true });
+        drawText(ctx, describeConsumable(id), PANEL.x + 94, y + 34, { size: 11, color: THEME.textDim });
+        drawText(ctx, `у вас: ${st.hero.consumables[id]} / ${def.max}`, PANEL.x + 94, y + 50, { size: 11, color: THEME.textMuted });
+      });
+      drawText(ctx, 'Трава росте на арені; трава й зілля — на Z / X / C.', PANEL.x + 30, PANEL.y + GOODS_Y + GOODS.length * GOODS_ROW + 6, {
+        size: 11,
+        color: THEME.textDim,
       });
 
       drawText(ctx, 'Ваша сумка (клік — обрати річ)', SELL_X, SELL_Y - 22, { size: 16, bold: true, color: THEME.accent });

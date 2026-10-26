@@ -14,9 +14,9 @@ import { heroAttackSpeed, meleeReach, nextShotIsVolley } from '../systems/ai';
 import { type Trap, trapArmed } from '../systems/traps';
 import { basicAttackOf } from '../systems/hero';
 import { type Battle, stepBattle } from '../systems/battle';
-import { type Pickup, pickupReady, useHerb } from '../systems/pickups';
+import { type Pickup, pickupReady, useQuickSlot } from '../systems/pickups';
 import { portalActive, portalInReach, requestPortalEntry } from '../systems/waves';
-import { PICKUPS, PICKUP_SPAWN } from '../data/consumables';
+import { PICKUPS, PICKUP_SPAWN, QUICK_SLOTS } from '../data/consumables';
 import { drawConsumableIcon } from './icons';
 import { useBootDash } from '../systems/skills';
 import type { Enemy, Hero, Projectile, Telegraph, Zone } from '../systems/entities';
@@ -133,8 +133,9 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       }
       if (hud.handle(e)) return;
       if (e.type !== 'key') return;
-      if (e.code === 'KeyG' && battle && !app.loop.paused) {
-        useHerb(battle);
+      const quick = (QUICK_SLOTS.keys as readonly string[]).indexOf(e.code);
+      if (quick >= 0 && battle && !app.loop.paused) {
+        useQuickSlot(battle, quick);
         return;
       }
       if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && battle && !app.loop.paused) {
@@ -303,9 +304,13 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
     case 'pickupSpawn':
       fx.burst(e.pos, P.spawn, PICKUPS[e.kind].color);
       break;
+    case 'healUse':
+      fx.text({ x: e.pos.x + T.heroSideOffset, y: e.pos.y - 30 }, `+${Math.round(e.total)} HP за ${e.duration} с`, T.healColor, 14, 1.4);
+      fx.ring(e.pos, 30, T.healColor, 0.5, 3);
+      break;
     case 'pickup': {
       const def = PICKUPS[e.kind];
-      const text = def.effect.kind === 'stash' ? `+${def.name} (G)` : `${def.name}! +${Math.round(def.effect.attackSpeed * 100)}% швидкості атаки`;
+      const text = def.effect.kind === 'stash' ? `+${def.name}` : `${def.name}! +${Math.round(def.effect.attackSpeed * 100)}% швидкості атаки`;
       fx.text({ x: e.pos.x, y: e.pos.y - 24 }, text, def.color, 15, 1.8);
       fx.ring(e.pos, 40, def.color, 0.5, 4);
       fx.burst(e.pos, P.levelUp, def.color);
@@ -768,7 +773,7 @@ function drawPickup(ctx: CanvasRenderingContext2D, p: Pickup, b: Battle, t: numb
   ctx.ellipse(0, r * 0.6, r, r * 0.35, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.scale(grow, grow);
-  if (p.kind === 'herb') drawConsumableIcon(ctx, 'herb', 0, -r * 0.3, r * 2.4);
+  if (def.effect.kind === 'stash') drawConsumableIcon(ctx, def.effect.consumable, 0, -r * 0.3, r * 2.4);
   else {
     ctx.fillStyle = '#3f7a32';
     ctx.beginPath();

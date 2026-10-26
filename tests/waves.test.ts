@@ -99,11 +99,11 @@ describe('waves', () => {
 
   it('no herb grows while the hero already carries the maximum', () => {
     const { b } = grove();
-    b.hero.consumables.herb = CONSUMABLES.herb.max;
+    b.hero.consumables.herbGreen = CONSUMABLES.herbGreen.max;
     for (let i = 0; i < 40; i++) {
       b.pickups = [];
       maybeSpawnPickup(b, 2);
-      expect(b.pickups.every((p) => p.kind !== 'herb')).toBe(true);
+      expect(b.pickups.every((p) => p.kind !== 'herbGreen')).toBe(true);
     }
   });
 

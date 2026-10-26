@@ -1,6 +1,6 @@
 // Entity types shared by combat, AI, skills, bosses and render.
 
-import type { ConsumableId } from '../data/consumables';
+import type { ConsumableId, HealId } from '../data/consumables';
 import type { ItemSlot } from '../data/items';
 import type { Item } from './items';
 
@@ -123,10 +123,12 @@ export interface Hero extends Body {
   equipment: Partial<Record<ItemSlot, Item>>;
   /** Items found but not worn. */
   bag: Item[];
-  /** Carried consumables (magnifiers, healing herbs). */
+  /** Carried consumables (magnifiers, herbs, potions). */
   consumables: Record<ConsumableId, number>;
-  /** Seconds until the herb (G) can be used again. */
-  herbCooldown: number;
+  /** Healing items on the quick slots Z / X / C (null: empty). */
+  quickSlots: (HealId | null)[];
+  /** Seconds until the next healing item can be used (shared by all). */
+  healCooldown: number;
   /** Seconds until the boot dash (Shift) is ready. */
   dodgeCooldown: number;
   /** Buffs earned outside battle (e.g. a skipped card), applied when the next battle starts. */

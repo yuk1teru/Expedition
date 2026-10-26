@@ -272,6 +272,6 @@ export const SIM = {
   baseSeed: 1,
   /** A battle longer than this counts as lost, s. */
   maxBattleTime: 400,
-  /** The bot eats a carried herb below this HP fraction. */
+  /** The bot uses its strongest healing item below this HP fraction. */
   botHerbBelow: 0.4,
 } as const;

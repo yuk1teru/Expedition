@@ -1,18 +1,21 @@
 // Inventory (Tab, or "Спорядження" in town): a figure wearing the items, slot
-// boxes around it, the bag, consumables. Wear items by dragging them onto the
-// figure / a slot, or via the right-click menu. Unidentified items need a
-// magnifier first (menu "Розпізнати" or drag the magnifier onto the item).
+// boxes around it, the bag, consumables and the quick slots Z / X / C. Wear items by
+// dragging them onto the figure / a slot, or via the right-click menu. Unidentified
+// items need a magnifier first (menu "Розпізнати" or drag the magnifier onto the item).
+// Herbs and potions go onto the quick slots by dragging or via the right-click menu.
 // The game is paused while it is open.
 
 import type { InputEvent } from '../core/input';
 import type { Modal } from '../core/screens';
-import { CONSUMABLES, type ConsumableId } from '../data/consumables';
+import { CONSUMABLES, type ConsumableId, HEAL_ORDER, QUICK_SLOTS, describeConsumable } from '../data/consumables';
 import { ITEM_SLOTS, type ItemSlot, RARITIES } from '../data/items';
 import {
   type Item,
   displayName,
+  assignQuickSlot,
   equipFromBag,
   formatStat,
+  isHeal,
   itemPerks,
   identifyItem,
   markItemsSeen,
@@ -37,7 +40,12 @@ const BAG_X = 500;
 const BAG_Y = 100;
 const BAG_AREA: Rect = { x: BAG_X - 6, y: BAG_Y - 6, w: BAG_COLS * CELL + 6, h: BAG_ROWS * CELL + 6 };
 const CONS_Y = BAG_Y + BAG_ROWS * CELL + 34;
-const CONSUMABLE_ORDER: ConsumableId[] = ['magnifier', 'herb'];
+const CONSUMABLE_ORDER: ConsumableId[] = ['magnifier', ...HEAL_ORDER];
+const CONS_CELL = 44;
+const CONS_STEP = 50;
+const QUICK_Y = CONS_Y + 58;
+const QUICK_X = BAG_X + 150;
+const QUICK_STEP = 56;
 const MENU_W = 200;
 const MENU_ROW = 28;
 const DRAG_THRESHOLD = 5;
@@ -51,7 +59,11 @@ const SLOT_LAYOUT: Record<ItemSlot, { box: Rect; anchor: { x: number; y: number 
   boots: { box: { x: FIG_X + 106, y: FIG_Y + 220, w: SLOT_SIZE, h: SLOT_SIZE }, anchor: { x: FIG_X + 26, y: FIG_Y + 280 } },
 };
 
-type DragSource = { kind: 'bag'; index: number } | { kind: 'worn'; slot: ItemSlot } | { kind: 'magnifier' };
+type DragSource =
+  | { kind: 'bag'; index: number }
+  | { kind: 'worn'; slot: ItemSlot }
+  | { kind: 'consumable'; id: ConsumableId }
+  | { kind: 'quick'; slot: number };
 
 interface MenuOption {
   label: string;
@@ -64,7 +76,20 @@ function bagCell(i: number): Rect {
 }
 
 function consumableCell(i: number): Rect {
-  return { x: BAG_X + i * (CELL + 70), y: CONS_Y, w: CELL - 6, h: CELL - 6 };
+  return { x: BAG_X + i * CONS_STEP, y: CONS_Y, w: CONS_CELL, h: CONS_CELL };
+}
+
+function quickCell(i: number): Rect {
+  return { x: QUICK_X + i * QUICK_STEP, y: QUICK_Y, w: CONS_CELL, h: CONS_CELL };
+}
+
+function consumableAt(x: number, y: number): ConsumableId | null {
+  const i = CONSUMABLE_ORDER.findIndex((_, k) => inRect(consumableCell(k), x, y));
+  return i >= 0 ? (CONSUMABLE_ORDER[i] ?? null) : null;
+}
+
+function quickAt(x: number, y: number): number {
+  return QUICK_SLOTS.labels.findIndex((_, k) => inRect(quickCell(k), x, y));
 }
 
 function slotName(slot: ItemSlot): string {
@@ -127,6 +152,16 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
       options.push({ label: 'Вдягнути', enabled: item.identified, run: () => tryEquip(bi) });
     } else if (slot && hero().equipment[slot]) {
       options.push({ label: 'Зняти в сумку', enabled: true, run: () => unequip(hero(), slot) });
+    } else {
+      const cid = consumableAt(x, y);
+      const qi = quickAt(x, y);
+      if (cid && isHeal(cid)) {
+        QUICK_SLOTS.labels.forEach((key, k) => {
+          options.push({ label: `Поставити на ${key}`, enabled: hero().quickSlots[k] !== cid, run: () => assignQuickSlot(hero(), k, cid) });
+        });
+      } else if (qi >= 0 && hero().quickSlots[qi]) {
+        options.push({ label: 'Прибрати зі слота', enabled: true, run: () => assignQuickSlot(hero(), qi, null) });
+      }
     }
     menu = options.length > 0 ? { x: Math.min(x, PANEL.x + PANEL.w - MENU_W - 8), y, options } : null;
   };
@@ -141,6 +176,19 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
       else if (slot) say(`Ця річ — не для слота «${slotName(slot)}»`);
     } else if (src.kind === 'worn') {
       if (inRect(BAG_AREA, x, y)) unequip(hero(), src.slot);
+    } else if (src.kind === 'quick') {
+      // Onto another quick slot: swap; anywhere else: clear the slot.
+      const to = quickAt(x, y);
+      const id = hero().quickSlots[src.slot] ?? null;
+      if (to === src.slot) return;
+      if (to >= 0) {
+        const other = hero().quickSlots[to] ?? null;
+        hero().quickSlots[to] = id;
+        hero().quickSlots[src.slot] = other;
+      } else assignQuickSlot(hero(), src.slot, null);
+    } else if (isHeal(src.id)) {
+      const to = quickAt(x, y);
+      if (to >= 0) assignQuickSlot(hero(), to, src.id);
     } else {
       const bi = bagIndexAt(x, y);
       const item = bi >= 0 ? hero().bag[bi] : undefined;
@@ -188,8 +236,11 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
         const slot = slotAt(e.x, e.y);
         if (bi >= 0) drag = { kind: 'bag', index: bi, x: e.x, y: e.y, moved: false };
         else if (slot && hero().equipment[slot]) drag = { kind: 'worn', slot, x: e.x, y: e.y, moved: false };
-        else if (inRect(consumableCell(0), e.x, e.y) && hero().consumables.magnifier > 0) {
-          drag = { kind: 'magnifier', x: e.x, y: e.y, moved: false };
+        else {
+          const cid = consumableAt(e.x, e.y);
+          const qi = quickAt(e.x, e.y);
+          if (cid && (isHeal(cid) || hero().consumables[cid] > 0)) drag = { kind: 'consumable', id: cid, x: e.x, y: e.y, moved: false };
+          else if (qi >= 0 && hero().quickSlots[qi]) drag = { kind: 'quick', slot: qi, x: e.x, y: e.y, moved: false };
         }
         return;
       }
@@ -197,7 +248,8 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
         const d = drag;
         drag = null;
         if (d.moved) drop(d, e.x, e.y);
-        else if (d.kind !== 'magnifier') say('ПКМ — меню · перетягніть річ на фігуру, щоб вдягнути');
+        else if (d.kind === 'bag' || d.kind === 'worn') say('ПКМ — меню · перетягніть річ на фігуру, щоб вдягнути');
+        else say('Перетягніть траву чи зілля на слот Z / X / C або ПКМ → «Поставити на…»');
       }
     },
     render(ctx) {
@@ -235,7 +287,7 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
         const item = h.bag[i] ?? null;
         const cell = bagCell(i);
         const dragging = drag?.kind === 'bag' && drag.index === i && drag.moved;
-        const lupaTarget = drag?.kind === 'magnifier' && drag.moved && item && !item.identified;
+        const lupaTarget = drag?.kind === 'consumable' && drag.id === 'magnifier' && drag.moved && item && !item.identified;
         drawCell(ctx, cell, dragging ? null : item, null, !!lupaTarget);
         if (item?.isNew && !dragging) {
           ctx.globalAlpha = 0.6 + 0.4 * Math.sin(t * 6);
@@ -247,7 +299,7 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
         drawText(ctx, `…і ще ${h.bag.length - BAG_COLS * BAG_ROWS}`, BAG_X + BAG_COLS * CELL - 6, BAG_Y - 18, { size: 12, align: 'right', color: THEME.textDim });
       }
 
-      drawText(ctx, 'Витратні', BAG_X, CONS_Y - 14, { size: 13, bold: true, color: THEME.accent });
+      drawText(ctx, 'Витратні', BAG_X, CONS_Y - 12, { size: 13, bold: true, color: THEME.accent });
       CONSUMABLE_ORDER.forEach((id, i) => {
         const r = consumableCell(i);
         roundRect(ctx, r.x, r.y, r.w, r.h, 8);
@@ -257,11 +309,30 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
         ctx.lineWidth = 1;
         ctx.stroke();
         const n = h.consumables[id];
-        ctx.globalAlpha = n > 0 ? 1 : 0.35;
-        drawConsumableIcon(ctx, id, r.x + r.w / 2, r.y + r.h / 2, r.w * 0.6);
+        ctx.globalAlpha = n > 0 ? 1 : 0.3;
+        drawConsumableIcon(ctx, id, r.x + r.w / 2, r.y + r.h / 2 - 2, r.w * 0.62);
         ctx.globalAlpha = 1;
-        drawText(ctx, `×${n}`, r.x + r.w + 6, r.y + r.h / 2 - 8, { size: 14, bold: true });
-        drawText(ctx, CONSUMABLES[id].name, r.x + r.w + 6, r.y + r.h / 2 + 10, { size: 11, color: THEME.textDim });
+        drawText(ctx, `${n}`, r.x + r.w - 4, r.y + r.h - 7, { size: 11, bold: true, align: 'right', color: n > 0 ? THEME.text : THEME.textMuted });
+      });
+      drawText(ctx, 'Швидкі слоти (у бою):', BAG_X, QUICK_Y + CONS_CELL / 2, { size: 13, bold: true, color: THEME.accent });
+      QUICK_SLOTS.labels.forEach((key, i) => {
+        const r = quickCell(i);
+        const id = h.quickSlots[i] ?? null;
+        const target = drag?.moved && ((drag.kind === 'consumable' && isHeal(drag.id)) || drag.kind === 'quick');
+        roundRect(ctx, r.x, r.y, r.w, r.h, 8);
+        ctx.fillStyle = id ? '#1f3324' : '#1a1f2d';
+        ctx.fill();
+        ctx.lineWidth = target ? 2.5 : 1.5;
+        ctx.strokeStyle = target ? THEME.good : id ? THEME.good : THEME.panelBorder;
+        if (!id) ctx.setLineDash([4, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        const dragged = drag?.kind === 'quick' && drag.slot === i && drag.moved;
+        if (id && !dragged) {
+          drawConsumableIcon(ctx, id, r.x + r.w / 2, r.y + r.h / 2, r.w * 0.6);
+          drawText(ctx, `${h.consumables[id]}`, r.x + r.w - 4, r.y + r.h - 7, { size: 11, bold: true, align: 'right' });
+        }
+        drawText(ctx, key, r.x + 6, r.y + 9, { size: 11, bold: true, color: THEME.textDim });
       });
 
       const s = h.stats;
@@ -284,8 +355,11 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
       const m = app.input.mouse;
       if (drag?.moved) {
         ctx.globalAlpha = 0.85;
-        if (drag.kind === 'magnifier') drawConsumableIcon(ctx, 'magnifier', m.x, m.y, 40);
-        else {
+        if (drag.kind === 'consumable') drawConsumableIcon(ctx, drag.id, m.x, m.y, 40);
+        else if (drag.kind === 'quick') {
+          const id = h.quickSlots[drag.slot];
+          if (id) drawConsumableIcon(ctx, id, m.x, m.y, 40);
+        } else {
           const item = drag.kind === 'bag' ? h.bag[drag.index] : h.equipment[drag.slot];
           if (item) drawItem(ctx, item, m.x, m.y, 46);
         }
@@ -319,11 +393,19 @@ function drawHoverTooltip(ctx: CanvasRenderingContext2D, app: App, m: { x: numbe
     return;
   }
   CONSUMABLE_ORDER.forEach((id, i) => {
-    if (inRect(consumableCell(i), m.x, m.y)) {
-      const def = CONSUMABLES[id];
-      const hint = id === 'magnifier' ? 'Перетягніть на нерозпізнану річ' : 'У бою — клавіша G';
-      drawTooltip(ctx, [def.name, def.description, `Купити: ${def.price} зол. у торговця`, hint], m.x, m.y, W, H);
-    }
+    if (!inRect(consumableCell(i), m.x, m.y)) return;
+    const def = CONSUMABLES[id];
+    const where = def.price > 0 ? `Торговець: ${def.price} зол.` : 'Росте на арені — підберіть';
+    const hint = id === 'magnifier' ? 'Перетягніть на нерозпізнану річ' : 'Перетягніть на слот Z / X / C або ПКМ';
+    drawTooltip(ctx, [def.name, describeConsumable(id), `У вас: ${h.consumables[id]} / ${def.max}`, where, hint], m.x, m.y, W, H);
+  });
+  QUICK_SLOTS.labels.forEach((key, i) => {
+    if (!inRect(quickCell(i), m.x, m.y)) return;
+    const id = h.quickSlots[i];
+    const lines = id
+      ? [`${key}: ${CONSUMABLES[id].name}`, describeConsumable(id), 'Перетягніть на інший слот або геть, щоб прибрати']
+      : [`Слот ${key} порожній`, 'Перетягніть сюди траву чи зілля'];
+    drawTooltip(ctx, lines, m.x, m.y, W, H);
   });
 }
 

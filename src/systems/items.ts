@@ -2,7 +2,7 @@
 
 import type { Rng } from '../core/rng';
 import type { GameState } from '../core/state';
-import { CONSUMABLES, type ConsumableId } from '../data/consumables';
+import { CONSUMABLES, type ConsumableId, HEAL_ORDER, type HealId } from '../data/consumables';
 import {
   BOOT_DASH,
   ITEM_ACCENTS,
@@ -147,15 +147,40 @@ export function sellItem(state: GameState, bagIndex: number): number {
   return price;
 }
 
+/**
+ * Adds a carried consumable (if there is room). A healing item that is on no quick
+ * slot yet takes the first empty one.
+ */
+export function gainConsumable(hero: Hero, id: ConsumableId): boolean {
+  if (hero.consumables[id] >= CONSUMABLES[id].max) return false;
+  hero.consumables[id] += 1;
+  if (isHeal(id) && !hero.quickSlots.includes(id)) {
+    const free = hero.quickSlots.indexOf(null);
+    if (free >= 0) hero.quickSlots[free] = id;
+  }
+  return true;
+}
+
+export function isHeal(id: ConsumableId): id is HealId {
+  return (HEAL_ORDER as string[]).includes(id);
+}
+
+/** Puts a healing item on a quick slot (it leaves any other slot it was on); null clears. */
+export function assignQuickSlot(hero: Hero, slot: number, id: HealId | null): void {
+  if (slot < 0 || slot >= hero.quickSlots.length) return;
+  if (id) hero.quickSlots = hero.quickSlots.map((x) => (x === id ? null : x));
+  hero.quickSlots[slot] = id;
+}
+
 export function canBuy(state: GameState, id: ConsumableId): boolean {
   const def = CONSUMABLES[id];
-  return state.gold >= def.price && state.hero.consumables[id] < def.max;
+  return def.price > 0 && state.gold >= def.price && state.hero.consumables[id] < def.max;
 }
 
 export function buyConsumable(state: GameState, id: ConsumableId): boolean {
   if (!canBuy(state, id)) return false;
   state.gold -= CONSUMABLES[id].price;
-  state.hero.consumables[id] += 1;
+  gainConsumable(state.hero, id);
   return true;
 }
 
