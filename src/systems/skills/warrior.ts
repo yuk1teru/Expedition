@@ -26,8 +26,8 @@ const whirlwind: SkillImpl = ({ b, hero, p, def, rank }) => {
   return true;
 };
 
-const charge: SkillImpl = ({ b, hero, p, def, rank }) => {
-  const dest = chargeLanding(b, hero, p);
+const charge: SkillImpl = ({ b, hero, p, def, rank, aim }) => {
+  const dest = aim ? aimedLanding(hero, aim, p.range!) : chargeLanding(b, hero, p);
   if (!dest) return false;
   const from = { ...hero.pos };
   if (p.trail! > 0) {
@@ -56,6 +56,21 @@ const charge: SkillImpl = ({ b, hero, p, def, rank }) => {
   return true;
 };
 
+/** Aimed Charge: towards the cursor, up to the skill range, inside the arena. */
+function aimedLanding(hero: Hero, aim: Vec, range: number): Vec | null {
+  const d = dist(hero.pos, aim);
+  if (d < 1) return null;
+  const k = Math.min(1, range / d);
+  return clampToArenaPoint({ x: hero.pos.x + (aim.x - hero.pos.x) * k, y: hero.pos.y + (aim.y - hero.pos.y) * k }, hero.radius);
+}
+
+function clampToArenaPoint(v: Vec, r: number): Vec {
+  return {
+    x: Math.max(ARENA.x + r, Math.min(ARENA.x + ARENA.w - r, v.x)),
+    y: Math.max(ARENA.y + r, Math.min(ARENA.y + ARENA.h - r, v.y)),
+  };
+}
+
 /**
  * Landing point for Charge: the densest group within range; while boss
  * telegraphs are active, prefers a spot next to a group that is outside them.
@@ -64,10 +79,7 @@ function chargeLanding(b: Battle, hero: Hero, p: SkillParams): Vec | null {
   const clusters = densePoints(b.enemies, p.radius!, hero.pos, p.range!);
   const first = clusters[0];
   if (!first) return null;
-  const clamp = (v: Vec): Vec => ({
-    x: Math.max(ARENA.x + hero.radius, Math.min(ARENA.x + ARENA.w - hero.radius, v.x)),
-    y: Math.max(ARENA.y + hero.radius, Math.min(ARENA.y + ARENA.h - hero.radius, v.y)),
-  });
+  const clamp = (v: Vec): Vec => clampToArenaPoint(v, hero.radius);
   if (b.telegraphs.length === 0) return clamp(first.pos);
   const safe = (v: Vec): boolean => b.telegraphs.every((t) => dist(v, t.pos) > t.shape.radius + hero.radius);
   for (const c of clusters) {
@@ -95,9 +107,14 @@ const battleCry: SkillImpl = ({ b, hero, p, def, rank }) => {
   return true;
 };
 
-const groundSlam: SkillImpl = ({ b, hero, p, def, rank }) => {
+const groundSlam: SkillImpl = ({ b, hero, p, def, rank, aim }) => {
   const width = (p.angle! * Math.PI) / 180;
-  const best = bestConeAngle(b.enemies, hero.pos, width, p.range!);
+  // Aimed: any direction is allowed while enemies are around; otherwise the best cone.
+  const best = aim
+    ? nearestEnemy(b.enemies, hero.pos)
+      ? { angle: Math.atan2(aim.y - hero.pos.y, aim.x - hero.pos.x) }
+      : null
+    : bestConeAngle(b.enemies, hero.pos, width, p.range!);
   if (!best) return false;
   hero.facing = best.angle;
   for (const e of coneTargets(b.enemies, hero.pos, best.angle, width, p.range!)) {

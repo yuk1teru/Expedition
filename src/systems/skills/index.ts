@@ -22,7 +22,8 @@ export function useSkill(b: Battle, slot: number): SkillUseResult {
   const impl = SKILL_IMPLS[s.id];
   if (!impl) throw new Error(`No implementation for skill ${s.id}`);
   const p = skillParams(s.id, s.rank);
-  const ok = impl({ b, hero, def: getSkill(s.id), rank: s.rank, p });
+  const def = getSkill(s.id);
+  const ok = impl({ b, hero, def, rank: s.rank, p, aim: def.aimable ? b.input.aim : null });
   if (!ok) {
     b.events.emit({ type: 'noTarget', slot });
     return 'noTarget';

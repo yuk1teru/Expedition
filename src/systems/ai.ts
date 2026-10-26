@@ -22,26 +22,43 @@ export function updateHeroAI(b: Battle, dt: number): void {
   hero.vel.y = 0;
   if (hero.dead || hero.dash || isDisabled(hero)) return;
   const target = nearestEnemy(b.enemies, hero.pos);
+  const move = b.input.move;
+  if (move.x !== 0 || move.y !== 0) {
+    // Player steers: run where told, keep auto-attacking whatever is in reach.
+    const speed = hero.stats.moveSpeed * speedMult(hero);
+    hero.vel.x = move.x * speed;
+    hero.vel.y = move.y * speed;
+    hero.facing = angleOf(move);
+    if (target) {
+      if (hero.stats.ranged) tryShoot(b, hero, target);
+      else tryMeleeHit(b, hero, target);
+    }
+    return;
+  }
   if (!target) return;
   if (hero.stats.ranged) rangedHero(b, hero, target);
   else meleeHero(b, hero, target);
 }
 
-/** Melee: walk to the nearest enemy, hit it when in reach. Never dodges. */
-function meleeHero(b: Battle, hero: Hero, target: Enemy): void {
-  const d = dist(hero.pos, target.pos);
+/** Hits the target if it is in melee reach and the attack is ready. Returns true if in reach. */
+function tryMeleeHit(b: Battle, hero: Hero, target: Enemy): boolean {
+  if (dist(hero.pos, target.pos) - target.radius > hero.stats.range) return false;
   hero.facing = angleOf({ x: target.pos.x - hero.pos.x, y: target.pos.y - hero.pos.y });
-  if (d - target.radius <= hero.stats.range) {
-    if (hero.attackTimer <= 0) {
-      hero.attackTimer = 1 / heroAttackSpeed(hero);
-      damageEnemy(b, target, heroDamage(b, 1, 'basic'), {
-        source: 'basic',
-        knockFrom: hero.pos,
-        knockback: HERO.meleeKnockback,
-      });
-    }
-    return;
+  if (hero.attackTimer <= 0) {
+    hero.attackTimer = 1 / heroAttackSpeed(hero);
+    damageEnemy(b, target, heroDamage(b, 1, 'basic'), {
+      source: 'basic',
+      knockFrom: hero.pos,
+      knockback: HERO.meleeKnockback,
+    });
   }
+  return true;
+}
+
+/** Melee: walk to the nearest enemy, hit it when in reach. Never dodges on its own. */
+function meleeHero(b: Battle, hero: Hero, target: Enemy): void {
+  if (tryMeleeHit(b, hero, target)) return;
+  hero.facing = angleOf({ x: target.pos.x - hero.pos.x, y: target.pos.y - hero.pos.y });
   moveTowards(hero, target.pos, hero.stats.moveSpeed * speedMult(hero));
 }
 
@@ -56,25 +73,29 @@ function rangedHero(b: Battle, hero: Hero, target: Enemy): void {
   } else if (d > r.keepMax) {
     moveTowards(hero, target.pos, speed);
   } else if (d < r.keepMin) {
-    moveAway(hero, target.pos, speed * 0.6);
+    moveAway(hero, target.pos, speed * r.backpedalMult);
   }
-  if (d <= hero.stats.range && hero.attackTimer <= 0) {
-    hero.attackTimer = 1 / heroAttackSpeed(hero);
-    const dir = normalize({ x: target.pos.x - hero.pos.x, y: target.pos.y - hero.pos.y });
-    const roll = heroDamage(b, 1, 'basic');
-    spawnProjectile(b, {
-      pos: { ...hero.pos },
-      vel: { x: dir.x * r.projectileSpeed, y: dir.y * r.projectileSpeed },
-      radius: r.projectileRadius,
-      damage: roll.amount,
-      team: 'hero',
-      life: hero.stats.range / r.projectileSpeed + r.projectileLifePad,
-      pierce: 0,
-      ricochet: 0,
-      kind: roll.crit ? 'heroCrit' : 'hero',
-      melee: false,
-    });
-  }
+  tryShoot(b, hero, target);
+}
+
+function tryShoot(b: Battle, hero: Hero, target: Enemy): void {
+  const r = HERO.ranged;
+  if (dist(hero.pos, target.pos) > hero.stats.range || hero.attackTimer > 0) return;
+  hero.attackTimer = 1 / heroAttackSpeed(hero);
+  const dir = normalize({ x: target.pos.x - hero.pos.x, y: target.pos.y - hero.pos.y });
+  const roll = heroDamage(b, 1, 'basic');
+  spawnProjectile(b, {
+    pos: { ...hero.pos },
+    vel: { x: dir.x * r.projectileSpeed, y: dir.y * r.projectileSpeed },
+    radius: r.projectileRadius,
+    damage: roll.amount,
+    team: 'hero',
+    life: hero.stats.range / r.projectileSpeed + r.projectileLifePad,
+    pierce: 0,
+    ricochet: 0,
+    kind: roll.crit ? 'heroCrit' : 'hero',
+    melee: false,
+  });
 }
 
 export function updateEnemyAI(b: Battle, e: Enemy, dt: number): void {

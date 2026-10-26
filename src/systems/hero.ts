@@ -121,3 +121,20 @@ export function recomputeHeroStats(hero: Hero): void {
 export function healFull(hero: Hero): void {
   hero.hp = hero.maxHp;
 }
+
+/**
+ * Moves a skill between slots (0-based): swaps with an occupied slot,
+ * or moves to the last occupied position when dropped on an empty one.
+ */
+export function moveSkill(hero: Hero, from: number, to: number): void {
+  const n = hero.skills.length;
+  if (from < 0 || from >= n || to < 0 || from === to) return;
+  if (to >= n) {
+    const [s] = hero.skills.splice(from, 1);
+    if (s) hero.skills.push(s);
+    return;
+  }
+  const a = hero.skills[from]!;
+  hero.skills[from] = hero.skills[to]!;
+  hero.skills[to] = a;
+}

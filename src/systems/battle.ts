@@ -10,7 +10,7 @@ import { isBossDefeated, onBossDefeated, setupBossBattle, updateBoss, updateTele
 import './bosses';
 import { clampToArena, insideArena, separateBodies } from './collision';
 import { damageEnemy, damageHero, decayKnockback, killEnemy, updateStatuses } from './combat';
-import type { Body, Enemy, Hero, Projectile, Telegraph, Zone } from './entities';
+import type { Body, Enemy, Hero, Projectile, Telegraph, Vec, Zone } from './entities';
 import { dist, normalize } from './entities';
 import { nearestEnemy } from './targeting';
 import { updateBuffs, updateDash, updateZones } from './effects';
@@ -28,6 +28,12 @@ export interface BattleStats {
 
 export type BattleOutcome = 'running' | 'won' | 'lost';
 
+/** Player input for this step: movement direction (unit or zero) and skill aim point. */
+export interface HeroInput {
+  move: Vec;
+  aim: Vec | null;
+}
+
 export interface Battle {
   state: GameState;
   node: MapNode;
@@ -36,6 +42,7 @@ export interface Battle {
   kind: 'waves' | 'boss';
   rng: Rng;
   events: EventBus<GameEvent>;
+  input: HeroInput;
   time: number;
   nextId: number;
   hero: Hero;
@@ -67,6 +74,7 @@ export function createBattle(state: GameState, nodeId: string): Battle {
     kind: node.isBoss ? 'boss' : 'waves',
     rng: state.rng.fork(`battle-${state.battleCount}`),
     events: state.events,
+    input: { move: { x: 0, y: 0 }, aim: null },
     time: 0,
     nextId: 1,
     hero,

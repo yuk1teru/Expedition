@@ -67,6 +67,9 @@ export const FX = {
   trailSparkChance: 0.3,
   banner: { life: 1.6, fade: 0.35 },
   noTargetFlash: 0.5,
+  /** Shooters glow this long before firing so the shot can be dodged, s. */
+  shooterWindup: 0.6,
+  shooterWindupColor: '#ff9df5',
   /** Shared cap so fights with many effects stay smooth. */
   maxParticles: 600,
 } as const;

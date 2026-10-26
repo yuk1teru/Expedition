@@ -39,6 +39,8 @@ export const HERO = {
     keepMin: 180,
     keepMax: 260,
     retreatBelow: 100,
+    /** Speed fraction when drifting back into the band. */
+    backpedalMult: 0.6,
     shootRange: 300,
     projectileSpeed: 520,
     projectileRadius: 5,

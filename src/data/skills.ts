@@ -23,6 +23,8 @@ export interface SkillDef {
   classId: string;
   branch?: string;
   targeting: Targeting;
+  /** Direction follows the mouse when the cursor is inside the arena. */
+  aimable?: boolean;
   icon: SkillIcon;
   /** Short description; {param} placeholders are filled from rank params. */
   description: string;
@@ -63,6 +65,7 @@ export const SKILLS: Record<string, SkillDef> = {
     name: 'Ривок',
     classId: 'warrior',
     targeting: 'densest',
+    aimable: true,
     icon: 'dash',
     description: 'Стрибок до найщільнішої групи (до {range} px): {damage%} атаки, оглушення {stun} с. Невразливість під час стрибка.',
     base: {
@@ -100,6 +103,7 @@ export const SKILLS: Record<string, SkillDef> = {
     name: 'Удар об землю',
     classId: 'warrior',
     targeting: 'cone',
+    aimable: true,
     icon: 'slam',
     description: 'Конус {angle}° на {range} px: {damage%} атаки і відкидання.',
     base: { cooldown: 9, angle: 90, range: 220, damage: 2, knockback: 420, stun: 0 },

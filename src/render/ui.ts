@@ -94,6 +94,7 @@ export class ButtonGroup {
       }
       return false;
     }
+    if (e.type !== 'key') return false;
     if (e.code === 'Tab') {
       const enabled = this.buttons.filter((b) => b.enabled);
       if (enabled.length === 0) return false;

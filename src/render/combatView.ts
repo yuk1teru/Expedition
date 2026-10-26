@@ -11,6 +11,7 @@ import { type Battle, stepBattle } from '../systems/battle';
 import type { Enemy, Hero, Projectile, Telegraph, Zone } from '../systems/entities';
 import type { GameEvent } from '../systems/gameEvents';
 import type { App } from './app';
+import { syncBattleInput } from './battleInput';
 import { drawBoss, drawBossBar } from './bossView';
 import { Fx } from './fx';
 import { createHud } from './hud';
@@ -73,6 +74,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       const b = battle;
       if (!b) return;
       fx.avoid = { x: b.hero.pos.x, y: b.hero.pos.y, r: FX.damageText.heroClearance };
+      syncBattleInput(app.input, b);
       fx.update(dt);
       hud.update(dt);
       if (fx.hitStop > 0) {
@@ -111,6 +113,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       for (const t of b.telegraphs) drawTelegraph(ctx, t);
       for (const e of b.enemies) drawEnemyBar(ctx, e);
       fx.drawTexts(ctx);
+      if (b.input.aim) drawCrosshair(ctx, b.input.aim);
       ctx.restore();
       fx.drawFlash(ctx, app.view.width, app.view.height);
       hud.draw(ctx, b);
@@ -328,6 +331,16 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, b: Battle, t: number
     ctx.fill();
     ctx.globalAlpha = 1;
   }
+  if (e.archetype === 'shooter' && e.attackTimer < FX.shooterWindup && !e.statuses.stun) {
+    // Charging a shot: growing glow tells the player to sidestep.
+    const k = 1 - e.attackTimer / FX.shooterWindup;
+    ctx.globalAlpha = 0.25 + 0.5 * k;
+    ctx.fillStyle = FX.shooterWindupColor;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * (1.1 + 0.6 * k), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
   ctx.rotate(e.facing);
   ctx.fillStyle = isFlashing(b, e.hitAt) ? '#ffffff' : color;
   ctx.strokeStyle = 'rgba(0,0,0,0.6)';
@@ -508,6 +521,22 @@ function drawZone(ctx: CanvasRenderingContext2D, z: Zone, b: Battle, t: number):
     ctx.fill();
   }
   ctx.restore();
+}
+
+function drawCrosshair(ctx: CanvasRenderingContext2D, p: { x: number; y: number }): void {
+  ctx.strokeStyle = 'rgba(242, 193, 78, 0.55)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+  ctx.moveTo(p.x - 13, p.y);
+  ctx.lineTo(p.x - 4, p.y);
+  ctx.moveTo(p.x + 4, p.y);
+  ctx.lineTo(p.x + 13, p.y);
+  ctx.moveTo(p.x, p.y - 13);
+  ctx.lineTo(p.x, p.y - 4);
+  ctx.moveTo(p.x, p.y + 4);
+  ctx.lineTo(p.x, p.y + 13);
+  ctx.stroke();
 }
 
 function drawTelegraph(ctx: CanvasRenderingContext2D, tg: Telegraph): void {

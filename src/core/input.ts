@@ -4,9 +4,22 @@
 export type InputEvent =
   | { type: 'key'; code: string; key: string; shift: boolean }
   | { type: 'mousedown'; x: number; y: number; button: number }
+  | { type: 'mouseup'; x: number; y: number; button: number }
   | { type: 'mousemove'; x: number; y: number };
 
-/** Keys the game reacts to (KeyboardEvent.code). */
+/** Movement keys (KeyboardEvent.code) → direction. */
+export const MOVE_KEYS: Record<string, { x: number; y: number }> = {
+  KeyW: { x: 0, y: -1 },
+  KeyS: { x: 0, y: 1 },
+  KeyA: { x: -1, y: 0 },
+  KeyD: { x: 1, y: 0 },
+  ArrowUp: { x: 0, y: -1 },
+  ArrowDown: { x: 0, y: 1 },
+  ArrowLeft: { x: -1, y: 0 },
+  ArrowRight: { x: 1, y: 0 },
+};
+
+/** Keys the game reacts to (KeyboardEvent.code); their browser defaults are suppressed. */
 export const GAME_KEYS = [
   'Digit1',
   'Digit2',
@@ -17,6 +30,7 @@ export const GAME_KEYS = [
   'Backquote',
   'Enter',
   'Tab',
+  ...Object.keys(MOVE_KEYS),
 ] as const;
 
 export interface KeyLike {
@@ -39,10 +53,12 @@ export interface EventSourceLike {
 
 export class Input {
   mouse = { x: -1, y: -1 };
+  /** Keys currently held down (KeyboardEvent.code). */
+  readonly held = new Set<string>();
   private queue: InputEvent[] = [];
 
   push(e: InputEvent): void {
-    if (e.type === 'mousemove' || e.type === 'mousedown') {
+    if (e.type !== 'key') {
       this.mouse.x = e.x;
       this.mouse.y = e.y;
     }
@@ -53,6 +69,21 @@ export class Input {
     const out = this.queue;
     this.queue = [];
     return out;
+  }
+
+  /** Normalised movement direction from held movement keys (zero if none). */
+  moveVector(): { x: number; y: number } {
+    let x = 0;
+    let y = 0;
+    for (const code of this.held) {
+      const d = MOVE_KEYS[code];
+      if (d) {
+        x += d.x;
+        y += d.y;
+      }
+    }
+    const l = Math.hypot(x, y);
+    return l > 0 ? { x: x / l, y: y / l } : { x: 0, y: 0 };
   }
 }
 
@@ -66,9 +97,15 @@ export function bindInput(
   keySource.addEventListener('keydown', (raw) => {
     const e = raw as KeyLike;
     if ((GAME_KEYS as readonly string[]).includes(e.code)) e.preventDefault();
+    input.held.add(e.code);
     if (e.repeat) return;
     input.push({ type: 'key', code: e.code, key: e.key, shift: e.shiftKey });
   });
+  keySource.addEventListener('keyup', (raw) => {
+    input.held.delete((raw as KeyLike).code);
+  });
+  // Releasing keys outside the window must not leave the hero running.
+  keySource.addEventListener('blur', () => input.held.clear());
   pointerSource.addEventListener('mousemove', (raw) => {
     const e = raw as PointerLike;
     const p = toLogical(e.clientX, e.clientY);
@@ -78,5 +115,11 @@ export function bindInput(
     const e = raw as PointerLike;
     const p = toLogical(e.clientX, e.clientY);
     input.push({ type: 'mousedown', x: p.x, y: p.y, button: e.button });
+  });
+  // Mouse-up is listened on the key source (window) so drags ending outside the canvas still finish.
+  keySource.addEventListener('mouseup', (raw) => {
+    const e = raw as PointerLike;
+    const p = toLogical(e.clientX, e.clientY);
+    input.push({ type: 'mouseup', x: p.x, y: p.y, button: e.button });
   });
 }

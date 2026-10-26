@@ -6,8 +6,10 @@ import { FX } from '../data/fx';
 import { describeSkill, getSkill } from '../data/skills';
 import type { Battle } from '../systems/battle';
 import { isMaxLevel, xpFraction } from '../systems/leveling';
+import { moveSkill } from '../systems/hero';
 import { slotCooldown, useSkill } from '../systems/skills';
 import type { App } from './app';
+import { syncBattleInput } from './battleInput';
 import type { Fx } from './fx';
 import { drawSkillIcon } from './icons';
 import { className } from './names';
@@ -25,6 +27,7 @@ export interface Hud {
 }
 
 const SLOT = 56;
+const DRAG_THRESHOLD = 6;
 const SLOT_GAP = 14;
 
 export function createHud(app: App, _fx: Fx): Hud {
@@ -49,6 +52,10 @@ export function createHud(app: App, _fx: Fx): Hud {
   for (let i = 0; i < n; i++) slots.push({ x: (W - total) / 2 + i * (SLOT + SLOT_GAP), y: barY, w: SLOT, h: SLOT });
   const noTargetT = new Array<number>(n).fill(0);
   let hoverSlot = -1;
+  /** Slot being dragged (skill reordering), -1 if none. */
+  let dragFrom = -1;
+  let dragStart = { x: 0, y: 0 };
+  let dragMoved = false;
 
   const hud: Hud = {
     reset() {
@@ -58,19 +65,40 @@ export function createHud(app: App, _fx: Fx): Hud {
       for (let i = 0; i < n; i++) noTargetT[i] = Math.max(0, (noTargetT[i] ?? 0) - dt);
     },
     useSlot(slot) {
-      if (app.battle) useSkill(app.battle, slot);
+      if (!app.battle) return;
+      syncBattleInput(app.input, app.battle);
+      useSkill(app.battle, slot);
     },
     noTarget(slot) {
       noTargetT[slot] = FX.noTargetFlash;
     },
     handle(e) {
-      if (e.type === 'mousemove') hoverSlot = slots.findIndex((r) => inRect(r, e.x, e.y));
+      if (e.type === 'mousemove') {
+        hoverSlot = slots.findIndex((r) => inRect(r, e.x, e.y));
+        if (dragFrom >= 0 && Math.hypot(e.x - dragStart.x, e.y - dragStart.y) > DRAG_THRESHOLD) dragMoved = true;
+      }
       if (e.type === 'mousedown') {
         const i = slots.findIndex((r) => inRect(r, e.x, e.y));
         if (i >= 0) {
-          if (!app.loop.paused) hud.useSlot(i);
+          // Click (release on the same slot) uses the skill; dragging onto another slot reorders.
+          if (app.state.hero.skills[i]) {
+            dragFrom = i;
+            dragStart = { x: e.x, y: e.y };
+            dragMoved = false;
+          }
           return true;
         }
+      }
+      if (e.type === 'mouseup' && dragFrom >= 0) {
+        const from = dragFrom;
+        dragFrom = -1;
+        const to = slots.findIndex((r) => inRect(r, e.x, e.y));
+        if (!dragMoved && to === from) {
+          if (!app.loop.paused) hud.useSlot(from);
+        } else if (to >= 0 && to !== from) {
+          moveSkill(app.state.hero, from, to);
+        }
+        return true;
       }
       return buttons.handle(e);
     },
@@ -116,7 +144,8 @@ export function createHud(app: App, _fx: Fx): Hud {
       buttons.draw(ctx);
 
       drawSkillBar(ctx, b, slots, noTargetT, hoverSlot);
-      drawText(ctx, '1–4 — скіли · Пробіл — пауза', W - 12, app.view.height - 12, { size: 11, align: 'right', color: THEME.textMuted });
+      if (dragFrom >= 0 && dragMoved) drawDragGhost(ctx, b, dragFrom, slots, app.input.mouse);
+      drawText(ctx, 'WASD — рух · 1–4 — скіли (миша — напрямок) · Пробіл — пауза', W - 12, app.view.height - 12, { size: 11, align: 'right', color: THEME.textMuted });
 
       const hs = hoverSlot >= 0 ? hero.skills[hoverSlot] : undefined;
       if (hs) {
@@ -127,11 +156,34 @@ export function createHud(app: App, _fx: Fx): Hud {
           `Перезарядка: ${slotCooldown(b, hoverSlot).toFixed(1)} с`,
         ];
         if (hs.rank >= 3) lines.push(`Ранг 3: ${def.rank3Modifier.text}`);
-        drawTooltip(ctx, lines, app.input.mouse.x, ARENA.y + ARENA.h - 150, W, app.view.height);
+        if (def.aimable) lines.push('Напрямок — курсор миші на арені');
+        lines.push('Перетягніть слот, щоб переставити');
+        if (dragFrom < 0) drawTooltip(ctx, lines, app.input.mouse.x, ARENA.y + ARENA.h - 170, W, app.view.height);
       }
     },
   };
   return hud;
+}
+
+function drawDragGhost(ctx: CanvasRenderingContext2D, b: Battle, from: number, slots: Rect[], m: { x: number; y: number }): void {
+  const s = b.hero.skills[from];
+  if (!s) return;
+  const target = slots.findIndex((r) => inRect(r, m.x, m.y));
+  const t = slots[target];
+  if (t && target !== from) {
+    roundRect(ctx, t.x - 3, t.y - 3, t.w + 6, t.h + 6, 12);
+    ctx.strokeStyle = THEME.accent;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  ctx.globalAlpha = 0.8;
+  roundRect(ctx, m.x - SLOT / 2, m.y - SLOT / 2, SLOT, SLOT, 10);
+  ctx.fillStyle = '#2d3650';
+  ctx.fill();
+  drawSkillIcon(ctx, getSkill(s.id).icon, m.x, m.y, SLOT * 0.6, '#f4f1e8');
+  ctx.globalAlpha = 1;
 }
 
 function wrapPlain(text: string, max: number): string[] {
