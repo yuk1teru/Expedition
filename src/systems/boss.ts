@@ -11,6 +11,7 @@ import type { Enemy, Telegraph, TelegraphShape, Vec } from './entities';
 import { angleOf, dist } from './entities';
 import { dayMultiplier, enemyStats } from './scaling';
 import { moveTowards } from './ai';
+import type { WaveMult } from './waves';
 
 export interface BossBehavior {
   /** Attack id → executes the attack. */
@@ -31,10 +32,12 @@ function behaviorOf(id: string): BossBehavior {
   return bh;
 }
 
-/** Creates a boss-driven enemy (boss or miniboss) at `pos`. */
-export function createBossEnemy(b: Battle, defId: string, pos: Vec, statMult = 1): Enemy {
+const NO_MULT: WaveMult = { hp: 1, damage: 1, reward: 1, gold: 1, speed: 1 };
+
+/** Creates a boss-driven enemy (boss or miniboss) at `pos`, scaled by the wave it comes with. */
+export function createBossEnemy(b: Battle, defId: string, pos: Vec, mult: WaveMult = NO_MULT): Enemy {
   const def = getBoss(defId);
-  const scaled = enemyStats(def, b.tier, dayMultiplier(b.state.day) * statMult);
+  const scaled = enemyStats(def, b.tier, dayMultiplier(b.state.day));
   const attackCooldowns: Record<string, number> = {};
   for (const a of def.attacks) attackCooldowns[a.id] = a.initialCooldown;
   const e: Enemy = {
@@ -42,8 +45,8 @@ export function createBossEnemy(b: Battle, defId: string, pos: Vec, statMult = 1
     pos: { ...pos },
     vel: { x: 0, y: 0 },
     radius: def.radius,
-    hp: scaled.hp,
-    maxHp: scaled.hp,
+    hp: scaled.hp * mult.hp,
+    maxHp: scaled.hp * mult.hp,
     team: 'enemy',
     statuses: {},
     knockback: { x: 0, y: 0 },
@@ -56,16 +59,19 @@ export function createBossEnemy(b: Battle, defId: string, pos: Vec, statMult = 1
     name: def.name,
     archetype: 'tank',
     elite: false,
-    damage: scaled.damage,
-    speed: def.speed,
+    damage: scaled.damage * mult.damage,
+    speed: def.speed * mult.speed,
     armor: def.armor,
-    xp: def.xp * statMult,
-    gold: Math.round(def.gold * statMult),
+    xp: def.xp * mult.reward,
+    gold: def.gold * mult.gold,
     attackTimer: 0,
     abilityTimer: 0,
     dashTime: 0,
     dashDir: { x: 0, y: 0 },
-    boss: { defId: def.id, phase: 1, attackCooldowns, pause: def.minPause, timers: {}, busy: 0, dash: null },
+    windup: 0,
+    shots: 0,
+    yank: null,
+    boss: { defId: def.id, phase: 1, attackCooldowns, pause: def.minPause, timers: {}, busy: 0, dash: null, queued: null },
     summoned: false,
   };
   b.enemies.push(e);
@@ -91,7 +97,7 @@ function updateOneBoss(b: Battle, boss: Enemy, dt: number): void {
 
   if (def.phase2 && rt.phase === 1 && boss.hp <= boss.maxHp * def.phase2.hpFraction) {
     rt.phase = 2;
-    boss.speed = def.speed * def.phase2.speedMult;
+    boss.speed *= def.phase2.speedMult;
     b.events.emit({ type: 'bossPhase', phase: 2, pos: { ...boss.pos } });
   }
   const tempo = rt.phase === 2 && def.phase2 ? def.phase2.speedMult : 1;
@@ -126,9 +132,19 @@ function updateOneBoss(b: Battle, boss: Enemy, dt: number): void {
     boss.attackTimer = def.melee.interval;
     damageHero(b, boss.damage * def.melee.damage, { attacker: boss, melee: true });
   }
+  const bh = behaviorOf(def.id);
+  if (rt.queued && rt.busy <= 0) {
+    // Combo: the follow-up comes right after the previous attack, no pause.
+    const next = def.attacks.find((a) => a.id === rt.queued);
+    rt.queued = null;
+    if (next) {
+      b.events.emit({ type: 'bossCombo', pos: { ...boss.pos } });
+      runAttack(b, boss, next, bh);
+      return;
+    }
+  }
   if (rt.pause > 0 || rt.busy > 0) return;
 
-  const bh = behaviorOf(def.id);
   const ready = def.attacks.filter((a) => {
     if (!a.phases.includes(rt.phase)) return false;
     if ((rt.attackCooldowns[a.id] ?? 0) > 0) return false;
@@ -138,11 +154,18 @@ function updateOneBoss(b: Battle, boss: Enemy, dt: number): void {
   if (ready.length === 0) return;
   const prio = ready.filter((a) => a.priority);
   const atk = prio.length > 0 ? (prio[0] as BossAttackDef) : b.rng.weighted(ready.map((a) => ({ item: a, weight: a.weight })));
+  runAttack(b, boss, atk, bh);
+}
+
+function runAttack(b: Battle, boss: Enemy, atk: BossAttackDef, bh: BossBehavior): void {
+  const rt = boss.boss!;
+  const def = getBoss(rt.defId);
   const fn = bh.attacks[atk.id];
   if (!fn) throw new Error(`Boss ${def.id} has no attack ${atk.id}`);
   fn(b, boss, phaseParams(atk, rt.phase), atk);
   rt.attackCooldowns[atk.id] = rt.phase === 1 ? atk.cooldown[0] : atk.cooldown[1];
   rt.pause = def.minPause;
+  if (atk.followUp && b.rng.chance(atk.followUp.chance)) rt.queued = atk.followUp.id;
 }
 
 function phaseParams(a: BossAttackDef, phase: 1 | 2): BossParams {
@@ -190,6 +213,7 @@ export function addShapedTelegraph(
     damage,
     dead: false,
     onFire: onFire ?? null,
+    ownerId: null,
   };
   b.telegraphs.push(t);
   return t;
@@ -216,6 +240,14 @@ export function updateTelegraphs(b: Battle, dt: number): void {
   for (const t of b.telegraphs) {
     if (t.dead) continue;
     t.time += dt;
+    if (t.ownerId !== null) {
+      // An enemy's own move fizzles if it dies or gets stunned during the wind-up.
+      const owner = b.enemies.find((e) => e.id === t.ownerId);
+      if (!owner || owner.dead || isDisabled(owner)) {
+        t.dead = true;
+        continue;
+      }
+    }
     if (t.time < t.delay) continue;
     t.dead = true;
     const hero = b.hero;

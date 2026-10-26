@@ -98,8 +98,9 @@ export function restInTown(state: GameState): void {
   saveCheckpoint(state);
 }
 
+/** Adjacent nodes, the current location (replay) and the town (always: going back is free). */
 export function canTravel(state: GameState, nodeId: string): boolean {
-  return nodeId === state.currentNodeId ? !getNode(state.world, nodeId).isTown : areAdjacent(state.world, state.currentNodeId, nodeId);
+  return nodeId === state.currentNodeId || areAdjacent(state.world, state.currentNodeId, nodeId);
 }
 
 export interface BattleSummary {
@@ -112,8 +113,12 @@ export interface BattleSummary {
   kills: number;
   damageDealt: number;
   damageTaken: number;
-  /** Bonus waves cleared after the portal opened. */
-  bonusWaves: number;
+  /** Mandatory waves of this visit (before the first portal). */
+  mandatoryWaves: number;
+  /** Waves cleared in this visit, and the range (1-based) they cover. */
+  wavesCleared: number;
+  firstWave: number;
+  lastWave: number;
   /** Items found in this battle. */
   loot: Item[];
   /** This battle defeated the last remaining boss (show the victory screen once). */
@@ -132,7 +137,7 @@ export function completeBattle(state: GameState, b: Battle): BattleSummary {
   if (won) {
     clearBonus = clearBonusGold(b.tier);
     state.gold += clearBonus;
-    markCleared(b.node);
+    markCleared(b.node, b.waves?.cleared ?? 0);
     s.locationsCleared += 1;
     state.day += 1;
     if (b.node.isBoss && !state.bossesDefeated.includes(b.node.id)) state.bossesDefeated.push(b.node.id);
@@ -149,7 +154,10 @@ export function completeBattle(state: GameState, b: Battle): BattleSummary {
     kills: b.stats.kills,
     damageDealt: b.stats.damageDealt,
     damageTaken: b.stats.damageTaken,
-    bonusWaves: b.waves ? Math.max(0, b.waves.cleared - b.waves.total) : 0,
+    mandatoryWaves: b.waves ? b.waves.total - b.waves.start : 0,
+    wavesCleared: b.waves ? b.waves.cleared - b.waves.start : 0,
+    firstWave: b.waves ? b.waves.start + 1 : 0,
+    lastWave: b.waves ? b.waves.cleared : 0,
     loot: [...b.stats.loot],
     runCompleted: won && !wasWon && isRunWon(state),
   };

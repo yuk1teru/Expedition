@@ -143,6 +143,22 @@ export function drawPassiveIcon(ctx: CanvasRenderingContext2D, stat: string, x: 
     ctx.quadraticCurveTo(r * 0.7, 0, 0, r * 0.75);
     ctx.quadraticCurveTo(-r * 0.7, 0, 0, -r * 0.8);
     ctx.fill();
+  } else if (stat === 'killCdr') {
+    // Crossed swords with a spark: kills speed up skills.
+    ctx.lineCap = 'round';
+    ctx.lineWidth = Math.max(2, size * 0.1);
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.7, r * 0.7);
+    ctx.lineTo(r * 0.6, -r * 0.6);
+    ctx.moveTo(r * 0.7, r * 0.7);
+    ctx.lineTo(-r * 0.6, -r * 0.6);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, -r * 0.95);
+    ctx.lineTo(r * 0.18, -r * 0.55);
+    ctx.lineTo(-r * 0.18, -r * 0.55);
+    ctx.closePath();
+    ctx.fill();
   } else if (stat === 'thorns') {
     ctx.beginPath();
     for (let i = 0; i < 16; i++) {

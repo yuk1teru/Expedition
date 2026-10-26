@@ -236,6 +236,8 @@ export function drawTooltip(
   y: number,
   screenW: number,
   screenH: number,
+  /** Optional colour per line (default: accent title, plain text). */
+  lineColors?: (string | undefined)[],
 ): void {
   if (lines.length === 0) return;
   const size = 14;
@@ -256,7 +258,7 @@ export function drawTooltip(
   lines.forEach((l, i) => {
     drawText(ctx, l, tx + pad, ty + pad + i * lh + 6, {
       size,
-      color: i === 0 ? THEME.accent : THEME.text,
+      color: lineColors?.[i] ?? (i === 0 ? THEME.accent : THEME.text),
       bold: i === 0,
     });
   });

@@ -23,7 +23,7 @@ export const CONSUMABLES: Record<ConsumableId, ConsumableDef> = {
   herb: {
     id: 'herb',
     name: 'Цілюща трава',
-    description: 'G — відновити 25% HP. Можна носити в наступні бої.',
+    description: 'G — відновити 10% HP. Можна носити в наступні бої.',
     price: 40,
     max: 3,
   },
@@ -31,7 +31,7 @@ export const CONSUMABLES: Record<ConsumableId, ConsumableDef> = {
 
 export const HERB = {
   /** Fraction of max HP restored. */
-  healPct: 0.25,
+  healPct: 0.1,
   /** Seconds between uses. */
   cooldown: 1,
 } as const;

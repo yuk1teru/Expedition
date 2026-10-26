@@ -47,6 +47,7 @@ export const BIOMES: Record<string, BiomeDef> = {
         stump: '#a07a4c',
         enat: '#6b8f3a',
         alpha: '#dfe4ec',
+        galeSpirit: '#9fe3ff',
       },
       eliteAura: '#ffd34d',
     },

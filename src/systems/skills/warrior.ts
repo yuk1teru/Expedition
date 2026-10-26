@@ -1,12 +1,12 @@
-// Warrior skills: Whirlwind, Charge, Battle Cry, Ground Slam.
+// Warrior skills: Whirlwind, Charge, Battle Cry, Ground Slam, Axe Throw, Iron Skin, Earthquake, Hook.
 
 import { ARENA } from '../../data/balance';
 import { spawnProjectile } from '../ai';
-import { addStatus, damageEnemy, healHero, heroDamage, pull } from '../combat';
+import { addStatus, damageEnemy, healHero, heroDamage } from '../combat';
 import { addBuff, addZone, startDash } from '../effects';
 import type { SkillParams } from '../../data/skills';
 import type { Battle } from '../battle';
-import { type Hero, type Vec, dist, distToSegment } from '../entities';
+import { type Hero, type Vec, dist, distToSegment, normalize } from '../entities';
 import { bestConeAngle, coneTargets, densePoints, enemiesInRadius, nearestEnemy } from '../targeting';
 import { telegraphContains } from '../boss';
 import { heroAttack } from '../hero';
@@ -25,6 +25,7 @@ const whirlwind: SkillImpl = ({ b, hero, p, def, rank }) => {
     pull: p.pull!,
     tickNow: true,
   });
+  if (p.guard! > 0) addBuff(hero, { id: 'whirlGuard', time: p.duration!, attackSpeedMult: 1, damageTakenMult: 1 - p.guard! });
   b.events.emit({ type: 'skillCast', skillId: def.id, rank, pos: { ...hero.pos }, target: null });
   return true;
 };
@@ -110,7 +111,9 @@ const battleCry: SkillImpl = ({ b, hero, p, def, rank }) => {
     attackSpeedMult: 1 + p.attackSpeed!,
     damageTakenMult: 1 - p.damageReduction!,
   });
-  for (const e of enemiesInRadius(b.enemies, hero.pos, p.tauntRadius!)) addStatus(e, 'taunt', p.duration!);
+  const taunted = enemiesInRadius(b.enemies, hero.pos, p.tauntRadius!);
+  for (const e of taunted) addStatus(e, 'taunt', p.duration!);
+  if (p.healPerEnemy! > 0) healHero(b, hero.maxHp * p.healPerEnemy! * taunted.length, 'show');
   b.events.emit({ type: 'skillCast', skillId: def.id, rank, pos: { ...hero.pos }, target: null });
   return true;
 };
@@ -126,7 +129,9 @@ const groundSlam: SkillImpl = ({ b, hero, p, def, rank, aim }) => {
   if (!best) return false;
   hero.facing = best.angle;
   for (const e of coneTargets(b.enemies, hero.pos, best.angle, width, p.range!)) {
-    damageEnemy(b, e, heroDamage(b, p.damage!, 'skill'), { source: 'skill', knockFrom: hero.pos, knockback: p.knockback! });
+    // Rank 5: execute wounded enemies.
+    const mult = p.executeBelow! > 0 && e.hp < e.maxHp * p.executeBelow! ? p.executeMult! : 1;
+    damageEnemy(b, e, heroDamage(b, p.damage! * mult, 'skill'), { source: 'skill', knockFrom: hero.pos, knockback: p.knockback! });
     if (!e.dead && p.stun! > 0) addStatus(e, 'stun', p.stun!);
   }
   const target = { x: hero.pos.x + Math.cos(best.angle) * p.range!, y: hero.pos.y + Math.sin(best.angle) * p.range! };
@@ -140,27 +145,45 @@ const axeThrow: SkillImpl = ({ b, hero, p, def, rank, aim }) => {
   if (!target || !nearestEnemy(b.enemies, hero.pos)) return false;
   const angle = Math.atan2(target.y - hero.pos.y, target.x - hero.pos.x);
   hero.facing = angle;
-  const roll = heroDamage(b, p.damage!, 'skill');
-  spawnProjectile(b, {
-    pos: { ...hero.pos },
-    vel: { x: Math.cos(angle) * p.speed!, y: Math.sin(angle) * p.speed! },
-    radius: p.radius!,
-    damage: roll.amount,
-    team: 'hero',
-    life: p.range! / p.speed!,
-    pierce: p.pierce!,
-    ricochet: 0,
-    kind: roll.crit ? 'axeCrit' : 'axe',
-    melee: false,
-  });
+  const step = (p.spreadDeg! * Math.PI) / 180;
+  for (let i = 0; i < p.count!; i++) {
+    // Rank 5: a fan of axes around the aim.
+    const a = angle + (i - (p.count! - 1) / 2) * step;
+    const roll = heroDamage(b, p.damage!, 'skill');
+    spawnProjectile(b, {
+      pos: { ...hero.pos },
+      vel: { x: Math.cos(a) * p.speed!, y: Math.sin(a) * p.speed! },
+      radius: p.radius!,
+      damage: roll.amount,
+      team: 'hero',
+      life: p.range! / p.speed!,
+      pierce: p.pierce!,
+      ricochet: 0,
+      kind: roll.crit ? 'axeCrit' : 'axe',
+      melee: false,
+    });
+  }
   b.events.emit({ type: 'skillCast', skillId: def.id, rank, pos: { ...hero.pos }, target: { x: hero.pos.x + Math.cos(angle) * p.range!, y: hero.pos.y + Math.sin(angle) * p.range! } });
   return true;
 };
 
+/** A stance: less damage taken, healing over its duration; rank 3 also hits harder. */
 const ironSkin: SkillImpl = ({ b, hero, p, def, rank }) => {
   if (!nearestEnemy(b.enemies, hero.pos)) return false;
-  addBuff(hero, { id: def.id, time: p.duration!, attackSpeedMult: 1, damageTakenMult: 1 - p.damageReduction! });
-  if (p.heal! > 0) healHero(b, hero.maxHp * p.heal!, 'show');
+  addBuff(hero, {
+    id: def.id,
+    time: p.duration!,
+    attackSpeedMult: 1,
+    damageTakenMult: 1 - p.damageReduction!,
+    damageMult: 1 + p.damageBonus!,
+    regen: (hero.maxHp * p.heal!) / p.duration!,
+    ccImmune: p.ccImmune! > 0,
+  });
+  if (p.ccImmune! > 0) {
+    delete hero.statuses.slow;
+    delete hero.statuses.root;
+    delete hero.statuses.stun;
+  }
   b.events.emit({ type: 'skillCast', skillId: def.id, rank, pos: { ...hero.pos }, target: null });
   return true;
 };
@@ -184,7 +207,7 @@ const earthquake: SkillImpl = ({ b, hero, p, def, rank }) => {
   return true;
 };
 
-/** Pulls enemies in a cone (towards the cursor, or the best direction) to the hero. */
+/** Yanks enemies in a cone (towards the cursor, or the best direction) right next to the hero. */
 const hook: SkillImpl = ({ b, hero, p, def, rank, aim }) => {
   const width = (p.angle! * Math.PI) / 180;
   const angle = aim
@@ -195,8 +218,15 @@ const hook: SkillImpl = ({ b, hero, p, def, rank, aim }) => {
   for (const e of coneTargets(b.enemies, hero.pos, angle, width, p.range!)) {
     damageEnemy(b, e, heroDamage(b, p.damage!, 'skill'), { source: 'skill' });
     if (e.dead) continue;
-    pull(e, hero.pos, p.pull!);
-    if (p.stun! > 0) addStatus(e, 'stun', p.stun!);
+    // Bosses are too heavy to yank: they are only hit and stunned.
+    if (!e.boss) {
+      const dir = normalize({ x: e.pos.x - hero.pos.x, y: e.pos.y - hero.pos.y });
+      const gap = hero.radius + e.radius + 2;
+      e.yank = { to: { x: hero.pos.x + dir.x * gap, y: hero.pos.y + dir.y * gap }, speed: p.pullSpeed! };
+    }
+    // Pulled enemies are disabled on arrival, so fast ones can't bite right away.
+    addStatus(e, 'stun', p.stun!);
+    if (p.vuln! > 0) addStatus(e, 'vuln', p.vulnTime!, p.vuln!);
   }
   const target = { x: hero.pos.x + Math.cos(angle) * p.range!, y: hero.pos.y + Math.sin(angle) * p.range! };
   b.events.emit({ type: 'skillCast', skillId: def.id, rank, pos: { ...hero.pos }, target });

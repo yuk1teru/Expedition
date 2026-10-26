@@ -60,6 +60,7 @@ function baseStats(level: number): HeroStats {
     ranged: false,
     skillDamageMult: 1,
     cooldownMult: 1,
+    killCdr: 0,
   };
 }
 
@@ -124,6 +125,9 @@ export function recomputeHeroStats(hero: Hero): void {
         break;
       case 'cooldownPct':
         s.cooldownMult *= 1 - v;
+        break;
+      case 'killCdr':
+        s.killCdr += v;
         break;
     }
   }

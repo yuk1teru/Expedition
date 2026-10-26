@@ -3,12 +3,15 @@
 import type { InputEvent } from '../core/input';
 import { Rng } from '../core/rng';
 import type { Screen } from '../core/screens';
-import { ARENA } from '../data/balance';
+import { ARENA, TRAPS } from '../data/balance';
+import { WEATHER } from '../data/weather';
+import { getEnemyDef } from '../data/enemies';
 import { getClass } from '../data/classes';
 import type { BiomeDef, DecorKind } from '../data/biomes';
 import { FX } from '../data/fx';
 import { RARITIES } from '../data/items';
-import { heroAttackSpeed } from '../systems/ai';
+import { heroAttackSpeed, nextShotIsVolley } from '../systems/ai';
+import { type Trap, trapArmed } from '../systems/traps';
 import { basicAttackOf } from '../systems/hero';
 import { type Battle, stepBattle } from '../systems/battle';
 import { type Pickup, pickupReady, useHerb } from '../systems/pickups';
@@ -55,7 +58,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
   let confirmUntil = 0;
   const W = app.view.width;
   // Compact, see-through pause panel: the arena stays visible.
-  const PAUSE_PANEL = { x: W / 2 - 270, y: ARENA.y + ARENA.h / 2 - 140, w: 540, h: 280 };
+  const PAUSE_PANEL = { x: W / 2 - 270, y: ARENA.y + ARENA.h / 2 - 152, w: 540, h: 304 };
   const resumeBtn = new Button({
     label: 'Продовжити (Esc)',
     rect: { x: W / 2 - 215, y: PAUSE_PANEL.y + PAUSE_PANEL.h - 50, w: 200, h: 36 },
@@ -76,7 +79,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
   function onEvent(e: GameEvent): void {
     const b = battle;
     if (!b) return;
-    if (e.type === 'noTarget') hud.noTarget(e.slot);
+    if (e.type === 'noTarget') hud.noTarget(e.slot, e.reason);
     else if (e.type === 'skillCast' || e.type === 'skillTick') skillFx(fx, e);
     else handleEvent(b, fx, e);
   }
@@ -152,6 +155,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       for (const z of b.zones) drawZone(ctx, z, b, app.time);
       if (b.portal) drawPortal(ctx, b.portal.pos, b.portal.radius, app.time, portalActive(b));
       for (const p of b.pickups) drawPickup(ctx, p, b, app.time);
+      for (const tr of b.traps) drawTrap(ctx, tr, b);
       for (const p of b.projectiles) drawProjectile(ctx, p);
       for (const e of b.enemies) {
         if (e.boss) drawBoss(ctx, e, b, app.time);
@@ -164,7 +168,8 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       fx.drawSlashes(ctx);
       fx.drawRings(ctx);
       fx.drawParticles(ctx);
-      // Telegraphs always above effects so they stay readable.
+      drawWeather(ctx, b, app.time);
+      // Telegraphs always above effects (and weather) so they stay readable.
       for (const t of b.telegraphs) drawTelegraph(ctx, t);
       for (const e of b.enemies) {
         if (e.boss) drawBossPlate(ctx, e);
@@ -192,6 +197,13 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
     },
   };
 }
+
+const TELEGRAPH_FIRE_COLOR: Record<string, string> = {
+  roots: '#7a5230',
+  stomp: '#a07a4c',
+  lightning: '#fff3a8',
+  gust: '#9fe3ff',
+};
 
 function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
   const T = FX.damageText;
@@ -242,9 +254,26 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
     case 'spawn':
       fx.burst(e.pos, P.spawn, b.biome.palette.accent);
       break;
-    case 'wave':
-      if (e.statMult > 1) fx.showBanner(`Хвиля ${e.index} · вороги +${Math.round((e.statMult - 1) * 100)}%`, e.bonus > 0 ? THEME.accent : THEME.text);
-      else fx.showBanner(`Хвиля ${e.index}`, THEME.text);
+    case 'wave': {
+      const color = e.bonus > 0 ? THEME.accent : THEME.text;
+      if (e.weather) {
+        const w = WEATHER[e.weather];
+        fx.showBanner(`Хвиля ${e.index} · ${w.name}: ${w.description}`, '#9fd3ff');
+      } else if (e.index > 1) {
+        fx.showBanner(`Хвиля ${e.index} · шкода ворогів ×${e.mult.damage.toFixed(1)}, швидкість ×${e.mult.speed.toFixed(2)}`, color);
+      } else fx.showBanner(`Хвиля ${e.index}`, color);
+      break;
+    }
+    case 'weatherEnd':
+      fx.text({ x: b.hero.pos.x, y: b.hero.pos.y - 44 }, 'Погода прояснилась', '#9fd3ff', 15, 1.6);
+      break;
+    case 'trapSnap':
+      fx.text({ x: e.pos.x, y: e.pos.y - 30 }, 'Пастка!', '#ff9a5e', 16, 1.2);
+      fx.burst(e.pos, P.telegraph, '#b8b2a6');
+      fx.shake(FX.shake.heroHurtBig);
+      break;
+    case 'bossCombo':
+      fx.text({ x: e.pos.x, y: e.pos.y - 48 }, 'Комбо!', THEME.bad, 17, 1);
       break;
     case 'miniboss':
       fx.showBanner(`Мінібос: ${e.name}`, THEME.bad);
@@ -293,11 +322,15 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
       fx.showBanner('Фаза 2', THEME.bad);
       fx.burst(e.pos, P.eliteDeath, '#ff4d3a');
       break;
-    case 'telegraphFire':
-      fx.burst(e.pos, P.telegraph, e.kind === 'roots' ? '#7a5230' : '#c9a36b');
-      fx.ring(e.pos, e.radius, '#e5534b', 0.3, 5);
-      fx.shake(FX.shake.telegraph);
+    case 'telegraphFire': {
+      const color = TELEGRAPH_FIRE_COLOR[e.kind] ?? '#c9a36b';
+      fx.burst(e.pos, P.telegraph, color);
+      fx.ring(e.pos, e.radius, e.kind === 'lightning' ? '#fff3a8' : '#e5534b', 0.3, 5);
+      if (e.kind === 'lightning') fx.screenFlash('#fff8d0', 0.25);
+      // Stomps of ordinary enemies are frequent: no screen shake for them.
+      if (e.kind !== 'stomp') fx.shake(FX.shake.telegraph);
       break;
+    }
     case 'battleEnd':
       fx.showBanner(e.won ? 'Перемога!' : 'Поразка', e.won ? THEME.good : THEME.bad);
       break;
@@ -435,14 +468,31 @@ function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, b: Battle, t: number
     ctx.globalAlpha = 1;
   }
   if (e.archetype === 'shooter' && e.attackTimer < FX.shooterWindup && !e.statuses.stun) {
-    // Charging a shot: growing glow tells the player to sidestep.
+    // Charging a shot: growing glow tells the player to sidestep; a volley glows bigger.
     const k = 1 - e.attackTimer / FX.shooterWindup;
+    const volley = nextShotIsVolley(e);
     ctx.globalAlpha = 0.25 + 0.5 * k;
-    ctx.fillStyle = FX.shooterWindupColor;
+    ctx.fillStyle = volley ? '#ff8fd8' : FX.shooterWindupColor;
     ctx.beginPath();
-    ctx.arc(0, 0, r * (1.1 + 0.6 * k), 0, Math.PI * 2);
+    ctx.arc(0, 0, r * (1.1 + (volley ? 1.1 : 0.6) * k), 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
+  }
+  if (e.archetype === 'fast' && e.windup > 0) {
+    // Crouching before a leap: a dashed line shows where it will jump.
+    const def = getEnemyDef(e.defId);
+    const len = def.dash ? e.speed * def.dash.speedMult * def.dash.duration : 0;
+    ctx.globalAlpha = 0.55;
+    ctx.strokeStyle = '#ff5a4a';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(e.dashDir.x * len, e.dashDir.y * len);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+    ctx.scale(1.15, 0.8);
   }
   ctx.rotate(e.facing);
   ctx.fillStyle = isFlashing(b, e.hitAt) ? '#ffffff' : color;
@@ -556,6 +606,28 @@ function drawHero(ctx: CanvasRenderingContext2D, h: Hero, b: Battle, t: number, 
       ctx.stroke();
     }
   }
+  if ((h.statuses.root?.time ?? 0) > 0) {
+    // Caught in a trap: steel jaws around the feet.
+    ctx.strokeStyle = '#c9c3b6';
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * (r + 2), Math.sin(a) * (r + 2) * 0.6 + 4);
+      ctx.lineTo(Math.cos(a) * (r + 9), Math.sin(a) * (r + 9) * 0.6 + 4);
+      ctx.stroke();
+    }
+  }
+  if ((h.statuses.slow?.time ?? 0) > 0) {
+    // Slowed: icy-blue dashed ring.
+    ctx.strokeStyle = 'rgba(120, 200, 255, 0.85)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.arc(0, 0, r + 15, -t * 2, -t * 2 + Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
   ctx.rotate(h.facing);
   // Direction wedge.
   ctx.fillStyle = '#f2c14e';
@@ -577,7 +649,7 @@ function drawHero(ctx: CanvasRenderingContext2D, h: Hero, b: Battle, t: number, 
 
 function drawProjectile(ctx: CanvasRenderingContext2D, p: Projectile): void {
   if (p.team === 'enemy') {
-    ctx.fillStyle = '#d86bf0';
+    ctx.fillStyle = p.kind === 'gale' ? '#9fe3ff' : '#d86bf0';
     ctx.beginPath();
     ctx.arc(p.pos.x, p.pos.y, p.radius, 0, Math.PI * 2);
     ctx.fill();
@@ -862,5 +934,75 @@ function drawTelegraph(ctx: CanvasRenderingContext2D, tg: Telegraph): void {
     ctx.strokeRect(0, -w / 2, len, w);
   }
   ctx.setLineDash([]);
+  ctx.restore();
+}
+
+/** Steel snare: faint while arming, then clearly visible jaws. */
+function drawTrap(ctx: CanvasRenderingContext2D, tr: Trap, b: Battle): void {
+  const r = TRAPS.radius;
+  const armed = trapArmed(b, tr);
+  ctx.save();
+  ctx.translate(tr.pos.x, tr.pos.y);
+  ctx.globalAlpha = armed ? 0.95 : 0.1 + 0.35 * Math.min(1, (b.time - tr.spawnedAt) / TRAPS.armTime);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(0, 2, r * 1.1, r * 0.7, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#b8b2a6';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, r, r * 0.62, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  // Teeth.
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < 7; i++) {
+    const x = -r * 0.8 + (i / 6) * r * 1.6;
+    ctx.moveTo(x, -r * 0.5);
+    ctx.lineTo(x + 2, -r * 0.1);
+    ctx.moveTo(x, r * 0.5);
+    ctx.lineTo(x + 2, r * 0.1);
+  }
+  ctx.stroke();
+  ctx.fillStyle = '#7a5230';
+  ctx.beginPath();
+  ctx.arc(0, 0, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/** Weather of an event wave: fog leaves a clear circle around the hero, rain and storm streak the arena. */
+function drawWeather(ctx: CanvasRenderingContext2D, b: Battle, t: number): void {
+  const w = b.weather;
+  if (!w) return;
+  const def = WEATHER[w.id];
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(ARENA.x, ARENA.y, ARENA.w, ARENA.h);
+  ctx.clip();
+  if (def.visionRadius > 0) {
+    const h = b.hero.pos;
+    const g = ctx.createRadialGradient(h.x, h.y, def.visionRadius * 0.55, h.x, h.y, def.visionRadius * 1.35);
+    g.addColorStop(0, 'rgba(190, 200, 205, 0)');
+    g.addColorStop(1, 'rgba(170, 180, 186, 0.94)');
+    ctx.fillStyle = g;
+    ctx.fillRect(ARENA.x, ARENA.y, ARENA.w, ARENA.h);
+  } else {
+    const storm = w.id === 'storm';
+    ctx.fillStyle = storm ? 'rgba(10, 14, 30, 0.28)' : 'rgba(20, 30, 50, 0.18)';
+    ctx.fillRect(ARENA.x, ARENA.y, ARENA.w, ARENA.h);
+    ctx.strokeStyle = 'rgba(170, 200, 255, 0.35)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    const n = storm ? 70 : 110;
+    for (let i = 0; i < n; i++) {
+      // Deterministic streaks falling down-left.
+      const x = ARENA.x + ((i * 97.3 + t * 260) % (ARENA.w + 60)) - 30;
+      const y = ARENA.y + ((i * 53.7 + t * 620) % ARENA.h);
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - 5, y + 14);
+    }
+    ctx.stroke();
+  }
   ctx.restore();
 }

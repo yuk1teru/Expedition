@@ -11,7 +11,8 @@ export interface Vec {
 
 export type Team = 'hero' | 'enemy';
 
-export type StatusId = 'stun' | 'slow' | 'freeze' | 'burn' | 'taunt';
+/** `root`: no movement (hero only); `vuln`: takes +value damage (enemies). */
+export type StatusId = 'stun' | 'slow' | 'freeze' | 'burn' | 'taunt' | 'root' | 'vuln';
 
 export interface StatusEffect {
   /** Seconds remaining. */
@@ -64,6 +65,8 @@ export interface HeroBuff {
   damageMult?: number;
   moveSpeedMult?: number;
   regen?: number;
+  /** Immune to slows, roots and stuns while active. */
+  ccImmune?: boolean;
 }
 
 export interface HeroStats {
@@ -87,6 +90,8 @@ export interface HeroStats {
   skillDamageMult: number;
   /** Multiplier applied to skill cooldowns. */
   cooldownMult: number;
+  /** Seconds taken off every skill cooldown per kill. */
+  killCdr: number;
 }
 
 export interface Dash {
@@ -139,6 +144,8 @@ export interface BossRuntime {
   busy: number;
   /** Straight dash in progress. */
   dash: { to: Vec; speed: number } | null;
+  /** Combo attack to run as soon as the current one is over. */
+  queued: string | null;
 }
 
 export interface Enemy extends Body {
@@ -150,6 +157,7 @@ export interface Enemy extends Body {
   speed: number;
   armor: number;
   xp: number;
+  /** Gold for the kill (may be fractional; the battle carries fractions over). */
   gold: number;
   attackTimer: number;
   /** Timer for archetype ability (shooter shot, fast dash). */
@@ -157,6 +165,12 @@ export interface Enemy extends Body {
   /** Remaining dash time for `fast` enemies. */
   dashTime: number;
   dashDir: Vec;
+  /** Wind-up before a trait move (wolf crouch, stump stomp), s; the enemy stands still. */
+  windup: number;
+  /** Shots fired (every N-th is a volley). */
+  shots: number;
+  /** Being yanked (Hook): flies to `to` at `speed`, ignoring its own movement and mass. */
+  yank: { to: Vec; speed: number } | null;
   boss: BossRuntime | null;
   summoned: boolean;
 }
@@ -178,6 +192,8 @@ export interface Projectile {
   kind: string;
   /** Whether a hit counts as melee for thorns. */
   melee: boolean;
+  /** Slows the hero on hit. */
+  slow?: { value: number; time: number };
   dead: boolean;
 }
 
@@ -219,6 +235,8 @@ export interface Telegraph {
   dead: boolean;
   /** Called when the telegraph strikes (e.g. start the boss dash). */
   onFire: (() => void) | null;
+  /** The telegraph fizzles if this enemy dies first (null: always strikes). */
+  ownerId: number | null;
 }
 
 export function vec(x = 0, y = 0): Vec {

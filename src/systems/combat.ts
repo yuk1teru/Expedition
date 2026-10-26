@@ -1,9 +1,9 @@
 // Damage, crits, armor, lifesteal, thorns, kills, knockback and statuses.
 
-import { ENEMY_COMMON, HERO } from '../data/balance';
+import { ENEMY_COMMON, HERO, HERO_DEBUFFS } from '../data/balance';
 import type { Rng } from '../core/rng';
 import type { Battle } from './battle';
-import type { Body, Enemy, StatusId, Vec } from './entities';
+import type { Body, Enemy, Hero, StatusId, Vec } from './entities';
 import { normalize } from './entities';
 import type { HitSource } from './gameEvents';
 import { getBoss } from '../data/bosses';
@@ -39,7 +39,8 @@ export interface HitOptions {
 
 export function damageEnemy(b: Battle, e: Enemy, roll: Roll, opts: HitOptions): number {
   if (e.dead) return 0;
-  const amount = applyArmor(roll.amount, e.armor);
+  const vuln = e.statuses.vuln;
+  const amount = applyArmor(roll.amount, e.armor) * (vuln && vuln.time > 0 ? 1 + vuln.value : 1);
   e.hp -= amount;
   e.hitAt = b.time;
   b.stats.damageDealt += amount;
@@ -67,9 +68,14 @@ export function killEnemy(b: Battle, e: Enemy): void {
   e.dead = true;
   e.hp = 0;
   b.stats.kills += 1;
+  const cdr = b.hero.stats.killCdr;
+  if (cdr > 0) for (const s of b.hero.skills) s.cooldown = Math.max(0, s.cooldown - cdr);
   const isBoss = e.boss !== null;
   b.events.emit({ type: 'kill', pos: { ...e.pos }, defId: e.defId, radius: e.radius, elite: e.elite, boss: isBoss });
-  const gold = e.gold;
+  // Fractions of gold add up over kills.
+  b.goldFrac += e.gold;
+  const gold = Math.floor(b.goldFrac);
+  b.goldFrac -= gold;
   if (gold > 0) {
     b.state.gold += gold;
     b.stats.gold += gold;
@@ -122,6 +128,19 @@ export function damageHero(b: Battle, rawAmount: number, opts: HeroHitOptions): 
   return amount;
 }
 
+/** The hero ignores slows, roots and stuns (e.g. Iron Skin rank 5). */
+export function heroCcImmune(hero: Hero): boolean {
+  return hero.buffs.some((x) => x.ccImmune);
+}
+
+/** Slow, root or stun on the hero from enemies, traps and weather. Returns false if it did not stick. */
+export function debuffHero(b: Battle, id: 'slow' | 'root' | 'stun', time: number, value = 0): boolean {
+  const hero = b.hero;
+  if (hero.dead || hero.invulnerable > 0 || heroCcImmune(hero)) return false;
+  addStatus(hero, id, time, id === 'slow' ? Math.min(HERO_DEBUFFS.maxSlow, value) : value);
+  return true;
+}
+
 /** `show`: number pops up now; `aggregate`: summed and shown periodically; `silent`: no number. */
 export function healHero(b: Battle, amount: number, mode: 'show' | 'aggregate' | 'silent' = 'show'): void {
   const hero = b.hero;
@@ -135,7 +154,9 @@ export function healHero(b: Battle, amount: number, mode: 'show' | 'aggregate' |
 
 /** Regeneration and the periodic lifesteal popup. */
 export function updateHeroHealing(b: Battle, dt: number): void {
-  healHero(b, heroRegen(b.hero) * dt, 'silent');
+  // Base regen pauses while the hero is being hit; buff regen (skipped card) always works.
+  const base = b.time - b.hero.hitAt >= HERO.regenDelay ? b.hero.stats.hpRegen : 0;
+  healHero(b, (heroRegen(b.hero) - b.hero.stats.hpRegen + base) * dt, 'silent');
   b.healTimer -= dt;
   if (b.healTimer > 0) return;
   b.healTimer = HERO.healPopupInterval;

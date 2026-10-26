@@ -1,9 +1,10 @@
 // Hero auto-combat AI (melee and ranged) and enemy archetype AI.
 
 import { ENEMY_COMMON, HERO } from '../data/balance';
-import { getEnemyDef } from '../data/enemies';
+import { type EnemyDef, getEnemyDef } from '../data/enemies';
 import type { Battle } from './battle';
-import { damageEnemy, damageHero, hasStatus, heroDamage, isDisabled, speedMult } from './combat';
+import { addTelegraph } from './boss';
+import { damageEnemy, damageHero, debuffHero, hasStatus, heroDamage, isDisabled, speedMult } from './combat';
 import type { Enemy, Hero, Projectile, Vec } from './entities';
 import { angleOf, dist, normalize } from './entities';
 import { basicAttackOf, heroMoveSpeed } from './hero';
@@ -14,6 +15,11 @@ export function heroAttackSpeed(hero: Hero): number {
   let s = hero.stats.attackSpeed;
   for (const b of hero.buffs) s *= b.attackSpeedMult;
   return s;
+}
+
+/** Current walking speed: buffs, slows; 0 while rooted. */
+export function heroWalkSpeed(hero: Hero): number {
+  return hasStatus(hero, 'root') ? 0 : heroMoveSpeed(hero) * speedMult(hero);
 }
 
 export function updateHeroAI(b: Battle, dt: number): void {
@@ -30,7 +36,7 @@ export function updateHeroAI(b: Battle, dt: number): void {
   const move = b.input.move;
   if (move.x !== 0 || move.y !== 0) {
     // Player steers: run where told, keep auto-attacking whatever is in reach.
-    const speed = heroMoveSpeed(hero) * speedMult(hero);
+    const speed = heroWalkSpeed(hero);
     hero.vel.x = move.x * speed;
     hero.vel.y = move.y * speed;
     hero.facing = angleOf(move);
@@ -51,7 +57,7 @@ export function updateHeroAI(b: Battle, dt: number): void {
  */
 function playerHero(b: Battle, hero: Hero): void {
   const move = b.input.move;
-  const speed = heroMoveSpeed(hero) * speedMult(hero);
+  const speed = heroWalkSpeed(hero);
   hero.vel.x = move.x * speed;
   hero.vel.y = move.y * speed;
   const aim = b.input.aim;
@@ -107,7 +113,7 @@ function tryMeleeHit(b: Battle, hero: Hero, target: Enemy): boolean {
 function meleeHero(b: Battle, hero: Hero, target: Enemy): void {
   if (tryMeleeHit(b, hero, target)) return;
   hero.facing = angleOf({ x: target.pos.x - hero.pos.x, y: target.pos.y - hero.pos.y });
-  moveTowards(hero, target.pos, heroMoveSpeed(hero) * speedMult(hero));
+  moveTowards(hero, target.pos, heroWalkSpeed(hero));
 }
 
 /** Ranged: keep a distance band, back off from close enemies, shoot within range. */
@@ -115,7 +121,7 @@ function rangedHero(b: Battle, hero: Hero, target: Enemy): void {
   const r = HERO.ranged;
   const d = dist(hero.pos, target.pos);
   hero.facing = angleOf({ x: target.pos.x - hero.pos.x, y: target.pos.y - hero.pos.y });
-  const speed = heroMoveSpeed(hero) * speedMult(hero);
+  const speed = heroWalkSpeed(hero);
   if (d < r.retreatBelow) {
     moveAway(hero, target.pos, speed);
   } else if (d > r.keepMax) {
@@ -159,18 +165,25 @@ export function updateEnemyAI(b: Battle, e: Enemy, dt: number): void {
   e.vel.x = 0;
   e.vel.y = 0;
   if (e.dead || b.hero.dead || isDisabled(e)) {
+    // A stun interrupts a dash or a crouch.
     e.dashTime = 0;
+    e.windup = 0;
     return;
   }
   const hero = b.hero;
-  const speed = e.speed * speedMult(e);
-  e.facing = angleOf({ x: hero.pos.x - e.pos.x, y: hero.pos.y - e.pos.y });
   const def = getEnemyDef(e.defId);
-  const d = dist(e.pos, hero.pos);
-  const reach = e.radius + hero.radius + ENEMY_COMMON.meleeReach;
-
   const shooter = e.archetype === 'shooter' ? def.shooter : undefined;
   const dash = e.archetype === 'fast' ? def.dash : undefined;
+  if (e.windup > 0) {
+    // Telling a move: the enemy stands still (wolf crouch, stump stomp).
+    e.windup -= dt;
+    if (e.windup <= 0 && dash) e.dashTime = dash.duration;
+    return;
+  }
+  const speed = e.speed * speedMult(e);
+  e.facing = angleOf({ x: hero.pos.x - e.pos.x, y: hero.pos.y - e.pos.y });
+  const d = dist(e.pos, hero.pos);
+  const reach = e.radius + hero.radius + ENEMY_COMMON.meleeReach;
 
   if (shooter && !hasStatus(e, 'taunt')) {
     const band = ENEMY_COMMON.shooterBand;
@@ -178,7 +191,7 @@ export function updateEnemyAI(b: Battle, e: Enemy, dt: number): void {
     else if (d < shooter.keepDistance - band) moveAway(e, hero.pos, speed * shooter.retreatSpeedMult);
     if (d <= shooter.range && e.attackTimer <= 0) {
       e.attackTimer = def.attackInterval;
-      enemyShoot(b, e, shooter.projectileSpeed);
+      shooterFire(b, e, def);
     }
     return;
   }
@@ -188,34 +201,74 @@ export function updateEnemyAI(b: Battle, e: Enemy, dt: number): void {
       e.dashTime -= dt;
       e.vel.x = e.dashDir.x * speed * dash.speedMult;
       e.vel.y = e.dashDir.y * speed * dash.speedMult;
-      if (d <= reach) tryMelee(b, e, def.attackInterval);
+      if (d <= reach) tryMelee(b, e, def);
       return;
     }
     if (e.abilityTimer <= 0 && d > reach && d <= dash.trigger) {
+      // Crouch first (visible), then leap where the hero was: a sidestep dodges it.
       e.abilityTimer = dash.interval;
-      e.dashTime = dash.duration;
+      e.windup = dash.windup;
       e.dashDir = normalize({ x: hero.pos.x - e.pos.x, y: hero.pos.y - e.pos.y });
       return;
     }
   }
 
   // chaser / tank / fast / taunted shooter: close in and hit.
+  if (def.stomp) {
+    // Tanks stomp around themselves: start when the hero is in reach of the stomp circle.
+    const stompR = e.radius + def.stomp.reach;
+    if (d > stompR + hero.radius * 0.5) moveTowards(e, hero.pos, speed);
+    else if (e.attackTimer <= 0) startStomp(b, e, def);
+    return;
+  }
   if (d > reach) {
     moveTowards(e, hero.pos, speed);
   } else if (shooter) {
     if (e.attackTimer <= 0) {
       e.attackTimer = def.attackInterval;
-      enemyShoot(b, e, shooter.projectileSpeed);
+      shooterFire(b, e, def);
     }
   } else {
-    tryMelee(b, e, def.attackInterval);
+    tryMelee(b, e, def);
   }
 }
 
-function tryMelee(b: Battle, e: Enemy, interval: number): void {
+function tryMelee(b: Battle, e: Enemy, def: EnemyDef): void {
   if (e.attackTimer > 0) return;
-  e.attackTimer = interval;
-  damageHero(b, e.damage, { attacker: e, melee: true });
+  e.attackTimer = def.attackInterval;
+  const dealt = damageHero(b, e.damage, { attacker: e, melee: true });
+  if (dealt > 0 && def.cripple) debuffHero(b, 'slow', def.cripple.time, def.cripple.slow);
+}
+
+function startStomp(b: Battle, e: Enemy, def: EnemyDef): void {
+  const st = def.stomp!;
+  e.attackTimer = def.attackInterval;
+  e.windup = st.delay;
+  const t = addTelegraph(b, 'stomp', e.pos, e.radius + st.reach, e.damage * st.damage, st.delay);
+  t.ownerId = e.id;
+}
+
+/** A shot, or every N-th time a fan of shots. */
+function shooterFire(b: Battle, e: Enemy, def: EnemyDef): void {
+  const shooter = def.shooter!;
+  e.shots += 1;
+  const v = def.volley;
+  if (!v || e.shots % v.every !== 0) {
+    enemyShoot(b, e, shooter.projectileSpeed);
+    return;
+  }
+  const base = angleOf({ x: b.hero.pos.x - e.pos.x, y: b.hero.pos.y - e.pos.y });
+  const step = (v.spreadDeg * Math.PI) / 180;
+  for (let i = 0; i < v.count; i++) {
+    const a = base + (i - (v.count - 1) / 2) * step;
+    enemyShoot(b, e, shooter.projectileSpeed, { x: e.pos.x + Math.cos(a) * 100, y: e.pos.y + Math.sin(a) * 100 });
+  }
+}
+
+/** The next shot of this shooter is a volley (render: bigger glow). */
+export function nextShotIsVolley(e: Enemy): boolean {
+  const v = getEnemyDef(e.defId).volley;
+  return !!v && (e.shots + 1) % v.every === 0;
 }
 
 export function enemyShoot(b: Battle, e: Enemy, speed: number, at: Vec = b.hero.pos, kind = 'enemy'): void {

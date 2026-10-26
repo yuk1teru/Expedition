@@ -10,7 +10,7 @@ import { isBossDefeated, onBossDefeated, setupBossBattle, updateBoss, updateTele
 import './bosses';
 import { type Pickup, updatePickups } from './pickups';
 import { clampToArena, insideArena, separateBodies } from './collision';
-import { damageEnemy, damageHero, decayKnockback, killEnemy, updateHeroHealing, updateStatuses } from './combat';
+import { damageEnemy, damageHero, debuffHero, decayKnockback, killEnemy, updateHeroHealing, updateStatuses } from './combat';
 import type { Body, Enemy, Hero, Projectile, Telegraph, Vec, Zone } from './entities';
 import { dist, normalize } from './entities';
 import { nearestEnemy } from './targeting';
@@ -18,7 +18,9 @@ import { updateBuffs, updateDash, updateZones } from './effects';
 import type { Item } from './items';
 import type { GameEvent } from './gameEvents';
 import { type MapNode, getNode } from './mapgen';
+import { type Trap, updateTraps } from './traps';
 import { type WaveState, createWaves, updateWaves } from './waves';
+import { type WeatherState, updateWeather } from './weather';
 
 export interface BattleStats {
   kills: number;
@@ -66,6 +68,10 @@ export interface Battle {
   telegraphs: Telegraph[];
   /** Plants growing on the arena. */
   pickups: Pickup[];
+  /** Snares on the arena. */
+  traps: Trap[];
+  /** Weather of the running event wave. */
+  weather: WeatherState | null;
   waves: WaveState | null;
   /** Exit portal (opens after the mandatory waves). */
   portal: Portal | null;
@@ -74,6 +80,8 @@ export interface Battle {
   /** Lifesteal healed since the last popup, and time to the next popup. */
   healAcc: number;
   healTimer: number;
+  /** Fractional gold not paid out yet. */
+  goldFrac: number;
   outcome: BattleOutcome;
   /** Counts down after the outcome is decided, then the flow moves on. */
   endTimer: number;
@@ -81,7 +89,8 @@ export interface Battle {
   finished: boolean;
 }
 
-export function createBattle(state: GameState, nodeId: string): Battle {
+/** `startWave`: waves already cleared on earlier visits (continue from the next one). */
+export function createBattle(state: GameState, nodeId: string, startWave = 0): Battle {
   const node = getNode(state.world, nodeId);
   if (!node.biome) throw new Error(`Node ${nodeId} has no biome`);
   state.battleCount += 1;
@@ -104,12 +113,15 @@ export function createBattle(state: GameState, nodeId: string): Battle {
     zones: [],
     telegraphs: [],
     pickups: [],
-    waves: node.isBoss ? null : createWaves(),
+    traps: [],
+    weather: null,
+    waves: node.isBoss ? null : createWaves(startWave),
     portal: null,
     boss: null,
     stats: { kills: 0, xp: 0, gold: 0, damageDealt: 0, damageTaken: 0, loot: [] },
     healAcc: 0,
     healTimer: 0,
+    goldFrac: 0,
     outcome: 'running',
     endTimer: 0,
     finished: false,
@@ -166,11 +178,17 @@ export function stepBattle(b: Battle, dt: number): void {
 
   // Integrate movement.
   integrate(hero, dt, hero.dash !== null);
-  for (const e of b.enemies) if (!e.dead) integrate(e, dt, false);
+  for (const e of b.enemies) {
+    if (e.dead) continue;
+    if (e.yank) yankStep(e, dt);
+    else integrate(e, dt, false);
+  }
 
   updateZones(b, dt);
   updateTelegraphs(b, dt);
   updatePickups(b, dt);
+  updateTraps(b);
+  updateWeather(b, dt);
   updateProjectiles(b, dt);
 
   // Collisions.
@@ -191,6 +209,22 @@ function integrate(body: Body, dt: number, dashing: boolean): void {
   decayKnockback(body, dt);
 }
 
+/** Hooked enemy flies straight to its spot next to the hero. */
+function yankStep(e: Enemy, dt: number): void {
+  const y = e.yank!;
+  const d = dist(e.pos, y.to);
+  const step = y.speed * dt;
+  e.knockback.x = 0;
+  e.knockback.y = 0;
+  if (d <= step) {
+    e.pos = { ...y.to };
+    e.yank = null;
+    return;
+  }
+  e.pos.x += ((y.to.x - e.pos.x) / d) * step;
+  e.pos.y += ((y.to.y - e.pos.y) / d) * step;
+}
+
 function updateProjectiles(b: Battle, dt: number): void {
   for (const p of b.projectiles) {
     if (p.dead) continue;
@@ -206,7 +240,7 @@ function updateProjectiles(b: Battle, dt: number): void {
       const hero = b.hero;
       if (!hero.dead && dist(p.pos, hero.pos) <= p.radius + hero.radius) {
         p.dead = true;
-        damageHero(b, p.damage, { melee: p.melee });
+        if (damageHero(b, p.damage, { melee: p.melee }) > 0 && p.slow) debuffHero(b, 'slow', p.slow.time, p.slow.value);
       }
     } else {
       for (const e of b.enemies) {

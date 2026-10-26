@@ -4,11 +4,12 @@ import type { InputEvent } from '../core/input';
 import type { Modal } from '../core/screens';
 import { PROGRESSION, RANKS } from '../data/balance';
 import { getClass } from '../data/classes';
-import { describeSkill, getSkill } from '../data/skills';
+import { describeSkillFull, getSkill } from '../data/skills';
 import type { App } from './app';
 import { drawSkillIcon } from './icons';
 import { THEME, font } from './theme';
-import { Button, ButtonGroup, type Rect, drawText, inRect, roundRect, wrapLines } from './ui';
+import { skillTooltip } from './skillText';
+import { Button, ButtonGroup, type Rect, drawText, drawTooltip, inRect, roundRect, wrapLines } from './ui';
 
 const COLS = 4;
 const CARD_W = 210;
@@ -93,10 +94,10 @@ export function createSkillPickModal(app: App, classId: string, onDone: (picks: 
         ctx.fillStyle = THEME.textDim;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
-        wrapLines(ctx, describeSkill(id, 1), r.w - 24)
-          .slice(0, 4)
+        wrapLines(ctx, describeSkillFull(id, 1), r.w - 24)
+          .slice(0, 5)
           .forEach((l, k) => ctx.fillText(l, r.x + 12, r.y + 60 + k * 16));
-        drawText(ctx, `Ранг ${RANKS.max}: ${def.rank3Modifier.text}`, r.x + 12, r.y + r.h - 14, { size: 10, color: '#e8c48a' });
+        drawText(ctx, `Ранги 1–${RANKS.max} · наведіть, щоб побачити всі`, r.x + 12, r.y + r.h - 14, { size: 10, color: '#e8c48a' });
         if (selected) {
           ctx.fillStyle = THEME.good;
           ctx.beginPath();
@@ -106,6 +107,12 @@ export function createSkillPickModal(app: App, classId: string, onDone: (picks: 
         }
       });
       buttons.draw(ctx);
+      const m = app.input.mouse;
+      const id = hovered >= 0 && inRect(cardRect(hovered, W), m.x, m.y) ? c.skills[hovered] : undefined;
+      if (id) {
+        const tip = skillTooltip(id, 0);
+        drawTooltip(ctx, tip.lines, m.x, m.y, W, app.view.height, tip.colors);
+      }
     },
   };
 }

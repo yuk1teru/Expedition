@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../src/core/rng';
-import { PROGRESSION, SCALING } from '../src/data/balance';
+import { GOLD, PROGRESSION, SCALING } from '../src/data/balance';
 import { rollCrit } from '../src/systems/combat';
 import { gainXp } from '../src/systems/leveling';
 import { createGameState } from '../src/systems/run';
@@ -66,8 +66,8 @@ describe('enemy scaling', () => {
   });
 
   it('gold rewards scale with tier', () => {
-    expect(goldReward(1)).toBe(2);
-    expect(goldReward(2.5)).toBe(5);
+    expect(goldReward(1)).toBeCloseTo(GOLD.perEnemyPerTier);
+    expect(goldReward(2.5, 10)).toBeCloseTo(GOLD.perEnemyPerTier * 2.5 * (1 + GOLD.perWave * 10));
     expect(clearBonusGold(2)).toBe(20);
   });
 });

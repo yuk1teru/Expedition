@@ -20,6 +20,8 @@ export interface MapNode {
   cleared: boolean;
   /** How many times the location was completed. */
   timesCleared: number;
+  /** Waves cleared on the last completed visit (the next visit may continue from there). */
+  lastWave: number;
   name: string;
   pos: Vec;
 }
@@ -72,6 +74,7 @@ export function generateSliceWorld(): World {
     isTown: true,
     cleared: false,
     timesCleared: 0,
+    lastWave: 0,
     name: 'Місто',
     pos: { ...layout.town },
   };
@@ -86,6 +89,7 @@ export function generateSliceWorld(): World {
     isTown: false,
     cleared: false,
     timesCleared: 0,
+    lastWave: 0,
     name: forest.locationNames[0] ?? 'Гай',
     pos: { ...layout.grove },
   };
@@ -100,6 +104,7 @@ export function generateSliceWorld(): World {
     isTown: false,
     cleared: false,
     timesCleared: 0,
+    lastWave: 0,
     name: forest.locationNames[1] ?? 'Лігво',
     pos: { ...layout.lair },
   };
@@ -118,9 +123,10 @@ export function sliceGroveTier(timesCleared: number): number {
   return Math.min(g.maxTier, g.baseTier + g.tierPerClear * timesCleared);
 }
 
-/** Marks a location completed and updates its tier. */
-export function markCleared(node: MapNode): void {
+/** Marks a location completed and updates its tier; `wavesCleared` is remembered for the next visit. */
+export function markCleared(node: MapNode, wavesCleared = 0): void {
   node.cleared = true;
+  node.lastWave = Math.max(0, wavesCleared);
   node.timesCleared += 1;
   if (!node.isBoss && !node.isTown) node.tier = sliceGroveTier(node.timesCleared);
 }
@@ -129,6 +135,7 @@ export function markCleared(node: MapNode): void {
 export function resetClears(node: MapNode): void {
   node.timesCleared = 0;
   node.cleared = false;
+  node.lastWave = 0;
   if (!node.isBoss && !node.isTown) node.tier = sliceGroveTier(0);
 }
 

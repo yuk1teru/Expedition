@@ -9,10 +9,11 @@ import type { GameState } from '../core/state';
 import { LOOP } from '../data/balance';
 import { type Battle, createBattle, killAll } from '../systems/battle';
 import { grantLevel } from '../systems/leveling';
-import { SLICE_GROVE_ID, getNode, resetClears } from '../systems/mapgen';
+import { SLICE_GROVE_ID, TOWN_ID, getNode, resetClears } from '../systems/mapgen';
 import { getSkill } from '../data/skills';
 import {
   type BattleSummary,
+  canTravel,
   chooseCard,
   chooseClass,
   completeBattle,
@@ -36,6 +37,7 @@ import { createMapScreen } from './mapView';
 import { createCardChoiceModal, createClassChoiceModal } from './modals';
 import { THEME } from './theme';
 import { createTownScreen } from './townView';
+import { createWaveStartModal } from './waveStart';
 
 export class App {
   readonly screens = new ScreenManager<CanvasRenderingContext2D>();
@@ -148,14 +150,37 @@ export class App {
     this.screens.go('town');
   }
 
+  /**
+   * Map click. A wave location cleared before asks first: continue from the next
+   * wave or start from wave 1.
+   */
   travelTo(nodeId: string): void {
+    if (!canTravel(this.state, nodeId)) return;
+    const node = getNode(this.state.world, nodeId);
+    if (!node.isTown && !node.isBoss && node.lastWave > 0) {
+      if (this.screens.topModal) return;
+      this.screens.pushModal(
+        createWaveStartModal(this, node, (start) => {
+          this.screens.popModal();
+          if (start === null) return;
+          const res = travel(this.state, nodeId);
+          if (res.kind === 'battle') this.startBattle(res.nodeId, start);
+        }),
+      );
+      return;
+    }
     const res = travel(this.state, nodeId);
     if (res.kind === 'town') this.goTown();
     else if (res.kind === 'battle') this.startBattle(res.nodeId);
   }
 
-  startBattle(nodeId: string): void {
-    this.battle = createBattle(this.state, nodeId);
+  /** Map → town (the town is always reachable in the slice). */
+  returnToTown(): void {
+    this.travelTo(TOWN_ID);
+  }
+
+  startBattle(nodeId: string, startWave = 0): void {
+    this.battle = createBattle(this.state, nodeId, startWave);
     this.loop.paused = false;
     this.screens.go('combat');
   }

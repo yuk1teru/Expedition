@@ -26,7 +26,8 @@ describe('slice world', () => {
 
   it('travel only to adjacent nodes; current location can be replayed', () => {
     const s = createGameState(1);
-    expect(canTravel(s, TOWN_ID)).toBe(false);
+    // The town is always reachable from the map ("До міста"), even when already there.
+    expect(canTravel(s, TOWN_ID)).toBe(true);
     expect(travel(s, SLICE_GROVE_ID)).toEqual({ kind: 'battle', nodeId: SLICE_GROVE_ID });
     expect(travel(s, SLICE_GROVE_ID)).toEqual({ kind: 'battle', nodeId: SLICE_GROVE_ID });
     expect(travel(s, SLICE_LAIR_ID)).toEqual({ kind: 'blocked' });

@@ -8,7 +8,7 @@ import { canTravel } from '../systems/run';
 import type { App } from './app';
 import { THEME } from './theme';
 import { TOP_BAR_H, drawTopBar } from './topBar';
-import { drawText, drawTooltip } from './ui';
+import { Button, ButtonGroup, drawText, drawTooltip } from './ui';
 
 const NODE_R = 22;
 const BOSS_R = 30;
@@ -20,6 +20,15 @@ function nodeRadius(n: MapNode): number {
 
 export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
   let hovered: string | null = null;
+  const buttons = new ButtonGroup([
+    new Button({
+      label: '← До міста [Esc]',
+      rect: { x: 16, y: app.view.height - 52, w: 190, h: 36 },
+      hotkey: 'Escape',
+      fontSize: 14,
+      onClick: () => app.returnToTown(),
+    }),
+  ]);
 
   function nodeAt(x: number, y: number): MapNode | null {
     for (const n of app.state.world.nodes) {
@@ -32,6 +41,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
     update() {},
 
     onInput(e: InputEvent) {
+      if (buttons.handle(e)) return;
       if (e.type === 'mousemove') {
         hovered = nodeAt(e.x, e.y)?.id ?? null;
       } else if (e.type === 'mousedown') {
@@ -102,7 +112,8 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
       }
 
       drawTopBar(ctx, state, app.view.width, app.totalBosses(), app.time);
-      drawText(ctx, 'Клік по сусідній локації — вирушити. Клік по поточній — пройти ще раз.', app.view.width / 2, app.view.height - 22, {
+      buttons.draw(ctx);
+      drawText(ctx, 'Клік по локації — вирушити. Клік по поточній — пройти ще раз.', app.view.width / 2 + 60, app.view.height - 22, {
         size: 14,
         align: 'center',
         color: THEME.textDim,
@@ -117,7 +128,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
 }
 
 function tooltipLines(n: MapNode, current: string): string[] {
-  if (n.isTown) return [n.name, 'Відпочинок і збереження при кожному візиті', n.id === current ? 'Ви тут' : 'Клік — повернутися'];
+  if (n.isTown) return [n.name, 'Відпочинок і збереження при кожному візиті', 'Клік — повернутися в місто'];
   const biome = n.biome ? getBiome(n.biome).name : '—';
   const lines = [
     n.name,
@@ -126,6 +137,7 @@ function tooltipLines(n: MapNode, current: string): string[] {
     `Рекомендований рівень: ${recommendedLevel(n.tier)}`,
     `Пройдено разів: ${n.timesCleared}`,
   ];
+  if (n.lastWave > 0) lines.push(`Минулого разу: ${n.lastWave} хвиль (можна продовжити)`);
   if (n.id === current) lines.push('Клік — пройти ще раз');
   return lines;
 }

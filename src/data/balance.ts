@@ -51,8 +51,10 @@ export const HERO = {
   },
   /** Knockback impulse of a basic melee hit, px/s. */
   meleeKnockback: 60,
-  /** HP regenerated per second in battle. */
-  hpRegen: 1,
+  /** HP regenerated per second in battle… */
+  hpRegen: 2,
+  /** …but only after this many seconds without taking damage: regen heals between fights, never out-tanks a fight. */
+  regenDelay: 1.5,
   /** Lifesteal heals are summed and shown as one number every this many seconds. */
   healPopupInterval: 0.5,
   /** Growth on every level-up (levels 1–2 are auto-only). */
@@ -65,8 +67,8 @@ export const PROGRESSION = {
   classChoiceLevel: 3,
   /** Skills chosen from the class pool at the class choice (the rest come from cards). */
   startingSkillPicks: 3,
-  /** Slice cap; the full prototype goes to 20. */
-  maxLevel: 10,
+  /** Slice cap (skills have 5 ranks, so there are more cards to take); the full prototype goes to 20. */
+  maxLevel: 15,
   /** xpToNext(level) = round(base × level^exponent). */
   xpCurve: { base: 20, exponent: 1.6 },
   /** XP drops to `mult` when heroLevel − recommendedLevel > `levelGap`. */
@@ -90,17 +92,31 @@ export const SCALING = {
 export const WAVES = {
   /** Waves before the first portal (and before short breaks end). */
   count: 3,
-  /** Wave size = min(baseSize + perTier × floor(tier), maxSize) + extraPerWave × (waves past the first portal). */
+  /**
+   * Wave size = min(baseSize + perTier × floor(tier), maxSize) + extraPerWave × (waves past the
+   * first portal), never more than `cap` (a bigger crowd is just mush; waves grow in strength instead).
+   */
   baseSize: 10,
   perTier: 3,
   maxSize: 24,
-  extraPerWave: 2,
+  extraPerWave: 1,
+  cap: 28,
   /**
-   * HP, damage, XP and gold multiplier of wave i (0-based): 1 + statPerWave·i + statPerWave2·i².
-   * Gentle at first, steep later: wave 3 ×1.22, wave 6 ×2.0, wave 10 ×3.9, wave 15 ×7.6.
+   * Growth of wave i (0-based): 1 + a·i + b·i², separately for HP, damage and rewards (XP, gold).
+   * HP grows steeply (late waves are long fights), damage almost linearly (no sudden one-shots):
+   * damage — wave 5 ×1.8, wave 10 ×3.6, wave 13 ×5.2, wave 20 ×9.9.
+   * Tuned above what the bot survives: a live player dodges and kites far better.
    */
-  statPerWave: 0.05,
-  statPerWave2: 0.03,
+  growth: {
+    hp: { a: 0.07, b: 0.03 },
+    damage: { a: 0.13, b: 0.018 },
+    reward: { a: 0.05, b: 0.025 },
+    /** Enemy speed: +speedPerWave per wave, at most ×speedMax. */
+    speedPerWave: 0.025,
+    speedMax: 1.5,
+  },
+  /** Share of the HP growth per archetype: fast and ranged enemies stay fragile, tanks get tankier. */
+  hpGrowthShare: { chaser: 0.85, fast: 0.6, shooter: 0.6, tank: 1.15 },
   groupSize: 4,
   /** Seconds between spawn groups. */
   groupInterval: 0.5,
@@ -128,8 +144,55 @@ export const WAVES = {
   groupSpread: 40,
 } as const;
 
+/**
+ * Every N-th wave brings an event: bad weather or an elemental, in turn
+ * (wave 5 — weather, 10 — elemental, 15 — weather…). Weather lives in src/data/weather.ts.
+ */
+export const WAVE_EVENTS = {
+  every: 5,
+  order: ['weather', 'elemental'] as const,
+  /** Boss-system id of the elemental (src/data/bosses.ts). */
+  elemental: 'galeSpirit',
+} as const;
+
+/**
+ * Traps against kiting: from `fromWave` on, every wave adds snares to the arena.
+ * Stepping into one roots the hero (no movement, no Charge) and hurts.
+ */
+export const TRAPS = {
+  /** 1-based wave from which traps appear. */
+  fromWave: 4,
+  /** New traps per wave: base + perWave × (wave − fromWave), rounded down. */
+  base: 2,
+  perWave: 0.5,
+  /** Never more than this many on the arena. */
+  max: 7,
+  radius: 13,
+  /** Seconds after appearing before a trap is armed (it fades in). */
+  armTime: 1.2,
+  root: 1.1,
+  /** Damage × the wave damage multiplier × tier multiplier. */
+  damage: 4,
+  /** Not closer than this to the hero when placed, px; distance from the arena edge, px. */
+  minDistFromHero: 110,
+  inset: 50,
+  placementTries: 16,
+} as const;
+
+/** Debuffs enemies put on the hero. */
+export const HERO_DEBUFFS = {
+  /** Slows never stack beyond this. */
+  maxSlow: 0.6,
+} as const;
+
+/**
+ * Gold is scarce on purpose: herbs and magnifiers must stay a choice, and farming
+ * the first location must not pay. Per kill: perEnemyPerTier × tier × (1 + perWave × wave index),
+ * fractions are carried over between kills. Grows linearly, unlike XP.
+ */
 export const GOLD = {
-  perEnemyPerTier: 2,
+  perEnemyPerTier: 0.4,
+  perWave: 0.06,
   clearBonusPerTier: 10,
 } as const;
 
@@ -151,7 +214,7 @@ export const ELITE = {
   damageMult: 1.5,
   radiusMult: 1.4,
   xpMult: 4,
-  goldMult: 4,
+  goldMult: 3,
 } as const;
 
 /** Slice-only world rules. */
@@ -176,23 +239,23 @@ export const FLOW = {
   bossWinDelay: 2.2,
 } as const;
 
-/** General skill rank rule. */
+/** Skill ranks: every skill lists its upgrades in src/data/skills.ts. */
 export const RANKS = {
-  max: 3,
-  rank2DamageMult: 1.3,
-  rank2CooldownMult: 0.9,
+  max: 5,
 } as const;
 
 /** Level-up card offers. */
 export const CARDS = {
   offerSize: 3,
+  /** Cards (and the class choice) ignore input for this long after appearing, s: no accidental picks while pressing skill keys. */
+  inputDelay: 1.5,
   weights: { newSkill: 40, upgrade: 40, passive: 20 },
   /** Reroll price: base + step × rerolls already made for this level-up. */
   reroll: { base: 20, step: 15 },
   /** Skipping the choice: gold (base + perLevel × level) and a short buff. */
   skip: {
-    goldBase: 10,
-    goldPerLevel: 3,
+    goldBase: 5,
+    goldPerLevel: 1,
     buff: { duration: 12, regen: 5, damageMult: 1.2, moveSpeedMult: 1.2 },
   },
 } as const;

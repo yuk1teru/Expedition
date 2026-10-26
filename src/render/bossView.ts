@@ -12,6 +12,7 @@ type BossPainter = (ctx: CanvasRenderingContext2D, e: Enemy, b: Battle, t: numbe
 const painters: Record<string, BossPainter> = {
   enat: drawEnat,
   alpha: drawAlpha,
+  galeSpirit: drawGaleSpirit,
 };
 
 export function drawBoss(ctx: CanvasRenderingContext2D, e: Enemy, b: Battle, t: number): void {
@@ -135,6 +136,40 @@ function drawAlpha(ctx: CanvasRenderingContext2D, e: Enemy, b: Battle, t: number
   ctx.beginPath();
   ctx.arc(r * 0.55, -r * 0.18, r * 0.1, 0, Math.PI * 2);
   ctx.arc(r * 0.55, r * 0.18, r * 0.1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/** Gale Spirit: a spinning cloud of wind with a bright core. */
+function drawGaleSpirit(ctx: CanvasRenderingContext2D, e: Enemy, b: Battle, t: number, flash: boolean): void {
+  const r = e.radius;
+  const color = flash ? '#ffffff' : (b.biome.palette.enemies[e.defId] ?? '#9fe3ff');
+  ctx.save();
+  ctx.translate(e.pos.x, e.pos.y);
+  ctx.globalAlpha = 0.35;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 1.25, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 4; i++) {
+    const a = t * 4 + (i * Math.PI) / 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * (0.6 + 0.15 * i), a, a + 1.9);
+    ctx.stroke();
+  }
+  ctx.fillStyle = flash ? '#ffffff' : '#e9fbff';
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.42, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.rotate(e.facing);
+  ctx.fillStyle = '#1b3a52';
+  ctx.beginPath();
+  ctx.arc(r * 0.18, -r * 0.13, r * 0.08, 0, Math.PI * 2);
+  ctx.arc(r * 0.18, r * 0.13, r * 0.08, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }

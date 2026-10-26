@@ -4,7 +4,12 @@ import { type Battle, createBattle, killAll, stepBattle } from '../src/systems/b
 import { dist } from '../src/systems/entities';
 import { SLICE_GROVE_ID } from '../src/systems/mapgen';
 import { createGameState, teleport } from '../src/systems/run';
-import { isPortalBreak, portalActive, portalInReach, requestPortalEntry, waveSize, waveStatMult } from '../src/systems/waves';
+import { TRAPS } from '../src/data/balance';
+import { ENEMIES } from '../src/data/enemies';
+import { CONSUMABLES } from '../src/data/consumables';
+import { maybeSpawnPickup } from '../src/systems/pickups';
+import { spawnTraps, trapsForWave, updateTraps } from '../src/systems/traps';
+import { inBreak, isPortalBreak, portalActive, portalInReach, requestPortalEntry, skipBreak, spawnEnemy, waveEvent, waveMult, waveSize } from '../src/systems/waves';
 
 function grove(): { b: Battle } {
   const s = createGameState(21);
@@ -23,14 +28,83 @@ function clearWaves(b: Battle, cleared: number, onStep?: () => void): void {
 }
 
 describe('waves', () => {
-  it('every wave is bigger and stronger than the previous one', () => {
-    for (let i = 1; i < 12; i++) {
-      expect(waveStatMult(i)).toBeGreaterThan(waveStatMult(i - 1));
-      if (i >= WAVES.count) expect(waveSize(1, i)).toBeGreaterThan(waveSize(1, i - 1));
+  it('every wave is stronger and faster than the previous one; size grows up to the cap', () => {
+    for (let i = 1; i < 20; i++) {
+      const a = waveMult(i - 1);
+      const m = waveMult(i);
+      expect(m.hp).toBeGreaterThan(a.hp);
+      expect(m.damage).toBeGreaterThan(a.damage);
+      expect(m.speed).toBeGreaterThanOrEqual(a.speed);
+      expect(waveSize(1, i)).toBeGreaterThanOrEqual(waveSize(1, i - 1));
+      expect(waveSize(3, i)).toBeLessThanOrEqual(WAVES.cap);
     }
-    expect(waveStatMult(9)).toBeCloseTo(1 + 9 * WAVES.statPerWave + 81 * WAVES.statPerWave2);
-    // Growth accelerates.
-    expect(waveStatMult(9) - waveStatMult(8)).toBeGreaterThan(waveStatMult(2) - waveStatMult(1));
+    expect(waveMult(1).speed).toBeGreaterThan(1);
+    expect(waveMult(100).speed).toBe(WAVES.growth.speedMax);
+    // HP growth accelerates; damage stays close to linear (no sudden spikes between waves).
+    expect(waveMult(9).hp - waveMult(8).hp).toBeGreaterThan(waveMult(2).hp - waveMult(1).hp);
+    for (let i = 1; i < 30; i++) expect(waveMult(i).damage / waveMult(i - 1).damage).toBeLessThanOrEqual(1.17);
+  });
+
+  it('fast and ranged enemies are less tanky than tanks on late waves', () => {
+    const { b } = grove();
+    const m = waveMult(12);
+    const hpMult = (id: string): number => spawnEnemy(b, id, { x: 300, y: 300 }, false, false, m).maxHp / ENEMIES[id]!.hp;
+    expect(hpMult('wolf')).toBeLessThan(hpMult('stump'));
+    expect(hpMult('mushroom')).toBeLessThan(hpMult('stump'));
+  });
+
+  it('every 5th wave is an event: weather and elemental in turn', () => {
+    expect(waveEvent(4)).toBeNull();
+    expect(waveEvent(5)).toBe('weather');
+    expect(waveEvent(10)).toBe('elemental');
+    expect(waveEvent(15)).toBe('weather');
+  });
+
+  it('a break can be skipped (also the portal one)', () => {
+    const { b } = grove();
+    clearWaves(b, WAVES.portalEvery);
+    expect(inBreak(b)).toBe(true);
+    expect(skipBreak(b)).toBe(true);
+    stepBattle(b, LOOP.step);
+    expect(b.waves!.started).toBe(true);
+    expect(portalActive(b)).toBe(false);
+    expect(skipBreak(b)).toBe(false);
+  });
+
+  it('continuing starts from the remembered wave, with 3 mandatory waves', () => {
+    const s = createGameState(5);
+    s.hero.immortal = true;
+    teleport(s, SLICE_GROVE_ID);
+    const b = createBattle(s, SLICE_GROVE_ID, 9);
+    expect(b.waves!.index).toBe(9);
+    expect(b.waves!.total).toBe(12);
+    clearWaves(b, 11);
+    expect(portalActive(b)).toBe(false);
+    clearWaves(b, 12);
+    expect(portalActive(b)).toBe(true);
+  });
+
+  it('traps appear from their wave on and root the hero', () => {
+    expect(trapsForWave(TRAPS.fromWave - 1)).toBe(0);
+    expect(trapsForWave(TRAPS.fromWave)).toBeGreaterThan(0);
+    const { b } = grove();
+    spawnTraps(b, TRAPS.fromWave + 4);
+    expect(b.traps.length).toBeGreaterThan(0);
+    const t = b.traps[0]!;
+    b.time += TRAPS.armTime;
+    b.hero.pos = { ...t.pos };
+    updateTraps(b);
+    expect(b.hero.statuses.root?.time ?? 0).toBeGreaterThan(0);
+  });
+
+  it('no herb grows while the hero already carries the maximum', () => {
+    const { b } = grove();
+    b.hero.consumables.herb = CONSUMABLES.herb.max;
+    for (let i = 0; i < 40; i++) {
+      b.pickups = [];
+      maybeSpawnPickup(b, 2);
+      expect(b.pickups.every((p) => p.kind !== 'herb')).toBe(true);
+    }
   });
 
   it('portal opens only after every 3rd wave; the miniboss comes with every 3rd wave and grows', () => {

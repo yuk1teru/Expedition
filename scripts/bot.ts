@@ -10,6 +10,8 @@ import { useSkill } from '../src/systems/skills';
 import { botIdentifyAndEquip } from '../src/systems/items';
 import { useHerb } from '../src/systems/pickups';
 import { enterPortal } from '../src/systems/waves';
+import { telegraphContains } from '../src/systems/boss';
+import { normalize } from '../src/systems/entities';
 
 export interface BotOptions {
   useSkills: boolean;
@@ -37,6 +39,20 @@ export function useReadySkills(b: Battle): void {
   for (const s of b.hero.skills) if (s.cooldown <= 0) useSkill(b, s.slot);
 }
 
+/** Steps out of red telegraph circles (away from their centres); otherwise lets the AI walk. */
+export function dodgeTelegraphs(b: Battle): void {
+  const hero = b.hero;
+  let x = 0;
+  let y = 0;
+  for (const t of b.telegraphs) {
+    if (t.dead || !telegraphContains(t, hero.pos, hero.radius)) continue;
+    const d = normalize({ x: hero.pos.x - t.pos.x, y: hero.pos.y - t.pos.y });
+    x += d.x || 1;
+    y += d.y;
+  }
+  b.input.move = x === 0 && y === 0 ? { x: 0, y: 0 } : normalize({ x, y });
+}
+
 export interface BattleRun {
   summary: BattleSummary;
   time: number;
@@ -49,6 +65,7 @@ export function runBattle(state: GameState, nodeId: string, opts: BotOptions): B
     if (opts.useSkills) useReadySkills(b);
     if (b.hero.hp < b.hero.maxHp * SIM.botHerbBelow) useHerb(b);
     if (b.portal) enterPortal(b);
+    dodgeTelegraphs(b);
     stepBattle(b, LOOP.step);
     resolveModals(state, opts.rng);
   }

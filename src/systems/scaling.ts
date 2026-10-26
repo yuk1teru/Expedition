@@ -35,8 +35,14 @@ export function xpReward(baseXp: number, tier: number, heroLevel: number): numbe
   return Math.max(1, Math.round(scaled * mult));
 }
 
-export function goldReward(tier: number): number {
-  return Math.round(GOLD.perEnemyPerTier * tier);
+/** Gold for a regular kill (fractional; the battle carries fractions over). */
+export function goldReward(tier: number, waveIndex = 0): number {
+  return GOLD.perEnemyPerTier * tier * waveGoldMult(waveIndex);
+}
+
+/** Gold grows linearly with the wave (XP grows faster). */
+export function waveGoldMult(waveIndex: number): number {
+  return 1 + GOLD.perWave * Math.max(0, waveIndex);
 }
 
 export function clearBonusGold(tier: number): number {

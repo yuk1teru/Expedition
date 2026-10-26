@@ -28,11 +28,11 @@ export interface RarityDef {
 }
 
 export const RARITIES: Record<Rarity, RarityDef> = {
-  common: { name: 'Звичайна', color: '#c9ced8', power: 1, extraStats: 0, sellPrice: 8 },
-  uncommon: { name: 'Незвичайна', color: '#5fd35f', power: 1.35, extraStats: 0, sellPrice: 15 },
-  rare: { name: 'Рідкісна', color: '#4aa3ff', power: 1.75, extraStats: 1, sellPrice: 30 },
-  epic: { name: 'Епічна', color: '#c77dff', power: 2.3, extraStats: 1, sellPrice: 60 },
-  legendary: { name: 'Легендарна', color: '#ff9f1c', power: 3, extraStats: 2, sellPrice: 120 },
+  common: { name: 'Звичайна', color: '#c9ced8', power: 1, extraStats: 0, sellPrice: 4 },
+  uncommon: { name: 'Незвичайна', color: '#5fd35f', power: 1.35, extraStats: 0, sellPrice: 8 },
+  rare: { name: 'Рідкісна', color: '#4aa3ff', power: 1.75, extraStats: 1, sellPrice: 15 },
+  epic: { name: 'Епічна', color: '#c77dff', power: 2.3, extraStats: 1, sellPrice: 30 },
+  legendary: { name: 'Легендарна', color: '#ff9f1c', power: 3, extraStats: 2, sellPrice: 60 },
 };
 
 /** Unidentified items sell for this fraction of the price. */

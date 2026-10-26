@@ -25,7 +25,15 @@ export function pickupReady(b: Battle, p: Pickup): boolean {
 export function maybeSpawnPickup(b: Battle, waveNumber: number): void {
   if (waveNumber % PICKUP_SPAWN.everyWaves !== 0) return;
   if (b.pickups.filter((p) => !p.dead).length >= PICKUP_SPAWN.max) return;
-  const kind = b.rng.weighted((Object.values(PICKUPS)).map((d) => ({ item: d.id, weight: d.weight })));
+  // Nothing to carry: no herb grows while the hero's bag is full of them (counting ones already growing).
+  const kinds = Object.values(PICKUPS).filter((d) => {
+    if (d.effect.kind !== 'stash') return true;
+    const id = d.effect.consumable;
+    const growing = b.pickups.filter((p) => !p.dead && p.kind === d.id).length;
+    return b.hero.consumables[id] + growing < CONSUMABLES[id].max;
+  });
+  if (kinds.length === 0) return;
+  const kind = b.rng.weighted(kinds.map((d) => ({ item: d.id, weight: d.weight })));
   const inset = PICKUP_SPAWN.inset;
   let pos: Vec = { x: ARENA.x + ARENA.w / 2, y: ARENA.y + ARENA.h / 2 };
   for (let i = 0; i < PICKUP_SPAWN.placementTries; i++) {

@@ -1,8 +1,9 @@
-// Ватажок зграї (Forest miniboss): telegraphed lunge along a line, howl that calls wolves.
+// Ватажок зграї (Forest miniboss): telegraphed lunge along a line, leap onto the hero,
+// howl that calls wolves. Lunge and leap sometimes chain into a combo (followUp in data).
 
 import { ARENA } from '../../data/balance';
 import { getBoss } from '../../data/bosses';
-import { addShapedTelegraph, bossBusy, bossDash, registerBoss } from '../boss';
+import { addShapedTelegraph, addTelegraph, bossBusy, bossDash, registerBoss } from '../boss';
 import { dist, normalize } from '../entities';
 import { spawnEnemy } from '../waves';
 
@@ -21,6 +22,14 @@ registerBoss('alpha', {
       );
       bossBusy(boss, def.telegraphDelay + dist(boss.pos, to) / p.speed!);
     },
+    leap(b, boss, p) {
+      // Circle under the hero; the boss flies in and lands exactly when it strikes.
+      const def = getBoss('alpha');
+      const to = { ...b.hero.pos };
+      addTelegraph(b, 'leap', to, p.radius!, boss.damage * p.damage!, def.telegraphDelay);
+      bossDash(boss, to, Math.max(1, dist(boss.pos, to)) / def.telegraphDelay);
+      bossBusy(boss, def.telegraphDelay);
+    },
     howl(b, boss, p, atk) {
       const id = atk.enemyId;
       if (!id) return;
@@ -34,6 +43,10 @@ registerBoss('alpha', {
     lunge: (b, boss, p) => {
       const d = dist(b.hero.pos, boss.pos);
       return d >= p.minRange! && d <= p.length!;
+    },
+    leap: (b, boss, p) => {
+      const d = dist(b.hero.pos, boss.pos);
+      return d >= p.minRange! && d <= p.maxRange!;
     },
   },
 });

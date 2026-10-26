@@ -18,6 +18,8 @@ export interface BossAttackDef {
   params: [BossParams, BossParams];
   /** Summoned enemy id for summon attacks. */
   enemyId?: string;
+  /** Combo: with `chance`, attack `id` follows right after this one (no pause, ignores its cooldown). */
+  followUp?: { id: string; chance: number };
 }
 
 export interface BossDef {
@@ -51,14 +53,14 @@ export const BOSSES: Record<string, BossDef> = {
     id: 'enat',
     name: 'Старий Енат',
     biome: 'forest',
-    hp: 3100,
-    damage: 12,
+    hp: 3200,
+    damage: 30,
     armor: 15,
     speed: 34,
     radius: 38,
     mass: 30,
     xp: 400,
-    gold: 150,
+    gold: 100,
     keepDistance: 90,
     telegraphDelay: 0.8,
     minPause: 1.2,
@@ -108,14 +110,14 @@ export const BOSSES: Record<string, BossDef> = {
     name: 'Ватажок зграї',
     biome: 'forest',
     miniboss: true,
-    hp: 150,
-    damage: 3,
+    hp: 190,
+    damage: 3.5,
     armor: 5,
     speed: 80,
     radius: 20,
     mass: 6,
     xp: 40,
-    gold: 20,
+    gold: 8,
     keepDistance: 0,
     telegraphDelay: 0.7,
     minPause: 1.2,
@@ -123,7 +125,7 @@ export const BOSSES: Record<string, BossDef> = {
     attacks: [
       {
         id: 'lunge',
-        weight: 1,
+        weight: 2,
         phases: [1],
         cooldown: [5, 5],
         initialCooldown: 1.5,
@@ -132,6 +134,20 @@ export const BOSSES: Record<string, BossDef> = {
           { length: 300, width: 46, damage: 4, speed: 950, minRange: 40 },
           { length: 300, width: 46, damage: 4, speed: 950, minRange: 40 },
         ],
+        followUp: { id: 'leap', chance: 0.4 },
+      },
+      {
+        id: 'leap',
+        weight: 1,
+        phases: [1],
+        cooldown: [7, 7],
+        initialCooldown: 4,
+        // Circle of `radius` under the hero; the boss jumps in and lands when it strikes.
+        params: [
+          { radius: 64, damage: 3.5, minRange: 90, maxRange: 340 },
+          { radius: 64, damage: 3.5, minRange: 90, maxRange: 340 },
+        ],
+        followUp: { id: 'lunge', chance: 0.35 },
       },
       {
         id: 'howl',
@@ -144,6 +160,49 @@ export const BOSSES: Record<string, BossDef> = {
         params: [
           { count: 2, ring: 45 },
           { count: 2, ring: 45 },
+        ],
+      },
+    ],
+  },
+  galeSpirit: {
+    id: 'galeSpirit',
+    name: 'Дух бурі',
+    biome: 'forest',
+    miniboss: true,
+    hp: 340,
+    damage: 2.2,
+    armor: 0,
+    speed: 70,
+    radius: 22,
+    mass: 5,
+    xp: 60,
+    gold: 12,
+    keepDistance: 230,
+    telegraphDelay: 0.6,
+    minPause: 0.9,
+    attacks: [
+      {
+        id: 'volley',
+        weight: 3,
+        phases: [1],
+        cooldown: [2.2, 2.2],
+        initialCooldown: 1.5,
+        // `count` fast bolts `spreadDeg` apart; each hit slows the hero by `slow` for `slowTime` s.
+        params: [
+          { count: 3, spreadDeg: 12, speed: 470, range: 520, slow: 0.3, slowTime: 1.8 },
+          { count: 3, spreadDeg: 12, speed: 470, range: 520, slow: 0.3, slowTime: 1.8 },
+        ],
+      },
+      {
+        id: 'blink',
+        weight: 5,
+        phases: [1],
+        cooldown: [6, 6],
+        initialCooldown: 2,
+        // Hero closer than `trigger`: a gust circle where it stood and a jump `distance` px away.
+        params: [
+          { trigger: 110, distance: 260, radius: 80, damage: 2.5 },
+          { trigger: 110, distance: 260, radius: 80, damage: 2.5 },
         ],
       },
     ],

@@ -14,9 +14,9 @@ export type BasicAttackDef =
 /** Hero before the class choice. */
 export const NOVICE_ATTACK: BasicAttackDef = {
   kind: 'melee',
-  arcDeg: 100,
+  arcDeg: 50,
   splash: 0,
-  description: 'Одиночний удар: б’є одного найближчого ворога перед собою.',
+  description: 'Одиночний удар вузькою дугою: б’є одного найближчого ворога прямо перед собою.',
 };
 
 export interface ClassDef {
@@ -58,7 +58,7 @@ export const CLASSES: Record<string, ClassDef> = {
     range: 40,
     defaultPicks: ['whirlwind', 'charge', 'groundSlam'],
     skills: ['whirlwind', 'charge', 'battleCry', 'groundSlam', 'axeThrow', 'ironSkin', 'earthquake', 'hook'],
-    passives: ['armor', 'vampirism', 'thorns'],
+    passives: ['armor', 'vampirism', 'fervor'],
     basicAttack: {
       kind: 'melee',
       arcDeg: 140,

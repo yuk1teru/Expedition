@@ -1,14 +1,15 @@
 // Combat HUD: HP, XP, level, class, gold, day, wave, pause/speed buttons, skill bar.
 
 import type { InputEvent } from '../core/input';
-import { ARENA, PROGRESSION } from '../data/balance';
+import { ARENA, PROGRESSION, RANKS } from '../data/balance';
 import { FX } from '../data/fx';
-import { describeSkill, getSkill } from '../data/skills';
+import { getSkill } from '../data/skills';
+import { WEATHER } from '../data/weather';
 import { heroAttackSpeed } from '../systems/ai';
 import type { Battle } from '../systems/battle';
 import { isMaxLevel, xpFraction } from '../systems/leveling';
 import { xpToNext } from '../systems/scaling';
-import { nextWaveIn, portalActive, wavesToPortal } from '../systems/waves';
+import { inBreak, nextWaveIn, portalActive, skipBreak, wavesToPortal } from '../systems/waves';
 import { moveSkill, skillInSlot } from '../systems/hero';
 import { hasNewItems } from '../systems/items';
 import { slotCooldown, useSkill } from '../systems/skills';
@@ -18,6 +19,7 @@ import type { Fx } from './fx';
 import { drawBossBar } from './bossView';
 import { drawConsumableIcon, drawSkillIcon } from './icons';
 import { className } from './names';
+import { skillTooltip } from './skillText';
 import { THEME } from './theme';
 import { Button, ButtonGroup, type Rect, drawBar, drawText, drawTooltip, inRect, roundRect } from './ui';
 
@@ -30,7 +32,9 @@ export interface Hud {
   /** Tooltips; drawn last so they sit above the pause panel. */
   drawOverlay(ctx: CanvasRenderingContext2D, b: Battle): void;
   useSlot(slot: number): void;
-  noTarget(slot: number): void;
+  noTarget(slot: number, reason?: 'rooted'): void;
+  /** Ends the break between waves now (button or N). */
+  skipBreak(): void;
 }
 
 const SLOT = 48;
@@ -65,12 +69,21 @@ export function createHud(app: App, _fx: Fx): Hud {
     onClick: () => app.loop.toggleSpeed(),
   });
   const buttons = new ButtonGroup([pauseBtn, speedBtn]);
+  const skipBtn = new Button({
+    label: '',
+    rect: { x: W / 2 - 130, y: ARENA.y + ARENA.h - 62, w: 260, h: 30 },
+    hotkey: 'KeyN',
+    fontSize: 14,
+    onClick: () => hud.skipBreak(),
+  });
+  const skipGroup = new ButtonGroup([skipBtn]);
   const slots: Rect[] = [];
   const n = PROGRESSION.skillSlots;
   const total = n * SLOT + (n - 1) * SLOT_GAP;
   const barY = ARENA.y + ARENA.h + XP_BAR.top + XP_BAR.h + 6;
   for (let i = 0; i < n; i++) slots.push({ x: (W - total) / 2 + i * (SLOT + SLOT_GAP), y: barY, w: SLOT, h: SLOT });
   const noTargetT = new Array<number>(n).fill(0);
+  const noTargetText = new Array<string>(n).fill('');
   let hoverSlot = -1;
   /** Slot being dragged (skill reordering), -1 if none. */
   let dragFrom = -1;
@@ -89,8 +102,12 @@ export function createHud(app: App, _fx: Fx): Hud {
       syncBattleInput(app.input, app.battle);
       useSkill(app.battle, slot);
     },
-    noTarget(slot) {
+    noTarget(slot, reason) {
       noTargetT[slot] = FX.noTargetFlash;
+      noTargetText[slot] = reason === 'rooted' ? 'Пастка!' : 'Немає цілі';
+    },
+    skipBreak() {
+      if (app.battle && !app.loop.paused) skipBreak(app.battle);
     },
     handle(e) {
       if (e.type === 'mousemove') {
@@ -120,6 +137,7 @@ export function createHud(app: App, _fx: Fx): Hud {
         }
         return true;
       }
+      if (app.battle && inBreak(app.battle) && !app.loop.paused && skipGroup.handle(e)) return true;
       return buttons.handle(e);
     },
     draw(ctx, b) {
@@ -144,7 +162,14 @@ export function createHud(app: App, _fx: Fx): Hud {
       } else if (b.waves) {
         const w = b.waves;
         const breakNow = !w.started && w.cleared > 0;
-        const title = portalActive(b) ? 'Перерва — портал відкрито' : breakNow ? 'Перерва' : `Хвиля ${w.index + 1}`;
+        const weather = b.weather ? WEATHER[b.weather.id] : null;
+        const title = portalActive(b)
+          ? 'Перерва — портал відкрито'
+          : breakNow
+            ? 'Перерва'
+            : weather
+              ? `Хвиля ${w.index + 1} · ${weather.name}`
+              : `Хвиля ${w.index + 1}`;
         drawText(ctx, title, CENTER_X, 20, { size: 17, bold: true, align: 'center', color: portalActive(b) ? THEME.accent : THEME.text });
         const next = nextWaveIn(w);
         const toPortal = wavesToPortal(w);
@@ -154,7 +179,8 @@ export function createHud(app: App, _fx: Fx): Hud {
             : toPortal === 1
               ? 'Портал — після цієї хвилі'
               : `Портал — через ${toPortal} хвилі`;
-        drawText(ctx, sub, CENTER_X, 41, { size: 12, align: 'center', color: b.portal ? '#c9a8ff' : THEME.textDim });
+        if (weather && w.started) drawText(ctx, weather.description, CENTER_X, 41, { size: 12, align: 'center', color: '#9fd3ff' });
+        else drawText(ctx, sub, CENTER_X, 41, { size: 12, align: 'center', color: b.portal ? '#c9a8ff' : THEME.textDim });
         if (portalActive(b)) {
           const left = Math.ceil(nextWaveIn(w) ?? 0);
           drawText(ctx, `Портал відкритий ще ${left} с: підійдіть і натисніть «Увійти» (E). Залишитесь — прийде сильніша хвиля.`, W / 2, ARENA.y + ARENA.h - 14, {
@@ -163,6 +189,10 @@ export function createHud(app: App, _fx: Fx): Hud {
             align: 'center',
             color: '#d9c2ff',
           });
+        }
+        if (inBreak(b)) {
+          skipBtn.label = portalActive(b) ? 'Не йти в портал — далі [N]' : 'Наступна хвиля зараз [N]';
+          skipGroup.draw(ctx);
         }
       }
 
@@ -173,7 +203,7 @@ export function createHud(app: App, _fx: Fx): Hud {
       speedBtn.label = `×${app.loop.speed}`;
       buttons.draw(ctx);
 
-      drawSkillBar(ctx, b, slots, noTargetT, hoverSlot);
+      drawSkillBar(ctx, b, slots, noTargetT, noTargetText, hoverSlot);
       if (hasNewItems(hero)) drawNewItemHint(ctx, W - 14, ARENA.y + ARENA.h + 40, app.time, 'right');
       drawLevelAndXp(ctx, hero.level, hero.xp, slots, ARENA.y + ARENA.h + XP_BAR.top);
       drawHerbSlot(ctx, hero.consumables.herb, hero.herbCooldown, slots);
@@ -185,15 +215,9 @@ export function createHud(app: App, _fx: Fx): Hud {
       const hs = hoverSlot >= 0 ? skillInSlot(hero, hoverSlot) : undefined;
       if (hs) {
         const def = getSkill(hs.id);
-        const lines = [
-          `${def.name} — ранг ${hs.rank}`,
-          ...wrapPlain(describeSkill(hs.id, hs.rank), 52),
-          `Перезарядка: ${slotCooldown(b, hoverSlot).toFixed(1)} с`,
-        ];
-        if (hs.rank >= 3) lines.push(`Ранг 3: ${def.rank3Modifier.text}`);
-        if (def.aimable) lines.push('Напрямок — курсор миші на арені');
-        lines.push('Перетягніть слот, щоб переставити');
-        if (dragFrom < 0) drawTooltip(ctx, lines, app.input.mouse.x, ARENA.y + ARENA.h - 170, W, app.view.height);
+        const extra = [...(def.aimable ? ['Напрямок — курсор миші на арені'] : []), 'Перетягніть слот, щоб переставити'];
+        const tip = skillTooltip(hs.id, hs.rank, extra, b.hero.stats.cooldownMult);
+        if (dragFrom < 0) drawTooltip(ctx, tip.lines, app.input.mouse.x, ARENA.y + ARENA.h - 170, W, app.view.height, tip.colors);
       }
     },
   };
@@ -268,20 +292,7 @@ function drawDragGhost(ctx: CanvasRenderingContext2D, b: Battle, from: number, s
   ctx.globalAlpha = 1;
 }
 
-function wrapPlain(text: string, max: number): string[] {
-  const out: string[] = [];
-  let line = '';
-  for (const w of text.split(' ')) {
-    if ((line + ' ' + w).trim().length > max && line) {
-      out.push(line);
-      line = w;
-    } else line = (line + ' ' + w).trim();
-  }
-  if (line) out.push(line);
-  return out;
-}
-
-function drawSkillBar(ctx: CanvasRenderingContext2D, b: Battle, slots: Rect[], noTarget: number[], hover: number): void {
+function drawSkillBar(ctx: CanvasRenderingContext2D, b: Battle, slots: Rect[], noTarget: number[], noTargetText: string[], hover: number): void {
   const hero = b.hero;
   slots.forEach((r, i) => {
     const s = skillInSlot(hero, i);
@@ -327,16 +338,21 @@ function drawSkillBar(ctx: CanvasRenderingContext2D, b: Battle, slots: Rect[], n
     ctx.stroke();
     // Key and rank dots.
     drawText(ctx, String(i + 1), r.x + 8, r.y + 10, { size: 11, bold: true, color: THEME.textDim });
-    for (let k = 0; k < 3; k++) {
-      ctx.fillStyle = k < s.rank ? THEME.accent : 'rgba(255,255,255,0.15)';
-      ctx.beginPath();
-      ctx.arc(r.x + r.w / 2 + (k - 1) * 9, r.y + r.h - 7, 3, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    drawRankDots(ctx, r.x + r.w / 2, r.y + r.h - 6, s.rank, 7, 2.5);
     if (nt > 0) {
       ctx.globalAlpha = Math.min(1, nt / (FX.noTargetFlash * 0.5));
-      drawText(ctx, 'Немає цілі', r.x + r.w / 2, r.y - 24, { size: 12, bold: true, align: 'center', color: THEME.bad });
+      drawText(ctx, noTargetText[i] || 'Немає цілі', r.x + r.w / 2, r.y - 24, { size: 12, bold: true, align: 'center', color: THEME.bad });
       ctx.globalAlpha = 1;
     }
   });
+}
+
+/** Rank pips centred at `cx`: filled up to `rank`, of RANKS.max. */
+export function drawRankDots(ctx: CanvasRenderingContext2D, cx: number, y: number, rank: number, step: number, r: number): void {
+  for (let k = 0; k < RANKS.max; k++) {
+    ctx.fillStyle = k < rank ? THEME.accent : 'rgba(255,255,255,0.15)';
+    ctx.beginPath();
+    ctx.arc(cx + (k - (RANKS.max - 1) / 2) * step, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }

@@ -4,10 +4,12 @@ import type { InputEvent } from '../core/input';
 import type { Modal } from '../core/screens';
 import { CARDS, PROGRESSION, RANKS } from '../data/balance';
 import { CLASS_ORDER, getClass } from '../data/classes';
-import { describePassive, describeSkill, getPassive, getSkill } from '../data/skills';
+import { describePassive, describeSkillFull, getPassive, getSkill, isSpecialRank, rankChanges } from '../data/skills';
 import { type Card, rerollPrice, skipGold } from '../systems/cards';
 import { skillInSlot } from '../systems/hero';
 import type { App } from './app';
+import { drawRankDots } from './hud';
+import { skillTooltip, wrapPlain } from './skillText';
 import { drawClassIcon, drawPassiveIcon, drawSkillIcon } from './icons';
 import { THEME, font } from './theme';
 import { Button, ButtonGroup, type Rect, drawText, drawTooltip, inRect, roundRect, wrapLines } from './ui';
@@ -60,17 +62,17 @@ function drawCard(ctx: CanvasRenderingContext2D, r: Rect, face: CardFace, hovere
   drawText(ctx, face.kindLabel, r.x + r.w / 2, y + 140, { size: 12, bold: true, align: 'center', color: face.kindColor });
   drawText(ctx, face.title, r.x + r.w / 2, y + 164, { size: 21, bold: true, align: 'center' });
   if (face.rankLine) drawText(ctx, face.rankLine, r.x + r.w / 2, y + 190, { size: 14, align: 'center', color: THEME.accent, bold: true });
-  ctx.font = font(14);
+  ctx.font = font(13);
   ctx.fillStyle = THEME.textDim;
   ctx.textAlign = 'center';
-  const lines = wrapLines(ctx, face.body, r.w - 36);
+  const lines = wrapLines(ctx, face.body, r.w - 28);
   ctx.textBaseline = 'top';
-  lines.slice(0, 5).forEach((l, i) => ctx.fillText(l, r.x + r.w / 2, y + 206 + i * 19));
+  lines.slice(0, 6).forEach((l, i) => ctx.fillText(l, r.x + r.w / 2, y + 204 + i * 16));
   if (face.extra) {
     ctx.font = font(13, 'bold');
     ctx.fillStyle = THEME.good;
     const ex = wrapLines(ctx, face.extra, r.w - 36);
-    ex.slice(0, 2).forEach((l, i) => ctx.fillText(l, r.x + r.w / 2, y + 206 + Math.min(lines.length, 5) * 19 + 6 + i * 18));
+    ex.slice(0, 2).forEach((l, i) => ctx.fillText(l, r.x + r.w / 2, y + 204 + Math.min(lines.length, 6) * 16 + 4 + i * 16));
   }
   ctx.restore();
   if (face.locked) {
@@ -87,7 +89,7 @@ function drawCard(ctx: CanvasRenderingContext2D, r: Rect, face: CardFace, hovere
     ctx.restore();
   } else {
     const pulse = 0.6 + 0.4 * Math.sin(t * 4);
-    drawText(ctx, `[${hotkey}]`, r.x + r.w / 2, y + r.h - 18, {
+    drawText(ctx, `[${hotkey}]`, r.x + r.w / 2, y + r.h - 11, {
       size: 13,
       align: 'center',
       color: hovered ? THEME.accent : `rgba(154, 163, 184, ${pulse})`,
@@ -177,7 +179,7 @@ function drawClassCard(ctx: CanvasRenderingContext2D, classId: string, r: Rect, 
   const skillHeader =
     c.skills.length > 0
       ? `Скіли: оберете ${PROGRESSION.startingSkillPicks} з ${c.skills.length} · ранги 1–${RANKS.max}`
-      : `Скіли · ${RANKS.max} ранги (${RANKS.max - 1} покращення)`;
+      : `Скіли · ${RANKS.max} рангів (${RANKS.max - 1} покращення)`;
   drawText(ctx, skillHeader, r.x + 16, r.y + 196, {
     size: 12,
     bold: true,
@@ -189,13 +191,8 @@ function drawClassCard(ctx: CanvasRenderingContext2D, classId: string, r: Rect, 
     if (def) drawSkillIcon(ctx, def.icon, l.rect.x + 8, y, 13, THEME.text);
     else dot(ctx, l.rect.x + 8, y);
     drawText(ctx, l.name, l.rect.x + 22, y, { size: 13 });
-    if (l.note) drawText(ctx, l.note, l.rect.x + l.rect.w - 34, y, { size: 11, align: 'right', color: THEME.good, bold: true });
-    for (let k = 0; k < RANKS.max; k++) {
-      ctx.fillStyle = THEME.accent;
-      ctx.beginPath();
-      ctx.arc(l.rect.x + l.rect.w - 22 + k * 8, y, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    if (l.note) drawText(ctx, l.note, l.rect.x + l.rect.w - 44, y, { size: 11, align: 'right', color: THEME.good, bold: true });
+    drawRankDots(ctx, l.rect.x + l.rect.w - 18, y, RANKS.max, 6, 2);
   }
   const passiveHeaderY = (lines.passives[0]?.rect.y ?? r.y) - 8;
   drawText(ctx, 'Пасивки · стаки', r.x + 16, passiveHeaderY, { size: 12, bold: true, color: '#9b8cff' });
@@ -230,32 +227,9 @@ function drawClassCard(ctx: CanvasRenderingContext2D, classId: string, r: Rect, 
   }
 }
 
-function skillTooltip(skillId: string): string[] {
-  const def = getSkill(skillId);
-  return [
-    def.name,
-    ...wrapPlain(`Ранг 1: ${describeSkill(skillId, 1)}`, 56),
-    'Ранг 2: +30% шкоди, −10% перезарядки',
-    ...wrapPlain(`Ранг 3: ${def.rank3Modifier.text}`, 56),
-  ];
-}
-
 function passiveTooltip(passiveId: string): string[] {
   const p = getPassive(passiveId);
   return [p.name, ...wrapPlain(`За стак: ${describePassive(passiveId)}`, 56), `До ×${p.maxStacks} стаків, кожна картка пасивки дає +1`];
-}
-
-function wrapPlain(text: string, max: number): string[] {
-  const out: string[] = [];
-  let line = '';
-  for (const w of text.split(' ')) {
-    if (`${line} ${w}`.trim().length > max && line) {
-      out.push(line);
-      line = w;
-    } else line = `${line} ${w}`.trim();
-  }
-  if (line) out.push(line);
-  return out;
 }
 
 export function createClassChoiceModal(app: App, onChosen: (classId: string) => void): Modal<CanvasRenderingContext2D> {
@@ -264,7 +238,7 @@ export function createClassChoiceModal(app: App, onChosen: (classId: string) => 
   let t = 0;
   const choose = (i: number): void => {
     const id = CLASS_ORDER[i];
-    if (!id || getClass(id).locked) return;
+    if (!id || getClass(id).locked || t < CARDS.inputDelay) return;
     onChosen(id);
   };
   return {
@@ -282,7 +256,7 @@ export function createClassChoiceModal(app: App, onChosen: (classId: string) => 
     render(ctx) {
       dim(ctx, app.view.width, app.view.height);
       drawText(ctx, 'Рівень 3 — оберіть клас', app.view.width / 2, 34, { size: 26, bold: true, align: 'center' });
-      drawText(ctx, 'Клас дає автоатаку; далі ви оберете 3 скіли з 8, решту дадуть картки на нових рівнях', app.view.width / 2, 62, {
+      drawText(ctx, 'Клас дає автоатаку; далі ви оберете 3 скіли з 8, решту дадуть картки на нових рівнях', app.view.width / 2, 58, {
         size: 14,
         align: 'center',
         color: THEME.textDim,
@@ -294,11 +268,17 @@ export function createClassChoiceModal(app: App, onChosen: (classId: string) => 
         const lines = classLines(id, rects[i] as Rect);
         const sk = lines.skills.find((l) => inRect(l.rect, m.x, m.y));
         const ps = lines.passives.find((l) => inRect(l.rect, m.x, m.y));
+        if (sk?.skillId) {
+          const tip = skillTooltip(sk.skillId, 0);
+          drawTooltip(ctx, tip.lines, m.x, 20, app.view.width, app.view.height, tip.colors);
+          return;
+        }
         let tip: string[] | null = null;
-        if (sk) tip = sk.skillId ? skillTooltip(sk.skillId) : [sk.name, 'Опис з’явиться разом із класом'];
+        if (sk) tip = [sk.name, 'Опис з’явиться разом із класом'];
         else if (ps) tip = ps.passiveId ? passiveTooltip(ps.passiveId) : [ps.name, 'Опис з’явиться разом із класом'];
         if (tip) drawTooltip(ctx, tip, m.x, m.y, app.view.width, app.view.height);
       });
+      drawInputDelay(ctx, app.view.width / 2, 71, t);
     },
   };
 }
@@ -324,8 +304,8 @@ function cardFace(card: Card): CardFace {
       title: s.name,
       kindLabel: 'НОВИЙ СКІЛ',
       kindColor: THEME.good,
-      rankLine: 'Ранг 1',
-      body: describeSkill(s.id, 1),
+      rankLine: `Ранг 1 з ${RANKS.max}`,
+      body: describeSkillFull(s.id, 1),
       extra: '',
       drawIcon: (ctx, x, y) => drawSkillIcon(ctx, s.icon, x, y, 56, THEME.good),
       locked: false,
@@ -336,9 +316,9 @@ function cardFace(card: Card): CardFace {
     title: s.name,
     kindLabel: 'ПОКРАЩЕННЯ',
     kindColor: THEME.accent,
-    rankLine: `Ранг ${card.fromRank} → ${card.toRank}`,
-    body: card.toRank === 3 ? `Особливий модифікатор: ${s.rank3Modifier.text}` : '+30% шкоди, −10% перезарядки.',
-    extra: '',
+    rankLine: `Ранг ${card.fromRank} → ${card.toRank} (з ${RANKS.max})`,
+    body: rankChanges(s.id, card.toRank),
+    extra: isSpecialRank(s.id, card.toRank) ? 'Особливий модифікатор' : '',
     drawIcon: (ctx, x, y) => drawSkillIcon(ctx, s.icon, x, y, 56, THEME.accent),
     locked: false,
     accent: THEME.accent,
@@ -358,9 +338,10 @@ export function createCardChoiceModal(app: App, firstOffer: Card[], level: numbe
   let hovered = -1;
   let t = 0;
   let rerolls = 0;
+  const ready = (): boolean => t >= CARDS.inputDelay;
   const choose = (i: number): void => {
     const c = offer[i];
-    if (c) h.onChosen(c);
+    if (c && ready()) h.onChosen(c);
   };
   const W = app.view.width;
   const ROW_Y = CARD_Y + CARD_H + 10;
@@ -370,6 +351,7 @@ export function createCardChoiceModal(app: App, firstOffer: Card[], level: numbe
     hotkey: 'KeyR',
     fontSize: 14,
     onClick: () => {
+      if (!ready()) return;
       const next = h.onReroll(rerolls);
       if (!next || next.length === 0) return;
       rerolls += 1;
@@ -382,7 +364,9 @@ export function createCardChoiceModal(app: App, firstOffer: Card[], level: numbe
     label: `Пропустити: +${skipGold(level)} зол. і баф`,
     rect: { x: W - (rects[0]?.x ?? 75) - 250, y: ROW_Y, w: 250, h: 34 },
     fontSize: 14,
-    onClick: () => h.onSkip(),
+    onClick: () => {
+      if (ready()) h.onSkip();
+    },
   });
   const buttons = new ButtonGroup([rerollBtn, skipBtn]);
   return {
@@ -391,7 +375,8 @@ export function createCardChoiceModal(app: App, firstOffer: Card[], level: numbe
       t += dt;
       const price = rerollPrice(rerolls);
       rerollBtn.label = `Перекинути [R] — ${price} зол.`;
-      rerollBtn.enabled = app.state.gold >= price;
+      rerollBtn.enabled = ready() && app.state.gold >= price;
+      skipBtn.enabled = ready();
     },
     onInput(e: InputEvent) {
       if (buttons.handle(e)) return;
@@ -409,7 +394,11 @@ export function createCardChoiceModal(app: App, firstOffer: Card[], level: numbe
         align: 'center',
         color: THEME.textDim,
       });
-      offer.forEach((card, i) => drawCard(ctx, rects[i] as Rect, cardFace(card), hovered === i, i + 1, t));
+      ctx.save();
+      if (!ready()) ctx.globalAlpha = 0.55;
+      offer.forEach((card, i) => drawCard(ctx, rects[i] as Rect, cardFace(card), ready() && hovered === i, i + 1, t));
+      ctx.restore();
+      drawInputDelay(ctx, W / 2, 106, t);
       buttons.draw(ctx);
       drawText(ctx, `Золото: ${app.state.gold}`, W / 2, ROW_Y + 17, { size: 14, bold: true, align: 'center', color: THEME.accent });
       if (inRect(skipBtn.rect, app.input.mouse.x, app.input.mouse.y)) {
@@ -428,8 +417,27 @@ export function createCardChoiceModal(app: App, firstOffer: Card[], level: numbe
         );
       }
       drawCurrentSkills(ctx, app);
+      // Hovering an offered skill card shows every rank of that skill.
+      const card = hovered >= 0 ? offer[hovered] : undefined;
+      if (card && card.kind !== 'passive' && inRect(rects[hovered] as Rect, app.input.mouse.x, app.input.mouse.y)) {
+        const rank = app.state.hero.skills.find((x) => x.id === card.skillId)?.rank ?? 0;
+        const tip = skillTooltip(card.skillId, rank);
+        drawTooltip(ctx, tip.lines, app.input.mouse.x, app.input.mouse.y, W, app.view.height, tip.colors);
+      }
     },
   };
+}
+
+/** One-line "choice in N s" bar: cards ignore input for a moment so skill keys don't pick one. */
+function drawInputDelay(ctx: CanvasRenderingContext2D, cx: number, y: number, t: number): void {
+  if (t >= CARDS.inputDelay) return;
+  const w = 140;
+  const x = cx - w / 2 - 50;
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.fillRect(x, y - 2, w, 4);
+  ctx.fillStyle = THEME.accent;
+  ctx.fillRect(x, y - 2, w * (t / CARDS.inputDelay), 4);
+  drawText(ctx, `вибір через ${(CARDS.inputDelay - t).toFixed(1)} с`, x + w + 10, y, { size: 11, color: THEME.textDim });
 }
 
 const MINI_SLOT = 40;
@@ -444,7 +452,7 @@ function drawCurrentSkills(ctx: CanvasRenderingContext2D, app: App): void {
   const y = CARD_Y + CARD_H + 54;
   drawText(ctx, 'Ваші скіли зараз (наведіть, щоб подивитись):', x0 - 14, y + MINI_SLOT / 2, { size: 13, align: 'right', color: THEME.textDim });
   const m = app.input.mouse;
-  let tip: string[] | null = null;
+  let tip: ReturnType<typeof skillTooltip> | null = null;
   for (let i = 0; i < n; i++) {
     const r = { x: x0 + i * (MINI_SLOT + gap), y, w: MINI_SLOT, h: MINI_SLOT };
     const s = skillInSlot(hero, i);
@@ -457,16 +465,8 @@ function drawCurrentSkills(ctx: CanvasRenderingContext2D, app: App): void {
     if (!s) continue;
     const def = getSkill(s.id);
     drawSkillIcon(ctx, def.icon, r.x + r.w / 2, r.y + r.h / 2 - 3, r.w * 0.55, '#f4f1e8');
-    for (let k = 0; k < RANKS.max; k++) {
-      ctx.fillStyle = k < s.rank ? THEME.accent : 'rgba(255,255,255,0.15)';
-      ctx.beginPath();
-      ctx.arc(r.x + r.w / 2 + (k - 1) * 8, r.y + r.h - 6, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    if (inRect(r, m.x, m.y)) {
-      tip = [`${def.name} — ранг ${s.rank}`, ...wrapPlain(describeSkill(s.id, s.rank), 56)];
-      if (s.rank >= RANKS.max) tip.push(...wrapPlain(`Ранг 3: ${def.rank3Modifier.text}`, 56));
-    }
+    drawRankDots(ctx, r.x + r.w / 2, r.y + r.h - 5, s.rank, 6, 2);
+    if (inRect(r, m.x, m.y)) tip = skillTooltip(s.id, s.rank, [], hero.stats.cooldownMult);
   }
-  if (tip) drawTooltip(ctx, tip, m.x, m.y - 120, app.view.width, app.view.height);
+  if (tip) drawTooltip(ctx, tip.lines, m.x, 10, app.view.width, app.view.height, tip.colors);
 }

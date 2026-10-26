@@ -3,6 +3,7 @@
 import type { Screen } from '../core/screens';
 import { RARITIES } from '../data/items';
 import { type Item, displayName, formatStat } from '../systems/items';
+import type { BattleSummary } from '../systems/run';
 import type { App } from './app';
 import { className } from './names';
 import { THEME } from './theme';
@@ -23,11 +24,11 @@ function rows(ctx: CanvasRenderingContext2D, items: [string, string][], x: numbe
 }
 
 /** Loot lines: name in rarity colour and its stats; returns the height used. */
-function lootLines(ctx: CanvasRenderingContext2D, loot: Item[], cx: number, y: number, equippedUids: Set<number>): number {
+function lootLines(ctx: CanvasRenderingContext2D, loot: Item[], cx: number, y: number, equippedUids: Set<number>, step = 20): number {
   if (loot.length === 0) return 0;
   drawText(ctx, 'Здобич', cx, y, { size: 14, bold: true, align: 'center', color: THEME.accent });
   loot.forEach((item, i) => {
-    const yy = y + 22 + i * 20;
+    const yy = y + 22 + i * step;
     const where = equippedUids.has(item.uid) ? 'вдягнуто' : 'у сумці';
     const desc = item.identified ? item.stats.map(formatStat).join(', ') : 'не розпізнано';
     drawText(ctx, `${displayName(item)} — ${desc} (${where})`, cx, yy, {
@@ -37,7 +38,7 @@ function lootLines(ctx: CanvasRenderingContext2D, loot: Item[], cx: number, y: n
       bold: true,
     });
   });
-  return 22 + loot.length * 20;
+  return 22 + loot.length * step;
 }
 
 function wornUids(app: App): Set<number> {
@@ -48,9 +49,19 @@ function wornUids(app: App): Set<number> {
   );
 }
 
+/** Mandatory and cleared waves of a wave location (none for the boss lair). */
+function waveRows(s: BattleSummary): [string, string][] {
+  if (s.wavesCleared <= 0 && s.mandatoryWaves <= 0) return [];
+  const range = s.wavesCleared > 0 ? ` (${s.firstWave}–${s.lastWave})` : '';
+  return [
+    ['Обов’язкових хвиль', String(s.mandatoryWaves)],
+    ['Пройдено хвиль', `${s.wavesCleared}${range}`],
+  ];
+}
+
 export function createRewardScreen(app: App): Screen<CanvasRenderingContext2D> {
   const W = app.view.width;
-  const panel = { x: W / 2 - 250, y: 50, w: 500, h: 440 };
+  const panel = { x: W / 2 - 250, y: 16, w: 500, h: 508 };
   const buttons = new ButtonGroup([
     new Button({
       label: 'Продовжити',
@@ -86,12 +97,12 @@ export function createRewardScreen(app: App): Screen<CanvasRenderingContext2D> {
           ['Досвід', `+${s.xp}`],
           ['Золото', `+${s.gold}  (бонус ${s.clearBonus})`],
           ['Вбито ворогів', String(s.kills)],
-          ['Додаткових хвиль', String(s.bonusWaves)],
+          ...waveRows(s),
           ['Отримано шкоди', String(Math.round(s.damageTaken))],
           ['День', String(app.state.day)],
         ];
-        rows(ctx, items, panel.x + 60, panel.y + 100, panel.w - 120, 27);
-        lootLines(ctx, s.loot, W / 2, panel.y + 100 + items.length * 27 + 4, wornUids(app));
+        rows(ctx, items, panel.x + 60, panel.y + 100, panel.w - 120, 25);
+        lootLines(ctx, s.loot, W / 2, panel.y + 100 + items.length * 25 + 2, wornUids(app), 18);
       }
       // Level-up ring on the reward screen if the hero levelled in the fight.
       if (t < 1 && (s?.xp ?? 0) > 0) {

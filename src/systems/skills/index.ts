@@ -2,7 +2,7 @@
 
 import { getSkill, skillParams } from '../../data/skills';
 import type { Battle } from '../battle';
-import { isDisabled } from '../combat';
+import { hasStatus, isDisabled } from '../combat';
 import { skillInSlot } from '../hero';
 import type { SkillImpl } from './types';
 import { WARRIOR_SKILLS } from './warrior';
@@ -24,6 +24,10 @@ export function useSkill(b: Battle, slot: number): SkillUseResult {
   if (!impl) throw new Error(`No implementation for skill ${s.id}`);
   const p = skillParams(s.id, s.rank);
   const def = getSkill(s.id);
+  if (def.moves && hasStatus(hero, 'root')) {
+    b.events.emit({ type: 'noTarget', slot, reason: 'rooted' });
+    return 'busy';
+  }
   const ok = impl({ b, hero, def, rank: s.rank, p, aim: def.aimable ? b.input.aim : null });
   if (!ok) {
     b.events.emit({ type: 'noTarget', slot });
