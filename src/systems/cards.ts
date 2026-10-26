@@ -4,7 +4,7 @@ import { CARDS, PROGRESSION, RANKS } from '../data/balance';
 import { getClass } from '../data/classes';
 import { getPassive } from '../data/skills';
 import type { Rng } from '../core/rng';
-import type { Hero } from './entities';
+import type { Hero, HeroBuff } from './entities';
 import { firstFreeSlot, recomputeHeroStats } from './hero';
 
 export type Card =
@@ -73,6 +73,20 @@ export function offerCards(hero: Hero, rng: Rng, size: number = CARDS.offerSize)
     take(rng.weighted(kinds.map((k) => ({ item: k, weight: CARDS.weights[k] }))));
   }
   return rng.shuffle(offer);
+}
+
+export function rerollPrice(rerolls: number): number {
+  return CARDS.reroll.base + CARDS.reroll.step * rerolls;
+}
+
+export function skipGold(level: number): number {
+  return CARDS.skip.goldBase + CARDS.skip.goldPerLevel * level;
+}
+
+/** Buff for skipping a card choice: regen, damage and move speed for a few seconds. */
+export function skipBuff(): HeroBuff {
+  const s = CARDS.skip.buff;
+  return { id: 'skipCard', time: s.duration, attackSpeedMult: 1, damageTakenMult: 1, damageMult: s.damageMult, moveSpeedMult: s.moveSpeedMult, regen: s.regen };
 }
 
 export function isCardValid(hero: Hero, card: Card): boolean {

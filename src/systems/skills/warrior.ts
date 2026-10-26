@@ -9,6 +9,7 @@ import type { Battle } from '../battle';
 import { type Hero, type Vec, dist, distToSegment } from '../entities';
 import { bestConeAngle, coneTargets, densePoints, enemiesInRadius, nearestEnemy } from '../targeting';
 import { telegraphContains } from '../boss';
+import { heroAttack } from '../hero';
 import type { SkillImpl } from './types';
 
 const whirlwind: SkillImpl = ({ b, hero, p, def, rank }) => {
@@ -20,7 +21,7 @@ const whirlwind: SkillImpl = ({ b, hero, p, def, rank }) => {
     followHero: true,
     duration: p.duration!,
     tickInterval: p.tick!,
-    damage: hero.stats.attack * p.damage! * hero.stats.skillDamageMult,
+    damage: heroAttack(hero) * p.damage! * hero.stats.skillDamageMult,
     pull: p.pull!,
     tickNow: true,
   });
@@ -43,7 +44,7 @@ const charge: SkillImpl = ({ b, hero, p, def, rank, aim }) => {
         radius: p.trailRadius!,
         duration: p.trailDuration!,
         tickInterval: p.trailTick!,
-        damage: hero.stats.attack * p.trailDamage! * hero.stats.skillDamageMult,
+        damage: heroAttack(hero) * p.trailDamage! * hero.stats.skillDamageMult,
       });
     }
   }
@@ -173,7 +174,7 @@ const earthquake: SkillImpl = ({ b, hero, p, def, rank }) => {
     radius: p.radius!,
     duration: p.interval! * (p.pulses! - 1),
     tickInterval: p.interval!,
-    damage: hero.stats.attack * p.damage! * hero.stats.skillDamageMult,
+    damage: heroAttack(hero) * p.damage! * hero.stats.skillDamageMult,
     slow: p.slow!,
     slowTime: p.slowTime!,
     stun: p.stun!,

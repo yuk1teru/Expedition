@@ -6,7 +6,7 @@ import type { Battle } from './battle';
 import { damageEnemy, damageHero, hasStatus, heroDamage, isDisabled, speedMult } from './combat';
 import type { Enemy, Hero, Projectile, Vec } from './entities';
 import { angleOf, dist, normalize } from './entities';
-import { basicAttackOf } from './hero';
+import { basicAttackOf, heroMoveSpeed } from './hero';
 import { coneTargets, nearestEnemy } from './targeting';
 
 /** Effective attacks per second including buffs. */
@@ -30,7 +30,7 @@ export function updateHeroAI(b: Battle, dt: number): void {
   const move = b.input.move;
   if (move.x !== 0 || move.y !== 0) {
     // Player steers: run where told, keep auto-attacking whatever is in reach.
-    const speed = hero.stats.moveSpeed * speedMult(hero);
+    const speed = heroMoveSpeed(hero) * speedMult(hero);
     hero.vel.x = move.x * speed;
     hero.vel.y = move.y * speed;
     hero.facing = angleOf(move);
@@ -51,7 +51,7 @@ export function updateHeroAI(b: Battle, dt: number): void {
  */
 function playerHero(b: Battle, hero: Hero): void {
   const move = b.input.move;
-  const speed = hero.stats.moveSpeed * speedMult(hero);
+  const speed = heroMoveSpeed(hero) * speedMult(hero);
   hero.vel.x = move.x * speed;
   hero.vel.y = move.y * speed;
   const aim = b.input.aim;
@@ -107,7 +107,7 @@ function tryMeleeHit(b: Battle, hero: Hero, target: Enemy): boolean {
 function meleeHero(b: Battle, hero: Hero, target: Enemy): void {
   if (tryMeleeHit(b, hero, target)) return;
   hero.facing = angleOf({ x: target.pos.x - hero.pos.x, y: target.pos.y - hero.pos.y });
-  moveTowards(hero, target.pos, hero.stats.moveSpeed * speedMult(hero));
+  moveTowards(hero, target.pos, heroMoveSpeed(hero) * speedMult(hero));
 }
 
 /** Ranged: keep a distance band, back off from close enemies, shoot within range. */
@@ -115,7 +115,7 @@ function rangedHero(b: Battle, hero: Hero, target: Enemy): void {
   const r = HERO.ranged;
   const d = dist(hero.pos, target.pos);
   hero.facing = angleOf({ x: target.pos.x - hero.pos.x, y: target.pos.y - hero.pos.y });
-  const speed = hero.stats.moveSpeed * speedMult(hero);
+  const speed = heroMoveSpeed(hero) * speedMult(hero);
   if (d < r.retreatBelow) {
     moveAway(hero, target.pos, speed);
   } else if (d > r.keepMax) {

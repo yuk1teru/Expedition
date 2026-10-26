@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../src/core/rng';
-import { PROGRESSION, RANKS } from '../src/data/balance';
+import { CARDS, PROGRESSION, RANKS } from '../src/data/balance';
 import { getClass } from '../src/data/classes';
 import { getPassive } from '../src/data/skills';
-import { type Card, applyCard, availableCards, isCardValid, offerCards } from '../src/systems/cards';
+import { type Card, applyCard, availableCards, isCardValid, offerCards, rerollPrice, skipGold } from '../src/systems/cards';
 import type { Hero } from '../src/systems/entities';
-import { assignClass, createHero } from '../src/systems/hero';
+import { assignClass, createHero, heroMoveSpeed, heroRegen } from '../src/systems/hero';
+import { createBattle } from '../src/systems/battle';
+import { SLICE_GROVE_ID } from '../src/systems/mapgen';
+import { createGameState, rerollCards, skipCards, teleport } from '../src/systems/run';
 
 function randomWarrior(rng: Rng): Hero {
   const hero = createHero(0);
@@ -93,5 +96,34 @@ describe('card offers', () => {
       else if (offer[0]) applyCard(hero, offer[0]);
     }
     expect(hero.skills.length).toBe(4);
+  });
+});
+
+describe('reroll and skip', () => {
+  it('reroll costs gold that grows with each reroll; no gold — no reroll', () => {
+    const s = createGameState(8);
+    s.hero.level = 4;
+    assignClass(s.hero, 'warrior');
+    s.gold = rerollPrice(0) + rerollPrice(1);
+    expect(rerollCards(s, 0)).not.toBeNull();
+    expect(rerollCards(s, 1)).not.toBeNull();
+    expect(s.gold).toBe(0);
+    expect(rerollCards(s, 2)).toBeNull();
+    expect(rerollPrice(2)).toBeGreaterThan(rerollPrice(1));
+  });
+
+  it('skip gives gold and a buff (now in battle, or with the next battle)', () => {
+    const s = createGameState(9);
+    const gold = skipCards(s, 5, false);
+    expect(gold).toBe(skipGold(5));
+    expect(s.gold).toBe(gold);
+    expect(s.hero.pendingBuffs).toHaveLength(1);
+    teleport(s, SLICE_GROVE_ID);
+    createBattle(s, SLICE_GROVE_ID);
+    const buff = s.hero.buffs.find((x) => x.id === 'skipCard');
+    expect(buff?.damageMult).toBeCloseTo(CARDS.skip.buff.damageMult);
+    expect(heroMoveSpeed(s.hero)).toBeCloseTo(s.hero.stats.moveSpeed * CARDS.skip.buff.moveSpeedMult);
+    expect(heroRegen(s.hero)).toBeCloseTo(s.hero.stats.hpRegen + CARDS.skip.buff.regen);
+    expect(s.hero.pendingBuffs).toHaveLength(0);
   });
 });

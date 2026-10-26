@@ -123,7 +123,9 @@ function resetHeroForBattle(hero: Hero): void {
   hero.vel = { x: 0, y: 0 };
   hero.knockback = { x: 0, y: 0 };
   hero.statuses = {};
-  hero.buffs = [];
+  // Buffs earned between battles (skipped cards) start now.
+  hero.buffs = hero.pendingBuffs;
+  hero.pendingBuffs = [];
   hero.dash = null;
   hero.invulnerable = 0;
   hero.attackTimer = 0;

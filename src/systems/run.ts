@@ -4,7 +4,8 @@ import { EventBus } from '../core/events';
 import { Rng } from '../core/rng';
 import { type Checkpoint, createRunStats, type GameState } from '../core/state';
 import type { GameEvent } from './gameEvents';
-import { type Card, applyCard, offerCards } from './cards';
+import { type Card, applyCard, offerCards, rerollPrice, skipBuff, skipGold } from './cards';
+import { addBuff } from './effects';
 import { assignClass, createHero, healFull } from './hero';
 import type { Battle } from './battle';
 import type { Item } from './items';
@@ -170,5 +171,26 @@ export function nextCardOffer(state: GameState): Card[] {
 
 export function chooseCard(state: GameState, card: Card): void {
   applyCard(state.hero, card);
+}
+
+/** Pays for a new offer; null if there is not enough gold. */
+export function rerollCards(state: GameState, rerolls: number): Card[] | null {
+  const price = rerollPrice(rerolls);
+  if (state.gold < price) return null;
+  state.gold -= price;
+  return offerCards(state.hero, state.cardRng);
+}
+
+/**
+ * Skips the card choice: some gold and a short buff. In battle the buff starts
+ * right away, otherwise with the next battle.
+ */
+export function skipCards(state: GameState, level: number, inBattle: boolean): number {
+  const gold = skipGold(level);
+  state.gold += gold;
+  const buff = skipBuff();
+  if (inBattle) addBuff(state.hero, buff);
+  else state.hero.pendingBuffs.push(buff);
+  return gold;
 }
 

@@ -2,15 +2,15 @@
 
 import type { InputEvent } from '../core/input';
 import type { Modal } from '../core/screens';
-import { PROGRESSION, RANKS } from '../data/balance';
+import { CARDS, PROGRESSION, RANKS } from '../data/balance';
 import { CLASS_ORDER, getClass } from '../data/classes';
 import { describePassive, describeSkill, getPassive, getSkill } from '../data/skills';
-import type { Card } from '../systems/cards';
+import { type Card, rerollPrice, skipGold } from '../systems/cards';
 import { skillInSlot } from '../systems/hero';
 import type { App } from './app';
 import { drawClassIcon, drawPassiveIcon, drawSkillIcon } from './icons';
 import { THEME, font } from './theme';
-import { type Rect, drawText, drawTooltip, inRect, roundRect, wrapLines } from './ui';
+import { Button, ButtonGroup, type Rect, drawText, drawTooltip, inRect, roundRect, wrapLines } from './ui';
 
 const CARD_W = 250;
 const CARD_H = 320;
@@ -345,20 +345,56 @@ function cardFace(card: Card): CardFace {
   };
 }
 
-export function createCardChoiceModal(app: App, offer: Card[], level: number, onChosen: (card: Card) => void): Modal<CanvasRenderingContext2D> {
-  const rects = cardRects(app.view.width, offer.length);
+export interface CardChoiceHandlers {
+  onChosen: (card: Card) => void;
+  /** Pays for a new offer; null if the hero can't afford it. */
+  onReroll: (rerolls: number) => Card[] | null;
+  onSkip: () => void;
+}
+
+export function createCardChoiceModal(app: App, firstOffer: Card[], level: number, h: CardChoiceHandlers): Modal<CanvasRenderingContext2D> {
+  let offer = firstOffer;
+  let rects = cardRects(app.view.width, offer.length);
   let hovered = -1;
   let t = 0;
+  let rerolls = 0;
   const choose = (i: number): void => {
     const c = offer[i];
-    if (c) onChosen(c);
+    if (c) h.onChosen(c);
   };
+  const W = app.view.width;
+  const ROW_Y = CARD_Y + CARD_H + 10;
+  const rerollBtn = new Button({
+    label: '',
+    rect: { x: rects[0]?.x ?? 75, y: ROW_Y, w: 250, h: 34 },
+    hotkey: 'KeyR',
+    fontSize: 14,
+    onClick: () => {
+      const next = h.onReroll(rerolls);
+      if (!next || next.length === 0) return;
+      rerolls += 1;
+      offer = next;
+      rects = cardRects(W, offer.length);
+    },
+  });
+  const skip = CARDS.skip;
+  const skipBtn = new Button({
+    label: `Пропустити: +${skipGold(level)} зол. і баф`,
+    rect: { x: W - (rects[0]?.x ?? 75) - 250, y: ROW_Y, w: 250, h: 34 },
+    fontSize: 14,
+    onClick: () => h.onSkip(),
+  });
+  const buttons = new ButtonGroup([rerollBtn, skipBtn]);
   return {
     id: 'cardChoice',
     update(dt) {
       t += dt;
+      const price = rerollPrice(rerolls);
+      rerollBtn.label = `Перекинути [R] — ${price} зол.`;
+      rerollBtn.enabled = app.state.gold >= price;
     },
     onInput(e: InputEvent) {
+      if (buttons.handle(e)) return;
       if (e.type === 'mousemove') hovered = rects.findIndex((r) => inRect(r, e.x, e.y));
       else if (e.type === 'mousedown') {
         const i = rects.findIndex((r) => inRect(r, e.x, e.y));
@@ -374,6 +410,23 @@ export function createCardChoiceModal(app: App, offer: Card[], level: number, on
         color: THEME.textDim,
       });
       offer.forEach((card, i) => drawCard(ctx, rects[i] as Rect, cardFace(card), hovered === i, i + 1, t));
+      buttons.draw(ctx);
+      drawText(ctx, `Золото: ${app.state.gold}`, W / 2, ROW_Y + 17, { size: 14, bold: true, align: 'center', color: THEME.accent });
+      if (inRect(skipBtn.rect, app.input.mouse.x, app.input.mouse.y)) {
+        drawTooltip(
+          ctx,
+          [
+            'Пропустити вибір',
+            `+${skipGold(level)} золота`,
+            `На ${skip.buff.duration} с: +${skip.buff.regen} HP/с, +${Math.round((skip.buff.damageMult - 1) * 100)}% шкоди, +${Math.round((skip.buff.moveSpeedMult - 1) * 100)}% швидкості руху`,
+            'Поза боєм баф почнеться з наступним боєм',
+          ],
+          app.input.mouse.x,
+          app.input.mouse.y - 110,
+          W,
+          app.view.height,
+        );
+      }
       drawCurrentSkills(ctx, app);
     },
   };
@@ -388,7 +441,7 @@ function drawCurrentSkills(ctx: CanvasRenderingContext2D, app: App): void {
   const gap = 10;
   const total = n * MINI_SLOT + (n - 1) * gap;
   const x0 = app.view.width / 2 - total / 2;
-  const y = CARD_Y + CARD_H + 34;
+  const y = CARD_Y + CARD_H + 54;
   drawText(ctx, 'Ваші скіли зараз (наведіть, щоб подивитись):', x0 - 14, y + MINI_SLOT / 2, { size: 13, align: 'right', color: THEME.textDim });
   const m = app.input.mouse;
   let tip: string[] | null = null;

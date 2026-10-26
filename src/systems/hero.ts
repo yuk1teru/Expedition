@@ -37,6 +37,7 @@ export function createHero(id: number): Hero {
     bag: [],
     consumables: { magnifier: 0, herb: 0 },
     herbCooldown: 0,
+    pendingBuffs: [],
   };
   recomputeHeroStats(hero);
   hero.hp = hero.maxHp;
@@ -138,6 +139,27 @@ export function recomputeHeroStats(hero: Hero): void {
   hero.maxHp = Math.round(s.maxHp);
   if (hero.maxHp > prevMax) hero.hp += hero.maxHp - prevMax;
   hero.hp = Math.min(hero.hp, hero.maxHp);
+}
+
+/** Attack including temporary damage buffs. */
+export function heroAttack(hero: Hero): number {
+  let a = hero.stats.attack;
+  for (const b of hero.buffs) a *= b.damageMult ?? 1;
+  return a;
+}
+
+/** Move speed including temporary buffs (statuses like slow are applied by the AI). */
+export function heroMoveSpeed(hero: Hero): number {
+  let v = hero.stats.moveSpeed;
+  for (const b of hero.buffs) v *= b.moveSpeedMult ?? 1;
+  return v;
+}
+
+/** Regeneration per second including temporary buffs. */
+export function heroRegen(hero: Hero): number {
+  let r = hero.stats.hpRegen;
+  for (const b of hero.buffs) r += b.regen ?? 0;
+  return r;
 }
 
 export function healFull(hero: Hero): void {

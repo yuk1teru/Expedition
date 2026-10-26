@@ -62,6 +62,7 @@ export function createSkillPickModal(app: App, classId: string, onDone: (picks: 
         toggle(Number(e.code.slice(5)) - 1);
         return;
       }
+      confirm.enabled = picks.length === need;
       buttons.handle(e);
     },
     render(ctx) {

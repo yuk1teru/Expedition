@@ -9,6 +9,7 @@ import type { HitSource } from './gameEvents';
 import { getBoss } from '../data/bosses';
 import { LOOT } from '../data/items';
 import { displayName, rollItem, rollRarity, stashLoot } from './items';
+import { heroAttack, heroRegen } from './hero';
 import { gainXp } from './leveling';
 import { applyArmor, xpReward } from './scaling';
 
@@ -26,7 +27,7 @@ export function rollCrit(rng: Rng, base: number, critChance: number, critMult: n
 export function heroDamage(b: Battle, mult: number, source: HitSource): Roll {
   const s = b.hero.stats;
   const skillMult = source === 'skill' || source === 'zone' ? s.skillDamageMult : 1;
-  return rollCrit(b.rng, s.attack * mult * skillMult, s.critChance, s.critMult);
+  return rollCrit(b.rng, heroAttack(b.hero) * mult * skillMult, s.critChance, s.critMult);
 }
 
 export interface HitOptions {
@@ -134,7 +135,7 @@ export function healHero(b: Battle, amount: number, mode: 'show' | 'aggregate' |
 
 /** Regeneration and the periodic lifesteal popup. */
 export function updateHeroHealing(b: Battle, dt: number): void {
-  healHero(b, b.hero.stats.hpRegen * dt, 'silent');
+  healHero(b, heroRegen(b.hero) * dt, 'silent');
   b.healTimer -= dt;
   if (b.healTimer > 0) return;
   b.healTimer = HERO.healPopupInterval;

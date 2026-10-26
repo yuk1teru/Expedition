@@ -187,6 +187,14 @@ export const RANKS = {
 export const CARDS = {
   offerSize: 3,
   weights: { newSkill: 40, upgrade: 40, passive: 20 },
+  /** Reroll price: base + step × rerolls already made for this level-up. */
+  reroll: { base: 20, step: 15 },
+  /** Skipping the choice: gold (base + perLevel × level) and a short buff. */
+  skip: {
+    goldBase: 10,
+    goldPerLevel: 3,
+    buff: { duration: 12, regen: 5, damageMult: 1.2, moveSpeedMult: 1.2 },
+  },
 } as const;
 
 export const PROJECTILES = {

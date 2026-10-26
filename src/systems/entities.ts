@@ -60,6 +60,10 @@ export interface HeroBuff {
   time: number;
   attackSpeedMult: number;
   damageTakenMult: number;
+  /** Optional: outgoing damage, move speed multipliers and extra HP/s. */
+  damageMult?: number;
+  moveSpeedMult?: number;
+  regen?: number;
 }
 
 export interface HeroStats {
@@ -118,6 +122,8 @@ export interface Hero extends Body {
   consumables: Record<ConsumableId, number>;
   /** Seconds until the herb (G) can be used again. */
   herbCooldown: number;
+  /** Buffs earned outside battle (e.g. a skipped card), applied when the next battle starts. */
+  pendingBuffs: HeroBuff[];
 }
 
 export interface BossRuntime {

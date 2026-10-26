@@ -18,7 +18,9 @@ import {
   completeBattle,
   createGameState,
   nextCardOffer,
+  rerollCards,
   restoreCheckpoint,
+  skipCards,
   teleport,
   travel,
 } from '../systems/run';
@@ -200,9 +202,16 @@ export class App {
     const offer = nextCardOffer(this.state);
     if (offer.length === 0) return;
     this.screens.pushModal(
-      createCardChoiceModal(this, offer, req.level, (card) => {
-        chooseCard(this.state, card);
-        this.screens.popModal();
+      createCardChoiceModal(this, offer, req.level, {
+        onChosen: (card) => {
+          chooseCard(this.state, card);
+          this.screens.popModal();
+        },
+        onReroll: (rerolls) => rerollCards(this.state, rerolls),
+        onSkip: () => {
+          skipCards(this.state, req.level, this.battle !== null);
+          this.screens.popModal();
+        },
       }),
     );
   }

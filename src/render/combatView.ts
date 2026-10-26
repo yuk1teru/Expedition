@@ -533,6 +533,14 @@ function drawHero(ctx: CanvasRenderingContext2D, h: Hero, b: Battle, t: number, 
       ctx.arc(0, 0, r + 3, t * 5, t * 5 + Math.PI * 1.2);
       ctx.stroke();
     }
+    if ((buff.damageMult ?? 1) > 1) {
+      // Skip-card buff: pulsing green-gold aura.
+      ctx.strokeStyle = `rgba(150, 230, 110, ${0.5 + 0.3 * Math.sin(t * 8)})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, r + 12, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     if (buff.damageTakenMult < 1) {
       // Damage reduction: steel hexagon shield.
       ctx.strokeStyle = 'rgba(190, 210, 235, 0.85)';
