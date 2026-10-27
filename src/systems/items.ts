@@ -51,6 +51,8 @@ export interface Item {
   identified: boolean;
   /** Not looked at in the inventory yet (drives the blinking hint). */
   isNew?: boolean;
+  /** A rune stone with this soul set into it (ROADMAP 14.3); one per item. */
+  stone?: string;
 }
 
 /** Stat multiplier of an item level: linear for flat stats, square root for percent ones. */

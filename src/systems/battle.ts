@@ -1,5 +1,6 @@
 // One combat encounter. Pure simulation: no render, no DOM.
 
+import { type LooseSoul, updateSouls } from './souls';
 import type { ArenaFlip } from './arena';
 import type { ObjectiveKind } from '../data/objectives';
 import { type ObjectiveState, setupObjective, updateObjective } from './objectives';
@@ -109,6 +110,8 @@ export interface Battle {
   /** Weather of the running event wave. */
   weather: WeatherState | null;
   waves: WaveState | null;
+  /** Souls of beasts hovering where they fell (ROADMAP 14.3). */
+  souls: LooseSoul[];
   /** The goal of an objective arena (no waves then). */
   objective: ObjectiveState | null;
   /** Crossing a cleared location (autopath, ROADMAP 10.4): one wave, won when it is cleared; not a clear of the location. */
@@ -196,6 +199,7 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0, tr
           ? createWaves(0, 1, false)
           : createWaves(startWave, plan?.waves ?? WAVES.count, plan?.miniboss ?? true),
     objective: null,
+    souls: [],
     transit: transit && !node.isBoss,
     boss: null,
     stats: { kills: 0, xp: 0, gold: 0, damageDealt: 0, damageTaken: 0, heals: 0, killsById: {}, minibossKills: 0, loot: [], trophies: {} },
@@ -283,6 +287,7 @@ export function stepBattle(b: Battle, dt: number): void {
   updateHazards(b, dt);
   updateManaOrbs(b, dt);
   updatePickups(b, dt);
+  updateSouls(b, dt);
   updateTraps(b);
   updateWeather(b, dt);
   updateProjectiles(b, dt);

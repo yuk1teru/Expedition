@@ -30,6 +30,10 @@ export function eventSound(e: GameEvent): SoundId | null {
       return 'gold';
     case 'trophy':
       return e.kind === 'common' ? 'loot' : 'lootRare';
+    case 'soulAppear':
+      return 'lootRare';
+    case 'runeStone':
+      return 'loot';
     case 'healUse':
       return 'heal';
     case 'heroDeath':

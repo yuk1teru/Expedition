@@ -1,5 +1,8 @@
 // Application shell: owns the view, input, loop, screens and the run state.
 
+import { SOULS } from '../data/souls';
+import { ELEMENTS } from '../data/elements';
+import { catchSoul, stoneEffectText } from '../systems/souls';
 import { QUESTS } from '../data/quests';
 import { createAlchemyModal } from './alchemy';
 import { ORDERS_QUEST, ordersUnlocked } from '../systems/orders';
@@ -59,7 +62,7 @@ import { abandonExpedition, chooseNext, finishStep, nextChoice, startExpedition,
 import { createTitleScreen } from './titleScreen';
 import { createCoachModal } from './coach';
 import { createSettingsModal } from './settingsModal';
-import { createNoticeModal } from './notice';
+import { createConfirmModal, createNoticeModal } from './notice';
 import { createJournalModal } from './journal';
 import { createTalentTreeModal } from './talentTree';
 import { HINTS, type HintId } from '../data/hints';
@@ -605,6 +608,24 @@ export class App {
             }),
           );
         }),
+      );
+      return;
+    }
+    if (req.kind === 'soulCatch') {
+      const soul = SOULS[req.soul];
+      if (!soul) return;
+      this.screens.pushModal(
+        createConfirmModal(
+          this,
+          'Зберегти душу в камені?',
+          `${soul.name}. У зброї — стихія «${ELEMENTS[soul.element].name}»; в іншій речі — ${stoneEffectText(soul.effect)}. Порожніх каменів: ${this.state.runeStones}.`,
+          ['Зберегти', 'Відпустити'],
+          (yes) => {
+            if (yes) catchSoul(this.state, req.soul);
+            this.screens.popModal();
+          },
+          soul.color,
+        ),
       );
       return;
     }

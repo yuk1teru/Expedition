@@ -61,7 +61,8 @@ export interface QuestDef {
   /** NPC to report to (default: the giver). */
   turnIn?: string;
   classId?: string;
-  requires?: { quests?: string[]; level?: number; note?: string };
+  /** `flag`: something the hero has seen (a soul — ROADMAP 14.3). */
+  requires?: { quests?: string[]; level?: number; flag?: 'soulSeen'; note?: string };
   /** What the giver says when offering the quest. */
   offer: string;
   objectives: QuestObjective[];
@@ -655,7 +656,7 @@ export const QUESTS: Record<string, QuestDef> = {
     name: 'Душі, що блукають',
     kind: 'system',
     giver: 'tavernWanderer',
-    requires: { note: 'Перша душа звіра впала з ворога.' },
+    requires: { flag: 'soulSeen', note: 'Перша душа звіра впала з ворога.' },
     offer: 'Бачив, як над убитим звіром тремтить світло? Це душа. Вона не може піти в {name:dead}. Сідай, розкажу, що з нею робити.',
     objectives: [{ kind: 'talk', target: 'tavernWanderer' }],
     done: 'Ось три рунічні камені. Підійди до душі з каменем у сумці — і вона ввійде в нього. Камінь вставиш у річ. Решту каменів шукай сам — або забирай у мінібосів.',

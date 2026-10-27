@@ -40,6 +40,10 @@ export type GameEvent =
   | { type: 'healUse'; id: HealId; pos: Vec; total: number; duration: number }
   | { type: 'loot'; pos: Vec; name: string; rarity: Rarity }
   /** A trophy dropped (ROADMAP 14.1). */
+  | { type: 'soulAppear'; pos: Vec; soul: string }
+  /** A soul touched without an empty rune stone: it fades. */
+  | { type: 'soulLost'; pos: Vec; soul: string }
+  | { type: 'runeStone'; pos: Vec }
   | { type: 'trophy'; pos: Vec; id: string; kind: TrophyKind }
   | { type: 'levelUp'; level: number; hp: number; attack: number }
   | { type: 'heroDeath'; pos: Vec }

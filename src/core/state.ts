@@ -23,7 +23,9 @@ export interface RunStats {
 }
 
 /** `bossReward`: the extra card for a boss victory (not a level-up). */
-export type ModalRequest = { kind: 'classChoice' } | { kind: 'gift'; rarity: GiftRarity } | { kind: 'promotion' } | { kind: 'promotion2' };
+export type ModalRequest = { kind: 'classChoice' } | { kind: 'gift'; rarity: GiftRarity } | { kind: 'promotion' } | { kind: 'promotion2' }
+  /** A soul touched with an empty rune stone in the bag (ROADMAP 14.3). */
+  | { kind: 'soulCatch'; soul: string };
 
 export interface GameState {
   seed: number;
@@ -67,6 +69,8 @@ export interface GameState {
   runeStones: number;
   /** Orders of the artifact buyer handed in (ROADMAP 14.1а). */
   ordersDone: string[];
+  /** A beast's soul has been seen (ROADMAP 14.3): the wanderer tells about the stones. */
+  soulSeen: boolean;
   /** Map nodes the hero has been to (fog of war, ROADMAP 10.6). */
   nodesVisited: string[];
   /** Secret places revealed (a hint, a quest). */

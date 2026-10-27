@@ -5,6 +5,9 @@
 // Herbs and potions go onto the quick slots by dragging or via the right-click menu.
 // The game is paused while it is open.
 
+import { SOULS } from '../data/souls';
+import { ELEMENTS } from '../data/elements';
+import { socketStone, stoneEffectText } from '../systems/souls';
 import { getRecipe } from '../systems/alchemy';
 import type { InputEvent } from '../core/input';
 import type { Modal } from '../core/screens';
@@ -127,6 +130,10 @@ export function itemTooltip(item: Item, extra: string[], hero?: Hero, compare = 
   if (item.identified) {
     for (const s of item.stats) add(formatStat(s));
     for (const p of itemPerks(item)) add(p, '#8fd3ff');
+    if (item.stone && SOULS[item.stone]) {
+      const soul = SOULS[item.stone]!;
+      add(`Камінь: ${soul.name} — ${item.slot === 'weapon' ? `стихія «${ELEMENTS[soul.element].name}»` : stoneEffectText(soul.effect)}`, soul.color);
+    }
   } else {
     add('Не розпізнано: використайте лупу');
     add('(ПКМ → «Розпізнати» або перетягніть лупу на річ)', THEME.textDim);
@@ -195,6 +202,47 @@ function trophyList(h: Hero): [string, number][] {
   return Object.entries(h.trophies)
     .filter(([id, n]) => n > 0 && TROPHIES[id])
     .sort(([a], [b]) => KIND_ORDER.indexOf(TROPHIES[a]!.kind) - KIND_ORDER.indexOf(TROPHIES[b]!.kind) || a.localeCompare(b));
+}
+
+/** A cell of the trophies tab: empty rune stones, stones with a soul (ROADMAP 14.3), trophies. */
+type TrophyCell = { kind: 'empty'; n: number } | { kind: 'stone'; soul: string; index: number } | { kind: 'trophy'; id: string; n: number };
+
+function trophyCells(state: App['state']): TrophyCell[] {
+  const h = state.hero;
+  const out: TrophyCell[] = [];
+  if (state.runeStones > 0) out.push({ kind: 'empty', n: state.runeStones });
+  h.soulStones.forEach((soul, index) => out.push({ kind: 'stone', soul, index }));
+  for (const [id, n] of trophyList(h)) out.push({ kind: 'trophy', id, n });
+  return out;
+}
+
+/** A rune stone: a cut gem in the soul's colour (grey — empty). */
+function drawRuneStone(ctx: CanvasRenderingContext2D, color: string | null, x: number, y: number, size: number): void {
+  const r = size / 2;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = color ?? '#6a6f80';
+  ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, -r);
+  ctx.lineTo(r * 0.8, -r * 0.3);
+  ctx.lineTo(r * 0.55, r * 0.8);
+  ctx.lineTo(-r * 0.55, r * 0.8);
+  ctx.lineTo(-r * 0.8, -r * 0.3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // The rune.
+  ctx.strokeStyle = color ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(0, -r * 0.5);
+  ctx.lineTo(0, r * 0.45);
+  ctx.moveTo(-r * 0.25, -r * 0.15);
+  ctx.lineTo(r * 0.25, r * 0.15);
+  ctx.stroke();
+  ctx.restore();
 }
 
 export function createInventoryModal(app: App, onClose: () => void): Modal<CanvasRenderingContext2D> {
@@ -326,6 +374,21 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
             return;
           }
         }
+        // A stone with a soul: the menu to set it into a worn item.
+        if (tab === 'trophies' && (e.button === 0 || e.button === 2)) {
+          const cells = trophyCells(app.state);
+          for (let i = 0; i < cells.length && i < BAG_COLS * BAG_ROWS; i++) {
+            const c = cells[i]!;
+            if (c.kind !== 'stone' || !inRect(bagCell(i), e.x, e.y)) continue;
+            const options: MenuOption[] = ITEM_SLOTS.map((sl) => {
+              const item = hero().equipment[sl.id];
+              const label = !item ? `${sl.name}: нічого не вдягнено` : item.stone ? `${sl.name}: уже з каменем` : `Вставити: ${sl.name}`;
+              return { label, enabled: !!item && !item.stone, run: () => void socketStone(hero(), c.index, sl.id) };
+            });
+            menu = { x: Math.min(e.x, PANEL.x + PANEL.w - MENU_W - 8), y: e.y, options };
+            return;
+          }
+        }
         if (e.button === 2) {
           openMenu(e.x, e.y);
           return;
@@ -389,25 +452,34 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
         drawText(ctx, slot.name, box.x + box.w / 2, box.y + box.h + 12, { size: 12, align: 'center', color: THEME.textDim });
       }
 
-      const trophies = trophyList(h);
-      const trophyCount = trophies.reduce((a, [, n]) => a + n, 0);
+      const cells = trophyCells(app.state);
+      const trophyCount = trophyList(h).reduce((a, [, n]) => a + n, 0);
       drawTab(ctx, TAB_RECTS.items, `Речі (${h.bag.length})`, tab === 'items');
       drawTab(ctx, TAB_RECTS.trophies, `Трофеї (${trophyCount})`, tab === 'trophies');
       if (tab === 'trophies') {
         for (let i = 0; i < BAG_COLS * BAG_ROWS; i++) {
           const cell = bagCell(i);
-          const entry = trophies[i];
+          const c = cells[i];
+          const color = !c ? THEME.panelBorder : c.kind === 'trophy' ? TROPHY_COLORS[TROPHIES[c.id]!.kind] : c.kind === 'stone' ? (SOULS[c.soul]?.color ?? '#ffffff') : '#8a8fa0';
           roundRect(ctx, cell.x, cell.y, cell.w, cell.h, 8);
-          ctx.fillStyle = entry ? '#22283a' : '#1a1f2d';
+          ctx.fillStyle = c ? '#22283a' : '#1a1f2d';
           ctx.fill();
-          ctx.strokeStyle = entry ? TROPHY_COLORS[TROPHIES[entry[0]]!.kind] : THEME.panelBorder;
+          ctx.strokeStyle = color;
           ctx.lineWidth = 1.5;
           ctx.stroke();
-          if (!entry) continue;
-          drawTrophyIcon(ctx, TROPHIES[entry[0]]!.kind, cell.x + cell.w / 2, cell.y + cell.h / 2 - 3, cell.w * 0.55);
-          drawText(ctx, `${entry[1]}`, cell.x + cell.w - 4, cell.y + cell.h - 7, { size: 11, bold: true, align: 'right' });
+          if (!c) continue;
+          const cx = cell.x + cell.w / 2;
+          const cy = cell.y + cell.h / 2 - 3;
+          if (c.kind === 'trophy') {
+            drawTrophyIcon(ctx, TROPHIES[c.id]!.kind, cx, cy, cell.w * 0.55);
+            drawText(ctx, `${c.n}`, cell.x + cell.w - 4, cell.y + cell.h - 7, { size: 11, bold: true, align: 'right' });
+          } else if (c.kind === 'stone') drawRuneStone(ctx, SOULS[c.soul]?.color ?? '#ffffff', cx, cy, cell.w * 0.55);
+          else {
+            drawRuneStone(ctx, null, cx, cy, cell.w * 0.55);
+            drawText(ctx, `${c.n}`, cell.x + cell.w - 4, cell.y + cell.h - 7, { size: 11, bold: true, align: 'right' });
+          }
         }
-        if (trophies.length === 0) drawText(ctx, 'Трофеїв ще немає — їх лишають монстри', BAG_X + (BAG_COLS * CELL) / 2 - 3, BAG_Y + 100, { size: 13, align: 'center', color: THEME.textDim });
+        if (cells.length === 0) drawText(ctx, 'Трофеїв ще немає — їх лишають монстри', BAG_X + (BAG_COLS * CELL) / 2 - 3, BAG_Y + 100, { size: 13, align: 'center', color: THEME.textDim });
       }
       for (let i = 0; tab === 'items' && i < BAG_COLS * BAG_ROWS; i++) {
         const item = h.bag[i] ?? null;
@@ -513,13 +585,23 @@ function drawTab(ctx: CanvasRenderingContext2D, r: Rect, label: string, active: 
   drawText(ctx, label, r.x + r.w / 2, r.y + r.h / 2, { size: 13, bold: active, align: 'center', color: active ? THEME.accent : THEME.textDim });
 }
 
-/** The tooltip of the trophy under the mouse (false: none there). */
+/** The tooltip of the trophy or the stone under the mouse (false: none there). */
 function trophyTooltip(ctx: CanvasRenderingContext2D, app: App, m: { x: number; y: number }): boolean {
-  const h = app.state.hero;
-  const list = trophyList(h);
-  for (let i = 0; i < list.length && i < BAG_COLS * BAG_ROWS; i++) {
+  const cells = trophyCells(app.state);
+  for (let i = 0; i < cells.length && i < BAG_COLS * BAG_ROWS; i++) {
     if (!inRect(bagCell(i), m.x, m.y)) continue;
-    const [id, n] = list[i]!;
+    const c = cells[i]!;
+    if (c.kind === 'empty') {
+      drawTooltip(ctx, [`Рунічний камінь × ${c.n}`, 'Порожній: торкніться душі звіра на арені — і вона ввійде в камінь'], m.x, m.y, app.view.width, app.view.height);
+      return true;
+    }
+    if (c.kind === 'stone') {
+      const soul = SOULS[c.soul]!;
+      const lines = [`Камінь: ${soul.name}`, `У зброї — стихія атак «${ELEMENTS[soul.element].name}»`, `В іншій речі — ${stoneEffectText(soul.effect)}`, 'Клік — вставити в одягнену річ (один на річ; дістане лише коваль)'];
+      drawTooltip(ctx, lines, m.x, m.y, app.view.width, app.view.height, [soul.color]);
+      return true;
+    }
+    const { id, n } = c;
     const tr = TROPHIES[id]!;
     const wanted = trophiesWanted(app.state, id);
     const lines = [fillNames(tr.name), `${TROPHY_KIND_NAMES[tr.kind]} · у вас: ${n}`, fillNames(tr.description), `Торговець дасть: ${tr.price} зол. за штуку`];

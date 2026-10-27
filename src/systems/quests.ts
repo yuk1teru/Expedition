@@ -61,6 +61,7 @@ export function questsOffered(state: GameState, npcId: string): QuestDef[] {
     const r = q.requires;
     if (r?.quests?.some((id) => !state.quests.done.includes(id))) return false;
     if (r?.level && state.hero.level < r.level) return false;
+    if (r?.flag && !state[r.flag]) return false;
     return true;
   });
 }

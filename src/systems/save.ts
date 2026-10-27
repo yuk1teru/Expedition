@@ -55,6 +55,7 @@ export interface SaveData {
   talentPoints?: number;
   runeStones?: number;
   ordersDone?: string[];
+  soulSeen?: boolean;
 }
 
 /**
@@ -76,8 +77,8 @@ const MIGRATIONS: Record<number, (data: Record<string, unknown>) => Record<strin
     const queue = (d.modalQueue as { kind: string }[]).filter((m) => m.kind !== 'cardChoice');
     return { ...d, hero: { ...hero, skills, freeSkills: [], arrows: [] }, modalQueue: queue };
   },
-  // 4: trophies in the bag (ROADMAP 14.1).
-  3: (d) => ({ ...d, hero: { ...(d.hero as object), trophies: {} } }),
+  // 4: trophies and soul stones in the bag (ROADMAP 14.1, 14.3).
+  3: (d) => ({ ...d, hero: { ...(d.hero as object), trophies: {}, soulStones: [] } }),
 };
 
 /** The save of the hero's progress at the last checkpoint. */
@@ -116,6 +117,7 @@ export function toSave(state: GameState, now = Date.now()): SaveData {
     talentPoints: state.talentPoints,
     runeStones: state.runeStones,
     ordersDone: state.ordersDone,
+    soulSeen: state.soulSeen,
   });
 }
 
@@ -182,6 +184,7 @@ export function fromSave(data: SaveData): GameState {
     talentPoints: data.talentPoints ?? 0,
     runeStones: data.runeStones ?? 0,
     ordersDone: [...(data.ordersDone ?? [])],
+    soulSeen: data.soulSeen ?? false,
   };
   return { ...state, checkpoint: snapshot(state) };
 }

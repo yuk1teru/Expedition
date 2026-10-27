@@ -178,6 +178,8 @@ export interface Hero extends Body {
   consumables: Record<ConsumableId, number>;
   /** Trophies in the bag by id (ROADMAP 14.1). */
   trophies: Record<string, number>;
+  /** Rune stones holding a soul, not set into an item yet (soul ids; ROADMAP 14.3). */
+  soulStones: string[];
   /** The elixir drunk (ROADMAP 14.2): its recipe and the arenas it still holds for. */
   elixir?: { recipe: string; arenas: number } | null;
   /** Healing items on the quick slots Z / X / C (null: empty). */

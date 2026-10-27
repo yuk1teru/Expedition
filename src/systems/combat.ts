@@ -1,5 +1,6 @@
 // Damage, crits, armor, lifesteal, thorns, kills, knockback and statuses.
 
+import { dropSoul, stoneResist } from './souls';
 import { dropTrophies } from './trophies';
 import { ENEMY_COMMON, HERO, HERO_DEBUFFS } from '../data/balance';
 import type { Rng } from '../core/rng';
@@ -110,6 +111,7 @@ export function killEnemy(b: Battle, e: Enemy): void {
   }
   if (e.boss) dropLoot(b, e);
   dropTrophies(b, e);
+  dropSoul(b, e);
   if (hasStatus(e, 'freeze')) shatter(b, e);
   manaFromKill(b, e);
   const split = ENEMIES[e.defId]?.split;
@@ -285,7 +287,9 @@ export function heroCcImmune(hero: Hero): boolean {
 export function debuffHero(b: Battle, id: 'slow' | 'root' | 'stun', time: number, value = 0): boolean {
   const hero = b.hero;
   if (hero.dead || hero.invulnerable > 0 || heroCcImmune(hero)) return false;
-  addStatus(hero, id, time, id === 'slow' ? Math.min(HERO_DEBUFFS.maxSlow, value) : value);
+  // Soul stones resist (ROADMAP 14.3): slows and roots, stuns last shorter.
+  const resist = stoneResist(hero, id === 'stun' ? 'stun' : 'slow');
+  addStatus(hero, id, time * (1 - resist), id === 'slow' ? Math.min(HERO_DEBUFFS.maxSlow, value) : value);
   return true;
 }
 
@@ -320,6 +324,7 @@ export function updateHeroHealing(b: Battle, dt: number): void {
 function poisonHero(b: Battle, amount: number): void {
   const hero = b.hero;
   if (hero.dead || hero.invulnerable > 0 || amount <= 0) return;
+  amount *= 1 - stoneResist(hero, 'poison');
   if (hero.immortal) amount = Math.min(amount, Math.max(0, hero.hp - 1));
   hero.hp -= amount;
   b.stats.damageTaken += amount;

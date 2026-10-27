@@ -1,5 +1,6 @@
 // Hero creation and derived stats.
 
+import { stoneStat, weaponElement } from './souls';
 import { elixirStat } from './alchemy';
 import type { GiftStat } from '../data/gifts';
 import { giftStat } from './gifts';
@@ -44,6 +45,7 @@ export function createHero(id: number): Hero {
     bag: [],
     consumables: { magnifier: 0, herbGreen: 0, herbRed: 0, herbWhite: 0, potionSmall: 0, potionMedium: 0, potionLarge: 0 },
     trophies: {},
+    soulStones: [],
     elixir: null,
     quickSlots: [null, null, null],
     healCooldown: 0,
@@ -92,12 +94,12 @@ function baseStats(level: number): HeroStats {
 }
 
 /** The hero's auto-attack: the class one, or the novice one before the class choice. */
-/** Element of the hero's basic attack: the archer's arrows, otherwise neutral (a soul stone — stage 14). */
+/** Element of the hero's basic attack: the archer's arrows, else the soul stone in the weapon, else neutral. */
 export function basicElement(hero: Hero): Element {
-  if (hero.classId === 'archer') return hero.arrowElement;
+  if (hero.classId === 'archer' && hero.arrowElement !== 'neutral') return hero.arrowElement;
   // Paladin: while the branch barrier holds, the blows are holy.
   if (hero.promotion === 'paladin' && hero.buffs.some((b) => b.id === 'aegis' && (b.shield ?? 0) > 0)) return 'holy';
-  return 'neutral';
+  return weaponElement(hero) ?? 'neutral';
 }
 
 /** Archer (Q): the next learned arrow type (plain arrows included). */
@@ -198,8 +200,8 @@ export function recomputeHeroStats(hero: Hero): void {
         break;
     }
   }
-  // Gifts (ROADMAP 12.8) and the elixir drunk (14.2).
-  const bonus = (st: GiftStat): number => giftStat(hero, st) + elixirStat(hero, st);
+  // Gifts (ROADMAP 12.8), the elixir drunk (14.2) and the soul stones in the items (14.3).
+  const bonus = (st: GiftStat): number => giftStat(hero, st) + elixirStat(hero, st) + stoneStat(hero, st);
   s.attackSpeed *= 1 + bonus('attackSpeedPct');
   hpPct += bonus('hpPct');
   s.critChance += bonus('critChance');

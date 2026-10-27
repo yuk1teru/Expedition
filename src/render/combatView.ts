@@ -1,5 +1,7 @@
 // Combat screen: arena, entities, effects, HUD; drives the battle simulation.
 
+import { SOULS, SOUL_RULES } from '../data/souls';
+import type { LooseSoul } from '../systems/souls';
 import { TROPHIES, TROPHY_COLORS } from '../data/trophies';
 import { fillNames } from '../data/names';
 import { OBJECTIVES } from '../data/objectives';
@@ -200,6 +202,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       for (const z of b.zones) drawZone(ctx, z, b, app.time);
       drawObstacles(ctx, b);
       if (b.objective?.kind === 'rescue') drawCaptive(ctx, b, app.time);
+      for (const s of b.souls) drawSoul(ctx, s, app.time);
       for (const h of b.hazards) drawHazard(ctx, h, app.time);
       for (const p of b.pickups) drawPickup(ctx, p, b, app.time);
       for (const o of b.manaOrbs) drawManaOrb(ctx, o, app.time);
@@ -354,6 +357,16 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
     case 'miniboss':
       fx.showBanner(`Мінібос: ${e.name}`, THEME.bad);
       fx.burst(e.pos, P.eliteDeath, THEME.bad);
+      break;
+    case 'soulAppear':
+      fx.text({ x: e.pos.x, y: e.pos.y - 34 }, SOULS[e.soul]?.name ?? 'Душа', SOULS[e.soul]?.color ?? '#ffffff', 15, 2);
+      fx.ring(e.pos, 40, SOULS[e.soul]?.color ?? '#ffffff', 0.8, 4);
+      break;
+    case 'soulLost':
+      fx.text({ x: e.pos.x, y: e.pos.y - 34 }, 'Душа розвіялась — потрібен рунічний камінь', THEME.textDim, 13, 2.4);
+      break;
+    case 'runeStone':
+      fx.text({ x: e.pos.x, y: e.pos.y - 40 }, '+ рунічний камінь', '#c58cff', 16, 2);
       break;
     case 'trophy': {
       const tr = TROPHIES[e.id];
@@ -688,6 +701,29 @@ export function drawStatusMarks(ctx: CanvasRenderingContext2D, e: Enemy, t: numb
   if ((e.statuses.taunt?.time ?? 0) > 0) {
     drawText(ctx, '!', e.pos.x, e.pos.y - e.radius - 10, { size: 14, bold: true, align: 'center', color: '#ff6b5e' });
   }
+}
+
+/** A beast's soul: a wisp of light that bobs and fades in its last seconds. */
+function drawSoul(ctx: CanvasRenderingContext2D, s: LooseSoul, t: number): void {
+  const color = SOULS[s.soul]?.color ?? '#ffffff';
+  const left = SOUL_RULES.life - s.time;
+  const alpha = left < 3 ? Math.max(0.15, left / 3) * (0.7 + 0.3 * Math.sin(t * 14)) : 1;
+  const y = s.pos.y - 10 + Math.sin(t * 3 + s.id) * 4;
+  ctx.save();
+  ctx.globalAlpha = alpha * 0.35;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(s.pos.x, y, 18 + Math.sin(t * 5) * 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = alpha;
+  ctx.beginPath();
+  ctx.ellipse(s.pos.x, y, 7, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(s.pos.x, y - 2, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 }
 
 /** A nest of an objective arena: a mound with holes that swells before it hatches. */

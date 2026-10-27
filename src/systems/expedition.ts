@@ -2,6 +2,8 @@
 // current one, what each arena gives when won (altar — a gift once per location, treasure
 // and lair — chests) and the fork choice. Shared by the game and the bot.
 
+import { SOUL_RULES } from '../data/souls';
+import { giveStone } from './souls';
 import type { GameState } from '../core/state';
 import { EXPEDITION, type ArenaStepKind } from '../data/expedition';
 import { OBJECTIVES, type ObjectiveKind } from '../data/objectives';
@@ -158,6 +160,10 @@ function arenaReward(state: GameState, b: Battle, kind: ArenaStepKind): string[]
       state.expedition?.loot.push(item);
       out.push(displayName(item));
       for (const tr of rollRelics(b)) out.push(fillNames(tr.name));
+      if (state.lootRng.chance(SOUL_RULES.treasureStone)) {
+        giveStone(b, b.hero.pos);
+        out.push('рунічний камінь');
+      }
     }
   }
   return out;
