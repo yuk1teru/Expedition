@@ -83,11 +83,14 @@ export function chooseTarget(state: GameState): string | null {
     return best;
   };
   const tier = (n: (typeof world.nodes)[number]): number => effectiveLevel(n, state.bossesDefeated.length);
+  const left = world.nodes.filter((n) => n.isBoss && !state.bossesDefeated.includes(n.id));
+  const ready = left.filter((n) => tier(n) <= state.hero.level + SIM.botBossLevelSlack).map((n) => n.id);
+  // Raids (ROADMAP 15.2): a raid not driven off makes the location fall — unless a boss is ready.
+  const raids = Object.keys(state.raids).filter((id) => tier(getNode(world, id)) <= limit);
+  if (raids.length > 0 && ready.length === 0) return byDistance(raids);
   const open = world.nodes.filter((n) => !n.isTown && !n.isBoss && n.timesCleared === 0 && tier(n) <= limit).map((n) => n.id);
   if (open.length > 0) return byDistance(open);
   // A boss once the hero is about its recommended level (the fixed world has early bosses).
-  const left = world.nodes.filter((n) => n.isBoss && !state.bossesDefeated.includes(n.id));
-  const ready = left.filter((n) => tier(n) <= state.hero.level + SIM.botBossLevelSlack).map((n) => n.id);
   if (ready.length > 0) return byDistance(ready);
   // Otherwise farm: replay the hardest cleared location within the limit (or the easiest boss left).
   const farm = world.nodes.filter((n) => !n.isTown && !n.isBoss && n.timesCleared > 0 && tier(n) <= limit);

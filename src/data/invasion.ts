@@ -38,9 +38,9 @@ export const INVASION_EVENTS = {
   raid: {
     /** From this percent on, a raid every `every` days on a cleared location (not a boss lair). */
     from: 25,
-    every: 3,
+    every: 7,
     /** Not driven off in this many days — the location falls (it has to be cleared again). */
-    days: 6,
+    days: 10,
     /** The dead among the beasts: this share of every wave. */
     raider: 'deadRaider',
     raiderShare: 0.35,

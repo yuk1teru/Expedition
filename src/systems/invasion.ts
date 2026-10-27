@@ -19,6 +19,12 @@ function targetLand(state: GameState): string | null {
   return null;
 }
 
+/** The front of the raids: the land of the weakest boss still alive (where the hero fights now). */
+export function raidLand(state: GameState): string | null {
+  const alive = state.world.nodes.filter((n) => n.isBoss && !state.bossesDefeated.includes(n.id)).sort((a, b) => a.level - b.level);
+  return alive[0]?.region ?? null;
+}
+
 function townOf(state: GameState, region: string): MapNode | undefined {
   return state.world.nodes.find((n) => n.isTown && n.region === region);
 }
@@ -40,9 +46,10 @@ export function invasionTick(state: GameState, here: string): void {
     resetClears(node);
     news(state, 'Локацію втрачено', `Мерці закріпилися в локації «${node.name}». Її доведеться пройти знову.`);
   }
-  // A new raid every few days on a cleared location.
-  if (pct >= ev.raid.from && state.day - state.lastRaidDay >= ev.raid.every) {
-    const pool = state.world.nodes.filter((n) => !n.isTown && !n.isBoss && n.timesCleared > 0 && n.id !== here && state.raids[n.id] === undefined);
+  // A new raid every few days on a cleared location of the front.
+  const front = raidLand(state);
+  if (front && pct >= ev.raid.from && state.day - state.lastRaidDay >= ev.raid.every) {
+    const pool = state.world.nodes.filter((n) => n.region === front && !n.isTown && !n.isBoss && n.timesCleared > 0 && n.id !== here && state.raids[n.id] === undefined);
     if (pool.length > 0) {
       const node = state.rng.pick(pool);
       state.raids[node.id] = state.day;
