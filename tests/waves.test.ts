@@ -1,16 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { ARENA, LOOP, WAVES } from '../src/data/balance';
+import { LOOP, WAVES } from '../src/data/balance';
 import { type Battle, createBattle, killAll, stepBattle } from '../src/systems/battle';
 import { createBossEnemy } from '../src/systems/boss';
 import { killEnemy } from '../src/systems/combat';
-import { dist } from '../src/systems/entities';
 import { createGameState, teleport } from '../src/systems/run';
 import { TRAPS } from '../src/data/balance';
 import { ENEMIES } from '../src/data/enemies';
 import { CONSUMABLES, PICKUP_SPAWN } from '../src/data/consumables';
 import { maybeSpawnPickup } from '../src/systems/pickups';
 import { spawnTraps, trapsForWave, updateTraps } from '../src/systems/traps';
-import { inBreak, isPortalBreak, portalActive, portalInReach, requestPortalEntry, skipBreak, spawnEnemy, waveEvent, waveMult, waveSize } from '../src/systems/waves';
+import { spawnEnemy, waveEvent, waveMult, waveSize } from '../src/systems/waves';
 
 function grove(): { b: Battle } {
   const s = createGameState(21);
@@ -61,42 +60,6 @@ describe('waves', () => {
     expect(waveEvent(15)).toBe('weather');
   });
 
-  it('a break can be skipped (also the portal one)', () => {
-    const { b } = grove();
-    clearWaves(b, WAVES.portalEvery);
-    expect(inBreak(b)).toBe(true);
-    expect(skipBreak(b)).toBe(true);
-    stepBattle(b, LOOP.step);
-    expect(b.waves!.started).toBe(true);
-    expect(portalActive(b)).toBe(false);
-    expect(skipBreak(b)).toBe(false);
-  });
-
-  it('skipping a break takes the skipped seconds off skill and boot-dash cooldowns', () => {
-    const { b } = grove();
-    clearWaves(b, WAVES.portalEvery);
-    const left = b.waves!.pause;
-    b.hero.skills = [{ id: 'whirlwind', rank: 1, slot: 0, cooldown: left + 2 }, { id: 'charge', rank: 1, slot: 1, cooldown: 1 }];
-    b.hero.dodgeCooldown = left + 3;
-    expect(skipBreak(b)).toBe(true);
-    expect(b.hero.skills[0]!.cooldown).toBeCloseTo(2);
-    expect(b.hero.skills[1]!.cooldown).toBe(0);
-    expect(b.hero.dodgeCooldown).toBeCloseTo(3);
-  });
-
-  it('continuing starts from the remembered wave, with 3 mandatory waves', () => {
-    const s = createGameState(5);
-    s.hero.immortal = true;
-    teleport(s, 'quietGrove');
-    const b = createBattle(s, 'quietGrove', 9);
-    expect(b.waves!.index).toBe(9);
-    expect(b.waves!.total).toBe(12);
-    clearWaves(b, 11);
-    expect(portalActive(b)).toBe(false);
-    clearWaves(b, 12);
-    expect(portalActive(b)).toBe(true);
-  });
-
   it('traps appear from their wave on and root the hero', () => {
     expect(trapsForWave(TRAPS.fromWave - 1)).toBe(0);
     expect(trapsForWave(TRAPS.fromWave)).toBeGreaterThan(0);
@@ -123,28 +86,7 @@ describe('waves', () => {
     expect(kinds.has('herbGreen')).toBe(true);
   });
 
-  it('portal opens only after every 3rd wave; the miniboss comes with every 3rd wave and grows', () => {
-    const { b } = grove();
-    const minibossHp: number[] = [];
-    const seen = new Set<number>();
-    clearWaves(b, 2);
-    expect(b.portal).toBeNull();
-    clearWaves(b, 6, () => {
-      for (const e of b.enemies) {
-        if (e.boss && !seen.has(e.id)) {
-          seen.add(e.id);
-          minibossHp.push(e.maxHp);
-        }
-      }
-      if (b.waves && !b.waves.started) {
-        expect(portalActive(b)).toBe(isPortalBreak(b.waves.cleared));
-      }
-    });
-    expect(minibossHp).toHaveLength(2);
-    expect(minibossHp[1]!).toBeGreaterThan(minibossHp[0]!);
-  });
-
-  it('the next wave comes to help when ≤ 40% of the current one is left; the 3rd wave ends with a full clear and the portal', () => {
+  it('the next wave comes to help when ≤ 40% of the current one is left; the last wave ends with a full clear and the win', () => {
     const { b } = grove();
     const w = b.waves!;
     for (let t = 0; t < 10 && !(w.started && w.queue.length === 0); t += LOOP.step) stepBattle(b, LOOP.step);
@@ -164,8 +106,26 @@ describe('waves', () => {
     expect(b.enemies.some((e) => !e.dead && e.wave === 0)).toBe(true);
     clearWaves(b, 3);
     expect(b.enemies.filter((e) => !e.dead)).toHaveLength(0);
-    expect(w.portalBreak).toBe(true);
-    expect(w.pause).toBeCloseTo(WAVES.breaks.portal, 1);
+    expect(w.done).toBe(true);
+    stepBattle(b, LOOP.step);
+    expect(b.outcome).toBe('won');
+  });
+
+  it('an arena of the trip: its own number of waves, the growth goes on, the miniboss comes with the last wave of a lair', () => {
+    const s = createGameState(5);
+    s.hero.immortal = true;
+    teleport(s, 'quietGrove');
+    const entrance = createBattle(s, 'quietGrove', 0, false, { waves: 2, miniboss: false });
+    expect(entrance.waves!.total).toBe(2);
+    const lair = createBattle(s, 'quietGrove', 3, false, { waves: 1, miniboss: true });
+    expect(lair.waves!.index).toBe(3);
+    expect(lair.waves!.mult.hp).toBeCloseTo(waveMult(3).hp);
+    let boss = false;
+    clearWaves(lair, 4, () => {
+      if (lair.enemies.some((e) => e.boss && !e.dead)) boss = true;
+    });
+    expect(boss).toBe(true);
+    expect(lair.waves!.done).toBe(true);
   });
 
   it('no help while a miniboss lives', () => {
@@ -179,42 +139,5 @@ describe('waves', () => {
     killEnemy(b, boss);
     stepBattle(b, LOOP.step);
     expect(w.index).toBe(1);
-  });
-
-  it('portal sits at the arena edge; walking into it does nothing, the button works only in reach', () => {
-    const { b } = grove();
-    clearWaves(b, WAVES.portalEvery);
-    const portal = b.portal!;
-    const edgeGap = Math.min(
-      portal.pos.x - ARENA.x,
-      ARENA.x + ARENA.w - portal.pos.x,
-      portal.pos.y - ARENA.y,
-      ARENA.y + ARENA.h - portal.pos.y,
-    );
-    expect(edgeGap).toBeLessThanOrEqual(WAVES.portal.edgeInset + 1);
-    expect(requestPortalEntry(b)).toBe(dist(b.hero.pos, portal.pos) <= portal.radius + b.hero.radius + WAVES.portal.useRange);
-    b.portal!.entered = false;
-    b.hero.pos = { ...portal.pos };
-    b.input.move = { x: 1, y: 0 };
-    stepBattle(b, LOOP.step);
-    expect(b.outcome).toBe('running');
-    expect(portalInReach(b)).toBe(true);
-    expect(requestPortalEntry(b)).toBe(true);
-    stepBattle(b, LOOP.step);
-    expect(b.outcome).toBe('won');
-  });
-
-  it('the portal is closed while a wave is running and during non-portal breaks', () => {
-    const { b } = grove();
-    clearWaves(b, WAVES.portalEvery);
-    expect(portalActive(b)).toBe(true);
-    for (let t = 0; t < WAVES.breaks.portal + 1; t += LOOP.step) stepBattle(b, LOOP.step);
-    expect(b.waves!.started).toBe(true);
-    expect(portalActive(b)).toBe(false);
-    b.hero.pos = { ...b.portal!.pos };
-    expect(requestPortalEntry(b)).toBe(false);
-    // The 4th wave hands over to the 5th without a break: the portal stays shut.
-    clearWaves(b, WAVES.portalEvery + 1);
-    expect(portalActive(b)).toBe(false);
   });
 });

@@ -28,6 +28,8 @@ export interface MapNode {
   timesCleared: number;
   /** Waves cleared on the last completed visit (the next visit may continue from there). */
   lastWave: number;
+  /** The gift altar of this location was used (it gives once, ROADMAP 13.2). */
+  altarUsed?: boolean;
   /** Loot left here by a death: given back when the location is cleared again. */
   lostLoot: { items: Item[]; gold: number } | null;
   pos: Vec;

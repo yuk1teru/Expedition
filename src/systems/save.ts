@@ -40,7 +40,7 @@ export interface SaveData {
   homeTown: string;
   bossesDefeated: string[];
   /** Progress of the locations (id → clears, the last wave, loot left by a death). */
-  nodes: Record<string, { timesCleared: number; lastWave: number; lostLoot?: MapNode['lostLoot'] }>;
+  nodes: Record<string, { timesCleared: number; lastWave: number; lostLoot?: MapNode['lostLoot']; altarUsed?: boolean }>;
   /** A death the doctor has not told about yet. */
   lastDeath: LastDeath | null;
   /** The highest invasion threshold announced (absent in early saves). */
@@ -82,7 +82,9 @@ export function toSave(state: GameState, now = Date.now()): SaveData {
   const cp = state.checkpoint;
   const nodes: SaveData['nodes'] = {};
   for (const n of cp.world.nodes) {
-    if (n.timesCleared > 0 || n.lastWave > 0 || n.lostLoot) nodes[n.id] = { timesCleared: n.timesCleared, lastWave: n.lastWave, ...(n.lostLoot ? { lostLoot: n.lostLoot } : {}) };
+    if (n.timesCleared > 0 || n.lastWave > 0 || n.lostLoot || n.altarUsed) {
+      nodes[n.id] = { timesCleared: n.timesCleared, lastWave: n.lastWave, ...(n.lostLoot ? { lostLoot: n.lostLoot } : {}), ...(n.altarUsed ? { altarUsed: true } : {}) };
+    }
   }
   return structuredClone({
     version: SAVE_VERSION,
@@ -128,6 +130,7 @@ export function fromSave(data: SaveData): GameState {
     n.lastWave = p.lastWave;
     n.cleared = p.timesCleared > 0;
     n.lostLoot = p.lostLoot ?? null;
+    n.altarUsed = p.altarUsed ?? false;
   }
   const hero = structuredClone(data.hero);
   hero.freeSkills ??= [];
@@ -170,6 +173,7 @@ export function fromSave(data: SaveData): GameState {
     townsVisited: (data.townsVisited ?? [home]).filter((id) => world.nodes.some((n) => n.id === id && n.isTown)),
     nodesVisited: (data.nodesVisited ?? [home]).filter((id) => world.nodes.some((n) => n.id === id)),
     revealed: data.revealed ?? [],
+    expedition: null,
     quests: data.quests ? { active: data.quests.active.filter((q) => QUESTS[q.id]), done: [...data.quests.done] } : emptyQuestLog(),
     talentPoints: data.talentPoints ?? 0,
     runeStones: data.runeStones ?? 0,

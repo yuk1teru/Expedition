@@ -282,7 +282,7 @@ function bossesSection(): Section {
   const hazards = Object.entries(HAZARDS).flatMap(([k, val]) =>
     typeof val === 'number' ? [[`<code>${k}</code>`, v(val, ['HAZARDS', k])]] : Object.entries(val as Record<string, number>).map(([kk, vv]) => [`<code>${k}.${kk}</code>`, v(vv, ['HAZARDS', k, kk])]),
   );
-  const html = `<p>Шкода атак — множник шкоди боса. Мінібос приходить кожну ${v(BALANCE.WAVES.minibossEvery, ['WAVES', 'minibossEvery'])}-у хвилю і масштабується як вороги локації.</p>
+  const html = `<p>Шкода атак — множник шкоди боса. Мінібос приходить з останньою хвилею лігва локації й масштабується як вороги локації.</p>
 <h3 class="group">Боси</h3>${list.filter((b) => !b.miniboss).map(bossCard).join('')}
 <h3 class="group">Мінібоси</h3>${list.filter((b) => b.miniboss).map(bossCard).join('')}
 ${card('hazards', 'Калюжі й кільця', table(['Параметр', 'Значення'], hazards, 'kv'))}`;
@@ -486,9 +486,9 @@ function wavesSection(): Section {
   });
   const html = `
 <p>Хвиля — ${v(W.baseSize, ['WAVES', 'baseSize'])} + ${v(W.perTier, ['WAVES', 'perTier'])} × tier ворогів (до ${v(W.maxSize, ['WAVES', 'maxSize'])}),
-після першого порталу +${v(W.extraPerWave, ['WAVES', 'extraPerWave'])} за хвилю, не більше ${v(W.cap, ['WAVES', 'cap'])}.
+після ${v(W.count, ['WAVES', 'count'])}-ї хвилі локації +${v(W.extraPerWave, ['WAVES', 'extraPerWave'])} за хвилю, не більше ${v(W.cap, ['WAVES', 'cap'])}.
 Коли від хвилі лишається ${v(W.overlapAt, ['WAVES', 'overlapAt'], 'pct')} ворогів, приходить наступна (якщо мінібос мертвий).
-Після кожної ${v(W.portalEvery, ['WAVES', 'portalEvery'])}-ї хвилі поле треба зачистити повністю — відкривається портал і перерва ${v(W.breaks.portal, ['WAVES', 'breaks', 'portal'], 's')}.
+Останню хвилю арени треба зачистити повністю — і арену пройдено.
 Еліта — з ${v(W.eliteWave, ['WAVES', 'eliteWave'])}-ї хвилі.</p>
 <p>Ріст хвилі i (з 0): 1 + a·i + b·i².</p>
 ${table(

@@ -10,7 +10,8 @@ import { heroAttackSpeed } from '../systems/ai';
 import type { Battle } from '../systems/battle';
 import { isMaxLevel, xpFraction } from '../systems/leveling';
 import { xpToNext } from '../systems/scaling';
-import { inBreak, nextWaveIn, portalActive, skipBreak, wavesToPortal } from '../systems/waves';
+import { inBreak, nextWaveIn, skipBreak } from '../systems/waves';
+import { STEP_INFO } from '../data/expedition';
 import { moveSkill, skillInSlot } from '../systems/hero';
 import { bootDash, hasNewItems } from '../systems/items';
 import { CONSUMABLES, QUICK_SLOTS, describeConsumable } from '../data/consumables';
@@ -178,35 +179,24 @@ export function createHud(app: App, _fx: Fx): Hud {
         const w = b.waves;
         const breakNow = !w.started && w.cleared > 0;
         const weather = b.weather ? WEATHER[b.weather.id] : null;
-        const title = portalActive(b)
-          ? 'Перерва — портал відкрито'
-          : breakNow
-            ? 'Перерва'
-            : weather
-              ? `Хвиля ${w.index + 1} · ${weather.name}`
-              : `Хвиля ${w.index + 1}`;
-        drawText(ctx, title, CENTER_X, 20, { size: 17, bold: true, align: 'center', color: portalActive(b) ? THEME.accent : THEME.text });
+        const here = w.index - w.start + 1;
+        const of = w.total - w.start;
+        const step = b.step ? `${STEP_INFO[b.step].name} · ` : '';
+        const title = breakNow ? 'Перерва' : weather ? `${step}хвиля ${here} з ${of} · ${weather.name}` : `${step}хвиля ${here} з ${of}`;
+        drawText(ctx, title, CENTER_X, 20, { size: 17, bold: true, align: 'center', color: THEME.text });
         const next = nextWaveIn(w);
-        const toPortal = wavesToPortal(w);
         const sub =
           breakNow && next !== null && next > 0
-            ? `Хвиля ${w.index + 1} через ${Math.ceil(next)} с`
-            : toPortal === 1
-              ? 'Портал — після цієї хвилі'
-              : `Портал — через ${toPortal} хвилі`;
+            ? `Хвиля ${here} через ${Math.ceil(next)} с`
+            : here === of
+              ? w.miniboss
+                ? 'Остання хвиля — з мінібосом'
+                : 'Остання хвиля арени'
+              : 'Далі — ще хвилі';
         if (weather && w.started) drawText(ctx, weather.description, CENTER_X, 41, { size: 12, align: 'center', color: '#9fd3ff' });
-        else drawText(ctx, sub, CENTER_X, 41, { size: 12, align: 'center', color: b.portal ? '#c9a8ff' : THEME.textDim });
-        if (portalActive(b)) {
-          const left = Math.ceil(nextWaveIn(w) ?? 0);
-          drawText(ctx, `Портал відкритий ще ${left} с: підійдіть і натисніть «Увійти» (E). Залишитесь — прийде сильніша хвиля.`, W / 2, ARENA.y + ARENA.h - 14, {
-            size: 13,
-            bold: true,
-            align: 'center',
-            color: '#d9c2ff',
-          });
-        }
+        else drawText(ctx, sub, CENTER_X, 41, { size: 12, align: 'center', color: THEME.textDim });
         if (inBreak(b)) {
-          skipBtn.label = portalActive(b) ? 'Не йти в портал — далі [N]' : 'Наступна хвиля зараз [N]';
+          skipBtn.label = 'Наступна хвиля зараз [N]';
           skipGroup.draw(ctx);
         }
       }

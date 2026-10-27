@@ -1,6 +1,6 @@
 // One combat encounter. Pure simulation: no render, no DOM.
 
-import { ARENA, FLOW, PROJECTILES } from '../data/balance';
+import { ARENA, FLOW, PROJECTILES, WAVES } from '../data/balance';
 import { type BiomeDef, getBiome } from '../data/biomes';
 import { getClass } from '../data/classes';
 import type { EventBus } from '../core/events';
@@ -23,6 +23,7 @@ import type { Item } from './items';
 import type { GameEvent } from './gameEvents';
 import { type MapNode, effectiveLevel, getNode } from './mapgen';
 import { levelTier } from './scaling';
+import type { ArenaStepKind } from '../data/expedition';
 import { type ArenaState, hitsObstacle, pushOutOfObstacles, setupArena, updateTerrain } from './arena';
 import type { Element } from '../data/elements';
 import { type Trap, updateTraps } from './traps';
@@ -55,12 +56,6 @@ export interface ManaOrb {
   time: number;
   /** Seconds before it fades. */
   life: number;
-}
-
-export interface Portal {
-  pos: Vec;
-  radius: number;
-  entered: boolean;
 }
 
 /**
@@ -111,8 +106,8 @@ export interface Battle {
   waves: WaveState | null;
   /** Crossing a cleared location (autopath, ROADMAP 10.4): one wave, won when it is cleared; not a clear of the location. */
   transit: boolean;
-  /** Exit portal (opens after the mandatory waves). */
-  portal: Portal | null;
+  /** The kind of arena in a location trip (ROADMAP 13.2); undefined — a plain battle. */
+  step?: ArenaStepKind;
   boss: Enemy | null;
   stats: BattleStats;
   /** Lifesteal healed since the last popup, and time to the next popup. */
@@ -137,11 +132,19 @@ export interface Battle {
   finished: boolean;
 }
 
+/** What an arena holds: its waves, the miniboss with the last one; `boss: false` — waves even in a boss lair (the antechamber). */
+export interface ArenaPlan {
+  waves: number;
+  miniboss: boolean;
+  boss?: boolean;
+}
+
 /**
- * `startWave`: waves already cleared on earlier visits (continue from the next one).
- * `transit`: a crossing — one wave from the start, see Battle.transit.
+ * `startWave`: waves of the location already behind (the growth goes on). `transit`: a
+ * crossing — one wave, see Battle.transit. `plan`: the arena of a location trip; without it
+ * a location fights WAVES.count waves with the miniboss in the last one, a boss lair — the boss.
  */
-export function createBattle(state: GameState, nodeId: string, startWave = 0, transit = false): Battle {
+export function createBattle(state: GameState, nodeId: string, startWave = 0, transit = false, plan?: ArenaPlan): Battle {
   const node = getNode(state.world, nodeId);
   if (!node.biome) throw new Error(`Node ${nodeId} has no biome`);
   state.battleCount += 1;
@@ -157,7 +160,7 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0, tr
     level,
     tier: levelTier(level),
     biome: getBiome(node.biome),
-    kind: node.isBoss ? 'boss' : 'waves',
+    kind: node.isBoss && plan?.boss !== false && !transit ? 'boss' : 'waves',
     rng: state.rng.fork(`battle-${state.battleCount}`),
     events: state.events,
     input: { control: 'bot', move: { x: 0, y: 0 }, aim: null, cursor: null },
@@ -175,9 +178,8 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0, tr
     pickups: [],
     traps: [],
     weather: null,
-    waves: node.isBoss ? null : createWaves(transit ? 0 : startWave),
+    waves: node.isBoss && plan?.boss !== false && !transit ? null : transit ? createWaves(0, 1, false) : createWaves(startWave, plan?.waves ?? WAVES.count, plan?.miniboss ?? true),
     transit: transit && !node.isBoss,
-    portal: null,
     boss: null,
     stats: { kills: 0, xp: 0, gold: 0, damageDealt: 0, damageTaken: 0, heals: 0, killsById: {}, minibossKills: 0, loot: [] },
     healAcc: 0,
@@ -427,10 +429,8 @@ function checkOutcome(b: Battle): void {
   if (b.kind === 'boss' && isBossDefeated(b)) {
     onBossDefeated(b);
     finish(b, 'won', FLOW.bossWinDelay);
-  } else if (b.portal?.entered) {
-    finish(b, 'won', FLOW.portalDelay);
-  } else if (b.transit && b.waves && b.waves.cleared >= 1) {
-    finish(b, 'won', FLOW.portalDelay);
+  } else if (b.waves?.done) {
+    finish(b, 'won', FLOW.clearDelay);
   }
 }
 

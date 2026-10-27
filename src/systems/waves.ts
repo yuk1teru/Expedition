@@ -1,9 +1,9 @@
-// Waves: every wave is bigger and stronger than the previous one (HP, damage and
-// speed grow separately). The next wave comes to help once ≤ 40% of the current one is
-// left (not while a miniboss lives). Every 3rd wave brings a (scaled) miniboss; after
-// every 3rd wave the field is cleared and the exit portal opens for a longer break.
-// Every 5th wave brings an event: bad weather or an elemental. Until the hero leaves,
-// waves keep coming.
+// Waves of an arena (ROADMAP 13.2): an arena has a set number of waves; every wave is
+// bigger and stronger than the previous one (HP, damage and speed grow separately, and the
+// growth goes on through the arenas of one location). The next wave comes to help once
+// ≤ 40% of the current one is left (not while a miniboss lives); the last wave — with the
+// miniboss in a lair — must be cleared completely, and the arena is won. Every 5th wave of
+// a location brings an event: bad weather or an elemental.
 
 import { pushOutOfObstacles } from './arena';
 import { ENEMY_ELEMENTS } from '../data/elements';
@@ -16,7 +16,6 @@ import { createBossEnemy } from './boss';
 import { setSplitHandler } from './combat';
 import { maybeSpawnPickup } from './pickups';
 import type { Archetype, Enemy, Vec } from './entities';
-import { dist } from './entities';
 import { enemyStats, goldReward, threatMultiplier, waveGoldMult } from './scaling';
 import { spawnTraps } from './traps';
 import { endWeather, startWeather } from './weather';
@@ -40,35 +39,34 @@ export interface WaveMult {
 export const BASE_WAVE_MULT: WaveMult = { hp: 1, damage: 1, reward: 1, gold: 1, speed: 1 };
 
 export interface WaveState {
-  /** 0-based index of the current wave (≥ total means a bonus wave). */
+  /** 0-based index of the current wave (counted through the whole location). */
   index: number;
-  /** 0-based index of the first wave of this visit (> 0 when continuing). */
+  /** 0-based index of the first wave of this arena. */
   start: number;
-  /** Mandatory waves end here: the first portal opens after wave `total`. */
+  /** This arena's waves end here (exclusive): the arena is won after wave `total`. */
   total: number;
   queue: SpawnEntry[];
   groupTimer: number;
   /** Pause before the current wave starts spawning. */
   pause: number;
   started: boolean;
-  /** Waves fully cleared so far (absolute, counting from wave 1). */
+  /** Waves fully cleared so far (absolute, counting from wave 1 of the location). */
   cleared: number;
   /** Multipliers of the current wave. */
   mult: WaveMult;
-  /** The current break is a portal break (portal usable). */
-  portalBreak: boolean;
   /** Enemies the running wave brings (for the overlap rule). */
   size: number;
-}
-
-/** Bonus wave number for a wave index (0 for mandatory waves). */
-export function bonusLevel(w: WaveState, index: number = w.index): number {
-  return Math.max(0, index + 1 - w.total);
+  /** The location's miniboss comes with the last wave (a lair). */
+  miniboss: boolean;
+  /** The last wave is cleared: the arena is won. */
+  done: boolean;
+  /** Waves are this much bigger (the treasure's ambush). */
+  sizeMult?: number;
 }
 
 /**
- * Enemies in a wave (0-based index): tier base, then one more every wave after the first
- * portal, capped.
+ * Enemies in a wave (0-based index of the location's waves): tier base, then one more every
+ * wave after the first WAVES.count, capped.
  */
 export function waveSize(tier: number, index = 0): number {
   const base = Math.min(WAVES.baseSize + WAVES.perTier * Math.floor(tier), WAVES.maxSize);
@@ -96,17 +94,6 @@ export function archetypeHpMult(mult: WaveMult, archetype: Archetype): number {
   return 1 + (mult.hp - 1) * WAVES.hpGrowthShare[archetype];
 }
 
-/** The break after `cleared` waves opens the portal. */
-export function isPortalBreak(cleared: number): boolean {
-  return cleared > 0 && cleared % WAVES.portalEvery === 0;
-}
-
-/** Waves until the next portal break, counting the current one. */
-export function wavesToPortal(w: WaveState): number {
-  const done = w.started ? w.index : w.cleared;
-  return WAVES.portalEvery - (done % WAVES.portalEvery);
-}
-
 /**
  * Event of a wave (1-based number): every WAVE_EVENTS.every-th wave, the location's events
  * in turn (default: weather, elemental); none for a location without events.
@@ -117,27 +104,28 @@ export function waveEvent(waveNumber: number, events: readonly ('weather' | 'ele
   return events[n % events.length] ?? null;
 }
 
-/** `start`: waves already cleared on earlier visits (the battle continues from wave start + 1). */
-export function createWaves(start = 0): WaveState {
+/** An arena's waves: `count` waves from wave `start` of the location; `miniboss` — with the last one. */
+export function createWaves(start = 0, count: number = WAVES.count, miniboss = false): WaveState {
   return {
     index: start,
     start,
-    total: start + WAVES.count,
+    total: start + count,
     queue: [],
     groupTimer: 0,
     pause: 0,
     started: false,
     cleared: start,
     mult: waveMult(start),
-    portalBreak: false,
     size: 0,
+    miniboss,
+    done: false,
   };
 }
 
 /** Enemies of a wave from the location roster (an id listed twice is twice as likely). */
-export function composeWave(rng: Rng, enemies: readonly string[], tier: number, waveIndex: number): SpawnEntry[] {
+export function composeWave(rng: Rng, enemies: readonly string[], tier: number, waveIndex: number, sizeMult = 1): SpawnEntry[] {
   const weighted = enemies.map((id) => ({ item: id, weight: getEnemyDef(id).spawnWeight }));
-  const size = waveSize(tier, waveIndex);
+  const size = Math.round(waveSize(tier, waveIndex) * sizeMult);
   const out: SpawnEntry[] = [];
   for (let i = 0; i < size; i++) out.push({ defId: rng.weighted(weighted), elite: false });
   // Elite from the elite wave on; it arrives with the last group.
@@ -150,26 +138,25 @@ export function composeWave(rng: Rng, enemies: readonly string[], tier: number, 
 
 export function updateWaves(b: Battle, dt: number): void {
   const w = b.waves;
-  if (!w) return;
-  if (b.transit && w.cleared >= 1) return;
+  if (!w || w.done) return;
   if (!w.started) {
     w.pause -= dt;
     if (w.pause > 0) return;
     w.started = true;
-    w.portalBreak = false;
     const number = w.index + 1;
     w.mult = waveMult(w.index);
-    w.queue = composeWave(b.rng, b.node.enemies, b.tier, w.index);
+    w.queue = composeWave(b.rng, b.node.enemies, b.tier, w.index, w.sizeMult ?? 1);
     w.size = w.queue.length;
     w.groupTimer = 0;
     const mech = b.node.mechanics;
     const event = waveEvent(number, mech.events);
     const weathers = mech.weathers.length > 0 ? mech.weathers : WEATHER_ORDER;
     const weather = event === 'weather' ? b.rng.pick(weathers) : null;
-    b.events.emit({ type: 'wave', index: number, total: w.total, bonus: bonusLevel(w), mult: { ...w.mult }, weather });
+    b.events.emit({ type: 'wave', index: number, total: w.total, bonus: 0, mult: { ...w.mult }, weather });
     if (mech.herbs) maybeSpawnPickup(b, number);
     spawnTraps(b, number, mech.trapsFrom);
-    if (number % WAVES.minibossEvery === 0 && b.node.miniboss) spawnMiniboss(b, b.node.miniboss);
+    // A lair: the miniboss comes with the last wave.
+    if (w.miniboss && number === w.total && b.node.miniboss) spawnMiniboss(b, b.node.miniboss);
     if (weather) startWeather(b, weather);
     if (event === 'elemental') spawnMiniboss(b, WAVE_EVENTS.elemental);
   }
@@ -181,29 +168,22 @@ export function updateWaves(b: Battle, dt: number): void {
     }
     return;
   }
-  // Inside a block of waves the next one comes to help early; a block ends with a full clear.
-  // A crossing is a single wave: it ends with a clear field (no portal).
-  if (!b.transit && !isPortalBreak(w.index + 1)) {
+  // The next wave comes to help early; the last one ends with a full clear.
+  if (w.index + 1 < w.total) {
     if (!helpArrives(b, w)) return;
     w.cleared = w.index + 1;
     w.index += 1;
     w.started = false;
-    w.portalBreak = false;
     w.pause = 0;
     endWeather(b);
     return;
   }
   if (b.enemies.some((e) => !e.dead)) return;
-  // Wave cleared.
+  // The last wave is cleared: the arena is won.
   w.cleared = w.index + 1;
-  w.index += 1;
   w.started = false;
+  w.done = true;
   endWeather(b);
-  if (b.transit) return;
-  // Only a block of waves ends with a clear field: the portal break.
-  w.portalBreak = true;
-  openPortal(b);
-  w.pause = WAVES.breaks.portal;
 }
 
 /**
@@ -223,12 +203,12 @@ export function helpArrives(b: Battle, w: WaveState): boolean {
 /** A break between waves is running (the next wave can be called early). */
 export function inBreak(b: Battle): boolean {
   const w = b.waves;
-  return !!w && !w.started && w.cleared > w.start && b.outcome === 'running';
+  return !!w && !w.started && !w.done && w.cleared > w.start && b.outcome === 'running';
 }
 
 /**
- * "Далі": ends the break now (the portal closes if it was open). The skipped seconds
- * still count for the hero: skill and boot-dash cooldowns run down by that much.
+ * "Далі": ends the break now. The skipped seconds still count for the hero: skill and
+ * boot-dash cooldowns run down by that much.
  */
 export function skipBreak(b: Battle): boolean {
   if (!inBreak(b)) return false;
@@ -256,56 +236,6 @@ function spawnMiniboss(b: Battle, defId: string): void {
   const e = createBossEnemy(b, defId, edgePoint(b.rng), currentWaveMult(b));
   b.events.emit({ type: 'miniboss', name: e.name, pos: { ...e.pos } });
   b.events.emit({ type: 'spawn', pos: { ...e.pos }, radius: e.radius });
-}
-
-/** Opens the exit portal (placed once at the arena edge, away from the hero) and warns the player. */
-export function openPortal(b: Battle): void {
-  if (b.portal) {
-    b.events.emit({ type: 'portalOpen', pos: { ...b.portal.pos }, seconds: WAVES.breaks.portal });
-    return;
-  }
-  const inset = WAVES.portal.edgeInset;
-  let best: Vec = { x: ARENA.x + inset, y: ARENA.y + ARENA.h / 2 };
-  let bestD = -1;
-  for (let i = 0; i < WAVES.portal.candidates; i++) {
-    const p = edgePoint(b.rng, inset);
-    const d = dist(p, b.hero.pos);
-    if (d >= WAVES.portal.minDistFromHero) {
-      best = p;
-      break;
-    }
-    if (d > bestD) {
-      bestD = d;
-      best = p;
-    }
-  }
-  b.portal = { pos: best, radius: WAVES.portal.radius, entered: false };
-  b.events.emit({ type: 'portalOpen', pos: { ...best }, seconds: WAVES.breaks.portal });
-}
-
-/** The portal works only during a portal break (after every 3rd wave). */
-export function portalActive(b: Battle): boolean {
-  return !!b.portal && !b.portal.entered && !!b.waves && !b.waves.started && b.waves.portalBreak && b.outcome === 'running';
-}
-
-/** The portal is active and the hero is close enough (the "Увійти" button shows up). */
-export function portalInReach(b: Battle): boolean {
-  const p = b.portal;
-  return !!p && portalActive(b) && dist(b.hero.pos, p.pos) <= p.radius + b.hero.radius + WAVES.portal.useRange;
-}
-
-/** Player pressed "Увійти": leaves only when in reach, never by walking or being pushed in. */
-export function requestPortalEntry(b: Battle): boolean {
-  if (!portalInReach(b)) return false;
-  b.portal!.entered = true;
-  return true;
-}
-
-/** Bot / debug: leave through the portal right away (only while it is active). */
-export function enterPortal(b: Battle): boolean {
-  if (!portalActive(b)) return false;
-  b.portal!.entered = true;
-  return true;
 }
 
 function spawnGroup(b: Battle, group: SpawnEntry[], wave: number): void {

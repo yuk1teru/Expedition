@@ -13,6 +13,7 @@ import { findRoute, getNode, resetClears } from '../systems/mapgen';
 import { getSkill } from '../data/skills';
 import {
   type BattleSummary,
+  canPassThrough,
   canTravel,
   chooseGift,
   chooseClass,
@@ -48,6 +49,8 @@ import { createPromotionModal } from './promotionModal';
 import { THEME } from './theme';
 import { createTownScreen } from './townView';
 import { createWaveStartModal } from './waveStart';
+import { createWayOnModal } from './wayOn';
+import { abandonExpedition, chooseNext, finishStep, nextChoice, startExpedition, stepBattle } from '../systems/expedition';
 import { createTitleScreen } from './titleScreen';
 import { createCoachModal } from './coach';
 import { createSettingsModal } from './settingsModal';
@@ -400,6 +403,7 @@ export class App {
     this.loop.paused = false;
     this.battle = null;
     restoreCheckpoint(this.state);
+    this.state.expedition = null;
     this.screens.go('town');
   }
 
@@ -454,26 +458,55 @@ export class App {
   private goTo(nodeId: string): void {
     if (!canTravel(this.state, nodeId)) return;
     const node = getNode(this.state.world, nodeId);
-    if (!node.isTown && !node.isBoss && node.lastWave > 0) {
+    // A location cleared before (not the current one): again, or just cross it with one wave.
+    if (!node.isTown && !node.isBoss && node.timesCleared > 0 && canPassThrough(this.state, nodeId)) {
       if (this.screens.topModal) return;
       this.screens.pushModal(
-        createWaveStartModal(this, node, (start) => {
+        createWaveStartModal(this, node, (choice) => {
           this.screens.popModal();
-          if (start === null) return;
-          if (start === 'pass') {
-            travel(this.state, nodeId);
-            this.startBattle(nodeId, 0, true);
-            return;
-          }
-          const res = travel(this.state, nodeId);
-          if (res.kind === 'battle') this.startBattle(res.nodeId, start);
+          if (choice === null) return;
+          travel(this.state, nodeId);
+          if (choice === 'pass') this.startBattle(nodeId, 0, true);
+          else this.startExpedition(nodeId);
         }),
       );
       return;
     }
     const res = travel(this.state, nodeId);
     if (res.kind === 'town') this.goTown();
-    else if (res.kind === 'battle') this.startBattle(res.nodeId);
+    else if (res.kind === 'battle') this.startExpedition(res.nodeId);
+  }
+
+  /** A location: its trip through the arenas (ROADMAP 13.2) begins with the first one. */
+  startExpedition(nodeId: string): void {
+    startExpedition(this.state, nodeId);
+    this.battle = stepBattle(this.state);
+    this.loop.paused = false;
+    this.screens.go('combat');
+  }
+
+  /** The way-on window is waiting for the gift windows (altar) to close. */
+  private wayOn: { rewards: string[] } | null = null;
+
+  private openWayOn(): void {
+    const exp = this.state.expedition;
+    if (!this.wayOn || !exp) return;
+    const rewards = this.wayOn.rewards;
+    this.wayOn = null;
+    this.screens.pushModal(
+      createWayOnModal(this, nextChoice(exp), rewards, (choice) => {
+        this.screens.popModal();
+        if (choice === null) {
+          abandonExpedition(this.state);
+          this.screens.go('map');
+          return;
+        }
+        chooseNext(this.state, choice);
+        this.battle = stepBattle(this.state);
+        this.loop.paused = false;
+        this.screens.go('combat');
+      }),
+    );
   }
 
   /** Map → the home town (the last rest; always reachable from the map). */
@@ -491,8 +524,20 @@ export class App {
   finishBattle(): void {
     const b = this.battle;
     if (!b) return;
-    this.lastSummary = completeBattle(this.state, b);
-    this.logBattle(b);
+    if (this.state.expedition && !b.transit) {
+      // An arena of a location trip: the next one, or the end of the location.
+      const res = finishStep(this.state, b);
+      this.logBattle(b);
+      if (!res.summary) {
+        this.battle = null;
+        this.wayOn = { rewards: res.rewards };
+        return;
+      }
+      this.lastSummary = res.summary;
+    } else {
+      this.lastSummary = completeBattle(this.state, b);
+      this.logBattle(b);
+    }
     this.battle = null;
     this.loop.paused = false;
     // The last life is gone: the story ends right now (closing the game will not undo it).
@@ -586,7 +631,7 @@ export class App {
     if (!boss) return;
     this.screens.clearModals();
     const res = teleport(this.state, boss.id);
-    if (res.kind === 'battle') this.startBattle(res.nodeId);
+    if (res.kind === 'battle') this.startExpedition(res.nodeId);
   }
 
   /** Resets the completion counter of the current location. */
@@ -603,6 +648,8 @@ export class App {
     if (screen !== 'title' && screen !== 'death' && screen !== 'victory' && screen !== 'tombstone') this.state.stats.playTime += dt;
     for (const e of this.input.drain()) this.handleInput(e);
     this.processModalQueue();
+    // Between arenas: once the gift windows are closed, the way on.
+    if (this.wayOn && !this.screens.topModal && this.state.modalQueue.length === 0) this.openWayOn();
   }
 
   private handleInput(e: InputEvent): void {

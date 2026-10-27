@@ -52,6 +52,7 @@ export function createGameState(seed: number, heroName = DEFAULT_HERO_NAME): Gam
     nodesVisited: [TOWN_ID],
     revealed: [],
     quests: emptyQuestLog(),
+    expedition: null,
     talentPoints: 0,
     runeStones: 0,
   };
@@ -184,9 +185,7 @@ export interface BattleSummary {
   kills: number;
   damageDealt: number;
   damageTaken: number;
-  /** Mandatory waves of this visit (before the first portal). */
-  mandatoryWaves: number;
-  /** Waves cleared in this visit, and the range (1-based) they cover. */
+  /** Waves cleared in this visit (a location trip: in all its arenas), and the range (1-based) they cover. */
   wavesCleared: number;
   firstWave: number;
   lastWave: number;
@@ -203,7 +202,9 @@ export interface BattleSummary {
 }
 
 /** Applies the result of a finished battle to the run. */
-export function completeBattle(state: GameState, b: Battle): BattleSummary {
+/** `final: false` — one arena of a location trip: kills count, the location is not done yet. */
+export function completeBattle(state: GameState, b: Battle, opts: { final?: boolean } = {}): BattleSummary {
+  const final = opts.final ?? true;
   const s = state.stats;
   s.kills += b.stats.kills;
   s.damageDealt += b.stats.damageDealt;
@@ -215,7 +216,7 @@ export function completeBattle(state: GameState, b: Battle): BattleSummary {
   if (!won) applyDeath(state, b);
   questsAfterBattle(state, {
     nodeId: b.node.id,
-    won,
+    won: won && final,
     transit: b.transit,
     isBoss: b.node.isBoss,
     killsById: b.stats.killsById,
@@ -224,7 +225,7 @@ export function completeBattle(state: GameState, b: Battle): BattleSummary {
   if (won && b.transit) {
     // A crossing on the way costs a day; the location's progress stays as it was.
     state.day += 1;
-  } else if (won) {
+  } else if (won && final) {
     recovered = recoverLostLoot(state, b.node);
     clearBonus = clearBonusGold(b.tier);
     state.gold += clearBonus;
@@ -250,7 +251,6 @@ export function completeBattle(state: GameState, b: Battle): BattleSummary {
     kills: b.stats.kills,
     damageDealt: b.stats.damageDealt,
     damageTaken: b.stats.damageTaken,
-    mandatoryWaves: b.waves ? b.waves.total - b.waves.start : 0,
     wavesCleared: b.waves ? b.waves.cleared - b.waves.start : 0,
     firstWave: b.waves ? b.waves.start + 1 : 0,
     lastWave: b.waves ? b.waves.cleared : 0,

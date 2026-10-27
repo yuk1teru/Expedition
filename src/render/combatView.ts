@@ -21,7 +21,6 @@ import { type Trap, trapArmed } from '../systems/traps';
 import { basicAttackOf } from '../systems/hero';
 import { type Battle, stepBattle, type ManaOrb } from '../systems/battle';
 import { type Pickup, pickupReady, useQuickSlot } from '../systems/pickups';
-import { portalActive, portalInReach, requestPortalEntry } from '../systems/waves';
 import { CONSUMABLES, type ConsumableId, PICKUPS, PICKUP_SPAWN, QUICK_SLOTS } from '../data/consumables';
 import { drawConsumableIcon } from './icons';
 import { useBootDash } from '../systems/skills';
@@ -35,7 +34,7 @@ import { drawControls, openWiki } from './help';
 import { createHud } from './hud';
 import { skillFx } from './skillFx';
 import { THEME } from './theme';
-import { Button, ButtonGroup, type Rect, drawPanel, drawText, inRect, roundRect } from './ui';
+import { Button, ButtonGroup, drawPanel, drawText } from './ui';
 
 /** Seconds to confirm abandoning the run. */
 const PAUSE_CONFIRM_TIME = 3;
@@ -140,15 +139,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
     },
 
     onInput(e: InputEvent) {
-      const b0 = battle;
       if (app.loop.paused && pauseButtons.handle(e)) return;
-      if (b0 && !app.loop.paused && portalInReach(b0)) {
-        const btn = portalButtonRect(b0);
-        if ((e.type === 'key' && e.code === 'KeyE') || (e.type === 'mousedown' && inRect(btn, e.x, e.y))) {
-          requestPortalEntry(b0);
-          return;
-        }
-      }
       if (hud.handle(e)) return;
       if (e.type !== 'key') return;
       const quick = (QUICK_SLOTS.keys as readonly string[]).indexOf(e.code);
@@ -205,7 +196,6 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       for (const z of b.zones) drawZone(ctx, z, b, app.time);
       drawObstacles(ctx, b);
       for (const h of b.hazards) drawHazard(ctx, h, app.time);
-      if (b.portal) drawPortal(ctx, b.portal.pos, b.portal.radius, app.time, portalActive(b));
       for (const p of b.pickups) drawPickup(ctx, p, b, app.time);
       for (const o of b.manaOrbs) drawManaOrb(ctx, o, app.time);
       for (const tr of b.traps) drawTrap(ctx, tr, b);
@@ -239,7 +229,6 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       fx.drawTexts(ctx);
       if (b.input.aim) drawCrosshair(ctx, b.input.aim);
       ctx.restore();
-      if (portalInReach(b)) drawPortalButton(ctx, portalButtonRect(b), inRect(portalButtonRect(b), app.input.mouse.x, app.input.mouse.y));
       fx.drawFlash(ctx, app.view.width, app.view.height);
       hud.draw(ctx, b);
       fx.drawBanner(ctx, app.view.width / 2, ARENA_VIEW.y + ARENA_VIEW.h * 0.3);
@@ -390,11 +379,6 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
       fx.burst(e.pos, P.levelUp, def.color);
       break;
     }
-    case 'portalOpen':
-      fx.showBanner(`Портал відкрито на ${e.seconds} с!`, '#b98cff');
-      fx.ring(e.pos, 80, '#b98cff', 0.8, 6);
-      fx.burst(e.pos, P.levelUp, '#b98cff');
-      break;
     case 'levelUp':
       fx.ring(b.hero.pos, FX.levelUpRing.radius, THEME.accent, FX.levelUpRing.life, 6);
       fx.burst(b.hero.pos, P.levelUp, THEME.accent);
@@ -957,53 +941,6 @@ function drawPickup(ctx: CanvasRenderingContext2D, p: Pickup, b: Battle, t: numb
   ctx.restore();
 }
 
-/** "Увійти" button next to the portal, kept inside the arena. */
-function portalButtonRect(b: Battle): Rect {
-  const p = b.portal!;
-  const w = 168;
-  const h = 34;
-  const x = Math.max(ARENA.x + 6, Math.min(ARENA.x + ARENA.w - w - 6, p.pos.x - w / 2));
-  const above = p.pos.y - p.radius - h - 16;
-  const y = above > ARENA.y + 6 ? above : p.pos.y + p.radius + 16;
-  return { x, y, w, h };
-}
-
-function drawPortalButton(ctx: CanvasRenderingContext2D, r: Rect, hover: boolean): void {
-  roundRect(ctx, r.x, r.y, r.w, r.h, 8);
-  ctx.fillStyle = hover ? '#6b3fc4' : '#4b2a8f';
-  ctx.fill();
-  ctx.strokeStyle = '#d9c2ff';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  drawText(ctx, 'Увійти в портал [E]', r.x + r.w / 2, r.y + r.h / 2 + 1, { size: 14, bold: true, align: 'center' });
-}
-
-function drawPortal(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, r: number, t: number, active: boolean): void {
-  ctx.save();
-  ctx.translate(p.x, p.y);
-  // Closed during a wave: dim and slow.
-  if (!active) {
-    ctx.globalAlpha = 0.3;
-    t *= 0.2;
-  }
-  const g = ctx.createRadialGradient(0, 0, 2, 0, 0, r * 1.6);
-  g.addColorStop(0, 'rgba(230, 210, 255, 0.95)');
-  g.addColorStop(0.45, 'rgba(150, 90, 255, 0.7)');
-  g.addColorStop(1, 'rgba(90, 40, 200, 0)');
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.arc(0, 0, r * 1.6, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = '#d9c2ff';
-  ctx.lineWidth = 3;
-  for (let i = 0; i < 3; i++) {
-    const a = t * 3 + (i * Math.PI * 2) / 3;
-    ctx.beginPath();
-    ctx.arc(0, 0, r * (0.55 + i * 0.22), a, a + 1.6);
-    ctx.stroke();
-  }
-  ctx.restore();
-}
 
 /** HP bar with numbers right under the hero, so the eyes stay on the fight. */
 function drawHeroBar(ctx: CanvasRenderingContext2D, h: Hero): void {

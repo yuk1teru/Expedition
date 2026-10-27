@@ -8,6 +8,7 @@ import type { Hero } from '../systems/entities';
 import type { World } from '../systems/mapgen';
 import type { DeathCause } from '../systems/combat';
 import type { QuestLog } from '../systems/quests';
+import type { Expedition } from '../systems/expedition';
 import type { GiftRarity } from '../data/gifts';
 
 export interface RunStats {
@@ -56,6 +57,8 @@ export interface GameState {
   events: EventBus<GameEvent>;
   /** Progress saved at the last rest in town; death returns here. */
   checkpoint: Checkpoint;
+  /** The location trip in progress (ROADMAP 13.2), or null. Not saved: a reload starts in town. */
+  expedition: Expedition | null;
   /** Quests taken and done (ROADMAP 11.1). */
   quests: QuestLog;
   /** Talent points not spent yet (quests give them; the tree comes in stage 12). */

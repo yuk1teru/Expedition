@@ -31,7 +31,6 @@ export type GameEvent =
   /** Boot dash (Shift). */
   | { type: 'heroDodge'; from: Vec; to: Vec }
   | { type: 'miniboss'; name: string; pos: Vec }
-  | { type: 'portalOpen'; pos: Vec; seconds: number }
   | { type: 'pickupSpawn'; kind: PickupKind; pos: Vec }
   | { type: 'pickup'; kind: PickupKind; pos: Vec }
   /** A healing item from a quick slot: `total` HP over `duration` s. */

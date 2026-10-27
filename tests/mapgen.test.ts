@@ -146,7 +146,6 @@ describe('travel in the fixed world', () => {
     }
     expect(b.outcome).toBe('won');
     expect(b.waves!.cleared).toBe(1);
-    expect(b.portal).toBeNull();
     const day = s.day;
     const sum = completeBattle(s, b);
     expect(sum.transit).toBe(true);

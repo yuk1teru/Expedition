@@ -1,5 +1,6 @@
 // Headless bot used by the balance simulation.
 
+import { chooseNext, finishStep, nextChoice, startExpedition, stepBattle as stepBattleOf } from '../src/systems/expedition';
 import { TALENTS } from '../src/data/talents';
 import { branchNodes, canLearn, learn, treeNodes } from '../src/systems/talents';
 import type { Rng } from '../src/core/rng';
@@ -13,7 +14,6 @@ import { useSkill } from '../src/systems/skills';
 import { botIdentifyAndEquip } from '../src/systems/items';
 import { useHealItem } from '../src/systems/pickups';
 import { HEAL_ORDER } from '../src/data/consumables';
-import { enterPortal } from '../src/systems/waves';
 import { telegraphContains } from '../src/systems/boss';
 import { dist, normalize } from '../src/systems/entities';
 
@@ -117,22 +117,46 @@ export interface BattleRun {
   hpLeftFrac: number;
 }
 
-export function runBattle(state: GameState, nodeId: string, opts: BotOptions): BattleRun {
-  const b = createBattle(state, nodeId, 0, opts.transit ?? false);
+/** Fights one battle to the end (a timeout counts as a loss). */
+function fight(state: GameState, b: Battle, opts: BotOptions): void {
   while (!b.finished && b.time < opts.maxBattleTime) {
     if (opts.useSkills) useReadySkills(b);
     if (b.hero.hp < b.hero.maxHp * SIM.botHerbBelow) botHeal(b);
-    if (b.portal) enterPortal(b);
     dodgeTelegraphs(b);
     stepBattle(b, LOOP.step);
     resolveModals(state, opts.rng, opts.classId);
   }
-  if (!b.finished) {
-    // Timed out: count as a loss.
-    b.outcome = 'lost';
+  if (!b.finished) b.outcome = 'lost';
+}
+
+/**
+ * A crossing (one wave) or a whole location: its arenas one by one (ROADMAP 13.2), a random
+ * arena at the fork; the summary is the one of the whole location.
+ */
+export function runBattle(state: GameState, nodeId: string, opts: BotOptions): BattleRun {
+  let time = 0;
+  let summary: BattleSummary;
+  if (opts.transit) {
+    const b = createBattle(state, nodeId, 0, true);
+    fight(state, b, opts);
+    time = b.time;
+    summary = completeBattle(state, b);
+  } else {
+    startExpedition(state, nodeId);
+    for (;;) {
+      const b = stepBattleOf(state);
+      fight(state, b, opts);
+      time += b.time;
+      const res = finishStep(state, b);
+      resolveModals(state, opts.rng, opts.classId);
+      if (res.summary) {
+        summary = res.summary;
+        break;
+      }
+      const choices = nextChoice(state.expedition!);
+      chooseNext(state, opts.rng.int(0, Math.max(0, choices.length - 1)));
+    }
   }
-  const time = b.time;
-  const summary = completeBattle(state, b);
   // A player would buy magnifiers and wear new items; the bot fills empty slots.
   botIdentifyAndEquip(state);
   return { summary, time, hpLeftFrac: state.hero.hp / state.hero.maxHp };

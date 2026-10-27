@@ -119,11 +119,11 @@ export const SCALING = {
 } as const;
 
 export const WAVES = {
-  /** Waves before the first portal (and before short breaks end). */
+  /** Waves of a battle without its own plan (tests, simulation; locations use EXPEDITION). */
   count: 3,
   /**
-   * Wave size = min(baseSize + perTier × floor(tier), maxSize) + extraPerWave × (waves past the
-   * first portal), never more than `cap` (a bigger crowd is just mush; waves grow in strength instead).
+   * Wave size = min(baseSize + perTier × floor(tier), maxSize) + extraPerWave × (waves of the
+   * location past the first `count`), never more than `cap` (a bigger crowd is just mush; waves grow in strength instead).
    */
   baseSize: 10,
   perTier: 3,
@@ -151,28 +151,11 @@ export const WAVES = {
   groupInterval: 0.5,
   /**
    * Waves overlap: the next wave comes to help once at most this share of the current
-   * wave is still alive — unless a miniboss lives, and never across a portal break
-   * (after every 3rd wave the field is cleared completely).
+   * wave is still alive — unless a miniboss lives; the arena's last wave must be cleared completely.
    */
   overlapAt: 0.4,
-  /** The break after every 3rd wave, with the portal open, s (other waves overlap: no break). */
-  breaks: { portal: 15 },
-  /** The portal opens after every N-th wave. */
-  portalEvery: 3,
-  /** A (scaled) miniboss comes with every N-th wave. */
-  minibossEvery: 3,
   /** 1-based wave index from which every wave has an elite. */
   eliteWave: 3,
-  portal: {
-    radius: 26,
-    /** Portal spawns at least this far from the hero if possible, px. */
-    minDistFromHero: 260,
-    candidates: 24,
-    /** Distance from the arena edge, px. */
-    edgeInset: 34,
-    /** The "Увійти" button appears within this gap between hero and portal, px. */
-    useRange: 40,
-  },
   /** Spawn margin outside/inside arena edge, px. */
   spawnInset: 24,
   /** Spread of a group around its spawn point, px. */
@@ -284,8 +267,8 @@ export const LIVES = {
 
 /** Battle flow timings. */
 export const FLOW = {
-  /** Delay after stepping into the portal before the reward screen. */
-  portalDelay: 0.6,
+  /** Delay after the arena's last wave is cleared before what comes next. */
+  clearDelay: 0.6,
   /** Delay after hero death before the death screen. */
   loseDelay: 1.2,
   /** Longer pause to enjoy the boss falling. */

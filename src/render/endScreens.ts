@@ -50,14 +50,10 @@ function wornUids(app: App): Set<number> {
   );
 }
 
-/** Mandatory and cleared waves of a wave location (none for the boss lair). */
+/** Cleared waves of a wave location (none for the boss lair). */
 function waveRows(s: BattleSummary): [string, string][] {
-  if (s.wavesCleared <= 0 && s.mandatoryWaves <= 0) return [];
-  const range = s.wavesCleared > 0 ? ` (${s.firstWave}–${s.lastWave})` : '';
-  return [
-    ['Обов’язкових хвиль', String(s.mandatoryWaves)],
-    ['Пройдено хвиль', `${s.wavesCleared}${range}`],
-  ];
+  if (s.wavesCleared <= 0) return [];
+  return [['Пройдено хвиль', `${s.wavesCleared} (${s.firstWave}–${s.lastWave})`]];
 }
 
 export function createRewardScreen(app: App): Screen<CanvasRenderingContext2D> {
