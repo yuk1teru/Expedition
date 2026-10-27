@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { LOOP } from '../src/data/balance';
 import { ENEMIES } from '../src/data/enemies';
+import { WORLD_NODES } from '../src/data/world';
+import { nodeFromDef } from '../src/systems/mapgen';
 import { SOULS, SOUL_RULES } from '../src/data/souls';
 import { createBattle, stepBattle } from '../src/systems/battle';
 import { createBossEnemy } from '../src/systems/boss';
@@ -40,6 +42,11 @@ describe('souls and rune stones', () => {
         seen.add(m);
       }
     }
+  });
+
+  it('every monster that lives somewhere in the world has its soul (ROADMAP 16.7)', () => {
+    const covered = new Set(Object.values(SOULS).flatMap((x) => x.from));
+    for (const n of WORLD_NODES) for (const e of nodeFromDef(n).enemies) expect(covered.has(e), `${n.id}: ${e}`).toBe(true);
   });
 
   it('a killed beast sometimes leaves its soul; summoned ones never; an unclaimed soul fades', () => {
