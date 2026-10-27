@@ -3,6 +3,7 @@
 // gate to the world map. The merchant's shop opens from the conversation. The town map is
 // bigger than the screen: the camera follows the hero.
 
+import { towerOpen, towerStart } from '../systems/tower';
 import { amuletHint } from '../systems/amulet';
 import type { Screen } from '../core/screens';
 import { TOWN_SCENE } from '../data/balance';
@@ -68,6 +69,10 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
   // The siege (ROADMAP 17): from inside the capital — straight to the walls.
   const underSiege = (): boolean => app.state.siege === 'active' && app.state.currentNodeId === 'capital' && !door;
   const siegeBtn = new ButtonGroup([new Button({ label: 'На стіни! (облога)', rect: { x: W - 176, y: 128, w: 164, h: 34 }, fontSize: 14, onClick: () => app.startSiege() })]);
+  // The Endless tower (ROADMAP 18): from the capital, after the siege.
+  const towerHere = (): boolean => towerOpen(app.state) && app.state.currentNodeId === 'capital' && !door;
+  const towerBtnDef = new Button({ label: 'Вежа', rect: { x: W - 176, y: 128, w: 164, h: 34 }, fontSize: 14, onClick: () => app.startTower() });
+  const towerBtn = new ButtonGroup([towerBtnDef]);
 
   const runAction = (action: DialogueAction | null): void => {
     app.screens.popModal();
@@ -190,6 +195,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
     },
     onInput(e) {
       if (underSiege() && siegeBtn.handle(e)) return;
+      if (towerHere() && towerBtn.handle(e)) return;
       if (buttons.handle(e)) return;
       if (e.type === 'key' && (e.code === 'KeyE' || e.code === 'Enter' || e.code === 'Space')) {
         const id = npcInReach(layout, walker.pos);
@@ -269,6 +275,10 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
       }
       buttons.draw(ctx);
       if (underSiege()) siegeBtn.draw(ctx);
+      if (towerHere()) {
+        towerBtnDef.label = `Вежа: поверх ${towerStart(app.state)}`;
+        towerBtn.draw(ctx);
+      }
       ctx.fillStyle = 'rgba(10, 12, 18, 0.6)';
       ctx.fillRect(0, H - 20, W, 20);
       drawText(ctx, 'WASD / клік — ходити · E / клік по NPC — говорити · двері — увійти · Tab — спорядження · B — сховище · J — журнал · брама або M — карта', W / 2, H - 10, {

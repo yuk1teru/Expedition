@@ -32,7 +32,7 @@ export function emptyQuestLog(): QuestLog {
 const PLAYABLE = new Set(['kill', 'killMiniboss', 'killBoss', 'clear', 'reach', 'deliver', 'talk', 'bring']);
 
 /** Special objectives the game tracks (the others wait for their stages). */
-const SPECIAL = new Set(['amulet', 'siege']);
+const SPECIAL = new Set(['amulet', 'siege', 'tower100']);
 
 export function questPlayable(q: QuestDef): boolean {
   return q.objectives.every((o) => PLAYABLE.has(o.kind) || (o.kind === 'special' && SPECIAL.has(o.target)));

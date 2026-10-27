@@ -1,5 +1,6 @@
 // Application shell: owns the view, input, loop, screens and the run state.
 
+import { finishFloor, isBossFloor, towerBattle, towerStart } from '../systems/tower';
 import { CAPITAL_ID } from '../data/world';
 import { finishSiege, siegeBattle } from '../systems/siege';
 import { placeAmulet } from '../systems/amulet';
@@ -572,6 +573,14 @@ export class App {
     else if (res.kind === 'battle') this.startExpedition(res.nodeId);
   }
 
+  /** The Endless tower (ROADMAP 18): a climb from the floor after the last boss floor beaten. */
+  startTower(floor = towerStart(this.state)): void {
+    this.screens.clearModals();
+    this.battle = towerBattle(this.state, floor);
+    this.loop.paused = false;
+    this.screens.go('combat');
+  }
+
   /** The siege of the capital (ROADMAP 17): the square, then the lord. */
   startSiege(): void {
     this.screens.clearModals();
@@ -593,6 +602,30 @@ export class App {
     this.battle = stepBattle(this.state);
     this.loop.paused = false;
     this.screens.go('combat');
+  }
+
+  /** The tower window waits for the gift windows (a boss floor) to close. */
+  private towerNext: number | null = null;
+
+  private openTowerChoice(): void {
+    const floor = this.towerNext;
+    if (floor === null) return;
+    this.towerNext = null;
+    const hero = this.state.hero;
+    const boss = isBossFloor(floor) ? ' — поверх боса' : '';
+    this.screens.pushModal(
+      createConfirmModal(
+        this,
+        `Вежа: поверх ${floor - 1} пройдено`,
+        `HP ${Math.ceil(hero.hp)}/${hero.maxHp} — у вежі воно не відновлюється. Далі поверх ${floor}${boss}. Повернутися в місто можна будь-коли: наступне сходження почнеться з поверху ${towerStart(this.state)}.`,
+        ['Вище', 'У місто'],
+        (up) => {
+          this.screens.popModal();
+          if (up) this.startTower(floor);
+          else this.goTown();
+        },
+      ),
+    );
   }
 
   /** The way-on window is waiting for the gift windows (altar) to close. */
@@ -634,6 +667,28 @@ export class App {
   finishBattle(): void {
     const b = this.battle;
     if (!b) return;
+    if (b.towerFloor) {
+      const floor = b.towerFloor;
+      const summary = finishFloor(this.state, b);
+      this.logBattle(b);
+      this.battle = null;
+      this.loop.paused = false;
+      if (!summary.won) {
+        this.lastSummary = summary;
+        if (this.state.lives <= 0) this.endHero(false);
+        this.screens.go('death');
+        return;
+      }
+      if (summary.runCompleted) {
+        this.lastSummary = summary;
+        this.screens.go('victory');
+        return;
+      }
+      // Between floors: higher, or back to the town (HP stays — arriving in town would heal, so the map waits under the window).
+      this.screens.go('map');
+      this.towerNext = floor + 1;
+      return;
+    }
     if (b.siege) {
       const summary = finishSiege(this.state, b);
       this.logBattle(b);
@@ -826,6 +881,7 @@ export class App {
     this.processModalQueue();
     // Between arenas: once the gift windows are closed, the way on.
     if (this.wayOn && !this.screens.topModal && this.state.modalQueue.length === 0) this.openWayOn();
+    if (this.towerNext !== null && !this.screens.topModal && this.state.modalQueue.length === 0) this.openTowerChoice();
   }
 
   private handleInput(e: InputEvent): void {

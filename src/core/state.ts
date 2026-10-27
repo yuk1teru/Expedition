@@ -95,6 +95,8 @@ export interface GameState {
   amuletHinted: boolean;
   /** The siege of the capital (ROADMAP 17): not yet, under way, won (the campaign is over). */
   siege: 'none' | 'active' | 'won';
+  /** The Endless tower (ROADMAP 18): the last boss floor beaten (climbs start after it) and the highest floor. */
+  tower: { checkpoint: number; best: number };
   /** Map nodes the hero has been to (fog of war, ROADMAP 10.6). */
   nodesVisited: string[];
   /** Secret places revealed (a hint, a quest). */

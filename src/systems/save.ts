@@ -63,6 +63,7 @@ export interface SaveData {
   amulet?: { nodeId: string; found: boolean } | null;
   amuletHinted?: boolean;
   siege?: 'none' | 'active' | 'won';
+  tower?: { checkpoint: number; best: number };
   invasion?: { raids: Record<string, number>; lastRaidDay: number; capturedRegion: string | null; townAttack: string | null; done: number[] };
 }
 
@@ -131,6 +132,7 @@ export function toSave(state: GameState, now = Date.now()): SaveData {
     amulet: cp.amulet ?? null,
     amuletHinted: state.amuletHinted,
     siege: state.siege,
+    tower: state.tower,
     invasion: { raids: state.raids, lastRaidDay: state.lastRaidDay, capturedRegion: state.capturedRegion, townAttack: state.townAttack, done: state.invasionEventsDone },
   });
 }
@@ -204,6 +206,7 @@ export function fromSave(data: SaveData): GameState {
     amulet: data.amulet ? { ...data.amulet } : null,
     amuletHinted: data.amuletHinted ?? false,
     siege: data.siege ?? 'none',
+    tower: { ...(data.tower ?? { checkpoint: 0, best: 0 }) },
     raids: { ...(data.invasion?.raids ?? {}) },
     lastRaidDay: data.invasion?.lastRaidDay ?? 0,
     capturedRegion: data.invasion?.capturedRegion ?? null,

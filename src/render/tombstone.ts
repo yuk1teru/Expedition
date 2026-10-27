@@ -107,6 +107,8 @@ export function createTombstoneScreen(app: App): Screen<CanvasRenderingContext2D
       const r = records(app.meta);
       const rec: string[] = [`Героїв на кладовищі: ${r.heroes}`];
       if (r.bestLevel) rec.push(`найвищий рівень — ${r.bestLevel.level} (${r.bestLevel.name})`);
+      if (r.bestTower) rec.push(`вежа — поверх ${r.bestTower.tower} (${r.bestTower.name})`);
+      if (r.hallOfFame.length > 0) rec.push(`зал слави: ${r.hallOfFame.map((g) => g.name).join(', ')}`);
       if (r.mostBosses && r.mostBosses.bosses > 0) rec.push(`босів — ${r.mostBosses.bosses} (${r.mostBosses.name})`);
       if (r.mostDays) rec.push(`днів — ${r.mostDays.days} (${r.mostDays.name})`);
       drawText(ctx, 'Рекорди', W / 2, panel.y + 334, { size: 14, bold: true, align: 'center', color: THEME.accent });

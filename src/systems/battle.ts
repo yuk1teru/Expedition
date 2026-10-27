@@ -117,6 +117,8 @@ export interface Battle {
   defense?: string;
   /** A step of the siege of the capital (ROADMAP 17). */
   siege?: 'waves' | 'lord';
+  /** A floor of the Endless tower (ROADMAP 18). */
+  towerFloor?: number;
   /** Souls of beasts hovering where they fell (ROADMAP 14.3). */
   souls: LooseSoul[];
   /** The goal of an objective arena (no waves then). */
@@ -158,6 +160,8 @@ export interface ArenaPlan {
   objective?: ObjectiveKind;
   /** The arena mirrored (ROADMAP 13.4): the arenas of a trip are not all alike. */
   flip?: ArenaFlip;
+  /** Another place's arena (a tower floor fights on the arena of a land, ROADMAP 18). */
+  arena?: string;
 }
 
 /**
@@ -172,7 +176,7 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0, tr
   state.battleCount += 1;
   const hero = state.hero;
   // The arena first: its size decides where the hero starts.
-  const arena = setupArena(node.id, plan?.flip);
+  const arena = setupArena(plan?.arena ?? node.id, plan?.flip);
   resetHeroForBattle(hero);
   pushOutOfObstacles(arena, hero);
   const level = effectiveLevel(node, state.bossesDefeated.length);

@@ -71,7 +71,7 @@ describe('quests', () => {
   it('quests that need special acts are not offered yet (trophies are, since ROADMAP 14.1)', () => {
     const s = createGameState(1);
     for (const q of Object.values(QUESTS)) {
-      if (q.objectives.some((o) => o.kind === 'special' && o.target !== 'amulet' && o.target !== 'siege')) {
+      if (q.objectives.some((o) => o.kind === 'special' && !['amulet', 'siege', 'tower100'].includes(o.target))) {
         expect(questPlayable(q), q.id).toBe(false);
         expect(questsOffered(s, q.giver).map((x) => x.id)).not.toContain(q.id);
       }

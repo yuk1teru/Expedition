@@ -66,6 +66,7 @@ export function createGameState(seed: number, heroName = DEFAULT_HERO_NAME): Gam
     amulet: null,
     amuletHinted: false,
     siege: 'none',
+    tower: { checkpoint: 0, best: 0 },
     raids: {},
     lastRaidDay: 0,
     capturedRegion: null,

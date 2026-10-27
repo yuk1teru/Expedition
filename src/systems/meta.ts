@@ -23,6 +23,8 @@ export interface Grave {
   /** The location of the last fight (its id). */
   nodeId: string;
   cause: DeathCause | null;
+  /** The highest floor of the Endless tower (ROADMAP 18). */
+  tower?: number;
   /** The player ended the adventure from the pause menu (not a death). */
   abandoned: boolean;
   /** When, ms since 1970. */
@@ -55,6 +57,7 @@ export function makeGrave(state: GameState, opts: { abandoned: boolean; now?: nu
     kills: state.stats.kills,
     bosses: state.bossesDefeated.length,
     playTime: Math.round(state.stats.playTime),
+    tower: state.tower.best,
     nodeId: opts.abandoned || !death ? state.currentNodeId : death.nodeId,
     cause: opts.abandoned ? null : (death?.cause ?? null),
     abandoned: opts.abandoned,
@@ -82,6 +85,10 @@ export function readMeta(text: string | null): MetaData {
 export interface Records {
   heroes: number;
   bestLevel: Grave | null;
+  /** The highest tower floor of all heroes. */
+  bestTower: Grave | null;
+  /** The hall of fame: heroes who beat the 100th floor. */
+  hallOfFame: Grave[];
   mostBosses: Grave | null;
   mostDays: Grave | null;
   mostKills: Grave | null;
@@ -91,7 +98,17 @@ export interface Records {
 export function records(meta: MetaData): Records {
   const best = (key: 'level' | 'bosses' | 'days' | 'kills'): Grave | null =>
     meta.graves.reduce<Grave | null>((top, g) => (top === null || g[key] > top[key] ? g : top), null);
-  return { heroes: meta.graves.length, bestLevel: best('level'), mostBosses: best('bosses'), mostDays: best('days'), mostKills: best('kills') };
+  const towers = meta.graves.filter((g) => (g.tower ?? 0) > 0);
+  const bestTower = towers.reduce<Grave | null>((a, g) => (!a || (g.tower ?? 0) > (a.tower ?? 0) ? g : a), null);
+  return {
+    heroes: meta.graves.length,
+    bestLevel: best('level'),
+    mostBosses: best('bosses'),
+    mostDays: best('days'),
+    mostKills: best('kills'),
+    bestTower,
+    hallOfFame: meta.graves.filter((g) => (g.tower ?? 0) >= 100),
+  };
 }
 
 /** The statistics file friends send (battles and graves). */
