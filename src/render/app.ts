@@ -48,6 +48,8 @@ import { createTownScreen } from './townView';
 import { createWaveStartModal } from './waveStart';
 import { createTitleScreen } from './titleScreen';
 import { createCoachModal } from './coach';
+import { createSettingsModal } from './settingsModal';
+import { type GameSettings, readSettings } from '../core/settings';
 import { visitTown } from '../systems/coach';
 import { markVisited } from '../systems/fog';
 import { type SaveData, fromSave, readSave, saveFileName, toSave, writeSave } from '../systems/save';
@@ -71,10 +73,12 @@ export interface SaveFiles {
   pick(): Promise<string | null>;
 }
 
-/** Small settings kept between visits (game speed). */
+/** Small settings kept between visits (game speed, the settings window). */
 export interface SettingsStore {
   loadSpeed(): number | null;
   saveSpeed(speed: number): void;
+  load(): string | null;
+  save(text: string): void;
 }
 
 export class App {
@@ -86,7 +90,9 @@ export class App {
   /** Real seconds since start (UI animation). */
   time = 0;
   reducedMotion = false;
-  private readonly settings: SettingsStore | null;
+  private readonly settingsStore: SettingsStore | null;
+  /** The player's settings (ROADMAP 10.7). */
+  settings: GameSettings;
   private readonly saves: SaveStore | null;
   private readonly metaStore: SaveStore | null;
   /** What outlives heroes: the graves (the cemetery, records). */
@@ -110,6 +116,7 @@ export class App {
   ) {
     this.reducedMotion = opts.reducedMotion;
     this.firstSeed = seed;
+    this.settings = readSettings(opts.settings?.load() ?? null);
     this.saves = opts.saves ?? null;
     this.files = opts.files ?? null;
     this.metaStore = opts.meta ?? null;
@@ -135,8 +142,8 @@ export class App {
       { requestFrame: (cb) => requestAnimationFrame(cb) },
       { step: LOOP.step, maxFrame: LOOP.maxFrame },
     );
-    this.settings = opts.settings ?? null;
-    if (this.settings?.loadSpeed() === 2) this.loop.speed = 2;
+    this.settingsStore = opts.settings ?? null;
+    if (this.settingsStore?.loadSpeed() === 2) this.loop.speed = 2;
     this.screens.go('title');
     // Returning players first see what changed since their last visit (on top of the help).
     const store = opts.versions;
@@ -155,6 +162,16 @@ export class App {
   showChangelog(): void {
     if (this.screens.topModal) return;
     this.screens.pushModal(createChangelogModal(this, CHANGELOG, () => this.screens.popModal()));
+  }
+
+  /** The settings window (title screen, pause). */
+  openSettings(): void {
+    if (this.screens.topModal?.id === 'settings') return;
+    this.screens.pushModal(createSettingsModal(this, () => this.screens.popModal()));
+  }
+
+  saveSettings(): void {
+    this.settingsStore?.save(JSON.stringify(this.settings));
   }
 
   /** Town coachman: the «Швидка тарадайка» window. */
@@ -181,7 +198,7 @@ export class App {
   /** ×1 / ×2 game speed; the choice is remembered. */
   toggleSpeed(): void {
     this.loop.toggleSpeed();
-    this.settings?.saveSpeed(this.loop.speed);
+    this.settingsStore?.saveSpeed(this.loop.speed);
   }
 
   totalBosses(): number {

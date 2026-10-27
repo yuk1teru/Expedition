@@ -32,6 +32,8 @@ export function createTitleScreen(app: App): Screen<CanvasRenderingContext2D> {
   };
 
   const panel = { x: W / 2 - 240, y: 150, w: 480, h: 300 };
+  const settingsBtn = new Button({ label: 'Налаштування', rect: { x: 16, y: H - 50, w: 150, h: 34 }, fontSize: 13, onClick: () => app.openSettings() });
+  const extras = new ButtonGroup([settingsBtn]);
   const menu = new ButtonGroup();
   const entry = new ButtonGroup();
 
@@ -90,6 +92,7 @@ export function createTitleScreen(app: App): Screen<CanvasRenderingContext2D> {
       noteTime = Math.max(0, noteTime - dt);
     },
     onInput(e) {
+      if (extras.handle(e)) return;
       if (mode === 'menu') {
         menu.handle(e);
         return;
@@ -136,6 +139,7 @@ export function createTitleScreen(app: App): Screen<CanvasRenderingContext2D> {
         entry.draw(ctx);
       }
       if (noteTime > 0) drawText(ctx, note, W / 2, panel.y + panel.h + 26, { size: 14, align: 'center', color: noteBad ? THEME.bad : THEME.good });
+      settingsBtn.draw(ctx);
       drawText(ctx, `v${GAME_VERSION}`, W - 16, H - 16, { size: 12, align: 'right', color: THEME.textMuted });
     },
   };

@@ -91,6 +91,9 @@ export class Fx {
   flash = 0;
   flashColor = '#ffffff';
   reducedMotion = false;
+  /** Settings: screen shake and floating numbers (ROADMAP 10.7). */
+  shakeOn = true;
+  numbersOn = true;
   private seed = 1;
   private unsub: (() => void)[] = [];
 
@@ -206,7 +209,7 @@ export class Fx {
   }
 
   shake(spec: ShakeSpec): void {
-    if (this.reducedMotion) return;
+    if (this.reducedMotion || !this.shakeOn) return;
     if (spec.strength >= this.shakeStrength * (this.shakeTime / Math.max(this.shakeDuration, 1e-6))) {
       this.shakeStrength = spec.strength;
       this.shakeDuration = spec.duration;

@@ -32,6 +32,7 @@ const versions: VersionStore = {
 };
 // Game speed ×1/×2 (PLAN.md 6.5); without storage the game simply starts at ×1.
 const SPEED_KEY = 'expedition.speed';
+const SETTINGS_KEY = 'expedition.settings';
 const settings: SettingsStore = {
   loadSpeed: () => {
     try {
@@ -44,6 +45,20 @@ const settings: SettingsStore = {
   saveSpeed: (speed) => {
     try {
       window.localStorage.setItem(SPEED_KEY, String(speed));
+    } catch {
+      // Not critical.
+    }
+  },
+  load: () => {
+    try {
+      return window.localStorage.getItem(SETTINGS_KEY);
+    } catch {
+      return null;
+    }
+  },
+  save: (text) => {
+    try {
+      window.localStorage.setItem(SETTINGS_KEY, text);
     } catch {
       // Not critical.
     }

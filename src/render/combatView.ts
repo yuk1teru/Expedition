@@ -84,7 +84,13 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
     fontSize: 12,
     onClick: openWiki,
   });
-  const pauseButtons = new ButtonGroup([resumeBtn, abandonBtn, wikiBtn]);
+  const settingsBtn = new Button({
+    label: 'Налаштування',
+    rect: { x: PAUSE_PANEL.x + PAUSE_PANEL.w - 196, y: PAUSE_PANEL.y + 12, w: 104, h: 26 },
+    fontSize: 12,
+    onClick: () => app.openSettings(),
+  });
+  const pauseButtons = new ButtonGroup([resumeBtn, abandonBtn, wikiBtn, settingsBtn]);
 
   function onEvent(e: GameEvent): void {
     const b = battle;
@@ -161,6 +167,9 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
     },
 
     render(ctx) {
+      // Settings may change on the pause screen.
+      fx.shakeOn = app.settings.shake;
+      fx.numbersOn = app.settings.damageNumbers;
       const b = battle;
       if (!b) return;
       // No shake while the game is paused or a choice window is open.
@@ -244,11 +253,11 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
     case 'hit': {
       const amount = Math.max(1, Math.round(e.amount));
       if (e.source === 'splash') {
-        fx.text({ x: e.pos.x, y: e.pos.y - e.radius - 6 }, String(amount), T.splashColor, T.splashSize);
+        if (fx.numbersOn) fx.text({ x: e.pos.x, y: e.pos.y - e.radius - 6 }, String(amount), T.splashColor, T.splashSize);
         fx.burst(e.pos, P.hit, T.splashColor);
         break;
       }
-      fx.text({ x: e.pos.x, y: e.pos.y - e.radius - 6 }, String(amount), e.crit ? T.critColor : T.color, e.crit ? T.critSize : T.size);
+      if (fx.numbersOn) fx.text({ x: e.pos.x, y: e.pos.y - e.radius - 6 }, String(amount), e.crit ? T.critColor : T.color, e.crit ? T.critSize : T.size);
       if (e.source === 'basic') fx.ring(e.pos, e.radius + FX.impact.extra, '#ffffff', FX.impact.life, FX.impact.width);
       fx.burst(e.pos, e.crit ? P.crit : P.hit, e.crit ? T.critColor : '#ffffff');
       if (e.crit) fx.stop(FX.hitStop.crit);
@@ -259,7 +268,7 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
     case 'heroHurt': {
       const amount = Math.max(1, Math.round(e.amount));
       const side = fx.rand() < 0.5 ? -1 : 1;
-      fx.text({ x: e.pos.x + side * T.heroSideOffset, y: e.pos.y - 8 }, `-${amount}`, T.heroColor, T.size);
+      if (fx.numbersOn) fx.text({ x: e.pos.x + side * T.heroSideOffset, y: e.pos.y - 8 }, `-${amount}`, T.heroColor, T.size);
       fx.burst(e.pos, P.heroHurt, T.heroColor);
       if (e.amount >= b.hero.maxHp * FX.heroHurtBigFraction) fx.shake(FX.shake.heroHurtBig);
       break;
@@ -269,7 +278,7 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
       if (e.targets >= FX.cleaveShakeTargets) fx.shake(FX.shake.cleave);
       break;
     case 'heroHeal':
-      fx.text({ x: e.pos.x + T.heroSideOffset, y: e.pos.y - 18 }, `+${Math.round(e.amount)}`, T.healColor, T.size);
+      if (fx.numbersOn) fx.text({ x: e.pos.x + T.heroSideOffset, y: e.pos.y - 18 }, `+${Math.round(e.amount)}`, T.healColor, T.size);
       break;
     case 'kill': {
       const color = b.biome.palette.enemies[e.defId] ?? '#cccccc';
