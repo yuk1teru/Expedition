@@ -55,6 +55,7 @@ export function createGameState(seed: number, heroName = DEFAULT_HERO_NAME): Gam
     expedition: null,
     talentPoints: 0,
     runeStones: 0,
+    ordersDone: [],
   };
   return { ...state, checkpoint: snapshot(state) };
 }

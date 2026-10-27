@@ -1,5 +1,6 @@
 // Application shell: owns the view, input, loop, screens and the run state.
 
+import { createOrdersModal } from './orders';
 import { SoundPlayer, eventSound } from './sound';
 import type { InputEvent } from '../core/input';
 import { Input } from '../core/input';
@@ -231,6 +232,12 @@ export class App {
   openCoach(): void {
     if (this.screens.topModal) return;
     this.screens.pushModal(createCoachModal(this, () => this.screens.popModal()));
+  }
+
+  /** The artifact buyer's orders (ROADMAP 14.1а). */
+  openOrders(): void {
+    if (this.screens.topModal) return;
+    this.screens.pushModal(createOrdersModal(this, () => this.screens.popModal()));
   }
 
   /** Town merchant window. */

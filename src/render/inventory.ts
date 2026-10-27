@@ -521,7 +521,7 @@ function trophyTooltip(ctx: CanvasRenderingContext2D, app: App, m: { x: number; 
     const tr = TROPHIES[id]!;
     const wanted = trophiesWanted(app.state, id);
     const lines = [fillNames(tr.name), `${TROPHY_KIND_NAMES[tr.kind]} · у вас: ${n}`, fillNames(tr.description), `Торговець дасть: ${tr.price} зол. за штуку`];
-    if (wanted > 0) lines.push(`Збирає квест: ${wanted} — торговцю не продається`);
+    if (wanted > 0) lines.push(`Чекають квест чи скупник: ${wanted} — торговцю не продається`);
     drawTooltip(ctx, lines, m.x, m.y, app.view.width, app.view.height, [TROPHY_COLORS[tr.kind]]);
     return true;
   }

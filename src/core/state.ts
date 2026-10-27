@@ -65,6 +65,8 @@ export interface GameState {
   talentPoints: number;
   /** Rune stones for souls (stage 14). */
   runeStones: number;
+  /** Orders of the artifact buyer handed in (ROADMAP 14.1а). */
+  ordersDone: string[];
   /** Map nodes the hero has been to (fog of war, ROADMAP 10.6). */
   nodesVisited: string[];
   /** Secret places revealed (a hint, a quest). */

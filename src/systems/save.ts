@@ -54,6 +54,7 @@ export interface SaveData {
   quests?: QuestLog;
   talentPoints?: number;
   runeStones?: number;
+  ordersDone?: string[];
 }
 
 /**
@@ -114,6 +115,7 @@ export function toSave(state: GameState, now = Date.now()): SaveData {
     quests: state.quests,
     talentPoints: state.talentPoints,
     runeStones: state.runeStones,
+    ordersDone: state.ordersDone,
   });
 }
 
@@ -179,6 +181,7 @@ export function fromSave(data: SaveData): GameState {
     quests: data.quests ? { active: data.quests.active.filter((q) => QUESTS[q.id]), done: [...data.quests.done] } : emptyQuestLog(),
     talentPoints: data.talentPoints ?? 0,
     runeStones: data.runeStones ?? 0,
+    ordersDone: [...(data.ordersDone ?? [])],
   };
   return { ...state, checkpoint: snapshot(state) };
 }

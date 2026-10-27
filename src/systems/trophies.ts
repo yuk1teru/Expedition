@@ -7,6 +7,7 @@ import { QUESTS } from '../data/quests';
 import { TROPHIES, type TrophyDef } from '../data/trophies';
 import type { Battle } from './battle';
 import type { Enemy } from './entities';
+import { ordersWant } from './orders';
 
 /** Trophies by the enemy / miniboss / boss that drops them. */
 const BY_SOURCE = new Map<string, TrophyDef[]>();
@@ -52,9 +53,9 @@ export function rollRelics(b: Battle): TrophyDef[] {
   return out;
 }
 
-/** How many of this trophy the hero's quests are collecting (kept when selling). */
+/** How many of this trophy the quests collect and the open orders want (kept when selling). */
 export function trophiesWanted(state: GameState, id: string): number {
-  let n = 0;
+  let n = ordersWant(state, id);
   for (const qs of state.quests.active) {
     const o = QUESTS[qs.id]?.objectives[qs.step];
     if (o?.kind === 'bring' && o.target === id) n += o.count ?? 1;

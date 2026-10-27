@@ -11,7 +11,7 @@ import type { ItemSlot } from './items';
 import type { NameForms } from './names';
 
 /** What an option can do besides moving to another node. */
-export type DialogueAction = 'openShop' | 'openChangelog' | 'openInventory' | 'openCoach' | 'resetTree' | 'close';
+export type DialogueAction = 'openShop' | 'openChangelog' | 'openInventory' | 'openCoach' | 'resetTree' | 'openOrders' | 'close';
 
 export interface DialogueOption {
   text: string;
@@ -53,6 +53,7 @@ export interface NpcDef {
 
 /** Lines shared by many NPCs (the helpers below); editing one changes all of them. */
 export const NPC_LINES = {
+  showOrders: 'Покажи замовлення.',
   merchantTitle: 'Торговець',
   showGoods: 'Покажи товари.',
   aboutPlace: 'Що тут цікавого?',
@@ -107,6 +108,13 @@ function local(o: { id: string; name: string; forms?: NameForms; title: string; 
       quest: { text: NPC_LINES.noQuest, options: [BYE] },
     },
   };
+}
+
+/** The artifact buyer: a local NPC with his orders (ROADMAP 14.1а). */
+function buyer(o: Parameters<typeof local>[0]): NpcDef {
+  const npc = local(o);
+  npc.nodes.hello!.options.unshift({ text: NPC_LINES.showOrders, action: 'openOrders' });
+  return npc;
 }
 
 /** A class teacher: a local NPC who also resets the talent tree (ROADMAP 12.9). */
@@ -297,7 +305,7 @@ export const NPCS: Record<string, NpcDef> = {
     greeting: 'Мир тобі. {name:church} відчинений для всіх — і для живих, і для тих, хто вже ні.',
     news: 'Під собором лежить печатка {name:goddess:of}, що замикає {name:dead}. Вона тріснула. Крізь тріщину сочиться аура {name:lord:of} — і звірі шаленіють.',
   }),
-  artifactBuyer: local({
+  artifactBuyer: buyer({
     id: 'artifactBuyer',
     name: 'Ізидор',
     forms: { to: 'Ізидорові', with: 'Ізидором', of: 'Ізидора' },
