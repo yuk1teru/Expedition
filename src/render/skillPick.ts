@@ -9,7 +9,7 @@ import type { App } from './app';
 import { drawSkillIcon } from './icons';
 import { THEME, font } from './theme';
 import { skillTooltip } from './skillText';
-import { Button, ButtonGroup, type Rect, drawText, drawTooltip, inRect, roundRect, wrapLines } from './ui';
+import { Button, ButtonGroup, type Rect, drawText, drawTooltip, fitFontSize, inRect, roundRect, wrapLines } from './ui';
 
 const COLS = 4;
 const CARD_W = 210;
@@ -88,7 +88,8 @@ export function createSkillPickModal(app: App, classId: string, onDone: (picks: 
         ctx.strokeStyle = selected ? THEME.good : hovered === i ? THEME.accent : THEME.panelBorder;
         ctx.stroke();
         drawSkillIcon(ctx, def.icon, r.x + 30, r.y + 30, 34, selected ? THEME.good : '#f4f1e8');
-        drawText(ctx, def.name, r.x + 56, r.y + 24, { size: 16, bold: true });
+        // Long names (Ланцюгова блискавка) shrink to fit the card.
+        drawText(ctx, def.name, r.x + 56, r.y + 24, { size: fitFontSize(ctx, def.name, r.w - 56 - 12, 16, true), bold: true });
         drawText(ctx, `[${i + 1}]${def.aimable ? ' · наводиться мишею' : ''}`, r.x + 56, r.y + 42, { size: 11, color: THEME.textDim });
         ctx.font = font(12);
         ctx.fillStyle = THEME.textDim;

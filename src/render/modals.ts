@@ -12,7 +12,7 @@ import { drawRankDots } from './hud';
 import { skillTooltip, wrapPlain } from './skillText';
 import { drawClassIcon, drawPassiveIcon, drawSkillIcon } from './icons';
 import { THEME, font } from './theme';
-import { Button, ButtonGroup, type Rect, drawText, drawTooltip, inRect, roundRect, wrapLines } from './ui';
+import { Button, ButtonGroup, type Rect, drawText, drawTooltip, inRect, roundRect, wrapLines, fitFontSize } from './ui';
 
 const CARD_W = 250;
 const CARD_H = 320;
@@ -60,7 +60,7 @@ function drawCard(ctx: CanvasRenderingContext2D, r: Rect, face: CardFace, hovere
   ctx.fill();
   face.drawIcon(ctx, r.x + r.w / 2, y + 74);
   drawText(ctx, face.kindLabel, r.x + r.w / 2, y + 140, { size: 12, bold: true, align: 'center', color: face.kindColor });
-  drawText(ctx, face.title, r.x + r.w / 2, y + 164, { size: 21, bold: true, align: 'center' });
+  drawText(ctx, face.title, r.x + r.w / 2, y + 164, { size: fitFontSize(ctx, face.title, r.w - 20, 21, true), bold: true, align: 'center' });
   if (face.rankLine) drawText(ctx, face.rankLine, r.x + r.w / 2, y + 190, { size: 14, align: 'center', color: THEME.accent, bold: true });
   ctx.font = font(13);
   ctx.fillStyle = THEME.textDim;

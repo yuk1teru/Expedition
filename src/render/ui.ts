@@ -202,6 +202,16 @@ export function drawText(
   ctx.fillText(text, x, y);
 }
 
+/** The biggest font size (from `size` down to `min`) at which `text` fits into `maxWidth`. */
+export function fitFontSize(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, size: number, bold = false, min = 10): number {
+  let s = size;
+  for (; s > min; s--) {
+    ctx.font = font(s, bold ? 'bold' : 'normal');
+    if (ctx.measureText(text).width <= maxWidth) break;
+  }
+  return s;
+}
+
 export function drawBar(
   ctx: CanvasRenderingContext2D,
   r: Rect,
