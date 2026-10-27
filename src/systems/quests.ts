@@ -32,7 +32,7 @@ export function emptyQuestLog(): QuestLog {
 const PLAYABLE = new Set(['kill', 'killMiniboss', 'killBoss', 'clear', 'reach', 'deliver', 'talk', 'bring']);
 
 /** Special objectives the game tracks (the others wait for their stages). */
-const SPECIAL = new Set(['amulet']);
+const SPECIAL = new Set(['amulet', 'siege']);
 
 export function questPlayable(q: QuestDef): boolean {
   return q.objectives.every((o) => PLAYABLE.has(o.kind) || (o.kind === 'special' && SPECIAL.has(o.target)));
@@ -72,7 +72,7 @@ export function questsOffered(state: GameState, npcId: string): QuestDef[] {
     const r = q.requires;
     if (r?.quests?.some((id) => !state.quests.done.includes(id))) return false;
     if (r?.level && state.hero.level < r.level) return false;
-    if (r?.flag && !state[r.flag]) return false;
+    if (r?.flag === 'siegeActive' ? state.siege === 'none' : r?.flag && !state[r.flag]) return false;
     // A class quest is for that class only.
     if (q.classId && state.hero.classId !== q.classId) return false;
     if (r?.captured && state.capturedRegion !== r.captured) return false;

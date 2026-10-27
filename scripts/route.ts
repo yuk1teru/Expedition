@@ -13,7 +13,9 @@ import { RARITIES } from '../src/data/items';
 import { buyConsumable, equipFromBag, identifyItem, itemLevelMult, type Item } from '../src/systems/items';
 import { type World, effectiveLevel, getNode, neighbours } from '../src/systems/mapgen';
 import { isRunWon, restInTown, restoreCheckpoint, travel } from '../src/systems/run';
-import { runBattle } from './bot';
+import { fight, runBattle } from './bot';
+import { bossesAlive, finishSiege, siegeBattle } from '../src/systems/siege';
+import { CAPITAL_ID } from '../src/data/world';
 import { coachDestinations, coachPrice, rideCoach } from '../src/systems/coach';
 
 export interface FullRunResult {
@@ -85,6 +87,8 @@ export function chooseTarget(state: GameState): string | null {
     return best;
   };
   const tier = (n: (typeof world.nodes)[number]): number => effectiveLevel(n, state.bossesDefeated.length);
+  // Every boss of the lands down and the siege on: the capital (ROADMAP 17).
+  if (state.siege === 'active' && bossesAlive(state).length === 0) return CAPITAL_ID;
   const left = world.nodes.filter((n) => n.isBoss && !state.bossesDefeated.includes(n.id));
   const ready = left.filter((n) => tier(n) <= state.hero.level + SIM.botBossLevelSlack).map((n) => n.id);
   // Raids (ROADMAP 15.2): a raid not driven off makes the location fall — unless a boss is ready.
@@ -98,6 +102,16 @@ export function chooseTarget(state: GameState): string | null {
   const farm = world.nodes.filter((n) => !n.isTown && !n.isBoss && n.timesCleared > 0 && tier(n) <= limit);
   if (farm.length > 0) return farm.reduce((a, b) => (tier(b) > tier(a) ? b : a)).id;
   return byDistance(left.map((n) => n.id));
+}
+
+/** The bot fights the siege: the square, then the lord; true — the campaign is won. */
+function botSiege(state: GameState, opts: Parameters<typeof fight>[2]): boolean {
+  for (const step of ['waves', 'lord'] as const) {
+    const b = siegeBattle(state, step);
+    fight(state, b, opts);
+    if (!finishSiege(state, b).won) return false;
+  }
+  return true;
 }
 
 /** Rides the coach when another reachable town is at least 2 steps nearer the target and gold allows. */
@@ -214,6 +228,17 @@ export function simulateFullRun(state: GameState, opts: FullRunOptions): FullRun
     let died = false;
     for (const id of path) {
       const node = getNode(state.world, id);
+      if (id === CAPITAL_ID && id === target && state.siege === 'active') {
+        // The siege: the square, then the lord.
+        travel(state, id);
+        const won = botSiege(state, battleOpts);
+        res.battles += 2;
+        if (!won) {
+          res.deaths.push('siege');
+          died = true;
+        }
+        break;
+      }
       if (node.isTown) {
         townVisit(state);
         res.townVisits++;

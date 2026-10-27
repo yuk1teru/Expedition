@@ -115,6 +115,8 @@ export interface Battle {
   raid: boolean;
   /** The battle at the gates of this town under attack. */
   defense?: string;
+  /** A step of the siege of the capital (ROADMAP 17). */
+  siege?: 'waves' | 'lord';
   /** Souls of beasts hovering where they fell (ROADMAP 14.3). */
   souls: LooseSoul[];
   /** The goal of an objective arena (no waves then). */
@@ -163,8 +165,9 @@ export interface ArenaPlan {
  * crossing — one wave, see Battle.transit. `plan`: the arena of a location trip; without it
  * a location fights WAVES.count waves with the miniboss in the last one, a boss lair — the boss.
  */
-export function createBattle(state: GameState, nodeId: string, startWave = 0, transit = false, plan?: ArenaPlan): Battle {
-  const node = getNode(state.world, nodeId);
+export function createBattle(state: GameState, nodeId: string, startWave = 0, transit = false, plan?: ArenaPlan, nodeOverride?: MapNode): Battle {
+  // A battle off the map (the siege, ROADMAP 17) brings its own node.
+  const node = nodeOverride ?? getNode(state.world, nodeId);
   if (!node.biome) throw new Error(`Node ${nodeId} has no biome`);
   state.battleCount += 1;
   const hero = state.hero;

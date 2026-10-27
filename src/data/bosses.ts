@@ -55,6 +55,74 @@ export interface BossDef {
 }
 
 export const BOSSES: Record<string, BossDef> = {
+  // The lord of the dead: the last boss of the campaign (the siege, ROADMAP 17.3).
+  darkLord: {
+    id: 'darkLord',
+    name: '{name:lord}',
+    biome: 'forest',
+    hp: 4200,
+    damage: 36,
+    armor: 16,
+    speed: 50,
+    radius: 36,
+    mass: 40,
+    xp: 600,
+    gold: 300,
+    keepDistance: 110,
+    telegraphDelay: 0.9,
+    minPause: 1,
+    phase2: { hpFraction: 0.5, speedMult: 1.25 },
+    attacks: [
+      {
+        id: 'abyss',
+        weight: 3,
+        phases: [1, 2],
+        cooldown: [4, 3.2],
+        initialCooldown: 1.5,
+        // `count` circles of the abyss: one under the hero, the rest around.
+        params: [
+          { count: 4, radius: 56, spreadMin: 80, spread: 150, damage: 0.8 },
+          { count: 6, radius: 56, spreadMin: 80, spread: 170, damage: 0.8 },
+        ],
+      },
+      {
+        id: 'graveRise',
+        weight: 1,
+        priority: true,
+        phases: [1, 2],
+        cooldown: [12, 9],
+        initialCooldown: 5,
+        enemyId: 'deadRaider',
+        params: [
+          { count: 3, ring: 80 },
+          { count: 5, ring: 80 },
+        ],
+      },
+      {
+        id: 'deathRing',
+        weight: 2,
+        phases: [1, 2],
+        cooldown: [9, 7],
+        initialCooldown: 4,
+        // A ring of death grows from the lord with `gaps` openings — step into one.
+        params: [
+          { speed: 170, width: 24, damage: 0.7, gaps: 2, gapDeg: 40, maxRadius: 800 },
+          { speed: 200, width: 24, damage: 0.7, gaps: 1, gapDeg: 36, maxRadius: 800 },
+        ],
+      },
+      {
+        id: 'reap',
+        weight: 4,
+        phases: [1, 2],
+        cooldown: [7, 5],
+        initialCooldown: 3,
+        params: [
+          { radius: 140, trigger: 120, damage: 1.4 },
+          { radius: 150, trigger: 130, damage: 1.4 },
+        ],
+      },
+    ],
+  },
   enat: {
     id: 'enat',
     name: 'Старий Енат',

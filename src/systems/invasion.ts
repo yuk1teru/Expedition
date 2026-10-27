@@ -2,6 +2,7 @@
 // locations (driven off by clearing them, or the location falls), a captured land (its quest
 // wins it back) and an attack on a town (a battle at its gates when the hero comes).
 
+import { checkSiege } from './siege';
 import { townDefense } from './growth';
 import type { GameState } from '../core/state';
 import { INVASION_EVENTS } from '../data/invasion';
@@ -36,6 +37,7 @@ function news(state: GameState, title: string, text: string): void {
 
 /** A day passed: new raids, fallen locations, the captured land, the attacked town. */
 export function invasionTick(state: GameState, here: string): void {
+  checkSiege(state);
   if (state.noInvasion) return;
   const pct = invasionPct(state.day);
   const ev = INVASION_EVENTS;

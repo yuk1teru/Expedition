@@ -79,7 +79,7 @@ function mainFull(args: Args): void {
     if (rs.length > 0) byClass[`Перемог: ${c}`] = `${rs.filter((r) => r.won).length}/${rs.length} (${pct(rs.filter((r) => r.won).length, rs.length)})`;
   }
   console.table({
-    'Перемог (усі 4 боси)': `${wins.length} (${pct(wins.length, args.runs)})`,
+    'Перемог (облогу відбито)': `${wins.length} (${pct(wins.length, args.runs)})`,
     ...byClass,
     'Застрягли (ліміт днів / боїв)': String(results.filter((r) => r.stuck).length),
     'Середні дні до перемоги': avg(wins.map((r) => r.days)).toFixed(1),

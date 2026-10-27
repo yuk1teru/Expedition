@@ -22,7 +22,8 @@ function battleAt(nodeId: string) {
 describe('arenas', () => {
   it('data: real locations, at least the view big, everything inside, the centre clear for the hero', () => {
     for (const a of Object.values(ARENAS)) {
-      expect(WORLD_NODES.some((n) => n.id === a.id), a.id).toBe(true);
+      // Every arena is a place of the world (the siege square — the capital's).
+      expect(a.id === 'siege' || WORLD_NODES.some((n) => n.id === a.id), a.id).toBe(true);
       expect(a.w).toBeGreaterThanOrEqual(ARENA_VIEW.w);
       expect(a.h).toBeGreaterThanOrEqual(ARENA_VIEW.h);
       for (const o of a.obstacles) {

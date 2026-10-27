@@ -64,7 +64,7 @@ export interface QuestDef {
   turnIn?: string;
   classId?: string;
   /** `flag`: something the hero has seen (a soul — ROADMAP 14.3); `captured`: this land is captured by the invasion. */
-  requires?: { quests?: string[]; level?: number; flag?: 'soulSeen' | 'amuletHinted'; captured?: string; note?: string };
+  requires?: { quests?: string[]; level?: number; flag?: 'soulSeen' | 'amuletHinted' | 'siegeActive'; captured?: string; note?: string };
   /** What the giver says when offering the quest. */
   offer: string;
   objectives: QuestObjective[];
@@ -182,7 +182,7 @@ export const QUESTS: Record<string, QuestDef> = {
     name: 'Облога столиці',
     kind: 'main',
     giver: 'capitalGuard',
-    requires: { quests: ['mainChurch'], note: 'Шкала навали дійшла до 100%.' },
+    requires: { flag: 'siegeActive', note: 'Облога почалася: навала дійшла до 100% або всі охоронці краю переможені.' },
     offer: 'Мертві під стінами! Кожен охоронець, якого ти не звільнив, привів свій загін. На стіни!',
     objectives: [{ kind: 'special', target: 'siege', text: 'Відбити облогу {town:capital:of} і перемогти {name:lord:acc}.' }],
     done: 'Розлам закрито… але {name:lord} втік. Над містом виросла чорна вежа.',

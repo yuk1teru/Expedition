@@ -1,5 +1,6 @@
 // Run-level flow: new expedition, travel on the map, town actions.
 
+import { checkSiege } from './siege';
 import { claimSecret } from './amulet';
 import { driveOffRaid, invasionTick } from './invasion';
 import { elixirArenaDone } from './alchemy';
@@ -64,6 +65,7 @@ export function createGameState(seed: number, heroName = DEFAULT_HERO_NAME): Gam
     townGrowth: {},
     amulet: null,
     amuletHinted: false,
+    siege: 'none',
     raids: {},
     lastRaidDay: 0,
     capturedRegion: null,
@@ -262,6 +264,7 @@ export function completeBattle(state: GameState, b: Battle, opts: { final?: bool
     state.day += 1;
     invasionTick(state, b.node.id);
     if (b.node.isBoss && !state.bossesDefeated.includes(b.node.id)) state.bossesDefeated.push(b.node.id);
+    checkSiege(state);
     // Gifts (ROADMAP 12.8): a boss gives a legendary one; the first win over a location's miniboss may give a rare one.
     if (state.hero.classId && b.node.isBoss) state.modalQueue.push({ kind: 'gift', rarity: 'legendary' });
     else if (state.hero.classId && b.stats.minibossKills > 0 && b.node.timesCleared === 1 && state.cardRng.chance(GIFT_RULES.minibossChance)) {
@@ -292,8 +295,9 @@ export function completeBattle(state: GameState, b: Battle, opts: { final?: bool
   };
 }
 
+/** The campaign is won: the siege of the capital beaten, {name:lord} gone (ROADMAP 17). */
 export function isRunWon(state: GameState): boolean {
-  return state.world.nodes.filter((n) => n.isBoss).every((n) => state.bossesDefeated.includes(n.id));
+  return state.siege === 'won';
 }
 
 /** Level-3 class choice with the picked starting skills. */

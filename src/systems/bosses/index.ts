@@ -8,3 +8,4 @@ import './poisonMother';
 import './bigToad';
 import './iceKnight';
 import './frostWarden';
+import './darkLord';

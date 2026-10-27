@@ -93,6 +93,8 @@ export interface GameState {
    */
   amulet: { nodeId: string; found: boolean } | null;
   amuletHinted: boolean;
+  /** The siege of the capital (ROADMAP 17): not yet, under way, won (the campaign is over). */
+  siege: 'none' | 'active' | 'won';
   /** Map nodes the hero has been to (fog of war, ROADMAP 10.6). */
   nodesVisited: string[];
   /** Secret places revealed (a hint, a quest). */

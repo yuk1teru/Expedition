@@ -65,6 +65,9 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
     // The stash, one for all towns (ROADMAP 14.7).
     new Button({ label: 'Сховище (B)', rect: { x: W - 176, y: 90, w: 164, h: 32 }, fontSize: 14, hotkey: 'KeyB', onClick: () => app.openStash() }),
   ]);
+  // The siege (ROADMAP 17): from inside the capital — straight to the walls.
+  const underSiege = (): boolean => app.state.siege === 'active' && app.state.currentNodeId === 'capital' && !door;
+  const siegeBtn = new ButtonGroup([new Button({ label: 'На стіни! (облога)', rect: { x: W - 176, y: 128, w: 164, h: 34 }, fontSize: 14, onClick: () => app.startSiege() })]);
 
   const runAction = (action: DialogueAction | null): void => {
     app.screens.popModal();
@@ -186,6 +189,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
       }
     },
     onInput(e) {
+      if (underSiege() && siegeBtn.handle(e)) return;
       if (buttons.handle(e)) return;
       if (e.type === 'key' && (e.code === 'KeyE' || e.code === 'Enter' || e.code === 'Space')) {
         const id = npcInReach(layout, walker.pos);
@@ -264,6 +268,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
         ctx.restore();
       }
       buttons.draw(ctx);
+      if (underSiege()) siegeBtn.draw(ctx);
       ctx.fillStyle = 'rgba(10, 12, 18, 0.6)';
       ctx.fillRect(0, H - 20, W, 20);
       drawText(ctx, 'WASD / клік — ходити · E / клік по NPC — говорити · двері — увійти · Tab — спорядження · B — сховище · J — журнал · брама або M — карта', W / 2, H - 10, {
@@ -831,6 +836,22 @@ function drawProp(ctx: CanvasRenderingContext2D, kind: TownPropKind, x: number, 
       ctx.beginPath();
       ctx.moveTo(x - 9, y);
       ctx.quadraticCurveTo(x - 18, y - 2, x - 16, y - 10);
+      ctx.stroke();
+      break;
+    case 'ballista':
+      // A ballista on the wall: a frame, the bow and a bolt.
+      ctx.fillStyle = '#5a3d22';
+      ctx.fillRect(x - 14, y - 6, 28, 12);
+      ctx.strokeStyle = '#3a2814';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(x, y + 8, 18, Math.PI * 1.15, Math.PI * 1.85);
+      ctx.stroke();
+      ctx.strokeStyle = '#c9c4b8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x, y + 4);
+      ctx.lineTo(x, y - 20);
       ctx.stroke();
       break;
     case 'fence':

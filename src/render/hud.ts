@@ -194,7 +194,7 @@ export function createHud(app: App, _fx: Fx): Hud {
         const weather = b.weather ? WEATHER[b.weather.id] : null;
         const here = w.index - w.start + 1;
         const of = w.total - w.start;
-        const step = b.step ? `${STEP_INFO[b.step].name} · ` : '';
+        const step = b.siege ? 'Облога · ' : b.step ? `${STEP_INFO[b.step].name} · ` : '';
         const title = breakNow ? 'Перерва' : weather ? `${step}хвиля ${here} з ${of} · ${weather.name}` : `${step}хвиля ${here} з ${of}`;
         drawText(ctx, title, CENTER_X, 20, { size: 17, bold: true, align: 'center', color: THEME.text });
         const next = nextWaveIn(w);

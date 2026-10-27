@@ -1,5 +1,7 @@
 // Application shell: owns the view, input, loop, screens and the run state.
 
+import { CAPITAL_ID } from '../data/world';
+import { finishSiege, siegeBattle } from '../systems/siege';
 import { placeAmulet } from '../systems/amulet';
 import { chooseBranchFork } from '../systems/run';
 import { createGrowthModal } from './growth';
@@ -564,9 +566,18 @@ export class App {
       return;
     }
     const res = travel(this.state, nodeId);
-    if (res.kind === 'town' && this.state.townAttack === nodeId) this.startDefense(nodeId);
+    if (res.kind === 'town' && nodeId === CAPITAL_ID && this.state.siege === 'active') this.startSiege();
+    else if (res.kind === 'town' && this.state.townAttack === nodeId) this.startDefense(nodeId);
     else if (res.kind === 'town') this.goTown();
     else if (res.kind === 'battle') this.startExpedition(res.nodeId);
+  }
+
+  /** The siege of the capital (ROADMAP 17): the square, then the lord. */
+  startSiege(): void {
+    this.screens.clearModals();
+    this.battle = siegeBattle(this.state, 'waves');
+    this.loop.paused = false;
+    this.screens.go('combat');
   }
 
   /** A town under attack (ROADMAP 15.2): the battle at its gates comes first. */
@@ -623,6 +634,28 @@ export class App {
   finishBattle(): void {
     const b = this.battle;
     if (!b) return;
+    if (b.siege) {
+      const summary = finishSiege(this.state, b);
+      this.logBattle(b);
+      this.battle = null;
+      this.loop.paused = false;
+      if (!summary.won) {
+        this.lastSummary = summary;
+        if (this.state.lives <= 0) this.endHero(false);
+        this.screens.go('death');
+        return;
+      }
+      if (b.siege === 'waves') {
+        // The square is held: the lord himself comes out of the rift.
+        this.battle = siegeBattle(this.state, 'lord');
+        this.screens.go('combat');
+        this.say('{name:lord}', 'Мертві відступили — і з розламу над площею виходить {name:lord}. Це останній бій.');
+        return;
+      }
+      this.lastSummary = summary;
+      this.screens.go('victory');
+      return;
+    }
     if (b.defense) {
       // The gates of a town under attack.
       const summary = finishDefense(this.state, b);

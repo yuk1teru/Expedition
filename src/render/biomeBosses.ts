@@ -234,9 +234,57 @@ const frostWarden: BossPainter = (ctx, e, b, t, flash) => {
   ctx.restore();
 };
 
-export const BIOME_BOSS_PAINTERS: Record<string, BossPainter> = { sandWorm, scorpionKing, poisonMother, bigToad, iceKnight, frostWarden };
+/** {name:lord}: a dark hooded figure in a cloak of shadows, violet eyes and a crown of bones. */
+const darkLord: BossPainter = (ctx, e, b, t, flash) => {
+  const r = e.radius;
+  ctx.save();
+  ctx.translate(e.pos.x, e.pos.y);
+  shade(ctx, r);
+  windupGlow(ctx, e, t);
+  // The cloak: ragged and waving.
+  ctx.fillStyle = color(b, e, flash, '#241a30');
+  ctx.beginPath();
+  const n = 16;
+  for (let i = 0; i <= n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const rr = r * (1 + 0.12 * Math.sin(t * 4 + i * 1.7));
+    if (i === 0) ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    else ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+  }
+  ctx.closePath();
+  ctx.fill();
+  // The aura.
+  ctx.strokeStyle = `rgba(154, 106, 216, ${0.5 + 0.3 * Math.sin(t * 3)})`;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 1.25, 0, Math.PI * 2);
+  ctx.stroke();
+  // The hood and the eyes towards the hero.
+  ctx.rotate(e.facing);
+  ctx.fillStyle = '#0d0a12';
+  ctx.beginPath();
+  ctx.arc(r * 0.15, 0, r * 0.55, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = e.boss?.phase === 2 ? '#ff5ad8' : '#c08aff';
+  for (const s of [-1, 1]) {
+    ctx.beginPath();
+    ctx.arc(r * 0.4, s * r * 0.18, r * 0.09, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // The crown of bones.
+  ctx.fillStyle = '#e8e0cc';
+  for (let i = 0; i < 5; i++) {
+    const a = Math.PI * 0.6 + (i / 4) * Math.PI * 0.8;
+    ctx.beginPath();
+    ctx.arc(Math.cos(a) * r * 0.6 + r * 0.15, Math.sin(a) * r * 0.6, r * 0.1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+};
 
-const HAZARD_COLORS: Record<string, string> = { acid: '#b6f04a', poison: '#7fbf3a', toxicWave: '#9fdf4a', spikeRing: '#bfe6ff' };
+export const BIOME_BOSS_PAINTERS: Record<string, BossPainter> = { sandWorm, scorpionKing, poisonMother, bigToad, iceKnight, frostWarden, darkLord };
+
+const HAZARD_COLORS: Record<string, string> = { acid: '#b6f04a', poison: '#7fbf3a', toxicWave: '#9fdf4a', spikeRing: '#bfe6ff', deathRing: '#9a6ad8' };
 
 /** Puddles (fading at the end) and expanding rings (with their safe gaps). */
 export function drawHazard(ctx: CanvasRenderingContext2D, h: Hazard, t: number): void {

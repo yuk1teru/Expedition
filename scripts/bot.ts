@@ -125,7 +125,7 @@ export interface BattleRun {
 }
 
 /** Fights one battle to the end (a timeout counts as a loss). */
-function fight(state: GameState, b: Battle, opts: BotOptions): void {
+export function fight(state: GameState, b: Battle, opts: BotOptions): void {
   while (!b.finished && b.time < opts.maxBattleTime) {
     if (opts.useSkills) useReadySkills(b);
     if (b.hero.hp < b.hero.maxHp * SIM.botHerbBelow) botHeal(b);

@@ -124,6 +124,15 @@ export const ARENAS: Record<string, ArenaDef> = {
     obstacles: [S(160, 90), S(800, 90), S(120, 300), S(840, 300), S(480, 50), S(480, 370)],
     terrain: [],
   },
+  // ---- The siege of the capital (ROADMAP 17): the square with barricades ----
+  siege: {
+    id: 'siege',
+    note: 'Площа {town:capital:of}: барикади з возів і колони собору — мертві йдуть з усіх вулиць.',
+    w: 1280,
+    h: 520,
+    obstacles: [O('pillar', 260, 110, 26), O('pillar', 1020, 110, 26), O('pillar', 260, 410, 26), O('pillar', 1020, 410, 26), R(520, 70, 24), R(760, 450, 24), S(420, 440, 20), S(860, 80, 20)],
+    terrain: [],
+  },
   // ---- Secret places (ROADMAP 16.6) ----
   forestHollow: {
     id: 'forestHollow',

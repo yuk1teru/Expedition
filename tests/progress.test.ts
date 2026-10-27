@@ -139,11 +139,11 @@ describe('checkpoint', () => {
     expect(s.checkpoint.hero.dash).toBeNull();
   });
 
-  it('a boss victory saves the checkpoint; death afterwards keeps it; victory screen only once', () => {
+  it('the last boss of the lands starts the siege (not the end); the checkpoint keeps it', () => {
     const s = createGameState(14);
     gainXp(s, 3000);
     const level = s.hero.level;
-    // The other bosses are already beaten: this victory completes the campaign.
+    // The other bosses are already beaten: this victory brings the siege of the capital (ROADMAP 17).
     s.bossesDefeated = s.world.nodes.filter((n) => n.isBoss && n.id !== 'enatLair').map((n) => n.id);
     teleport(s, 'enatLair');
     const win = (): ReturnType<typeof completeBattle> => {
@@ -153,13 +153,12 @@ describe('checkpoint', () => {
       return completeBattle(s, b);
     };
     const first = win();
-    expect(first.runCompleted).toBe(true);
+    expect(first.runCompleted).toBe(false);
+    expect(s.siege).toBe('active');
     s.hero.dead = true;
     restoreCheckpoint(s);
     expect(s.bossesDefeated).toContain('enatLair');
     expect(s.hero.level).toBeGreaterThanOrEqual(level);
-    teleport(s, 'enatLair');
-    expect(win().runCompleted).toBe(false);
   });
 
   it('a new run starts with its initial state as the checkpoint', () => {

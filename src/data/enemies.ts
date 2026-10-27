@@ -64,7 +64,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
     attackInterval: 1.6,
     xp: 3,
     mass: 1.2,
-    spawnWeight: 0,
+    spawnWeight: 3,
     trait: 'Не відступає і не боїться: іде просто на героя.',
     color: '#c8c4b0',
   },

@@ -38,7 +38,8 @@ export type TownPropKind =
   | 'candle'
   | 'chair'
   | 'cat'
-  | 'fence';
+  | 'fence'
+  | 'ballista';
 
 export interface TownBuilding extends TownRect {
   wall: string;
@@ -163,6 +164,18 @@ export const TOWNS: Record<string, TownLayout> = {
       { x: 1460, y: 1110, w: 170, h: 110, wall: '#c0b090', roof: '#6a3a2a' },
     ],
     props: [
+      // The defence of the capital by growth (ROADMAP 17.4): barricades, guard tents, ballistas.
+      { kind: 'crate', x: 820, y: 1180, growth: 1 },
+      { kind: 'barrel', x: 1100, y: 1180, growth: 1 },
+      { kind: 'crate', x: 1130, y: 1200, growth: 1 },
+      { kind: 'tent', x: 760, y: 1120, growth: 2 },
+      { kind: 'tent', x: 1170, y: 1120, growth: 2 },
+      { kind: 'ballista', x: 300, y: 60, growth: 3 },
+      { kind: 'ballista', x: 1620, y: 60, growth: 3 },
+      { kind: 'ballista', x: 60, y: 640, growth: 3 },
+      { kind: 'ballista', x: 1860, y: 640, growth: 3 },
+      { kind: 'ballista', x: 700, y: 1220, growth: 3 },
+      { kind: 'ballista', x: 1220, y: 1220, growth: 3 },
       P('fountain', 960, 620),
       P('lamp', 900, 1010), P('lamp', 1020, 1010), P('lamp', 895, 805), P('lamp', 1025, 805), P('lamp', 880, 440), P('lamp', 1040, 440),
       P('lamp', 690, 450), P('lamp', 1300, 520),
