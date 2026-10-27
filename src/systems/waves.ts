@@ -1,7 +1,9 @@
 // Waves: every wave is bigger and stronger than the previous one (HP, damage and
-// speed grow separately). Every 3rd wave brings a (scaled) miniboss; after every 3rd
-// wave the exit portal opens for a longer break. Every 5th wave brings an event:
-// bad weather or an elemental. Until the hero leaves, waves keep coming.
+// speed grow separately). The next wave comes to help once ≤ 40% of the current one is
+// left (not while a miniboss lives). Every 3rd wave brings a (scaled) miniboss; after
+// every 3rd wave the field is cleared and the exit portal opens for a longer break.
+// Every 5th wave brings an event: bad weather or an elemental. Until the hero leaves,
+// waves keep coming.
 
 import { ARENA, ELITE, ENEMY_COMMON, WAVES, WAVE_EVENTS } from '../data/balance';
 import { getEnemyDef } from '../data/enemies';
@@ -53,6 +55,8 @@ export interface WaveState {
   mult: WaveMult;
   /** The current break is a portal break (portal usable). */
   portalBreak: boolean;
+  /** Enemies the running wave brings (for the overlap rule). */
+  size: number;
 }
 
 /** Bonus wave number for a wave index (0 for mandatory waves). */
@@ -124,6 +128,7 @@ export function createWaves(start = 0): WaveState {
     cleared: start,
     mult: waveMult(start),
     portalBreak: false,
+    size: 0,
   };
 }
 
@@ -152,6 +157,7 @@ export function updateWaves(b: Battle, dt: number): void {
     const number = w.index + 1;
     w.mult = waveMult(w.index);
     w.queue = composeWave(b.rng, b.node.enemies, b.tier, w.index);
+    w.size = w.queue.length;
     w.groupTimer = 0;
     const mech = b.node.mechanics;
     const event = waveEvent(number, mech.events);
@@ -168,8 +174,19 @@ export function updateWaves(b: Battle, dt: number): void {
     w.groupTimer -= dt;
     if (w.groupTimer <= 0) {
       w.groupTimer = WAVES.groupInterval;
-      spawnGroup(b, w.queue.splice(0, WAVES.groupSize));
+      spawnGroup(b, w.queue.splice(0, WAVES.groupSize), w.index);
     }
+    return;
+  }
+  // Inside a block of waves the next one comes to help early; a block ends with a full clear.
+  if (!isPortalBreak(w.index + 1)) {
+    if (!helpArrives(b, w)) return;
+    w.cleared = w.index + 1;
+    w.index += 1;
+    w.started = false;
+    w.portalBreak = false;
+    w.pause = 0;
+    endWeather(b);
     return;
   }
   if (b.enemies.some((e) => !e.dead)) return;
@@ -178,13 +195,24 @@ export function updateWaves(b: Battle, dt: number): void {
   w.index += 1;
   w.started = false;
   endWeather(b);
-  w.portalBreak = isPortalBreak(w.cleared);
-  if (w.portalBreak) {
-    openPortal(b);
-    w.pause = WAVES.breaks.portal;
-  } else {
-    w.pause = w.cleared < w.total ? WAVES.breaks.first : WAVES.breaks.normal;
+  // Only a block of waves ends with a clear field: the portal break.
+  w.portalBreak = true;
+  openPortal(b);
+  w.pause = WAVES.breaks.portal;
+}
+
+/**
+ * The next wave comes to help: the current one has spawned completely, at most
+ * WAVES.overlapAt of it is alive and no miniboss is on the field.
+ */
+export function helpArrives(b: Battle, w: WaveState): boolean {
+  let left = 0;
+  for (const e of b.enemies) {
+    if (e.dead) continue;
+    if (e.boss) return false;
+    if (e.wave === w.index) left++;
   }
+  return left <= w.size * WAVES.overlapAt;
 }
 
 /** A break between waves is running (the next wave can be called early). */
@@ -275,14 +303,14 @@ export function enterPortal(b: Battle): boolean {
   return true;
 }
 
-function spawnGroup(b: Battle, group: SpawnEntry[]): void {
+function spawnGroup(b: Battle, group: SpawnEntry[], wave: number): void {
   const anchor = edgePoint(b.rng);
   for (const s of group) {
     const pos = {
       x: anchor.x + b.rng.float(-WAVES.groupSpread, WAVES.groupSpread),
       y: anchor.y + b.rng.float(-WAVES.groupSpread, WAVES.groupSpread),
     };
-    spawnEnemy(b, s.defId, pos, s.elite);
+    spawnEnemy(b, s.defId, pos, s.elite).wave = wave;
   }
 }
 

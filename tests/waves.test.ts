@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { ARENA, LOOP, WAVES } from '../src/data/balance';
 import { type Battle, createBattle, killAll, stepBattle } from '../src/systems/battle';
+import { createBossEnemy } from '../src/systems/boss';
+import { killEnemy } from '../src/systems/combat';
 import { dist } from '../src/systems/entities';
 import { SLICE_GROVE_ID } from '../src/systems/mapgen';
 import { createGameState, teleport } from '../src/systems/run';
@@ -143,15 +145,41 @@ describe('waves', () => {
     expect(minibossHp[1]!).toBeGreaterThan(minibossHp[0]!);
   });
 
-  it('portal breaks last longer, normal breaks are shorter', () => {
+  it('the next wave comes to help when ≤ 40% of the current one is left; the 3rd wave ends with a full clear and the portal', () => {
     const { b } = grove();
+    const w = b.waves!;
+    for (let t = 0; t < 10 && !(w.started && w.queue.length === 0); t += LOOP.step) stepBattle(b, LOOP.step);
+    expect(w.index).toBe(0);
+    const mine = b.enemies.filter((e) => !e.dead && e.wave === 0);
+    // Kill until just above 40%: no help yet.
+    const keep = Math.floor(w.size * WAVES.overlapAt) + 1;
+    for (const e of mine.slice(keep)) killEnemy(b, e);
+    stepBattle(b, LOOP.step);
+    expect(w.index).toBe(0);
+    killEnemy(b, mine[0]!);
+    stepBattle(b, LOOP.step);
+    stepBattle(b, LOOP.step);
+    expect(w.index).toBe(1);
+    expect(w.started).toBe(true);
+    // The leftovers of wave 1 are still on the field, together with wave 2.
+    expect(b.enemies.some((e) => !e.dead && e.wave === 0)).toBe(true);
     clearWaves(b, 3);
-    expect(b.waves!.portalBreak).toBe(true);
-    expect(b.waves!.pause).toBeCloseTo(WAVES.breaks.portal, 1);
-    clearWaves(b, 4);
-    expect(b.waves!.portalBreak).toBe(false);
-    expect(b.waves!.pause).toBeCloseTo(WAVES.breaks.normal, 1);
-    expect(WAVES.breaks.portal - WAVES.breaks.normal).toBe(10);
+    expect(b.enemies.filter((e) => !e.dead)).toHaveLength(0);
+    expect(w.portalBreak).toBe(true);
+    expect(w.pause).toBeCloseTo(WAVES.breaks.portal, 1);
+  });
+
+  it('no help while a miniboss lives', () => {
+    const { b } = grove();
+    const w = b.waves!;
+    for (let t = 0; t < 10 && !(w.started && w.queue.length === 0); t += LOOP.step) stepBattle(b, LOOP.step);
+    const boss = createBossEnemy(b, 'alpha', { x: 300, y: 300 });
+    for (const e of b.enemies) if (e !== boss) killEnemy(b, e);
+    for (let t = 0; t < 1; t += LOOP.step) stepBattle(b, LOOP.step);
+    expect(w.index).toBe(0);
+    killEnemy(b, boss);
+    stepBattle(b, LOOP.step);
+    expect(w.index).toBe(1);
   });
 
   it('portal sits at the arena edge; walking into it does nothing, the button works only in reach', () => {
@@ -186,6 +214,7 @@ describe('waves', () => {
     expect(portalActive(b)).toBe(false);
     b.hero.pos = { ...b.portal!.pos };
     expect(requestPortalEntry(b)).toBe(false);
+    // The 4th wave hands over to the 5th without a break: the portal stays shut.
     clearWaves(b, WAVES.portalEvery + 1);
     expect(portalActive(b)).toBe(false);
   });

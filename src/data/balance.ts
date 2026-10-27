@@ -127,8 +127,14 @@ export const WAVES = {
   groupSize: 4,
   /** Seconds between spawn groups. */
   groupInterval: 0.5,
-  /** Breaks between waves, s: first waves, normal, and the longer portal break. */
-  breaks: { first: 1.5, normal: 5, portal: 15 },
+  /**
+   * Waves overlap: the next wave comes to help once at most this share of the current
+   * wave is still alive — unless a miniboss lives, and never across a portal break
+   * (after every 3rd wave the field is cleared completely).
+   */
+  overlapAt: 0.4,
+  /** The break after every 3rd wave, with the portal open, s (other waves overlap: no break). */
+  breaks: { portal: 15 },
   /** The portal opens after every N-th wave. */
   portalEvery: 3,
   /** A (scaled) miniboss comes with every N-th wave. */

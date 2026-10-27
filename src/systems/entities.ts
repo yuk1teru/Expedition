@@ -253,6 +253,8 @@ export interface Enemy extends Body {
   yank: { to: Vec; speed: number } | null;
   boss: BossRuntime | null;
   summoned: boolean;
+  /** 0-based wave index that brought this enemy (summons and splits: none). */
+  wave?: number;
 }
 
 export interface Projectile {
