@@ -157,7 +157,7 @@ function giveReward(state: GameState, q: QuestDef): string[] {
   }
   if (r.item) {
     const [lo, hi] = merchantItemLevels(state);
-    const item = rollItem(state.lootRng, r.item, state.nextItemUid++, undefined, Math.round((lo + hi) / 2));
+    const item = rollItem(state.lootRng, r.item, state.nextItemUid++, undefined, Math.round((lo + hi) / 2), state.hero.classId);
     stashLoot(state.hero, item);
     out.push(`річ (${RARITIES[r.item].name.toLowerCase()})`);
   }

@@ -1,5 +1,6 @@
 // Skill registry (skillId → implementation) and manual skill use.
 
+import { affixCooldownMult, effectiveRank } from '../uniques';
 import { ARENA } from '../../data/balance';
 import { BOOT_DASH_SPEED } from '../../data/items';
 import { getSkill, skillParams } from '../../data/skills';
@@ -37,7 +38,9 @@ export function useSkill(b: Battle, slot: number): SkillUseResult {
   if (s.cooldown > 0) return 'cooldown';
   const impl = SKILL_IMPLS[s.id];
   if (!impl) throw new Error(`No implementation for skill ${s.id}`);
-  const p = giftSkillParams(hero, s.id, skillParams(s.id, s.rank, s.forks));
+  // Worn "+1 до рангу" affixes raise the rank it works at (ROADMAP 14.5).
+  const rank = effectiveRank(hero, s.id, s.rank);
+  const p = giftSkillParams(hero, s.id, skillParams(s.id, rank, s.forks));
   const def = getSkill(s.id);
   if (def.moves && hasStatus(hero, 'root')) {
     b.events.emit({ type: 'noTarget', slot, reason: 'rooted' });
@@ -46,14 +49,14 @@ export function useSkill(b: Battle, slot: number): SkillUseResult {
   // Everything the skill creates while being cast takes its element (ROADMAP 12.2).
   b.castElement = skillElement(hero, def);
   hero.castMult = giftTagMult(hero, s.id);
-  const ok = impl({ b, hero, def, rank: s.rank, p, aim: def.aimable ? skillAim(b) : null });
+  const ok = impl({ b, hero, def, rank, p, aim: def.aimable ? skillAim(b) : null });
   b.castElement = null;
   hero.castMult = 1;
   if (!ok) {
     b.events.emit({ type: 'noTarget', slot });
     return 'noTarget';
   }
-  s.cooldown = (p.cooldown ?? 0) * hero.stats.cooldownMult;
+  s.cooldown = (p.cooldown ?? 0) * hero.stats.cooldownMult * affixCooldownMult(hero, s.id);
   return 'cast';
 }
 
@@ -87,5 +90,5 @@ export function useBootDash(b: Battle): 'cast' | 'cooldown' | 'busy' | 'none' {
 export function slotCooldown(b: Battle, slot: number): number {
   const s = skillInSlot(b.hero, slot);
   if (!s) return 0;
-  return (skillParams(s.id, s.rank, s.forks).cooldown ?? 0) * b.hero.stats.cooldownMult;
+  return (skillParams(s.id, effectiveRank(b.hero, s.id, s.rank), s.forks).cooldown ?? 0) * b.hero.stats.cooldownMult * affixCooldownMult(b.hero, s.id);
 }

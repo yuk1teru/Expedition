@@ -2,6 +2,7 @@
 // skills), taking one, and what the taken gifts do — stats, skill parameters, damage of
 // tags, elements and against statuses. Reroll for gold, skip for gold and a short buff.
 
+import { itemEffects } from './uniques';
 import type { Rng } from '../core/rng';
 import { CARDS } from '../data/balance';
 import type { Element } from '../data/elements';
@@ -44,8 +45,9 @@ export function takeGift(hero: Hero, id: string, recompute: (h: Hero) => void): 
   recompute(hero);
 }
 
+/** The gifts' effects and those of the worn legendaries and sets (ROADMAP 14.5). */
 function effects(hero: Hero): GiftDef['effects'] {
-  return hero.gifts.flatMap((id) => GIFTS[id]?.effects ?? []);
+  return [...hero.gifts.flatMap((id) => GIFTS[id]?.effects ?? []), ...itemEffects(hero)];
 }
 
 /** Sum of the gifts' stat bonuses. */

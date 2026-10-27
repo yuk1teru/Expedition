@@ -1,5 +1,6 @@
 // Damage, crits, armor, lifesteal, thorns, kills, knockback and statuses.
 
+import { maybeSetPiece } from './uniques';
 import { dropSoul, stoneResist } from './souls';
 import { dropTrophies } from './trophies';
 import { ENEMY_COMMON, HERO, HERO_DEBUFFS } from '../data/balance';
@@ -181,7 +182,9 @@ function dropLoot(b: Battle, e: Enemy): void {
   for (let i = 0; i < table.count; i++) {
     const rarity = rollRarity(st.lootRng, table.weights);
     const ilvl = dropItemLevel(st.lootRng, itemLevelRange(b.level), source, wave);
-    const item = rollItem(st.lootRng, rarity, st.nextItemUid++, undefined, ilvl);
+    const item = rollItem(st.lootRng, rarity, st.nextItemUid++, undefined, ilvl, b.hero.classId);
+    // Minibosses and the boss of a set's region drop its pieces (ROADMAP 14.5).
+    maybeSetPiece(st.lootRng, item, b.node.region);
     stashLoot(b.hero, item);
     b.stats.loot.push(item);
     b.events.emit({ type: 'loot', pos: { ...e.pos }, name: displayName(item), rarity: item.rarity });

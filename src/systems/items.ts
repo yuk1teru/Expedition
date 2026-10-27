@@ -1,5 +1,7 @@
 // Items: rolls (with a unique look), identification, equipping, selling, consumables.
 
+import { LEGENDARIES } from '../data/uniques';
+import { applyUniques, pickLegendary, uniqueLines } from './uniques';
 import type { Rng } from '../core/rng';
 import type { GameState } from '../core/state';
 import { CONSUMABLES, type ConsumableId, HEAL_ORDER, type HealId } from '../data/consumables';
@@ -53,6 +55,12 @@ export interface Item {
   isNew?: boolean;
   /** A rune stone with this soul set into it (ROADMAP 14.3); one per item. */
   stone?: string;
+  /** Legendary power (ROADMAP 14.5): a LEGENDARIES id. */
+  legendary?: string;
+  /** A skill affix: +1 to a skill's rank or a cut of its cooldown. */
+  affix?: { kind: 'rank' | 'cooldown'; skill: string; value: number };
+  /** A piece of this set (ITEM_SETS id). */
+  set?: string;
 }
 
 /** Stat multiplier of an item level: linear for flat stats, square root for percent ones. */
@@ -68,8 +76,10 @@ function rollValue(rng: Rng, range: [number, number], power: number, stat: ItemS
 }
 
 /** Rolls an item of the given rarity and level (random slot unless given). New items are unidentified. */
-export function rollItem(rng: Rng, rarity: Rarity, uid: number, slot?: ItemSlot, ilvl: number = ITEM_LEVEL.reference): Item {
-  const s = slot ?? rng.pick(ITEM_SLOTS).id;
+export function rollItem(rng: Rng, rarity: Rarity, uid: number, slot?: ItemSlot, ilvl: number = ITEM_LEVEL.reference, classId?: string | null): Item {
+  // A legendary: one of the powers (of the hero's class most often) — its slot comes from it.
+  const power = rarity === 'legendary' && !slot ? pickLegendary(rng, Object.values(LEGENDARIES), classId) : undefined;
+  const s = slot ?? power?.slot ?? rng.pick(ITEM_SLOTS).id;
   const base = ITEM_BASES[s];
   const r = RARITIES[rarity];
   const level = Math.max(1, Math.min(ITEM_LEVEL.max, Math.round(ilvl)));
@@ -78,7 +88,7 @@ export function rollItem(rng: Rng, rarity: Rarity, uid: number, slot?: ItemSlot,
     stats.push({ stat: extra.stat, value: rollValue(rng, extra.range, r.power, extra.stat, level) });
   }
   const kind = rng.pick(ITEM_KINDS[s]);
-  return {
+  const item: Item = {
     uid,
     slot: s,
     rarity,
@@ -88,7 +98,10 @@ export function rollItem(rng: Rng, rarity: Rarity, uid: number, slot?: ItemSlot,
     stats,
     look: { accent: rng.pick(ITEM_ACCENTS), gem: rng.chance(0.5) ? rng.pick(ITEM_ACCENTS) : null, shape: rng.next() },
     identified: false,
+    ...(power ? { legendary: power.id } : {}),
   };
+  applyUniques(rng, item, classId);
+  return item;
 }
 
 /** Item level range [min, max] of a location of this monster level. */
@@ -236,7 +249,7 @@ export function buyItem(state: GameState, slot: ItemSlot): Item | null {
   state.gold -= MERCHANT_ITEMS.price;
   const [lo, hi] = merchantItemLevels(state);
   const rarity = rollRarity(state.lootRng, MERCHANT_ITEMS.weights);
-  const item = rollItem(state.lootRng, rarity, state.nextItemUid++, slot, state.lootRng.int(lo, hi));
+  const item = rollItem(state.lootRng, rarity, state.nextItemUid++, slot, state.lootRng.int(lo, hi), state.hero.classId);
   item.identified = true;
   item.isNew = true;
   state.hero.bag.push(item);
@@ -307,7 +320,7 @@ export function bootDash(hero: Hero): { distance: number; cooldown: number } | n
 /** Extra item lines beyond stats (the boot dash). */
 export function itemPerks(item: Item): string[] {
   const dash = item.slot === 'boots' ? BOOT_DASH[item.rarity] : undefined;
-  return dash ? [`Shift — ривок у напрямку руху на ${dash.distance} px (перезарядка ${dash.cooldown} с)`] : [];
+  return [...(dash ? [`Shift — ривок у напрямку руху на ${dash.distance} px (перезарядка ${dash.cooldown} с)`] : []), ...uniqueLines(item)];
 }
 
 export function equippedStat(hero: Hero, stat: ItemStat): number {

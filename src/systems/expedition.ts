@@ -154,7 +154,7 @@ function arenaReward(state: GameState, b: Battle, kind: ArenaStepKind): string[]
     out.push(`${gold} зол.`);
     if (kind === 'treasure') {
       const rarity = rollRarity(state.lootRng, LOOT.miniboss.weights);
-      const item = rollItem(state.lootRng, rarity, state.nextItemUid++, undefined, dropItemLevel(state.lootRng, itemLevelRange(b.level), 'miniboss', 3));
+      const item = rollItem(state.lootRng, rarity, state.nextItemUid++, undefined, dropItemLevel(state.lootRng, itemLevelRange(b.level), 'miniboss', 3), state.hero.classId);
       stashLoot(state.hero, item);
       b.stats.loot.push(item);
       state.expedition?.loot.push(item);
