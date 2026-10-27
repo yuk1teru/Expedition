@@ -112,3 +112,32 @@ describe('learning', () => {
     expect(s.talentPoints).toBe(0);
   });
 });
+
+describe('class teacher', () => {
+  it('a reset returns every point for gold; starting skills stay at rank 1, the rest is unlearned', async () => {
+    const { resetTree, resetPrice, refundablePoints } = await import('../src/systems/talents');
+    const { TEACHERS } = await import('../src/data/talents');
+    const { NPCS } = await import('../src/data/npcs');
+    const s = warrior();
+    s.talentPoints = 12;
+    const nodes = treeNodes('warrior');
+    for (let i = 0; i < 3; i++) learn(s, nodes.find((n) => n.id === 'whirlwind')!, 1);
+    learn(s, nodes.find((n) => n.id === 'groundSlam')!);
+    learn(s, nodes.find((n) => n.id === 'armor')!);
+    const spent = 12 - s.talentPoints;
+    expect(refundablePoints(s.hero)).toBe(spent);
+    s.gold = resetPrice(s.hero) - 1;
+    expect(resetTree(s)).toBe(false);
+    s.gold = resetPrice(s.hero);
+    expect(resetTree(s)).toBe(true);
+    expect(s.gold).toBe(0);
+    expect(s.talentPoints).toBe(12);
+    expect(s.hero.skills.map((x) => [x.id, x.rank, x.forks])).toEqual([
+      ['whirlwind', 1, undefined],
+      ['charge', 1, undefined],
+    ]);
+    expect(s.hero.passives).toEqual({});
+    // Each class has its teacher, and the teacher can reset.
+    for (const id of Object.values(TEACHERS.byClass)) expect(NPCS[id]!.nodes.hello!.options.some((o) => o.action === 'resetTree'), id).toBe(true);
+  });
+});

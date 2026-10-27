@@ -11,7 +11,7 @@ import type { ItemSlot } from './items';
 import type { NameForms } from './names';
 
 /** What an option can do besides moving to another node. */
-export type DialogueAction = 'openShop' | 'openChangelog' | 'openInventory' | 'openCoach' | 'close';
+export type DialogueAction = 'openShop' | 'openChangelog' | 'openInventory' | 'openCoach' | 'resetTree' | 'close';
 
 export interface DialogueOption {
   text: string;
@@ -62,6 +62,7 @@ export const NPC_LINES = {
   bye: 'Бувай.',
   thanks: 'Дякую.',
   coachTitle: 'Візник',
+  resetTree: 'Перевчи мене (скинути дерево талантів)',
   coachRide: 'Поїхали.',
 };
 
@@ -106,6 +107,13 @@ function local(o: { id: string; name: string; forms?: NameForms; title: string; 
       quest: { text: NPC_LINES.noQuest, options: [BYE] },
     },
   };
+}
+
+/** A class teacher: a local NPC who also resets the talent tree (ROADMAP 12.9). */
+function teacher(o: Parameters<typeof local>[0]): NpcDef {
+  const npc = local(o);
+  npc.nodes.hello!.options.unshift({ text: NPC_LINES.resetTree, action: 'resetTree' });
+  return npc;
 }
 
 /** A coachman of the «Швидка тарадайка» (ROADMAP 10.5): the ride window opens from the talk. */
@@ -316,7 +324,7 @@ export const NPCS: Record<string, NpcDef> = {
     greeting: 'Поранений? Сідай. Якщо колись тебе принесуть сюди без тями — не дивуйся, я вже бачила й не таке.',
     news: 'Рани від звірів тепер гояться погано, ніби в них лишається щось холодне. Отець {npc:capitalPriest} каже — це аура. А я кажу: з частин тих самих звірів можна зварити еліксир, що повертає з-за межі. Шукаю рецепт.',
   }),
-  warriorTeacher: local({
+  warriorTeacher: teacher({
     id: 'warriorTeacher',
     name: 'Святослав',
     forms: { to: 'Святославові', with: 'Святославом', of: 'Святослава' },
@@ -325,7 +333,7 @@ export const NPCS: Record<string, NpcDef> = {
     greeting: 'Меч — це не сила. Меч — це звичка. Приходь, коли захочеш звикнути краще.',
     news: 'На перевалі стоїть {boss:frostWarden}. Колись він був одним із нас.',
   }),
-  mageTeacher: local({
+  mageTeacher: teacher({
     id: 'mageTeacher',
     name: 'Веда',
     forms: { to: 'Веді', with: 'Ведою', of: 'Веди' },
@@ -334,7 +342,7 @@ export const NPCS: Record<string, NpcDef> = {
     greeting: 'Вогонь, вода, вітер, земля — чотири мови. Більшість магів знає одну. Ти скільки?',
     news: 'Вітер б’є лід, вода гасить вогонь. Звірі Болота не бояться отрути, а пустельні — вогню. Пам’ятай про це.',
   }),
-  archerTeacher: local({
+  archerTeacher: teacher({
     id: 'archerTeacher',
     name: 'Ружа',
     forms: { to: 'Ружі', with: 'Ружею', of: 'Ружі' },

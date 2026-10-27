@@ -46,3 +46,11 @@ export const TALENTS = {
   /** Skills on the panel keys 1–5 (the branch ones go to R and F). */
   classSlots: 5,
 };
+
+/** The class teacher (ROADMAP 12.9): resets the tree for gold — base + perLevel × hero level. */
+export const TEACHERS = {
+  /** Who teaches which class (NPCs in the capital). */
+  byClass: { warrior: 'warriorTeacher', mage: 'mageTeacher', archer: 'archerTeacher' } as Record<string, string>,
+  resetBase: 20,
+  resetPerLevel: 10,
+};

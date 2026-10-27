@@ -60,6 +60,9 @@ import { setNpcTownLookup } from '../systems/quests';
 import { npcPlace } from '../data/towns';
 import { getNpc } from '../data/npcs';
 import { getPromotion } from '../data/promotions';
+import { TEACHERS } from '../data/talents';
+import { resolveName } from '../data/names';
+import { refundablePoints, resetPrice, resetTree } from '../systems/talents';
 import { type GameSettings, readSettings } from '../core/settings';
 import { visitTown } from '../systems/coach';
 import { markVisited } from '../systems/fog';
@@ -198,6 +201,24 @@ export class App {
 
   saveSettings(): void {
     this.settingsStore?.save(JSON.stringify(this.settings));
+  }
+
+  /** Class teacher → reset the tree: only the teacher of the hero's class, for gold. */
+  askResetTree(teacherId: string): void {
+    const hero = this.state.hero;
+    const own = hero.classId ? TEACHERS.byClass[hero.classId] : undefined;
+    if (!hero.classId) return this.say('Спершу обери клас', 'Перевчати можна лише того, хто вже вчився.');
+    if (own !== teacherId) return this.say('Не мій учень', `Тебе перевчить ${resolveName('npc', own ?? '') ?? 'вчитель твого класу'}.`);
+    const price = resetPrice(hero);
+    const points = refundablePoints(hero);
+    if (points === 0) return this.say('Нічого скидати', 'Ти ще не вклав жодного очка в дерево.');
+    if (this.state.gold < price) return this.say('Бракує золота', `Перевчання коштує ${price} зол. (росте з рівнем).`);
+    resetTree(this.state);
+    this.say('Дерево скинуто', `Повернуто ${points} очок таланту за ${price} зол. Стартові скіли й скіли гілки лишилися на 1-му ранзі. Розподіли очки заново (T).`);
+  }
+
+  private say(title: string, text: string): void {
+    this.screens.pushModal(createNoticeModal(this, title, text, () => this.screens.popModal(), THEME.accent));
   }
 
   /** Town coachman: the «Швидка тарадайка» window. */

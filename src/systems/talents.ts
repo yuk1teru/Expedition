@@ -7,7 +7,7 @@ import type { GameState } from '../core/state';
 import { RANKS } from '../data/balance';
 import type { Element } from '../data/elements';
 import { getSkill, getPassive } from '../data/skills';
-import { TALENTS, TALENT_TREES } from '../data/talents';
+import { TALENTS, TALENT_TREES, TEACHERS } from '../data/talents';
 import { getPromotion } from '../data/promotions';
 import type { Hero, HeroSkill } from './entities';
 import { recomputeHeroStats } from './hero';
@@ -173,4 +173,47 @@ export function setPanelSlot(hero: Hero, skillId: string, slot: number): void {
 export function panelSkills(hero: Hero): { on: HeroSkill[]; off: HeroSkill[] } {
   const cls = hero.skills.filter((s) => s.slot < TALENTS.classSlots);
   return { on: cls.filter((s) => s.slot >= 0).sort((a, b) => a.slot - b.slot), off: cls.filter((s) => s.slot < 0) };
+}
+
+/** Price of resetting the tree at the class teacher (grows with the level). */
+export function resetPrice(hero: Hero): number {
+  return TEACHERS.resetBase + TEACHERS.resetPerLevel * hero.level;
+}
+
+/** Points that a reset gives back: the class tree and the branch (the free openings not counted). */
+export function refundablePoints(hero: Hero): number {
+  let sum = pointsSpent(hero);
+  for (const n of branchNodes(hero)) {
+    if (n.kind === 'skill') {
+      const s = hero.skills.find((x) => x.id === n.id);
+      if (s) sum += skillCost(s.rank, true);
+    } else if (n.kind === 'passive') sum += (hero.passives[n.id] ?? 0) * TALENTS.passiveCost;
+  }
+  return sum;
+}
+
+/**
+ * The teacher resets the tree: every point comes back; the starting skills and the branch
+ * skills stay at rank 1, the rest is unlearned (forks and arrows too). Gifts stay.
+ */
+export function resetTree(state: GameState): boolean {
+  const hero = state.hero;
+  if (!hero.classId) return false;
+  const price = resetPrice(hero);
+  if (state.gold < price) return false;
+  state.gold -= price;
+  state.talentPoints += refundablePoints(hero);
+  const branch = new Set(branchNodes(hero).filter((n) => n.kind === 'skill').map((n) => n.id));
+  hero.skills = hero.skills
+    .filter((s) => hero.freeSkills.includes(s.id) || branch.has(s.id))
+    .map((s) => ({ ...s, rank: 1, forks: undefined, cooldown: 0 }));
+  hero.freeSkills.forEach((id, i) => {
+    const s = hero.skills.find((x) => x.id === id);
+    if (s) s.slot = i;
+  });
+  hero.passives = {};
+  hero.arrows = [];
+  hero.arrowElement = 'neutral';
+  recomputeHeroStats(hero);
+  return true;
 }
