@@ -6,7 +6,7 @@ import { EXPEDITION, STEP_INFO, type ArenaStepKind } from '../data/expedition';
 import { OBJECTIVES, OBJECTIVE_INFO } from '../data/objectives';
 import { type Section, esc, nodeLink, t, table, v } from './html';
 
-const OBSTACLE_NAMES: Record<string, string> = { tree: 'дерев', rock: 'каменів', stump: 'пнів', pillar: 'колон' };
+const OBSTACLE_NAMES: Record<string, string> = { tree: 'дерев', rock: 'каменів', stump: 'пнів', pillar: 'колон', deadTree: 'мертвих дерев', cactus: 'кактусів', bone: 'кісток', ice: 'крижаних брил' };
 const TERRAIN_NAMES: Record<string, string> = { water: 'вода', thorns: 'колючки', grass: 'висока трава' };
 const SIDE_NAMES: Record<string, string> = { left: 'зліва', right: 'справа', top: 'згори', bottom: 'знизу' };
 

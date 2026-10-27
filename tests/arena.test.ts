@@ -36,8 +36,16 @@ describe('arenas', () => {
   it('a battle takes the size of its arena; a plain one is the view', () => {
     battleAt('wolfTrail');
     expect([ARENA.w, ARENA.h]).toEqual([ARENAS.wolfTrail!.w, ARENAS.wolfTrail!.h]);
-    battleAt('fogMire');
-    expect([ARENA.w, ARENA.h]).toEqual([ARENA_VIEW.w, ARENA_VIEW.h]);
+    // A plain field: a location without its own arena (if any is left).
+    const plain = WORLD_NODES.find((n) => n.kind !== 'town' && !ARENAS[n.id]);
+    if (plain) {
+      battleAt(plain.id);
+      expect([ARENA.w, ARENA.h]).toEqual([ARENA_VIEW.w, ARENA_VIEW.h]);
+    }
+  });
+
+  it('every location and lair of the world has its own arena (ROADMAP 16)', () => {
+    for (const n of WORLD_NODES) if (n.kind !== 'town') expect(ARENAS[n.id], n.id).toBeDefined();
   });
 
   it('bodies never stand inside an obstacle; shots break on it', () => {
