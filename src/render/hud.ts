@@ -75,7 +75,7 @@ export function createHud(app: App, _fx: Fx): Hud {
     label: '×1',
     rect: { x: W - 68, y: 12, w: 56, h: 32 },
     fontSize: 15,
-    onClick: () => app.loop.toggleSpeed(),
+    onClick: () => app.toggleSpeed(),
   });
   const buttons = new ButtonGroup([pauseBtn, speedBtn]);
   const skipBtn = new Button({

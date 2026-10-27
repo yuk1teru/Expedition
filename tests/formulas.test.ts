@@ -7,6 +7,9 @@ import { createGameState } from '../src/systems/run';
 import {
   applyArmor,
   dayMultiplier,
+  daysToNextThreat,
+  threatMultiplier,
+  xpPenalized,
   enemyStats,
   goldReward,
   clearBonusGold,
@@ -103,5 +106,19 @@ describe('xp', () => {
     gainXp(s, xpToNext(1));
     expect(s.hero.maxHp).toBe(hp + 15);
     expect(s.hero.stats.attack).toBe(atk + 2);
+  });
+});
+
+describe('day threat (full world)', () => {
+  it('enemies grow +10% every 5 days in the full world only; the map counts the days left', () => {
+    const full = createGameState(3);
+    const slice = createGameState(3, 'slice');
+    full.day = slice.day = 12;
+    expect(threatMultiplier(full)).toBeCloseTo(1.2);
+    expect(threatMultiplier(slice)).toBe(1);
+    expect(daysToNextThreat(12)).toBe(3);
+    expect(daysToNextThreat(14)).toBe(1);
+    expect(xpPenalized(1, 8)).toBe(true);
+    expect(xpPenalized(1, 6)).toBe(false);
   });
 });

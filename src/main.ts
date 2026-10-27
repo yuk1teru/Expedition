@@ -1,6 +1,6 @@
 import { Input, bindInput } from './core/input';
 import { resolveSeed, resolveWorldKind } from './core/seed';
-import { App, type VersionStore } from './render/app';
+import { App, type SettingsStore, type VersionStore } from './render/app';
 import { createView, toLogical } from './render/canvas';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -30,8 +30,27 @@ const versions: VersionStore = {
     }
   },
 };
+// Game speed ×1/×2 (PLAN.md 6.5); without storage the game simply starts at ×1.
+const SPEED_KEY = 'expedition.speed';
+const settings: SettingsStore = {
+  loadSpeed: () => {
+    try {
+      const v = Number(window.localStorage.getItem(SPEED_KEY));
+      return v === 1 || v === 2 ? v : null;
+    } catch {
+      return null;
+    }
+  },
+  saveSpeed: (speed) => {
+    try {
+      window.localStorage.setItem(SPEED_KEY, String(speed));
+    } catch {
+      // Not critical.
+    }
+  },
+};
 const url = window.location.href;
-const app = new App(view, input, resolveSeed(url), { dev: import.meta.env.DEV, reducedMotion, versions, world: resolveWorldKind(url) });
+const app = new App(view, input, resolveSeed(url), { dev: import.meta.env.DEV, reducedMotion, versions, world: resolveWorldKind(url), settings });
 app.start();
 canvas.focus();
 

@@ -86,8 +86,8 @@ export const SCALING = {
   perTier: 0.45,
   /** Recommended level = round(tier × recommendedLevelPerTier). */
   recommendedLevelPerTier: 3,
-  /** Day threat: +perStep every `everyDays`. Disabled in the slice. */
-  dayThreat: { enabled: false, everyDays: 5, perStep: 0.1 },
+  /** Day threat: enemies and bosses +perStep HP and damage every `everyDays` (full world only; the slice is tuned without it). */
+  dayThreat: { enabled: true, everyDays: 5, perStep: 0.1 },
   /** Armor formula: damage × k / (k + armor). 200: 50 armor → −20%, 100 armor → −33%. */
   armorK: 200,
   /** Enemy XP grows with tier like HP. */

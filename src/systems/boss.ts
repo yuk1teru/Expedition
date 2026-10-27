@@ -9,7 +9,7 @@ import type { Battle } from './battle';
 import { damageHero, debuffHero, isDisabled, killEnemy, speedMult } from './combat';
 import type { Enemy, Telegraph, TelegraphShape, Vec } from './entities';
 import { angleOf, dist } from './entities';
-import { dayMultiplier, enemyStats } from './scaling';
+import { enemyStats, threatMultiplier } from './scaling';
 import { moveTowards } from './ai';
 import type { WaveMult } from './waves';
 
@@ -37,7 +37,7 @@ const NO_MULT: WaveMult = { hp: 1, damage: 1, reward: 1, gold: 1, speed: 1 };
 /** Creates a boss-driven enemy (boss or miniboss) at `pos`, scaled by the wave it comes with. */
 export function createBossEnemy(b: Battle, defId: string, pos: Vec, mult: WaveMult = NO_MULT): Enemy {
   const def = getBoss(defId);
-  const scaled = enemyStats(def, b.tier, dayMultiplier(b.state.day));
+  const scaled = enemyStats(def, b.tier, threatMultiplier(b.state));
   const attackCooldowns: Record<string, number> = {};
   for (const a of def.attacks) attackCooldowns[a.id] = a.initialCooldown;
   const e: Enemy = {

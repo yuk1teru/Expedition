@@ -12,6 +12,22 @@ export function dayMultiplier(day: number, enabled: boolean = SCALING.dayThreat.
   return 1 + t.perStep * Math.floor(day / t.everyDays);
 }
 
+/** Day threat of a run: only in the full world. */
+export function threatMultiplier(state: { day: number; world: { kind: 'full' | 'slice' } }): number {
+  return dayMultiplier(state.day, SCALING.dayThreat.enabled && state.world.kind === 'full');
+}
+
+/** Days left until enemies grow stronger again (1..everyDays). */
+export function daysToNextThreat(day: number): number {
+  const n = SCALING.dayThreat.everyDays;
+  return n - (day % n);
+}
+
+/** Whether the hero gets only part of the XP at a location of this tier. */
+export function xpPenalized(tier: number, heroLevel: number): boolean {
+  return heroLevel - recommendedLevelForTier(tier) > PROGRESSION.xpPenalty.levelGap;
+}
+
 export interface ScaledStats {
   hp: number;
   damage: number;
@@ -30,8 +46,7 @@ export function recommendedLevelForTier(tier: number): number {
 /** XP for a kill; reduced when the hero outlevels the location. */
 export function xpReward(baseXp: number, tier: number, heroLevel: number): number {
   const scaled = baseXp * (1 + SCALING.xpPerTier * (tier - 1));
-  const gap = heroLevel - recommendedLevelForTier(tier);
-  const mult = gap > PROGRESSION.xpPenalty.levelGap ? PROGRESSION.xpPenalty.mult : 1;
+  const mult = xpPenalized(tier, heroLevel) ? PROGRESSION.xpPenalty.mult : 1;
   return Math.max(1, Math.round(scaled * mult));
 }
 

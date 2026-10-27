@@ -51,6 +51,12 @@ export interface VersionStore {
   save(version: string): void;
 }
 
+/** Small settings kept between visits (game speed). */
+export interface SettingsStore {
+  loadSpeed(): number | null;
+  saveSpeed(speed: number): void;
+}
+
 export class App {
   readonly screens = new ScreenManager<CanvasRenderingContext2D>();
   readonly loop: GameLoop;
@@ -62,13 +68,14 @@ export class App {
   reducedMotion = false;
   /** Full world or the vertical slice (`?slice=1`); new runs keep it. */
   readonly worldKind: WorldKind;
+  private readonly settings: SettingsStore | null;
   readonly debug: DebugPanel | null;
 
   constructor(
     readonly view: View,
     readonly input: Input,
     seed: number,
-    opts: { dev: boolean; reducedMotion: boolean; versions?: VersionStore; world?: WorldKind },
+    opts: { dev: boolean; reducedMotion: boolean; versions?: VersionStore; world?: WorldKind; settings?: SettingsStore },
   ) {
     this.reducedMotion = opts.reducedMotion;
     this.worldKind = opts.world ?? 'full';
@@ -91,6 +98,8 @@ export class App {
       { requestFrame: (cb) => requestAnimationFrame(cb) },
       { step: LOOP.step, maxFrame: LOOP.maxFrame },
     );
+    this.settings = opts.settings ?? null;
+    if (this.settings?.loadSpeed() === 2) this.loop.speed = 2;
     this.screens.go('town');
     this.showHelp();
     // Returning players first see what changed since their last visit (on top of the help).
@@ -125,6 +134,12 @@ export class App {
 
   start(): void {
     this.loop.start();
+  }
+
+  /** ×1 / ×2 game speed; the choice is remembered. */
+  toggleSpeed(): void {
+    this.loop.toggleSpeed();
+    this.settings?.saveSpeed(this.loop.speed);
   }
 
   totalBosses(): number {

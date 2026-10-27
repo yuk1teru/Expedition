@@ -14,7 +14,7 @@ import { setSplitHandler } from './combat';
 import { maybeSpawnPickup } from './pickups';
 import type { Archetype, Enemy, Vec } from './entities';
 import { dist } from './entities';
-import { dayMultiplier, enemyStats, goldReward, waveGoldMult } from './scaling';
+import { enemyStats, goldReward, threatMultiplier, waveGoldMult } from './scaling';
 import { spawnTraps } from './traps';
 import { endWeather, startWeather } from './weather';
 
@@ -312,7 +312,7 @@ setSplitHandler((b, e, into, count) => {
 /** Spawns a regular enemy scaled by tier and by the running wave (summons too). */
 export function spawnEnemy(b: Battle, defId: string, pos: Vec, elite = false, summoned = false, mult: WaveMult = currentWaveMult(b)): Enemy {
   const def = getEnemyDef(defId);
-  const scaled = enemyStats(def, b.tier, dayMultiplier(b.state.day));
+  const scaled = enemyStats(def, b.tier, threatMultiplier(b.state));
   const hpMult = archetypeHpMult(mult, def.archetype) * (elite ? ELITE.hpMult : 1);
   const radius = def.radius * (elite ? ELITE.radiusMult : 1);
   const e: Enemy = {
