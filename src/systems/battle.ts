@@ -11,7 +11,7 @@ import { isBossDefeated, onBossDefeated, setupBossBattle, updateBoss, updateTele
 import './bosses';
 import { type Pickup, updatePickups } from './pickups';
 import { clampToArena, insideArena, separateBodies } from './collision';
-import { addStatus, damageEnemy, damageHero, debuffHero, decayKnockback, killEnemy, updateHeroHealing, updateStatuses } from './combat';
+import { addStatus, damageEnemy, damageHero, debuffHero, decayKnockback, killEnemy, updateHeroHealing, updateStatuses, type DeathCause } from './combat';
 import type { Ally, Body, Enemy, Hero, HeroCharge, Projectile, Telegraph, Vec, Zone } from './entities';
 import { updateAllies } from './allies';
 import { type Hazard, addPuddle, updateHazards } from './hazards';
@@ -103,6 +103,8 @@ export interface Battle {
   stats: BattleStats;
   /** Lifesteal healed since the last popup, and time to the next popup. */
   healAcc: number;
+  /** What killed the hero (null while alive or when unknown). */
+  deathCause: DeathCause | null;
   healTimer: number;
   /** Poison damage since the last popup (shown summed, like lifesteal). */
   poisonAcc: number;
@@ -150,6 +152,7 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0): B
     boss: null,
     stats: { kills: 0, xp: 0, gold: 0, damageDealt: 0, damageTaken: 0, loot: [] },
     healAcc: 0,
+    deathCause: null,
     healTimer: 0,
     poisonAcc: 0,
     goldFrac: 0,
@@ -286,7 +289,7 @@ function updateProjectiles(b: Battle, dt: number): void {
         p.dead = true;
         if (p.puddle) addPuddle(b, p.puddle.kind, hero.pos, p.puddle.radius, p.puddle.duration, p.puddle.dps);
         // Some projectiles only slow (no damage, no hurt number).
-        if (p.damage > 0) damageHero(b, p.damage, { melee: p.melee });
+        if (p.damage > 0) damageHero(b, p.damage, { melee: p.melee, cause: { kind: 'shot', by: p.owner ?? null, shot: p.kind } });
         if (p.slow) debuffHero(b, 'slow', p.slow.time, p.slow.value);
       }
     } else {

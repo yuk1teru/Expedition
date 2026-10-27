@@ -28,16 +28,21 @@ export interface Weighted<T> {
 
 export class Rng {
   readonly seed: number;
-  private readonly gen: () => number;
+  /** mulberry32 state: saved with the game so a loaded hero continues the same streams. */
+  state: number;
 
-  constructor(seed: number) {
+  constructor(seed: number, state?: number) {
     this.seed = seed >>> 0;
-    this.gen = mulberry32(this.seed);
+    this.state = (state ?? this.seed) >>> 0;
   }
 
-  /** Float in [0, 1). */
+  /** Float in [0, 1) (the same sequence as `mulberry32(seed)`). */
   next(): number {
-    return this.gen();
+    this.state = (this.state + 0x6d2b79f5) >>> 0;
+    let t = this.state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   }
 
   /** Integer in [min, max] inclusive. */

@@ -335,7 +335,7 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
       ctx.fillStyle = 'rgba(5, 6, 10, 0.75)';
       ctx.fillRect(0, 0, app.view.width, app.view.height);
       drawPanel(ctx, PANEL, 'rgba(20, 23, 33, 0.98)');
-      drawText(ctx, 'Інвентар', PANEL.x + PANEL.w / 2, PANEL.y + 24, { size: 22, bold: true, align: 'center' });
+      drawText(ctx, `Інвентар — ${app.state.heroName}`, PANEL.x + PANEL.w / 2, PANEL.y + 24, { size: 22, bold: true, align: 'center' });
       drawText(ctx, 'Tab / Esc — закрити · гра на паузі', PANEL.x + PANEL.w - 16, PANEL.y + 24, {
         size: 12,
         align: 'right',
@@ -422,6 +422,7 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
         `Атак/с ${s.attackSpeed.toFixed(2)}`,
         `Рух ${Math.round(s.moveSpeed)}`,
         `Золото ${app.state.gold}`,
+        `Життів ${app.state.lives}`,
       ].join('  ·  ');
       drawText(ctx, summary, PANEL.x + PANEL.w / 2, PANEL.y + PANEL.h - 20, { size: 13, align: 'center' });
       if (messageTime > 0) {

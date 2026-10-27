@@ -268,7 +268,8 @@ export function updateTelegraphs(b: Battle, dt: number): void {
     t.dead = true;
     const hero = b.hero;
     if (!hero.dead && telegraphContains(t, hero.pos, hero.radius * 0.5)) {
-      damageHero(b, t.damage, { melee: false });
+      const owner = t.ownerId === null ? b.boss : b.enemies.find((e) => e.id === t.ownerId);
+      damageHero(b, t.damage, { melee: false, cause: { kind: 'telegraph', by: owner ? (owner.boss?.defId ?? owner.defId) : null, attack: t.kind } });
     }
     t.onFire?.();
     const at = t.shape.kind === 'line' ? { x: (t.pos.x + t.shape.to.x) / 2, y: (t.pos.y + t.shape.to.y) / 2 } : t.pos;

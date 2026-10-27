@@ -382,6 +382,7 @@ export function enemyShoot(b: Battle, e: Enemy, speed: number, at: Vec = b.hero.
     kind: def?.shotKind ?? kind,
     melee: false,
     slow: def?.shotSlow,
+    owner: e.boss?.defId ?? e.defId,
   });
   b.events.emit({ type: 'enemyShot', pos: { ...e.pos } });
 }

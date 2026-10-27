@@ -240,6 +240,13 @@ export const WORLD = {
   bossThreat: { locationTier: 1, bossTier: 0.9 },
 } as const;
 
+/** Lives of a hero (ROADMAP 9.4): a death takes one; with none left the hero's story ends at the cemetery. */
+export const LIVES = {
+  start: 3,
+  /** More only from quests and rare finds (Elixir of return, Amulet of life). */
+  max: 5,
+} as const;
+
 /** Battle flow timings. */
 export const FLOW = {
   /** Delay after stepping into the portal before the reward screen. */

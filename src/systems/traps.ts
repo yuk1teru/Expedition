@@ -50,7 +50,7 @@ export function updateTraps(b: Battle): void {
   for (const t of b.traps) {
     if (t.dead || !trapArmed(b, t) || dist(t.pos, hero.pos) > TRAPS.radius + hero.radius * 0.6) continue;
     t.dead = true;
-    damageHero(b, t.damage, { melee: false });
+    damageHero(b, t.damage, { melee: false, cause: { kind: 'trap' } });
     debuffHero(b, 'root', TRAPS.root);
     b.events.emit({ type: 'trapSnap', pos: { ...t.pos } });
   }

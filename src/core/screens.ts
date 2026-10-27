@@ -3,7 +3,7 @@
 
 import type { InputEvent } from './input';
 
-export type ScreenId = 'map' | 'town' | 'combat' | 'reward' | 'death' | 'victory' | 'gameOver';
+export type ScreenId = 'title' | 'map' | 'town' | 'combat' | 'reward' | 'death' | 'victory' | 'tombstone';
 export type ModalId = 'classChoice' | 'skillPick' | 'cardChoice' | 'promotion' | 'inventory' | 'help' | 'merchant' | 'waveStart' | 'changelog' | 'dialogue';
 
 export interface Screen<R> {

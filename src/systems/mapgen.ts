@@ -4,6 +4,7 @@ import { SCALING, WORLD } from '../data/balance';
 import { getBiome } from '../data/biomes';
 import { CAPITAL_ID, DEFAULT_MECHANICS, type LocationMechanics, WORLD_NODES, WORLD_ROADS, type WorldNodeDef } from '../data/world';
 import type { Vec } from './entities';
+import type { Item } from './items';
 
 export interface MapNode {
   id: string;
@@ -27,6 +28,8 @@ export interface MapNode {
   timesCleared: number;
   /** Waves cleared on the last completed visit (the next visit may continue from there). */
   lastWave: number;
+  /** Loot left here by a death: given back when the location is cleared again. */
+  lostLoot: { items: Item[]; gold: number } | null;
   pos: Vec;
 }
 
@@ -78,6 +81,7 @@ export function nodeFromDef(def: WorldNodeDef): MapNode {
     cleared: false,
     timesCleared: 0,
     lastWave: 0,
+    lostLoot: null,
     pos: { ...def.pos },
   };
 }

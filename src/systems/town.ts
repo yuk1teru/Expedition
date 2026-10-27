@@ -122,8 +122,9 @@ export interface Conversation {
   nodeId: string;
 }
 
-export function startConversation(npcId: string): Conversation {
-  const npc = getNpc(npcId);
+/** A talk with a town NPC (by id) or a one-off speaker built in code (the doctor after a death). */
+export function startConversation(who: string | NpcDef): Conversation {
+  const npc = typeof who === 'string' ? getNpc(who) : who;
   return { npc, nodeId: npc.start };
 }
 

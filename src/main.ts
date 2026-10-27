@@ -1,6 +1,6 @@
 import { Input, bindInput } from './core/input';
 import { resolveSeed } from './core/seed';
-import { App, type SettingsStore, type VersionStore } from './render/app';
+import { App, type SaveFiles, type SaveStore, type SettingsStore, type VersionStore } from './render/app';
 import { createView, toLogical } from './render/canvas';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -49,8 +49,75 @@ const settings: SettingsStore = {
     }
   },
 };
+// The hero's save slot. Without storage the game still runs, it just cannot be continued.
+const SAVE_KEY = 'expedition.save';
+const saves: SaveStore = {
+  load: () => {
+    try {
+      return window.localStorage.getItem(SAVE_KEY);
+    } catch {
+      return null;
+    }
+  },
+  save: (text) => {
+    try {
+      window.localStorage.setItem(SAVE_KEY, text);
+    } catch {
+      // Not critical: the next checkpoint tries again.
+    }
+  },
+  clear: () => {
+    try {
+      window.localStorage.removeItem(SAVE_KEY);
+    } catch {
+      // Not critical.
+    }
+  },
+};
+// What outlives heroes: the cemetery and records.
+const META_KEY = 'expedition.meta';
+const meta: SaveStore = {
+  load: () => {
+    try {
+      return window.localStorage.getItem(META_KEY);
+    } catch {
+      return null;
+    }
+  },
+  save: (text) => {
+    try {
+      window.localStorage.setItem(META_KEY, text);
+    } catch {
+      // Not critical.
+    }
+  },
+  clear: () => {},
+};
+// Export / import of the save as a JSON file (to hand a hero to a friend).
+const files: SaveFiles = {
+  download: (name, text) => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  },
+  pick: () =>
+    new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json,application/json';
+      input.addEventListener('change', () => {
+        const file = input.files?.[0];
+        if (!file) resolve(null);
+        else file.text().then(resolve, () => resolve(null));
+      });
+      input.addEventListener('cancel', () => resolve(null));
+      input.click();
+    }),
+};
 const url = window.location.href;
-const app = new App(view, input, resolveSeed(url), { dev: import.meta.env.DEV, reducedMotion, versions, settings });
+const app = new App(view, input, resolveSeed(url), { dev: import.meta.env.DEV, reducedMotion, versions, settings, saves, meta, files });
 app.start();
 canvas.focus();
 

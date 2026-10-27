@@ -88,7 +88,7 @@ export function updateHazards(b: Battle, dt: number): void {
         // A ring hits once — unless the hero is invulnerable at that moment (dash, teleport).
         if (hero.invulnerable <= 0) {
           h.ring.hit = true;
-          damageHero(b, h.ring.damage, { melee: false });
+          damageHero(b, h.ring.damage, { melee: false, cause: { kind: 'hazard', hazard: h.kind } });
         }
       }
       continue;
@@ -97,7 +97,7 @@ export function updateHazards(b: Battle, dt: number): void {
     if (h.tickTimer > 0) continue;
     h.tickTimer = HAZARDS.tick;
     if (dist(hero.pos, h.pos) <= h.radius + hero.radius * 0.3) {
-      damageHero(b, h.dps * HAZARDS.tick, { melee: false });
+      damageHero(b, h.dps * HAZARDS.tick, { melee: false, cause: { kind: 'hazard', hazard: h.kind } });
       if (h.slow > 0) debuffHero(b, 'slow', HAZARDS.tick + 0.2, h.slow);
     }
   }

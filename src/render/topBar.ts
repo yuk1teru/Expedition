@@ -6,6 +6,7 @@ import { GAME_VERSION } from '../data/changelog';
 import { hasNewItems } from '../systems/items';
 import { drawNewItemHint } from './hud';
 import { drawText } from './ui';
+import { drawHeart } from './endScreens';
 
 export const TOP_BAR_H = 44;
 
@@ -28,6 +29,12 @@ export function drawTopBar(ctx: CanvasRenderingContext2D, state: GameState, widt
     ['Боси', `${state.bossesDefeated.length}/${totalBosses}`],
   ];
   let x = 18;
+  drawText(ctx, state.heroName, x, y, { size: 16, bold: true, color: THEME.accent });
+  ctx.font = `bold 16px ${THEME.font}`;
+  x += ctx.measureText(state.heroName).width + 10;
+  // Lives: hearts (ROADMAP 9.4).
+  for (let i = 0; i < state.lives; i++) drawHeart(ctx, x + 8 + i * 17, y, 15, true);
+  x += state.lives * 17 + 24;
   for (const [label, value] of items) {
     drawText(ctx, label, x, y, { size: 13, color: THEME.textDim });
     ctx.font = `13px ${THEME.font}`;

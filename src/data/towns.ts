@@ -59,6 +59,8 @@ export interface TownLayout {
   gate: TownRect;
   /** Where the hero appears (next to the gate). */
   spawn: { x: number; y: number };
+  /** Cemetery plots for the tombstones of fallen heroes, the newest first (ROADMAP 9.6). */
+  graves?: { x: number; y: number }[];
 }
 
 const P = (kind: TownPropKind, x: number, y: number): { kind: TownPropKind; x: number; y: number } => ({ kind, x, y });
@@ -102,9 +104,7 @@ export const TOWNS: Record<string, TownLayout> = {
       P('lamp', 880, 400), P('lamp', 1040, 400), P('lamp', 880, 860), P('lamp', 1040, 860),
       P('tree', 70, 560), P('tree', 1860, 640), P('tree', 760, 1180), P('tree', 1180, 1190), P('tree', 640, 300), P('tree', 1280, 300),
       P('stall', 830, 470), P('stall', 1090, 470),
-      P('grave', 60, 150), P('grave', 115, 150), P('grave', 170, 150),
-      P('grave', 60, 230), P('grave', 115, 230), P('grave', 170, 230),
-      P('grave', 60, 310), P('grave', 115, 310), P('grave', 170, 310), P('grave', 220, 400),
+      P('grave', 45, 470), P('grave', 210, 470), P('grave', 100, 470),
       P('dummy', 1720, 210), P('dummy', 1800, 260), P('dummy', 1870, 210),
       P('target', 60, 780), P('target', 60, 860),
       P('barrel', 760, 900), P('crate', 1450, 960), P('well', 1700, 1000),
@@ -124,6 +124,7 @@ export const TOWNS: Record<string, TownLayout> = {
     ],
     gate: { x: 900, y: 1250, w: 120, h: 30 },
     spawn: { x: 960, y: 1200 },
+    graves: [230, 310, 390].flatMap((y) => [45, 100, 155, 210].map((x) => ({ x, y }))),
   },
   port: {
     id: 'port',

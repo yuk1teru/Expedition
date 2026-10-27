@@ -1,6 +1,7 @@
 // Reward, death and victory screens.
 
 import type { Screen } from '../core/screens';
+import { LIVES } from '../data/balance';
 import { RARITIES } from '../data/items';
 import { type Item, displayName, formatStat } from '../systems/items';
 import type { BattleSummary } from '../systems/run';
@@ -119,28 +120,31 @@ export function createRewardScreen(app: App): Screen<CanvasRenderingContext2D> {
   };
 }
 
-/** Death is not the end of the run: the hero returns to the last rest in town. */
+/** A death takes a life; the hero wakes up in the town of the last rest. With no lives left — the tombstone. */
 export function createDeathScreen(app: App): Screen<CanvasRenderingContext2D> {
   const W = app.view.width;
   const panel = { x: W / 2 - 250, y: 50, w: 500, h: 440 };
-  const buttons = new ButtonGroup([
+  const back = new ButtonGroup([
     new Button({
-      label: 'Повернутися до міста',
-      rect: { x: panel.x + 100, y: panel.y + panel.h - 118, w: 300, h: 48 },
+      label: 'Прокинутися в місті',
+      rect: { x: panel.x + 100, y: panel.y + panel.h - 80, w: 300, h: 48 },
       hotkey: 'Enter',
       onClick: () => app.respawn(),
     }),
+  ]);
+  const end = new ButtonGroup([
     new Button({
-      label: 'Новий герой',
-      rect: { x: panel.x + 150, y: panel.y + panel.h - 60, w: 200, h: 38 },
-      fontSize: 14,
-      onClick: () => app.newRun(),
+      label: 'До надгробка',
+      rect: { x: panel.x + 100, y: panel.y + panel.h - 80, w: 300, h: 48 },
+      hotkey: 'Enter',
+      onClick: () => app.screens.go('tombstone'),
     }),
   ]);
+  const buttons = (): ButtonGroup => (app.state.lives > 0 ? back : end);
   return {
     update() {},
     onInput(e) {
-      buttons.handle(e);
+      buttons().handle(e);
     },
     render(ctx) {
       const st = app.state;
@@ -149,33 +153,63 @@ export function createDeathScreen(app: App): Screen<CanvasRenderingContext2D> {
       ctx.fillRect(0, 0, W, app.view.height);
       drawPanel(ctx, panel);
       drawText(ctx, 'Ви загинули', W / 2, panel.y + 40, { size: 30, bold: true, align: 'center', color: THEME.bad });
-      drawText(ctx, 'Пригода триває: герой прокинеться в місті з прогресом останнього візиту туди.', W / 2, panel.y + 74, {
-        size: 13,
-        align: 'center',
-        color: THEME.textDim,
-      });
+      const alive = st.lives > 0;
+      drawText(
+        ctx,
+        alive ? 'Героя винесуть з бою — він прокинеться в місті останнього відпочинку.' : 'Життів більше немає: пригода цього героя завершена.',
+        W / 2,
+        panel.y + 74,
+        { size: 13, align: 'center', color: THEME.textDim },
+      );
+      drawLives(ctx, W / 2, panel.y + 112, st.lives);
       const lost = app.lastSummary;
-      const items: [string, string][] = [
-        ['Чекпоінт: рівень', String(cp.hero.level)],
-        ['Чекпоінт: день', String(cp.day)],
-        ['Чекпоінт: золото', String(cp.gold)],
-        ['Чекпоінт: речей', String(Object.values(cp.hero.equipment).filter(Boolean).length + cp.hero.bag.length)],
-        ['Загинули в', lost?.nodeName ?? '—'],
-        ['Смертей', String(st.stats.deaths + 1)],
-      ];
-      rows(ctx, items, panel.x + 60, panel.y + 112, panel.w - 120);
-      buttons.draw(ctx);
+      const items: [string, string][] = alive
+        ? [
+            ['Загинули в', lost?.nodeName ?? '—'],
+            ['Прокинетесь у', st.world.nodes.find((n) => n.id === cp.homeTown)?.name ?? '—'],
+            ['Рівень', String(cp.hero.level)],
+            ['Золото', String(cp.gold)],
+            ['Здобич бою', lost && (lost.loot.length > 0 || lost.gold > 0) ? 'лишилася в локації' : '—'],
+          ]
+        : [
+            ['Загинули в', lost?.nodeName ?? '—'],
+            ['Рівень', String(st.hero.level)],
+            ['Днів у пригоді', String(st.day)],
+            ['Переможено босів', `${st.bossesDefeated.length}/${app.totalBosses()}`],
+          ];
+      rows(ctx, items, panel.x + 60, panel.y + 156, panel.w - 120);
+      buttons().draw(ctx);
     },
   };
 }
 
-export function createVictoryScreen(app: App): Screen<CanvasRenderingContext2D> {
-  return createRunSummaryScreen(app, true);
+/** Lives as hearts: full for the ones left, empty for the lost ones up to the start count. */
+export function drawLives(ctx: CanvasRenderingContext2D, cx: number, y: number, lives: number, size = 22): void {
+  const total = Math.max(LIVES.start, lives);
+  const gap = size * 1.3;
+  for (let i = 0; i < total; i++) drawHeart(ctx, cx + (i - (total - 1) / 2) * gap, y, size, i < lives);
 }
 
-/** The player gave up from the pause menu. */
-export function createGameOverScreen(app: App): Screen<CanvasRenderingContext2D> {
-  return createRunSummaryScreen(app, false);
+export function drawHeart(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, full: boolean): void {
+  const s = size / 2;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(x, y + s * 0.9);
+  ctx.bezierCurveTo(x - s * 1.4, y - s * 0.1, x - s * 0.7, y - s * 1.1, x, y - s * 0.35);
+  ctx.bezierCurveTo(x + s * 0.7, y - s * 1.1, x + s * 1.4, y - s * 0.1, x, y + s * 0.9);
+  ctx.closePath();
+  if (full) {
+    ctx.fillStyle = THEME.hp;
+    ctx.fill();
+  }
+  ctx.strokeStyle = full ? '#f08a84' : THEME.textMuted;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
+}
+
+export function createVictoryScreen(app: App): Screen<CanvasRenderingContext2D> {
+  return createRunSummaryScreen(app, true);
 }
 
 function createRunSummaryScreen(app: App, victory: boolean): Screen<CanvasRenderingContext2D> {
@@ -195,7 +229,7 @@ function createRunSummaryScreen(app: App, victory: boolean): Screen<CanvasRender
             label: 'Новий герой',
             rect: { x: panel.x + 310, y: panel.y + panel.h - 60, w: 170, h: 46 },
             fontSize: 15,
-            onClick: () => app.newRun(),
+            onClick: () => app.newHero(),
           }),
         ]
       : [
@@ -203,7 +237,7 @@ function createRunSummaryScreen(app: App, victory: boolean): Screen<CanvasRender
             label: 'Новий герой',
             rect: { x: panel.x + 130, y: panel.y + panel.h - 60, w: 260, h: 46 },
             hotkey: 'Enter',
-            onClick: () => app.newRun(),
+            onClick: () => app.newHero(),
           }),
         ],
   );

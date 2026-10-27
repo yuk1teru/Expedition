@@ -11,12 +11,19 @@ import type { Battle } from './battle';
 import type { Item } from './items';
 import { TOWN_ID, areAdjacent, buildWorld, getNode, markCleared } from './mapgen';
 import { clearBonusGold } from './scaling';
-import { promote } from './promotion';
+import { LIVES } from '../data/balance';
 
-export function createGameState(seed: number): GameState {
+/** Name of a hero the player did not name. */
+export const DEFAULT_HERO_NAME = 'Мандрівник';
+import { promote } from './promotion';
+import { applyDeath, recoverLostLoot } from './death';
+
+/** A new hero's adventure. */
+export function createGameState(seed: number, heroName = DEFAULT_HERO_NAME): GameState {
   const rng = new Rng(seed);
   const state: Omit<GameState, 'checkpoint'> = {
     seed,
+    heroName,
     rng,
     cardRng: rng.fork('cards'),
     lootRng: rng.fork('loot'),
@@ -24,6 +31,7 @@ export function createGameState(seed: number): GameState {
     battleCount: 0,
     day: 1,
     gold: 0,
+    lives: LIVES.start,
     hero: createHero(0),
     world: buildWorld(),
     currentNodeId: TOWN_ID,
@@ -33,26 +41,31 @@ export function createGameState(seed: number): GameState {
     screen: 'town',
     modalQueue: [],
     events: new EventBus<GameEvent>(),
+    lastDeath: null,
   };
   return { ...state, checkpoint: snapshot(state) };
 }
 
-function snapshot(state: Omit<GameState, 'checkpoint'>): Checkpoint {
+/** The checkpoint of the current progress. */
+export function snapshot(state: Omit<GameState, 'checkpoint'>): Checkpoint {
   // Transient combat state (a dash callback, buffs, statuses) is not part of progress.
   const hero = { ...state.hero, dash: null, buffs: [], statuses: {}, invulnerable: 0 };
   return structuredClone({
     hero,
     gold: state.gold,
     day: state.day,
+    lives: state.lives,
     world: state.world,
     bossesDefeated: state.bossesDefeated,
     homeTown: state.homeTown,
+    lastDeath: state.lastDeath,
   });
 }
 
 /** Saves the current progress as the checkpoint (done when resting in town). */
 export function saveCheckpoint(state: GameState): void {
   state.checkpoint = snapshot(state);
+  state.events.emit({ type: 'checkpoint' });
 }
 
 /**
@@ -64,9 +77,11 @@ export function restoreCheckpoint(state: GameState): void {
   state.hero = cp.hero;
   state.gold = cp.gold;
   state.day = cp.day;
+  state.lives = cp.lives;
   state.world = cp.world;
   state.bossesDefeated = cp.bossesDefeated;
   state.homeTown = cp.homeTown;
+  state.lastDeath = cp.lastDeath;
   state.currentNodeId = cp.homeTown;
   state.modalQueue = [];
   state.hero.dead = false;
@@ -153,6 +168,10 @@ export interface BattleSummary {
   loot: Item[];
   /** This battle defeated the last remaining boss (show the victory screen once). */
   runCompleted: boolean;
+  /** Loot left here by an earlier death and picked up now. */
+  recovered: { items: Item[]; gold: number } | null;
+  /** Lives left after this battle (a loss takes one). */
+  lives: number;
 }
 
 /** Applies the result of a finished battle to the run. */
@@ -164,7 +183,10 @@ export function completeBattle(state: GameState, b: Battle): BattleSummary {
   const won = b.outcome === 'won';
   const wasWon = isRunWon(state);
   let clearBonus = 0;
+  let recovered: BattleSummary['recovered'] = null;
+  if (!won) applyDeath(state, b);
   if (won) {
+    recovered = recoverLostLoot(state, b.node);
     clearBonus = clearBonusGold(b.tier);
     state.gold += clearBonus;
     markCleared(b.node, b.waves?.cleared ?? 0);
@@ -192,6 +214,8 @@ export function completeBattle(state: GameState, b: Battle): BattleSummary {
     lastWave: b.waves ? b.waves.cleared : 0,
     loot: [...b.stats.loot],
     runCompleted: won && !wasWon && isRunWon(state),
+    recovered,
+    lives: state.lives,
   };
 }
 

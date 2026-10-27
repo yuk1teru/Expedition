@@ -167,9 +167,24 @@ function dropLoot(b: Battle, e: Enemy): void {
   }
 }
 
+/** What dealt the hero's last blow (the doctor's story after death, battle statistics). */
+export type DeathCause =
+  /** A blow of an enemy or a boss (`by`: enemy or boss id). */
+  | { kind: 'melee'; by: string }
+  /** A projectile (`by`: the shooter, if known; `shot`: its kind). */
+  | { kind: 'shot'; by: string | null; shot: string }
+  /** A telegraphed strike (a red circle, a line). */
+  | { kind: 'telegraph'; by: string | null; attack: string }
+  /** A puddle or a ring on the ground (acid, poison, toxic wave). */
+  | { kind: 'hazard'; hazard: string }
+  | { kind: 'trap' }
+  | { kind: 'poison' };
+
 export interface HeroHitOptions {
   attacker?: Enemy;
   melee: boolean;
+  /** What hits (default: a blow of `attacker`). */
+  cause?: DeathCause;
 }
 
 export function damageHero(b: Battle, rawAmount: number, opts: HeroHitOptions): number {
@@ -196,6 +211,7 @@ export function damageHero(b: Battle, rawAmount: number, opts: HeroHitOptions): 
   if (hero.hp <= 0) {
     hero.hp = 0;
     hero.dead = true;
+    b.deathCause = opts.cause ?? (opts.attacker ? { kind: 'melee', by: opts.attacker.boss?.defId ?? opts.attacker.defId } : null);
     b.events.emit({ type: 'heroDeath', pos: { ...hero.pos } });
   }
   return amount;
@@ -292,6 +308,7 @@ function poisonHero(b: Battle, amount: number): void {
   if (hero.hp <= 0) {
     hero.hp = 0;
     hero.dead = true;
+    b.deathCause = { kind: 'poison' };
     b.events.emit({ type: 'heroDeath', pos: { ...hero.pos } });
   }
 }

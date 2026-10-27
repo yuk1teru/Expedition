@@ -6,6 +6,7 @@ import type { GameEvent } from '../systems/gameEvents';
 import type { ScreenId } from './screens';
 import type { Hero } from '../systems/entities';
 import type { World } from '../systems/mapgen';
+import type { DeathCause } from '../systems/combat';
 
 export interface RunStats {
   kills: number;
@@ -23,6 +24,8 @@ export type ModalRequest = { kind: 'classChoice' } | { kind: 'cardChoice'; level
 
 export interface GameState {
   seed: number;
+  /** The player's name for the hero (the new-game screen). */
+  heroName: string;
   /** Root RNG; subsystems use forks of it. */
   rng: Rng;
   /** Card offers stream (`rng.fork("cards")`). */
@@ -35,6 +38,8 @@ export interface GameState {
   battleCount: number;
   day: number;
   gold: number;
+  /** Lives left: a death takes one, none left — the hero's story is over (LIVES in balance.ts). */
+  lives: number;
   hero: Hero;
   world: World;
   currentNodeId: string;
@@ -49,8 +54,18 @@ export interface GameState {
   events: EventBus<GameEvent>;
   /** Progress saved at the last rest in town; death returns here. */
   checkpoint: Checkpoint;
+  /** Set by a death; the doctor talks about it when the hero wakes up in town. */
+  lastDeath: LastDeath | null;
   /** Debug: travel to any node, not only to neighbours. */
   freeTravel?: boolean;
+}
+
+/** The last death, until the doctor has told about it in town. */
+export interface LastDeath {
+  nodeId: string;
+  cause: DeathCause | null;
+  /** The battle's loot was left in the location. */
+  lostLoot: boolean;
 }
 
 /** Snapshot of run progress restored after death. */
@@ -58,9 +73,11 @@ export interface Checkpoint {
   hero: Hero;
   gold: number;
   day: number;
+  lives: number;
   world: World;
   bossesDefeated: string[];
   homeTown: string;
+  lastDeath: LastDeath | null;
 }
 
 export function createRunStats(): RunStats {

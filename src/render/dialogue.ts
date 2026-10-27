@@ -3,10 +3,11 @@
 
 import type { Modal } from '../core/screens';
 import { fillNames } from '../data/names';
-import type { DialogueAction } from '../data/npcs';
+import type { DialogueAction, NpcDef } from '../data/npcs';
 import { type Conversation, chooseOption, currentNode, startConversation } from '../systems/town';
 import type { App } from './app';
 import { drawNpc } from './npcArt';
+import { drawTombstone } from './tombstone';
 import { THEME, font } from './theme';
 import { type Rect, drawPanel, drawText, inRect, roundRect, wrapLines } from './ui';
 
@@ -15,8 +16,8 @@ const PANEL: Rect = { x: 110, y: 300, w: 740, h: 226 };
 const TYPE_SPEED = 70;
 const OPTION_H = 28;
 
-export function createDialogueModal(app: App, npcId: string, onAction: (action: DialogueAction | null) => void): Modal<CanvasRenderingContext2D> {
-  const conv: Conversation = startConversation(npcId);
+export function createDialogueModal(app: App, who: string | NpcDef, onAction: (action: DialogueAction | null) => void): Modal<CanvasRenderingContext2D> {
+  const conv: Conversation = startConversation(who);
   let shown = 0;
   let hovered = -1;
 
@@ -82,7 +83,9 @@ export function createDialogueModal(app: App, npcId: string, onAction: (action: 
       roundRect(ctx, PANEL.x + 14, PANEL.y + 14, 100, 110, 8);
       ctx.fill();
       ctx.restore();
-      drawNpc(ctx, npc.look, PANEL.x + 64, PANEL.y + 82, 34, app.time);
+      // A tombstone "speaks" with its own picture.
+      if (npc.id === 'grave') drawTombstone(ctx, PANEL.x + 64, PANEL.y + 108, 1.5, '');
+      else drawNpc(ctx, npc.look, PANEL.x + 64, PANEL.y + 82, 34, app.time);
       drawText(ctx, npc.name, PANEL.x + 64, PANEL.y + 140, { size: 14, bold: true, align: 'center', color: THEME.accent });
       drawText(ctx, npc.title, PANEL.x + 64, PANEL.y + 158, { size: 11, align: 'center', color: THEME.textDim });
       // The line, typed out.

@@ -67,7 +67,7 @@ export function createHelpModal(app: App, onClose: () => void): Modal<CanvasRend
         align: 'center',
         color: THEME.textDim,
       });
-      drawText(ctx, 'Смерть не кінець: герой повертається до стану останнього візиту в місто.', W / 2, panel.y + 88, {
+      drawText(ctx, 'У героя 3 життя: смерть забирає одне й повертає до останнього відпочинку в місті.', W / 2, panel.y + 88, {
         size: 14,
         align: 'center',
         color: THEME.textDim,

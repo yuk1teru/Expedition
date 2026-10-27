@@ -7,6 +7,8 @@ import type { Vec } from './entities';
 import type { WaveMult } from './waves';
 
 export type GameEvent =
+  /** Progress was saved as the checkpoint (the app writes the save). */
+  | { type: 'checkpoint' }
   | { type: 'hit'; pos: Vec; amount: number; crit: boolean; targetId: number; radius: number; source: HitSource }
   | { type: 'heroHurt'; pos: Vec; amount: number }
   /** Every basic attack of the hero (swing or shot), for the attack-speed visuals. */

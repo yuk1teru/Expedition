@@ -30,7 +30,9 @@ import {
 import { type View, beginFrame, endFrame } from './canvas';
 import { createCombatScreen } from './combatView';
 import { type DebugPanel, createDebugPanel } from './debugPanel';
-import { createDeathScreen, createGameOverScreen, createRewardScreen, createVictoryScreen } from './endScreens';
+import { createDeathScreen, createRewardScreen, createVictoryScreen } from './endScreens';
+import { createTombstoneScreen } from './tombstone';
+import { type Grave, type MetaData, makeGrave, readMeta } from '../systems/meta';
 import { createHelpModal } from './help';
 import { createChangelogModal } from './changelog';
 import { CHANGELOG, CHANGELOG_BASE_VERSION, GAME_VERSION } from '../data/changelog';
@@ -44,11 +46,26 @@ import { createPromotionModal } from './promotionModal';
 import { THEME } from './theme';
 import { createTownScreen } from './townView';
 import { createWaveStartModal } from './waveStart';
+import { createTitleScreen } from './titleScreen';
+import { type SaveData, fromSave, readSave, saveFileName, toSave, writeSave } from '../systems/save';
 
 /** Where the last seen game version is kept between visits (localStorage in the browser). */
 export interface VersionStore {
   load(): string | null;
   save(version: string): void;
+}
+
+/** The hero's save slot (localStorage in the browser). */
+export interface SaveStore {
+  load(): string | null;
+  save(text: string): void;
+  clear(): void;
+}
+
+/** Save files for friends: download one, pick one to import (null — cancelled). */
+export interface SaveFiles {
+  download(name: string, text: string): void;
+  pick(): Promise<string | null>;
 }
 
 /** Small settings kept between visits (game speed). */
@@ -67,24 +84,42 @@ export class App {
   time = 0;
   reducedMotion = false;
   private readonly settings: SettingsStore | null;
+  private readonly saves: SaveStore | null;
+  private readonly metaStore: SaveStore | null;
+  /** What outlives heroes: the graves (the cemetery, records). */
+  meta: MetaData;
+  /** The tombstone of the hero whose story has just ended (the tombstone screen). */
+  lastGrave: Grave | null = null;
+  private readonly files: SaveFiles | null;
+  /** Seed of the first new hero (`?seed=` in the URL); later heroes get random ones. */
+  private firstSeed: number | null;
+  /** The title screen opens straight at the name of a new hero ("Новий герой" on the end screens). */
+  titleStartsWithName = false;
   readonly debug: DebugPanel | null;
 
   constructor(
     readonly view: View,
     readonly input: Input,
     seed: number,
-    opts: { dev: boolean; reducedMotion: boolean; versions?: VersionStore; settings?: SettingsStore },
+    opts: { dev: boolean; reducedMotion: boolean; versions?: VersionStore; settings?: SettingsStore; saves?: SaveStore; meta?: SaveStore; files?: SaveFiles },
   ) {
     this.reducedMotion = opts.reducedMotion;
+    this.firstSeed = seed;
+    this.saves = opts.saves ?? null;
+    this.files = opts.files ?? null;
+    this.metaStore = opts.meta ?? null;
+    this.meta = readMeta(this.metaStore?.load() ?? null);
+    // A placeholder until the title screen continues a hero or starts a new one.
     this.state = createGameState(seed);
     this.screens.onChange = (id) => (this.state.screen = id);
+    this.screens.register('title', createTitleScreen(this));
     this.screens.register('map', createMapScreen(this));
     this.screens.register('town', createTownScreen(this));
     this.screens.register('combat', createCombatScreen(this));
     this.screens.register('reward', createRewardScreen(this));
     this.screens.register('death', createDeathScreen(this));
     this.screens.register('victory', createVictoryScreen(this));
-    this.screens.register('gameOver', createGameOverScreen(this));
+    this.screens.register('tombstone', createTombstoneScreen(this));
     this.debug = opts.dev ? createDebugPanel(this) : null;
     this.loop = new GameLoop(
       {
@@ -97,8 +132,7 @@ export class App {
     );
     this.settings = opts.settings ?? null;
     if (this.settings?.loadSpeed() === 2) this.loop.speed = 2;
-    this.screens.go('town');
-    this.showHelp();
+    this.screens.go('title');
     // Returning players first see what changed since their last visit (on top of the help).
     const store = opts.versions;
     const fresh = unseenUpdates(CHANGELOG, store ? store.load() : GAME_VERSION, CHANGELOG_BASE_VERSION);
@@ -143,12 +177,82 @@ export class App {
     return this.state.world.nodes.filter((n) => n.isBoss).length;
   }
 
-  newRun(seed: number = randomSeed()): void {
+  // ---- Heroes and saves ----
+
+  /** The saved hero, or null (none, broken, or from a newer game). */
+  savedHero(): SaveData | null {
+    return readSave(this.saves?.load() ?? null);
+  }
+
+  /** Title → "Продовжити": the saved hero wakes up in the town of the last rest. */
+  continueGame(): void {
+    const data = this.savedHero();
+    if (!data) return;
+    this.resetScreens();
+    this.setState(fromSave(data));
+    this.screens.go('town');
+  }
+
+  /** Title → a new hero with this name; the previous save is replaced at the first rest. */
+  startNewHero(name: string): void {
+    const seed = this.firstSeed ?? randomSeed();
+    this.firstSeed = null;
+    this.resetScreens();
+    this.setState(createGameState(seed, name));
+    this.screens.go('town');
+    this.showHelp();
+  }
+
+  /** The tombstone screen → the title screen. */
+  toTitle(): void {
+    this.resetScreens();
+    this.screens.go('title');
+  }
+
+  /**
+   * The hero's story is over (no lives left, or given up): the tombstone goes to the
+   * cemetery (meta save) and the hero's save is deleted.
+   */
+  private endHero(abandoned: boolean): void {
+    const grave = makeGrave(this.state, { abandoned });
+    this.meta.graves.push(grave);
+    this.metaStore?.save(JSON.stringify(this.meta));
+    this.saves?.clear();
+    this.lastGrave = grave;
+  }
+
+  /** End screens → "Новий герой": the title screen with the name field. */
+  newHero(): void {
+    this.resetScreens();
+    this.titleStartsWithName = true;
+    this.screens.go('title');
+  }
+
+  exportSave(): void {
+    const data = this.savedHero();
+    if (data) this.files?.download(saveFileName(data), writeSave(data));
+  }
+
+  /** Picks a save file; on success it becomes the saved hero. Null — nothing picked. */
+  async importSave(): Promise<{ ok: boolean; name: string } | null> {
+    const text = this.files ? await this.files.pick() : null;
+    if (text === null) return null;
+    const data = readSave(text);
+    if (!data) return { ok: false, name: '' };
+    this.saves?.save(writeSave(data));
+    return { ok: true, name: data.heroName };
+  }
+
+  private setState(state: GameState): void {
+    this.state = state;
+    // Every checkpoint (rest, leaving town, a boss) is written to the save slot.
+    state.events.on('checkpoint', () => this.saves?.save(writeSave(toSave(state))));
+  }
+
+  private resetScreens(): void {
     this.screens.clearModals();
     this.loop.paused = false;
     this.battle = null;
-    this.state = createGameState(seed);
-    this.screens.go('town');
   }
 
   goMap(): void {
@@ -178,7 +282,7 @@ export class App {
     this.screens.pushModal(createInventoryModal(this, () => this.screens.popModal()));
   }
 
-  /** Pause → "Завершити пригоду": the run ends as a defeat with a summary screen. */
+  /** Pause → "Завершити пригоду": the hero's story ends — the tombstone screen. */
   abandonRun(): void {
     this.screens.clearModals();
     this.loop.paused = false;
@@ -188,7 +292,8 @@ export class App {
       completeBattle(this.state, this.battle);
     }
     this.battle = null;
-    this.screens.go('gameOver');
+    this.endHero(true);
+    this.screens.go('tombstone');
   }
 
   /** After death: back to town with the progress of the last rest. */
@@ -246,6 +351,8 @@ export class App {
     this.lastSummary = completeBattle(this.state, b);
     this.battle = null;
     this.loop.paused = false;
+    // The last life is gone: the story ends right now (closing the game will not undo it).
+    if (!this.lastSummary.won && this.state.lives <= 0) this.endHero(false);
     if (!this.lastSummary.won) this.screens.go('death');
     else if (this.lastSummary.runCompleted) this.screens.go('victory');
     else this.screens.go('reward');
@@ -259,7 +366,7 @@ export class App {
   private processModalQueue(): void {
     if (this.screens.topModal) return;
     const screen = this.screens.current;
-    if (screen === 'death' || screen === 'victory' || screen === 'gameOver') return;
+    if (screen === 'title' || screen === 'death' || screen === 'victory' || screen === 'tombstone') return;
     const req = this.state.modalQueue.shift();
     if (!req) return;
     if (req.kind === 'classChoice') {
@@ -332,7 +439,7 @@ export class App {
     this.time += dt;
     // Play time stops on the result screens (death, victory, run over).
     const screen = this.screens.current;
-    if (screen !== 'death' && screen !== 'victory' && screen !== 'gameOver') this.state.stats.playTime += dt;
+    if (screen !== 'title' && screen !== 'death' && screen !== 'victory' && screen !== 'tombstone') this.state.stats.playTime += dt;
     for (const e of this.input.drain()) this.handleInput(e);
     this.processModalQueue();
   }

@@ -37,6 +37,7 @@ registerBoss('sandWorm', {
           radius: 8,
           damage: boss.damage * p.damage!,
           team: 'enemy',
+          owner: boss.boss?.defId ?? boss.defId,
           life: reach / p.speed!,
           pierce: 0,
           ricochet: 0,

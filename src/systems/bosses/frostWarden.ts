@@ -35,6 +35,7 @@ registerBoss('frostWarden', {
           radius: 6,
           damage: boss.damage * p.damage!,
           team: 'enemy',
+          owner: boss.boss?.defId ?? boss.defId,
           life: p.range! / p.speed!,
           pierce: 0,
           ricochet: 0,

@@ -12,6 +12,9 @@ import { type TownBuilding, type TownLayout, type TownPropKind, getTownLayout } 
 import { Rng } from '../core/rng';
 import { getNode } from '../systems/mapgen';
 import { leaveTown, restInTown } from '../systems/run';
+import { forgetDeath, wakeTalk } from '../systems/death';
+import type { Grave } from '../systems/meta';
+import { drawTombstone, graveTalk } from './tombstone';
 import { type TownWalker, atGate, createWalker, npcAt, npcInReach, stepWalker } from '../systems/town';
 import type { App } from './app';
 import { createDialogueModal } from './dialogue';
@@ -57,6 +60,28 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
     else if (action === 'openChangelog') app.showChangelog();
     else if (action === 'openInventory') app.toggleInventory();
   };
+  /** Tombstones of fallen heroes on the cemetery plots, the newest first. */
+  const graves = (): { g: Grave; x: number; y: number }[] => {
+    const plots = layout.graves ?? [];
+    return [...app.meta.graves].reverse().slice(0, plots.length).map((g, i) => ({ g, ...plots[i]! }));
+  };
+  const graveInReach = (): { g: Grave; x: number; y: number } | null => {
+    let best: { g: Grave; x: number; y: number } | null = null;
+    let bestD = TOWN_SCENE.heroRadius + TOWN_SCENE.talkRange + 16;
+    for (const t of graves()) {
+      const d = Math.hypot(walker.pos.x - t.x, walker.pos.y - t.y);
+      if (d < bestD) {
+        bestD = d;
+        best = t;
+      }
+    }
+    return best;
+  };
+  const readGrave = (g: Grave): void => {
+    if (app.screens.topModal) return;
+    walker.target = null;
+    app.screens.pushModal(createDialogueModal(app, graveTalk(g), () => app.screens.popModal()));
+  };
   const talk = (npcId: string): void => {
     if (app.screens.topModal) return;
     walker.target = null;
@@ -76,6 +101,16 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
       prevPos = { ...walker.pos };
       leaving = false;
       follow();
+      // Woken up after a death: the doctor tells what happened.
+      const death = app.state.lastDeath;
+      if (death) {
+        app.screens.pushModal(
+          createDialogueModal(app, wakeTalk(app.state, death), () => {
+            app.screens.popModal();
+            forgetDeath(app.state);
+          }),
+        );
+      }
     },
     exit() {
       leaveTown(app.state);
@@ -96,6 +131,10 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
       if (e.type === 'key' && (e.code === 'KeyE' || e.code === 'Enter' || e.code === 'Space')) {
         const id = npcInReach(layout, walker.pos);
         if (id) talk(id);
+        else {
+          const grave = graveInReach();
+          if (grave) readGrave(grave.g);
+        }
         return;
       }
       if (e.type === 'mousedown' && e.button === 0 && e.y > viewTop) {
@@ -137,13 +176,15 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
           nameplate(ctx, n.x, n.y - TOWN_SCENE.npcRadius * 2 - 10, npc.name, npc.title, npc.id === near);
         },
       }));
+      const nearGrave = near ? null : graveInReach();
+      for (const t of graves()) figures.push({ y: t.y, draw: () => drawTombstone(ctx, t.x, t.y, 0.75, t.g.name) });
       figures.push({ y: hero.y, draw: () => drawWalker(ctx, walker, hero, heroColor(state.hero.classId, state.hero.promotion)) });
       figures.sort((a, b) => a.y - b.y);
       for (const f of figures) f.draw();
       if (near && !app.screens.topModal) {
         const npc = layout.npcs.find((n) => n.id === near)!;
         prompt(ctx, npc.x, npc.y + TOWN_SCENE.npcRadius + 16, 'E — говорити');
-      }
+      } else if (nearGrave && !app.screens.topModal) prompt(ctx, nearGrave.x, nearGrave.y + 22, 'E — прочитати');
       ctx.restore();
       // Header: town name and the rest note.
       const name = getNode(state.world, state.currentNodeId).name;

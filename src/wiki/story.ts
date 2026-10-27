@@ -1,7 +1,9 @@
 // Wiki sections about the story side of the game: the lore, the quests (what they ask,
 // what they give, who gives them) and the trophies with the artifact buyer's orders.
 
+import { LIVES } from '../data/balance';
 import { CLASSES } from '../data/classes';
+import { GRAVE, WAKE } from '../data/death';
 import { RARITIES } from '../data/items';
 import { LORE } from '../data/lore';
 import { LORE_NAMES } from '../data/names';
@@ -205,5 +207,54 @@ ${table(['Трофей', 'Вид', 'Звідки', 'Шанс', 'Ціна', 'По
 <h3 class="group">Замовлення скупника — ${npcWithTown('artifactBuyer')}</h3>
 <p class="dim small">Скупник платить за весь набір значно більше за торговця і підказує, де шукати.</p>
 ${table(['Замовлення', 'Що треба', 'Платить', 'Де шукати'], orders, 'wide')}`,
+  };
+}
+
+// ---- Lives and death ----
+
+const CAUSE_LABELS: Record<keyof typeof WAKE.causes, string> = {
+  melee: 'Удар ворога',
+  shotBy: 'Постріл (відомо хто)',
+  shot: 'Постріл',
+  telegraphBy: 'Удар з попередженням (відомо хто)',
+  telegraph: 'Удар з попередженням',
+  hazard: 'Калюжа чи кільце',
+  trap: 'Капкан',
+  poison: 'Отрута',
+  unknown: 'Невідомо',
+};
+
+export function deathSection(): Section {
+  const causes = (Object.keys(WAKE.causes) as (keyof typeof WAKE.causes)[]).map((k) => [esc(CAUSE_LABELS[k]), t(WAKE.causes[k], ['WAKE', 'causes', k])]);
+  const lines: [string, string, string][] = [
+    ['Де знайшли', WAKE.place, 'place'],
+    ['Кнопка відповіді', WAKE.askQuestion, 'askQuestion'],
+    ['Здобич лишилась', WAKE.lostLoot, 'lostLoot'],
+    ['Життя', WAKE.lives, 'lives'],
+    ['Останнє життя', WAKE.lastLife, 'lastLife'],
+    ['Прощання', WAKE.thanks, 'thanks'],
+  ];
+  const grave: [string, string, string][] = [
+    ['Напис', GRAVE.text, 'text'],
+    ['Загибель', GRAVE.fell, 'fell'],
+    ['Покинута пригода', GRAVE.abandoned, 'abandoned'],
+    ['Відповідь', GRAVE.leave, 'leave'],
+    ['Екран: заголовок', GRAVE.screenTitle, 'screenTitle'],
+    ['Екран: життів немає', GRAVE.screenDead, 'screenDead'],
+    ['Екран: пригоду покинуто', GRAVE.screenAbandoned, 'screenAbandoned'],
+  ];
+  return {
+    id: 'death',
+    title: 'Життя й смерть',
+    html: `<p>У героя ${v(LIVES.start, ['LIVES', 'start'])} життя на старті, максимум ${v(LIVES.max, ['LIVES', 'max'])} (більше — лише з квестів і рідкісних знахідок). Смерть одразу забирає життя й записує збереження — закрити гру й «переграти» не вийде. Герой прокидається в місті останнього відпочинку з прогресом того відпочинку; здобич бою, у якому він загинув, лишається в локації, доки її не пройти знову.</p>
+<p>Коли життів не лишилось (або гравець покинув пригоду на паузі), пригода завершується: збереження героя видаляється, а його надгробок стає на кладовищі ${t('{town:capital:of}')} — його бачать усі наступні герої. Рекорди рахуються з надгробків.</p>
+<h3 class="group">Лікар після смерті</h3>
+<p class="dim small">У столиці говорить ${npcLink(WAKE.doctorNpc)}, в інших містах — ${t(WAKE.healer.name, ['WAKE', 'healer', 'name'])} (${t(WAKE.healer.title, ['WAKE', 'healer', 'title'])}). <code>{place}</code> — локація, <code>{by}</code> — хто вдарив останнім, <code>{lives}</code> — скільки життів лишилось.</p>
+${table(['Що', 'Репліка'], lines.map(([k, text, key]) => [esc(k), t(text, ['WAKE', key])]), 'kv')}
+<h3 class="group">Причина смерті</h3>
+${table(['Причина', 'Що каже лікар'], causes, 'kv')}
+<h3 class="group">Надгробок</h3>
+<p class="dim small"><code>{hero}</code>, <code>{class}</code>, <code>{level}</code>, <code>{days}</code>, <code>{kills}</code>, <code>{bosses}</code>, <code>{place}</code>.</p>
+${table(['Що', 'Текст'], grave.map(([k, text, key]) => [esc(k), t(text, ['GRAVE', key])]), 'kv')}`,
   };
 }

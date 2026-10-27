@@ -274,6 +274,8 @@ export interface Projectile {
   kind: string;
   /** Whether a hit counts as melee for thorns. */
   melee: boolean;
+  /** Enemy projectiles: the shooter's enemy or boss id (what killed the hero). */
+  owner?: string;
   /** Slows the hero on hit. */
   slow?: { value: number; time: number };
   /** Hero projectiles: damage × this after each enemy passed (falloff < 1, growth > 1). */

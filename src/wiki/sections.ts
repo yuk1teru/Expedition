@@ -36,7 +36,7 @@ import {
   v,
   whereFound,
 } from './html';
-import { loreSection, questsGivenBy, questsSection, trophiesSection } from './story';
+import { deathSection, loreSection, questsGivenBy, questsSection, trophiesSection } from './story';
 
 export { esc, formatValue, type Fmt, type Ref, type Section } from './html';
 import { BOSS_ATTACK_NAMES, BOSS_PARAM_LABELS } from '../data/wikiLabels';
@@ -533,6 +533,7 @@ export function buildSections(comment: (root: string, path: LiteralPath) => stri
     bossesSection(),
     worldSection(),
     townsSection(),
+    deathSection(),
     questsSection(),
     trophiesSection(),
     itemsSection(),

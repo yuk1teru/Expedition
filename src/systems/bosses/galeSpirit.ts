@@ -21,6 +21,7 @@ registerBoss('galeSpirit', {
           radius: 7,
           damage: 0,
           team: 'enemy',
+          owner: boss.boss?.defId ?? boss.defId,
           life: p.range! / p.speed!,
           pierce: 0,
           ricochet: 0,
