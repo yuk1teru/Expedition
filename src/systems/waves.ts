@@ -4,7 +4,6 @@
 // bad weather or an elemental. Until the hero leaves, waves keep coming.
 
 import { ARENA, ELITE, ENEMY_COMMON, WAVES, WAVE_EVENTS } from '../data/balance';
-import { getBiome } from '../data/biomes';
 import { getEnemyDef } from '../data/enemies';
 import { WEATHER_ORDER } from '../data/weather';
 import type { Rng } from '../core/rng';
@@ -102,11 +101,14 @@ export function wavesToPortal(w: WaveState): number {
   return WAVES.portalEvery - (done % WAVES.portalEvery);
 }
 
-/** Event of a wave (1-based number): weather, elemental or none. */
-export function waveEvent(waveNumber: number): 'weather' | 'elemental' | null {
-  if (waveNumber % WAVE_EVENTS.every !== 0) return null;
+/**
+ * Event of a wave (1-based number): every WAVE_EVENTS.every-th wave, the location's events
+ * in turn (default: weather, elemental); none for a location without events.
+ */
+export function waveEvent(waveNumber: number, events: readonly ('weather' | 'elemental')[] = WAVE_EVENTS.order): 'weather' | 'elemental' | null {
+  if (waveNumber % WAVE_EVENTS.every !== 0 || events.length === 0) return null;
   const n = waveNumber / WAVE_EVENTS.every - 1;
-  return WAVE_EVENTS.order[n % WAVE_EVENTS.order.length] ?? null;
+  return events[n % events.length] ?? null;
 }
 
 /** `start`: waves already cleared on earlier visits (the battle continues from wave start + 1). */
@@ -125,9 +127,9 @@ export function createWaves(start = 0): WaveState {
   };
 }
 
-export function composeWave(rng: Rng, biomeId: string, tier: number, waveIndex: number): SpawnEntry[] {
-  const biome = getBiome(biomeId);
-  const weighted = biome.enemies.map((id) => ({ item: id, weight: getEnemyDef(id).spawnWeight }));
+/** Enemies of a wave from the location roster (an id listed twice is twice as likely). */
+export function composeWave(rng: Rng, enemies: readonly string[], tier: number, waveIndex: number): SpawnEntry[] {
+  const weighted = enemies.map((id) => ({ item: id, weight: getEnemyDef(id).spawnWeight }));
   const size = waveSize(tier, waveIndex);
   const out: SpawnEntry[] = [];
   for (let i = 0; i < size; i++) out.push({ defId: rng.weighted(weighted), elite: false });
@@ -149,14 +151,16 @@ export function updateWaves(b: Battle, dt: number): void {
     w.portalBreak = false;
     const number = w.index + 1;
     w.mult = waveMult(w.index);
-    w.queue = composeWave(b.rng, b.biome.id, b.tier, w.index);
+    w.queue = composeWave(b.rng, b.node.enemies, b.tier, w.index);
     w.groupTimer = 0;
-    const event = waveEvent(number);
-    const weather = event === 'weather' ? b.rng.pick(WEATHER_ORDER) : null;
+    const mech = b.node.mechanics;
+    const event = waveEvent(number, mech.events);
+    const weathers = mech.weathers.length > 0 ? mech.weathers : WEATHER_ORDER;
+    const weather = event === 'weather' ? b.rng.pick(weathers) : null;
     b.events.emit({ type: 'wave', index: number, total: w.total, bonus: bonusLevel(w), mult: { ...w.mult }, weather });
-    maybeSpawnPickup(b, number);
-    spawnTraps(b, number);
-    if (number % WAVES.minibossEvery === 0 && b.biome.miniboss) spawnMiniboss(b, b.biome.miniboss);
+    if (mech.herbs) maybeSpawnPickup(b, number);
+    spawnTraps(b, number, mech.trapsFrom);
+    if (number % WAVES.minibossEvery === 0 && b.node.miniboss) spawnMiniboss(b, b.node.miniboss);
     if (weather) startWeather(b, weather);
     if (event === 'elemental') spawnMiniboss(b, WAVE_EVENTS.elemental);
   }

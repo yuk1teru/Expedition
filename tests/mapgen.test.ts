@@ -1,21 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { Rng } from '../src/core/rng';
 import { SLICE, WORLD } from '../src/data/balance';
-import { BIOME_ORDER, getBiome } from '../src/data/biomes';
+import { BIOME_ORDER } from '../src/data/biomes';
 import {
-  SECTORS,
+  type MapNode,
   SLICE_GROVE_ID,
   SLICE_LAIR_ID,
   TOWN_ID,
   type World,
   effectiveTier,
   generateSliceWorld,
-  generateWorld,
+  buildWorld,
   getNode,
   markCleared,
   neighbours,
 } from '../src/systems/mapgen';
-import { canPassThrough, canTravel, createGameState, passThrough, travel } from '../src/systems/run';
+import { canPassThrough, canTravel, createGameState, passThrough, restInTown, restoreCheckpoint, travel } from '../src/systems/run';
+import { BOSSES } from '../src/data/bosses';
+import { ENEMIES } from '../src/data/enemies';
+import { CAPITAL_ID, WORLD_MAP } from '../src/data/world';
 
 function reachable(world: World, from: string): Set<string> {
   const seen = new Set([from]);
@@ -31,138 +33,96 @@ function reachable(world: World, from: string): Set<string> {
   return seen;
 }
 
-describe('full world', () => {
-  const worlds = Array.from({ length: 200 }, (_, i) => generateWorld(new Rng(i + 1)));
+describe('the fixed world', () => {
+  const w = buildWorld();
+  const byRegion = (r: string): MapNode[] => w.nodes.filter((n) => n.region === r);
 
-  it('is connected: every node (and so every boss) is reachable from the town', () => {
-    for (const w of worlds) expect(reachable(w, TOWN_ID).size).toBe(w.nodes.length);
-  });
-
-  it('has exactly one boss per sector, at depth 4, and 4 different biomes', () => {
-    for (const w of worlds) {
-      for (const sector of SECTORS) {
-        const bosses = w.nodes.filter((n) => n.sector === sector && n.isBoss);
-        expect(bosses).toHaveLength(1);
-        expect(bosses[0]!.depth).toBe(4);
-        expect(bosses[0]!.tier).toBe(WORLD.bossTier);
-      }
-      const biomes = new Set(w.nodes.filter((n) => n.sector).map((n) => `${n.sector}:${n.biome}`));
-      expect(biomes.size).toBe(4);
-      expect(new Set(w.nodes.filter((n) => n.biome).map((n) => n.biome))).toEqual(new Set(BIOME_ORDER));
+  it('every road links existing nodes, positions fit the map, nodes do not overlap', () => {
+    const ids = new Set(w.nodes.map((n) => n.id));
+    expect(ids.size).toBe(w.nodes.length);
+    for (const [a, b] of w.edges) expect(ids.has(a) && ids.has(b)).toBe(true);
+    for (const n of w.nodes) {
+      expect(n.pos.x).toBeGreaterThan(0);
+      expect(n.pos.x).toBeLessThan(WORLD_MAP.width);
+      expect(n.pos.y).toBeGreaterThan(0);
+      expect(n.pos.y).toBeLessThan(WORLD_MAP.height);
+      for (const m of w.nodes) if (m !== n) expect(Math.hypot(m.pos.x - n.pos.x, m.pos.y - n.pos.y)).toBeGreaterThan(80);
     }
   });
 
-  it('has 2 / 3 / 3 / 1 nodes per depth in every sector; the town links to all depth-1 nodes', () => {
-    for (const w of worlds) {
-      for (const sector of SECTORS) {
-        const counts = [1, 2, 3, 4].map((d) => w.nodes.filter((n) => n.sector === sector && n.depth === d).length);
-        expect(counts).toEqual([...WORLD.nodesPerDepth]);
+  it('everything is reachable from the capital; every biome has its town and its boss', () => {
+    expect(reachable(w, CAPITAL_ID).size).toBe(w.nodes.length);
+    for (const region of BIOME_ORDER) {
+      expect(byRegion(region).filter((n) => n.isTown)).toHaveLength(1);
+      const bosses = byRegion(region).filter((n) => n.isBoss);
+      expect(bosses).toHaveLength(1);
+      expect(BOSSES[bosses[0]!.boss]?.biome).toBe(region);
+    }
+    expect(w.nodes.find((n) => n.id === 'port')?.isTown).toBe(true);
+  });
+
+  it('the Ice is reached only through the mountain pass', () => {
+    const cut: World = { ...w, edges: w.edges.filter(([a, b]) => a !== 'mountainPass' && b !== 'mountainPass') };
+    const seen = reachable(cut, CAPITAL_ID);
+    for (const n of byRegion('ice')) expect(seen.has(n.id)).toBe(false);
+  });
+
+  it('the forest is the gate: the swamp and the desert are reached through transition zones from it', () => {
+    const neighboursOf = (id: string): string[] => neighbours(w, id).map((x) => getNode(w, x).region);
+    expect(neighboursOf('wetwood')).toEqual(expect.arrayContaining(['forest', 'swamp']));
+    expect(neighboursOf('dryEdge')).toEqual(expect.arrayContaining(['forest', 'desert']));
+    // The capital is far from everything but the forest, the coast and the mountains.
+    expect(new Set(neighboursOf(CAPITAL_ID))).toEqual(new Set(['forest', 'coast', 'mountain']));
+  });
+
+  it('every location has enemies, known minibosses and bosses; a boss is the hardest of its region', () => {
+    for (const n of w.nodes) {
+      if (n.isTown) continue;
+      if (n.isBoss) expect(BOSSES[n.boss]).toBeDefined();
+      else {
+        expect(n.enemies.length).toBeGreaterThan(0);
+        for (const e of n.enemies) expect(ENEMIES[e]).toBeDefined();
+        if (n.miniboss) expect(BOSSES[n.miniboss]?.miniboss).toBe(true);
       }
-      const depth1 = w.nodes.filter((n) => n.depth === 1).map((n) => n.id).sort();
-      expect(neighbours(w, TOWN_ID).sort()).toEqual(depth1);
+    }
+    for (const region of BIOME_ORDER) {
+      const boss = byRegion(region).find((n) => n.isBoss)!;
+      for (const n of byRegion(region)) if (!n.isBoss) expect(n.tier).toBeLessThan(boss.tier);
     }
   });
 
-  it('every node links to 1–2 nodes one step deeper in its sector, and every deeper node has a parent', () => {
-    for (const w of worlds) {
-      for (const n of w.nodes) {
-        if (n.isTown || n.isBoss) continue;
-        const deeper = neighbours(w, n.id).map((id) => getNode(w, id)).filter((m) => m.depth === n.depth + 1);
-        expect(deeper.length).toBeGreaterThanOrEqual(1);
-        expect(deeper.length).toBeLessThanOrEqual(2);
-        expect(deeper.every((m) => m.sector === n.sector)).toBe(true);
-      }
-      for (const n of w.nodes.filter((m) => m.depth >= 2)) {
-        const parents = neighbours(w, n.id).map((id) => getNode(w, id)).filter((m) => m.depth === n.depth - 1 && m.sector === n.sector);
-        expect(parents.length).toBeGreaterThanOrEqual(1);
-      }
-    }
-  });
-
-  it('difficulty grows with depth: max tier at depth d < min tier at depth d+1', () => {
-    for (const w of worlds) {
-      for (let d = 1; d < 4; d++) {
-        const here = w.nodes.filter((n) => n.depth === d).map((n) => n.tier);
-        const next = w.nodes.filter((n) => n.depth === d + 1).map((n) => n.tier);
-        expect(Math.max(...here)).toBeLessThan(Math.min(...next));
-      }
-    }
-  });
-
-  it('side roads link only neighbours of the same depth; every sector border has a road (the world is a ring)', () => {
-    for (const w of worlds) {
-      for (const [a, b] of w.edges) {
-        const na = getNode(w, a);
-        const nb = getNode(w, b);
-        if (na.isTown || nb.isTown || na.depth !== nb.depth) continue;
-        expect(na.depth).toBeLessThanOrEqual(3);
-      }
-      for (let i = 0; i < SECTORS.length; i++) {
-        const s = SECTORS[i]!;
-        const next = SECTORS[(i + 1) % SECTORS.length]!;
-        const crosses = w.edges.some(([a, b]) => {
-          const [na, nb] = [getNode(w, a), getNode(w, b)];
-          return na.depth === nb.depth && [na.sector, nb.sector].includes(s) && [na.sector, nb.sector].includes(next) && na.sector !== nb.sector;
-        });
-        expect(crosses).toBe(true);
-      }
-    }
-  });
-
-  it('not every neighbour is linked sideways (the map is not a grid)', () => {
-    const sideRoads = (w: World): number => w.edges.filter(([a, b]) => getNode(w, a).depth === getNode(w, b).depth && getNode(w, a).depth > 0).length;
-    const max = 4 * (1 + 2 + 2) + 4 * 3;
-    expect(worlds.some((w) => sideRoads(w) < max)).toBe(true);
-    expect(new Set(worlds.map(sideRoads)).size).toBeGreaterThan(3);
-  });
-
-  it('nodes do not overlap (centres > 40 px apart) and stay on screen', () => {
-    for (const w of worlds.slice(0, 60)) {
-      for (const a of w.nodes) {
-        expect(a.pos.x).toBeGreaterThan(20);
-        expect(a.pos.x).toBeLessThan(940);
-        expect(a.pos.y).toBeGreaterThan(60);
-        expect(a.pos.y).toBeLessThan(530);
-        for (const b of w.nodes) if (a !== b) expect(Math.hypot(a.pos.x - b.pos.x, a.pos.y - b.pos.y)).toBeGreaterThan(40);
-      }
-    }
-  });
-
-  it('names come from the sector biome; the same seed gives the same world, different seeds differ', () => {
-    for (const w of worlds.slice(0, 20)) {
-      for (const n of w.nodes.filter((m) => m.biome)) {
-        const biome = getBiome(n.biome!);
-        expect(n.isBoss ? [biome.bossLocation] : biome.locationNames).toContain(n.name);
-      }
-    }
-    expect(generateWorld(new Rng(42))).toEqual(generateWorld(new Rng(42)));
-    const layouts = new Set(worlds.slice(0, 20).map((w) => JSON.stringify(w.edges) + w.nodes.map((n) => n.biome).join()));
-    expect(layouts.size).toBeGreaterThan(15);
+  it('the forest is the easiest biome; the ice — the hardest', () => {
+    const maxTier = (r: string): number => Math.max(...byRegion(r).filter((n) => !n.isBoss).map((n) => n.tier));
+    const minTier = (r: string): number => Math.min(...byRegion(r).filter((n) => !n.isTown).map((n) => n.tier));
+    expect(minTier('forest')).toBe(1);
+    expect(maxTier('forest')).toBeLessThan(minTier('swamp'));
+    expect(maxTier('forest')).toBeLessThan(minTier('desert'));
+    expect(minTier('ice')).toBeGreaterThan(minTier('swamp'));
   });
 });
 
-describe('travel in the full world', () => {
-  it('only to adjacent nodes; the town is always reachable; cleared locations can be crossed', () => {
+describe('travel in the fixed world', () => {
+  it('only to adjacent nodes; the home town is always reachable; cleared locations can be crossed', () => {
     const s = createGameState(7);
-    const d1 = neighbours(s.world, TOWN_ID)[0]!;
-    const deep = s.world.nodes.find((n) => n.depth === 3)!;
-    expect(canTravel(s, deep.id)).toBe(false);
-    expect(travel(s, deep.id)).toEqual({ kind: 'blocked' });
-    expect(travel(s, d1)).toEqual({ kind: 'battle', nodeId: d1 });
-    expect(canTravel(s, TOWN_ID)).toBe(true);
-    // Not cleared yet: no crossing.
-    expect(travel(s, TOWN_ID)).toEqual({ kind: 'town' });
-    expect(canPassThrough(s, d1)).toBe(false);
-    markCleared(getNode(s.world, d1), 3);
-    expect(passThrough(s, d1)).toBe(true);
-    expect(s.currentNodeId).toBe(d1);
-    // The current location is replayed, not crossed.
-    expect(canPassThrough(s, d1)).toBe(false);
+    expect(canTravel(s, 'darkThicket')).toBe(false);
+    expect(travel(s, 'darkThicket')).toEqual({ kind: 'blocked' });
+    expect(travel(s, 'quietGrove')).toEqual({ kind: 'battle', nodeId: 'quietGrove' });
+    expect(canTravel(s, CAPITAL_ID)).toBe(true);
+    expect(canPassThrough(s, 'quietGrove')).toBe(false);
+    markCleared(getNode(s.world, 'quietGrove'), 3);
+    expect(travel(s, 'forestTown')).toEqual({ kind: 'town' });
+    restInTown(s);
+    expect(s.homeTown).toBe('forestTown');
+    // Death brings the hero back to the town of the last rest.
+    restoreCheckpoint(s);
+    expect(s.currentNodeId).toBe('forestTown');
+    expect(passThrough(s, 'quietGrove')).toBe(true);
+    expect(canTravel(s, 'forestTown')).toBe(true);
   });
 
   it('cleared tiers stay fixed in the full world (they only grow in the slice grove)', () => {
     const s = createGameState(3);
-    const n = s.world.nodes.find((m) => m.depth === 2)!;
+    const n = getNode(s.world, 'rotMarsh');
     const tier = n.tier;
     markCleared(n, 3);
     markCleared(n, 3);
@@ -207,7 +167,7 @@ describe('slice world', () => {
 describe('boss threat', () => {
   it('every defeated boss makes the locations and bosses left harder (full world only)', () => {
     const s = createGameState(8);
-    const d1 = s.world.nodes.find((n) => n.depth === 1)!;
+    const d1 = getNode(s.world, 'quietGrove');
     const boss = s.world.nodes.find((n) => n.isBoss)!;
     expect(effectiveTier(s.world, d1, 0)).toBe(d1.tier);
     expect(effectiveTier(s.world, d1, 2)).toBeCloseTo(d1.tier + 2 * WORLD.bossThreat.locationTier);

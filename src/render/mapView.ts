@@ -1,30 +1,44 @@
-// World map screen: nodes, edges, current position, tooltip, travel by click.
-// The map zooms with the mouse wheel (around the cursor) and pans by dragging.
+// World map screen: the painted map (sea, regions, mountains), roads, towns and
+// locations, the hero's position, tooltips, travel by click. The map zooms with the
+// mouse wheel (25%…160%, around the cursor) and pans by dragging — always.
 
 import type { InputEvent } from '../core/input';
 import type { Screen } from '../core/screens';
+import { PROGRESSION, WORLD } from '../data/balance';
 import { getBiome } from '../data/biomes';
+import { getBoss } from '../data/bosses';
+import { getEnemyDef } from '../data/enemies';
+import { WEATHER } from '../data/weather';
+import { WORLD_MAP } from '../data/world';
 import { type MapNode, effectiveTier, recommendedLevel } from '../systems/mapgen';
 import { canTravel } from '../systems/run';
-import { PROGRESSION, WORLD } from '../data/balance';
 import { dayMultiplier, daysToNextThreat, xpPenalized } from '../systems/scaling';
 import type { App } from './app';
 import { THEME, font } from './theme';
 import { TOP_BAR_H, drawTopBar } from './topBar';
 import { Button, ButtonGroup, type Rect, drawText, drawTooltip } from './ui';
+import { worldTerrain } from './worldTerrain';
 
 const NODE_R = 15;
 const BOSS_R = 20;
-const TOWN_R = 22;
-/** Nodes lower than this get their labels above (the bottom of the view is close). */
-const LABELS_ABOVE_Y = 470;
+const TOWN_R = 20;
 
 function nodeRadius(n: MapNode): number {
   return n.isTown ? TOWN_R : n.isBoss ? BOSS_R : NODE_R;
 }
 
-/** Map camera: zoom and pan (screen = world × scale + offset). */
-const ZOOM = { min: 1, max: 2.6, step: 1.15, /** From this zoom on every location is named. */ allNames: 1.6, /** Mouse travel that turns a click into a drag, px. */ drag: 5 };
+/** Map camera: screen = world × scale + offset. */
+const ZOOM = {
+  min: 0.25,
+  max: 1.6,
+  step: 1.15,
+  /** Scale when the map opens (around the hero). */
+  start: 0.6,
+  /** From this zoom on every location is named. */
+  allNames: 0.75,
+  /** Mouse travel that turns a click into a drag, px. */
+  drag: 5,
+};
 
 interface Camera {
   scale: number;
@@ -34,30 +48,34 @@ interface Camera {
 
 export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
   let hovered: string | null = null;
-  const buttons = new ButtonGroup([
-    new Button({
-      label: '← До міста [Esc]',
-      rect: { x: 16, y: app.view.height - 52, w: 190, h: 36 },
-      hotkey: 'Escape',
-      fontSize: 14,
-      onClick: () => app.returnToTown(),
-    }),
-  ]);
-
   const W = app.view.width;
   const H = app.view.height;
-  const cam: Camera = { scale: 1, x: 0, y: 0 };
+  const cam: Camera = { scale: ZOOM.start, x: 0, y: 0 };
   let drag: { x: number; y: number; camX: number; camY: number; moved: boolean } | null = null;
+  /** Slice world nodes are placed in screen pixels: a fixed 1:1 map without terrain. */
+  const slice = (): boolean => app.state.world.kind === 'slice';
 
+  const buttons = new ButtonGroup([
+    new Button({ label: '← До міста [Esc]', rect: { x: 16, y: H - 52, w: 190, h: 36 }, hotkey: 'Escape', fontSize: 14, onClick: () => app.returnToTown() }),
+    new Button({ label: '+', rect: { x: W - 86, y: TOP_BAR_H + 12, w: 70, h: 30 }, hotkey: 'Equal', fontSize: 18, onClick: () => zoomAt(W / 2, H / 2, ZOOM.step) }),
+    new Button({ label: '−', rect: { x: W - 86, y: TOP_BAR_H + 48, w: 70, h: 30 }, hotkey: 'Minus', fontSize: 18, onClick: () => zoomAt(W / 2, H / 2, 1 / ZOOM.step) }),
+    new Button({ label: 'Герой', rect: { x: W - 86, y: TOP_BAR_H + 84, w: 70, h: 30 }, hotkey: 'KeyC', fontSize: 13, onClick: () => focusHero() }),
+  ]);
+
+  const worldSize = (): { w: number; h: number } => (slice() ? { w: W, h: H } : { w: WORLD_MAP.width, h: WORLD_MAP.height });
+  const toScreen = (p: { x: number; y: number }): { x: number; y: number } => ({ x: p.x * cam.scale + cam.x, y: p.y * cam.scale + cam.y });
   const toWorld = (x: number, y: number): { x: number; y: number } => ({ x: (x - cam.x) / cam.scale, y: (y - cam.y) / cam.scale });
+  const midY = TOP_BAR_H + (H - TOP_BAR_H) / 2;
 
-  /** Keeps the zoomed map covering the view (no empty space past its edges). */
+  /** The world's centre stays inside the view: the map can be pushed aside, never lost. */
   function clampCamera(): void {
-    cam.x = Math.min(0, Math.max(W - W * cam.scale, cam.x));
-    cam.y = Math.min(0, Math.max(H - H * cam.scale, cam.y));
+    const { w, h } = worldSize();
+    cam.x = Math.min(W / 2, Math.max(W / 2 - w * cam.scale, cam.x));
+    cam.y = Math.min(midY, Math.max(midY - h * cam.scale, cam.y));
   }
 
   function zoomAt(sx: number, sy: number, factor: number): void {
+    if (slice()) return;
     const p = toWorld(sx, sy);
     cam.scale = Math.max(ZOOM.min, Math.min(ZOOM.max, cam.scale * factor));
     cam.x = sx - p.x * cam.scale;
@@ -65,16 +83,35 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
     clampCamera();
   }
 
+  function focusHero(): void {
+    if (slice()) {
+      cam.scale = 1;
+      cam.x = 0;
+      cam.y = 0;
+      return;
+    }
+    const here = app.state.world.nodes.find((n) => n.id === app.state.currentNodeId);
+    const p = here?.pos ?? { x: WORLD_MAP.width / 2, y: WORLD_MAP.height / 2 };
+    cam.x = W / 2 - p.x * cam.scale;
+    cam.y = midY - p.y * cam.scale;
+    clampCamera();
+  }
+
   function nodeAt(sx: number, sy: number): MapNode | null {
     if (sy < TOP_BAR_H) return null;
-    const { x, y } = toWorld(sx, sy);
     for (const n of app.state.world.nodes) {
-      if (Math.hypot(n.pos.x - x, n.pos.y - y) <= nodeRadius(n) + 6) return n;
+      const p = toScreen(n.pos);
+      if (Math.hypot(p.x - sx, p.y - sy) <= nodeRadius(n) * nodeScale(cam.scale) + 6) return n;
     }
     return null;
   }
 
   return {
+    enter() {
+      cam.scale = slice() ? 1 : ZOOM.start;
+      focusHero();
+    },
+
     update() {},
 
     onInput(e: InputEvent) {
@@ -85,7 +122,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
       } else if (e.type === 'mousemove') {
         if (drag) {
           if (Math.hypot(e.x - drag.x, e.y - drag.y) > ZOOM.drag) drag.moved = true;
-          if (drag.moved) {
+          if (drag.moved && !slice()) {
             cam.x = drag.camX + (e.x - drag.x);
             cam.y = drag.camY + (e.y - drag.y);
             clampCamera();
@@ -109,125 +146,133 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
       const { world } = state;
       const tierOf = (n: MapNode): number => effectiveTier(world, n, state.bossesDefeated.length);
       const t = app.time;
-      ctx.fillStyle = THEME.bg;
-      ctx.fillRect(0, 0, app.view.width, app.view.height);
+      ctx.fillStyle = '#0d1016';
+      ctx.fillRect(0, 0, W, H);
       ctx.save();
-      // The world (grid, roads, nodes, labels) moves with the camera; the UI does not.
       ctx.beginPath();
       ctx.rect(0, TOP_BAR_H, W, H - TOP_BAR_H);
       ctx.clip();
+
+      // Terrain and roads in world space.
+      ctx.save();
       ctx.translate(cam.x, cam.y);
       ctx.scale(cam.scale, cam.scale);
-      drawBackdrop(ctx, app.view.width, app.view.height);
-
-      // Edges.
+      if (!slice()) ctx.drawImage(worldTerrain(), 0, 0);
       for (const [a, b] of world.edges) {
         const na = world.nodes.find((n) => n.id === a);
         const nb = world.nodes.find((n) => n.id === b);
         if (!na || !nb) continue;
-        const active = a === state.currentNodeId || b === state.currentNodeId;
-        ctx.strokeStyle = active ? 'rgba(242, 193, 78, 0.75)' : 'rgba(140, 150, 175, 0.35)';
-        ctx.lineWidth = active ? 3 : 2;
-        ctx.setLineDash(active ? [] : [6, 6]);
-        ctx.beginPath();
-        ctx.moveTo(na.pos.x, na.pos.y);
-        ctx.lineTo(nb.pos.x, nb.pos.y);
-        ctx.stroke();
+        drawRoad(ctx, na.pos, nb.pos, a === state.currentNodeId || b === state.currentNodeId, cam.scale);
       }
-      ctx.setLineDash([]);
+      ctx.restore();
 
-      // Nodes. Names only where the eye needs them (the hero's way, bosses, hover):
-      // the full world has 37 nodes. The rest show the name in the tooltip.
+      // Nodes and labels in screen space (constant size, readable at any zoom).
+      const ns = nodeScale(cam.scale);
       for (const n of world.nodes) {
-        const reachable = canTravel(state, n.id);
-        const isHere = n.id === state.currentNodeId;
-        const isHover = hovered === n.id;
-        drawNode(ctx, n, reachable, isHover, t);
-        if (isHere) {
+        const p = toScreen(n.pos);
+        drawNode(ctx, n, p.x, p.y, nodeRadius(n) * ns, canTravel(state, n.id), hovered === n.id, t);
+        if (n.id === state.currentNodeId) {
+          const r = nodeRadius(n) * ns;
           const pulse = 1 + 0.08 * Math.sin(t * 4);
           ctx.strokeStyle = THEME.accent;
           ctx.lineWidth = 3;
           ctx.beginPath();
-          ctx.arc(n.pos.x, n.pos.y, (nodeRadius(n) + 9) * pulse, 0, Math.PI * 2);
+          ctx.arc(p.x, p.y, (r + 8) * pulse, 0, Math.PI * 2);
           ctx.stroke();
-          // Hero marker.
           ctx.fillStyle = '#f4f1e8';
           ctx.beginPath();
-          ctx.arc(n.pos.x + nodeRadius(n) * 0.9, n.pos.y - nodeRadius(n) * 0.9, 7, 0, Math.PI * 2);
+          ctx.arc(p.x + r * 0.9, p.y - r * 0.9, 6, 0, Math.PI * 2);
           ctx.fill();
           ctx.strokeStyle = '#1b1e27';
           ctx.lineWidth = 2;
           ctx.stroke();
         }
       }
-      // Labels after all nodes, by priority; a name that would overlap one already
-      // placed is left out (it is still in the tooltip).
       const priority = (n: MapNode): number =>
         n.id === hovered ? 0 : n.id === state.currentNodeId ? 1 : n.isTown || n.isBoss ? 2 : canTravel(state, n.id) ? 3 : 4;
       const taken: Rect[] = [];
       for (const n of [...world.nodes].sort((a, b) => priority(a) - priority(b))) {
-        const reachable = canTravel(state, n.id);
+        const p = toScreen(n.pos);
         const named = priority(n) < 4 || cam.scale >= ZOOM.allNames;
         const level = n.isTown ? null : recommendedLevel(tierOf(n));
-        drawNodeLabels(ctx, n, named, reachable, level === null ? null : { text: `рів. ${level}`, color: levelColor(state.hero.level, level) }, app.view.width, taken);
+        const lvl = level === null ? null : { text: `рів. ${level}`, color: levelColor(state.hero.level, level) };
+        drawNodeLabel(ctx, n, p.x, p.y + nodeRadius(n) * ns, named, canTravel(state, n.id), lvl, taken);
       }
       ctx.restore();
 
-      drawTopBar(ctx, state, app.view.width, app.totalBosses(), app.time);
+      drawTopBar(ctx, state, W, app.totalBosses(), app.time);
       if (state.world.kind === 'full') drawThreat(ctx, state.day, state.bossesDefeated.length);
       buttons.draw(ctx);
-      const hint = 'Клік по сусідній локації — вирушити · коліщатко — зум · тягніть — рух карти';
+      const hint = 'Клік по сусідній локації — вирушити · коліщатко, +/− — зум · тягніть — рух карти · C — до героя';
       ctx.font = font(12);
       const hw = ctx.measureText(hint).width;
       ctx.fillStyle = 'rgba(10, 12, 18, 0.8)';
       ctx.fillRect(W - hw - 22, H - 26, hw + 22, 26);
       drawText(ctx, hint, W - 12, H - 13, { size: 12, align: 'right', color: THEME.textDim });
+      if (!slice()) drawText(ctx, `${Math.round(cam.scale * 100)}%`, W - 51, TOP_BAR_H + 128, { size: 11, align: 'center', color: THEME.textDim });
 
       if (hovered) {
         const n = world.nodes.find((x) => x.id === hovered);
-        if (n) drawTooltip(ctx, tooltipLines(n, state.currentNodeId, state.hero.level, tierOf(n)), app.input.mouse.x, app.input.mouse.y, app.view.width, app.view.height);
+        if (n) drawTooltip(ctx, tooltipLines(n, state.currentNodeId, state.hero.level, tierOf(n)), app.input.mouse.x, app.input.mouse.y, W, H);
       }
     },
   };
 }
 
-/**
- * Name and recommended level of a node. Bosses at the top and bottom of the map get
- * them on the side (no room above / below); the rest are centred under the node (above
- * near the bottom edge), shifted to stay on screen. `taken`: rects of names already
- * drawn — a name that would overlap one is skipped.
- */
-function drawNodeLabels(
+/** Nodes keep a readable size: they shrink a little when zoomed out, never below 70%. */
+function nodeScale(scale: number): number {
+  return Math.max(0.7, Math.min(1.25, 0.6 + scale * 0.6));
+}
+
+/** A dirt road with a slight bend; the roads from the hero's node are bright. */
+function drawRoad(ctx: CanvasRenderingContext2D, a: { x: number; y: number }, b: { x: number; y: number }, active: boolean, scale: number): void {
+  const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+  // The bend depends on the road itself, so it is stable between frames.
+  const bend = (Math.sin(a.x * 0.013 + b.y * 0.017) * 0.5 * len) / 6;
+  const cx = (a.x + b.x) / 2 - ((b.y - a.y) / len) * bend;
+  const cy = (a.y + b.y) / 2 + ((b.x - a.x) / len) * bend;
+  const px = 1 / scale;
+  ctx.lineCap = 'round';
+  for (const [color, width, dash] of [
+    ['rgba(20, 16, 10, 0.55)', active ? 8 : 6, false],
+    [active ? 'rgba(242, 193, 78, 0.9)' : 'rgba(200, 180, 140, 0.55)', active ? 4 : 2.5, !active],
+  ] as const) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width * px;
+    ctx.setLineDash(dash ? [8 * px, 6 * px] : []);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.quadraticCurveTo(cx, cy, b.x, b.y);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+}
+
+/** Name and recommended level under a node; a name that would overlap one already drawn is skipped. */
+function drawNodeLabel(
   ctx: CanvasRenderingContext2D,
   n: MapNode,
+  x: number,
+  bottom: number,
   named: boolean,
   bright: boolean,
   level: { text: string; color: string } | null,
-  screenW: number,
   taken: Rect[],
 ): void {
-  const r = nodeRadius(n);
-  const nameStyle = { size: 12, bold: true, color: bright ? THEME.text : THEME.textDim };
-  ctx.font = font(12, 'bold');
+  const size = n.isTown ? 13 : 12;
+  ctx.font = font(size, 'bold');
   const w = ctx.measureText(n.name).width;
-  const fits = (rect: Rect): boolean => {
-    if (taken.some((o) => rect.x < o.x + o.w && o.x < rect.x + rect.w && rect.y < o.y + o.h && o.y < rect.y + rect.h)) return false;
+  const nameY = bottom + 11;
+  const rect = { x: x - w / 2, y: nameY - 7, w, h: 14 };
+  const free = !taken.some((o) => rect.x < o.x + o.w && o.x < rect.x + rect.w && rect.y < o.y + o.h && o.y < rect.y + rect.h);
+  const showName = named && free;
+  if (showName) {
     taken.push(rect);
-    return true;
-  };
-  if (n.isBoss && (n.sector === 'N' || n.sector === 'S')) {
-    const x = n.pos.x + r + 8;
-    if (named && fits({ x, y: n.pos.y - 14, w, h: 14 })) drawText(ctx, n.name, x, n.pos.y - 7, nameStyle);
-    if (level) drawText(ctx, level.text, x, n.pos.y + 8, { size: 11, color: level.color });
-    return;
+    ctx.fillStyle = 'rgba(8, 10, 14, 0.55)';
+    ctx.fillRect(rect.x - 3, rect.y - 1, rect.w + 6, rect.h + 2);
+    drawText(ctx, n.name, x, nameY, { size, bold: true, align: 'center', color: n.isTown ? '#f2e2b8' : bright ? THEME.text : THEME.textDim });
   }
-  const above = n.pos.y > LABELS_ABOVE_Y;
-  const half = w / 2;
-  const x = Math.max(half + 4, Math.min(screenW - half - 4, n.pos.x));
-  const nameY = above ? n.pos.y - r - 24 : n.pos.y + r + 13;
-  const showName = named && fits({ x: x - half, y: nameY - 7, w, h: 14 });
-  if (showName) drawText(ctx, n.name, x, nameY, { ...nameStyle, align: 'center' });
-  if (level) drawText(ctx, level.text, n.pos.x, above ? n.pos.y - r - 10 : n.pos.y + r + (showName ? 26 : 12), { size: 11, align: 'center', color: level.color });
+  if (level) drawText(ctx, level.text, x, bottom + (showName ? 25 : 10), { size: 11, align: 'center', color: level.color });
 }
 
 /** "День 7 · Загроза +10% · Через 3 дні вороги посиляться" under the top bar. */
@@ -244,16 +289,28 @@ function drawThreat(ctx: CanvasRenderingContext2D, day: number, bosses: number):
 }
 
 function tooltipLines(n: MapNode, current: string, heroLevel: number, tier: number): string[] {
-  if (n.isTown) return [n.name, 'Відпочинок і збереження при кожному візиті', 'Клік — повернутися в місто'];
-  const biome = n.biome ? getBiome(n.biome).name : '—';
+  if (n.isTown) return [n.name, n.description, 'Місто: відпочинок і збереження, торговець і жителі', 'Клік — увійти в місто'];
   const lines = [
     n.name,
-    `Біом: ${biome}`,
-    `Складність: ${tier.toFixed(1)}${n.isBoss ? ' (бос)' : ''}${tier > n.tier ? ` (загроза босів +${(tier - n.tier).toFixed(1)})` : ''}`,
+    n.description,
+    `Регіон: ${getBiome(n.biome).name} · складність ${tier.toFixed(1)}${n.isBoss ? ' (бос)' : ''}${tier > n.tier ? ` (загроза босів +${(tier - n.tier).toFixed(1)})` : ''}`,
     `Рекомендований рівень: ${recommendedLevel(tier)}`,
-    ...(xpPenalized(tier, heroLevel) ? [`Досвід: ${Math.round(PROGRESSION.xpPenalty.mult * 100)}% (ви набагато сильніші)`] : []),
-    `Пройдено разів: ${n.timesCleared}`,
   ];
+  if (n.isBoss) lines.push(`Бос: ${getBoss(n.boss).name}`);
+  else {
+    const names = [...new Set(n.enemies)].map((id) => getEnemyDef(id).name);
+    lines.push(`Вороги: ${names.join(', ')}`);
+    if (n.miniboss) lines.push(`Мінібос (кожна 3-тя хвиля): ${getBoss(n.miniboss).name}`);
+    const m = n.mechanics;
+    const parts: string[] = [];
+    if (m.trapsFrom !== null) parts.push(`капкани з ${m.trapsFrom}-ї хвилі`);
+    if (m.events.includes('weather')) parts.push(`погода: ${m.weathers.map((w) => WEATHER[w].name.toLowerCase()).join(' / ')}`);
+    if (m.events.includes('elemental')) parts.push('Дух бурі');
+    if (m.herbs) parts.push('трава');
+    if (parts.length > 0) lines.push(`Механіки: ${parts.join(', ')}`);
+  }
+  if (xpPenalized(tier, heroLevel)) lines.push(`Досвід: ${Math.round(PROGRESSION.xpPenalty.mult * 100)}% (ви набагато сильніші)`);
+  lines.push(`Пройдено разів: ${n.timesCleared}`);
   if (n.lastWave > 0) lines.push(`Минулого разу: ${n.lastWave} хвиль (можна продовжити)`);
   if (n.id === current) lines.push('Клік — пройти ще раз');
   return lines;
@@ -265,58 +322,20 @@ function levelColor(heroLevel: number, rec: number): string {
   return THEME.bad;
 }
 
-function drawBackdrop(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-  const g = ctx.createRadialGradient(w / 2, h / 2, 50, w / 2, h / 2, w * 0.7);
-  g.addColorStop(0, '#1b2230');
-  g.addColorStop(1, '#0d1016');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, TOP_BAR_H, w, h - TOP_BAR_H);
-  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
-  ctx.lineWidth = 1;
-  for (let x = 0; x < w; x += 40) {
-    ctx.beginPath();
-    ctx.moveTo(x + 0.5, TOP_BAR_H);
-    ctx.lineTo(x + 0.5, h);
-    ctx.stroke();
-  }
-  for (let y = TOP_BAR_H; y < h; y += 40) {
-    ctx.beginPath();
-    ctx.moveTo(0, y + 0.5);
-    ctx.lineTo(w, y + 0.5);
-    ctx.stroke();
-  }
-}
-
-function drawNode(ctx: CanvasRenderingContext2D, n: MapNode, reachable: boolean, hover: boolean, t: number): void {
-  const { x, y } = n.pos;
-  const r = nodeRadius(n) * (hover && reachable ? 1.08 : 1);
-  const accent = n.biome ? getBiome(n.biome).palette.accent : '#d9c9a3';
+function drawNode(ctx: CanvasRenderingContext2D, n: MapNode, x: number, y: number, r0: number, reachable: boolean, hover: boolean, t: number): void {
+  const r = r0 * (hover && reachable ? 1.1 : 1);
+  const accent = getBiome(n.biome).palette.accent;
   ctx.save();
   ctx.globalAlpha = reachable || n.isTown ? 1 : 0.85;
-  if (n.isTown) {
-    // House: body + roof.
-    ctx.fillStyle = '#d9c9a3';
-    ctx.fillRect(x - r * 0.7, y - r * 0.2, r * 1.4, r * 0.95);
-    ctx.fillStyle = '#b5523b';
-    ctx.beginPath();
-    ctx.moveTo(x - r * 0.95, y - r * 0.15);
-    ctx.lineTo(x, y - r * 0.95);
-    ctx.lineTo(x + r * 0.95, y - r * 0.15);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = '#4a3a2a';
-    ctx.fillRect(x - r * 0.15, y + r * 0.25, r * 0.3, r * 0.5);
-  } else if (n.isBoss) {
-    // Spiky boss emblem.
+  if (n.isTown) drawTown(ctx, n, x, y, r);
+  else if (n.isBoss) {
     const spikes = 8;
     ctx.beginPath();
     for (let i = 0; i < spikes * 2; i++) {
       const a = (i / (spikes * 2)) * Math.PI * 2 + t * 0.3;
       const rr = i % 2 === 0 ? r : r * 0.72;
-      const px = x + Math.cos(a) * rr;
-      const py = y + Math.sin(a) * rr;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
+      if (i === 0) ctx.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+      else ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
     }
     ctx.closePath();
     ctx.fillStyle = '#5a1f22';
@@ -331,13 +350,13 @@ function drawNode(ctx: CanvasRenderingContext2D, n: MapNode, reachable: boolean,
   } else {
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fillStyle = n.biome ? getBiome(n.biome).palette.groundDark : '#1d2a1b';
+    ctx.fillStyle = getBiome(n.biome).palette.groundDark;
     ctx.fill();
     ctx.lineWidth = 3;
     ctx.strokeStyle = accent;
     ctx.stroke();
     ctx.fillStyle = accent;
-    drawBiomeGlyph(ctx, n.biome, x, y, r);
+    drawRegionGlyph(ctx, n.region, x, y, r);
   }
   if (n.timesCleared > 0 && !n.isTown) {
     const cx = x + r * 0.8;
@@ -357,12 +376,60 @@ function drawNode(ctx: CanvasRenderingContext2D, n: MapNode, reachable: boolean,
   ctx.restore();
 }
 
-/** Small glyph of the biome inside a location node: tree, dune, reeds, ice crystal. */
-function drawBiomeGlyph(ctx: CanvasRenderingContext2D, biome: string | null, x: number, y: number, r: number): void {
+/** Towns: a walled capital with towers, a port with an anchor, the rest — houses with regional roofs. */
+function drawTown(ctx: CanvasRenderingContext2D, n: MapNode, x: number, y: number, r: number): void {
+  ctx.fillStyle = 'rgba(8, 10, 14, 0.6)';
   ctx.beginPath();
-  switch (biome) {
+  ctx.arc(x, y, r * 1.15, 0, Math.PI * 2);
+  ctx.fill();
+  if (n.id === 'capital') {
+    ctx.fillStyle = '#d9c9a3';
+    ctx.fillRect(x - r * 0.9, y - r * 0.3, r * 1.8, r * 0.95);
+    for (const dx of [-0.9, 0.55]) ctx.fillRect(x + dx * r, y - r * 0.75, r * 0.35, r * 1.4);
+    ctx.fillStyle = '#b5523b';
+    for (const dx of [-0.9, 0.55]) {
+      ctx.beginPath();
+      ctx.moveTo(x + dx * r - 3, y - r * 0.75);
+      ctx.lineTo(x + dx * r + r * 0.175, y - r * 1.15);
+      ctx.lineTo(x + dx * r + r * 0.35 + 3, y - r * 0.75);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.fillStyle = '#f2c14e';
+    ctx.fillRect(x - 1, y - r * 1.25, 2, r * 0.5);
+    ctx.fillRect(x, y - r * 1.25, r * 0.35, r * 0.2);
+    return;
+  }
+  const roof: Record<string, string> = { coast: '#3b7dd8', forest: '#b5523b', swamp: '#6a8a5a', desert: '#d9a05a', ice: '#9fc8e8' };
+  ctx.fillStyle = '#d9c9a3';
+  ctx.fillRect(x - r * 0.7, y - r * 0.2, r * 1.4, r * 0.95);
+  ctx.fillStyle = roof[n.region] ?? '#b5523b';
+  ctx.beginPath();
+  ctx.moveTo(x - r * 0.95, y - r * 0.15);
+  ctx.lineTo(x, y - r * 0.95);
+  ctx.lineTo(x + r * 0.95, y - r * 0.15);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#4a3a2a';
+  ctx.fillRect(x - r * 0.15, y + r * 0.25, r * 0.3, r * 0.5);
+  if (n.region === 'coast') {
+    // Anchor.
+    ctx.strokeStyle = '#e8ecf4';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + r * 0.9, y - r * 0.2);
+    ctx.lineTo(x + r * 0.9, y + r * 0.6);
+    ctx.arc(x + r * 0.9, y + r * 0.35, r * 0.3, Math.PI * 0.1, Math.PI * 0.9);
+    ctx.stroke();
+  }
+}
+
+/** Small glyph of the region inside a location node. */
+function drawRegionGlyph(ctx: CanvasRenderingContext2D, region: string, x: number, y: number, r: number): void {
+  ctx.beginPath();
+  switch (region) {
     case 'desert':
-      // Dune with a sun.
+    case 'scrub':
       ctx.moveTo(x - r * 0.6, y + r * 0.35);
       ctx.quadraticCurveTo(x - r * 0.1, y - r * 0.45, x + r * 0.6, y + r * 0.35);
       ctx.closePath();
@@ -372,14 +439,13 @@ function drawBiomeGlyph(ctx: CanvasRenderingContext2D, biome: string | null, x: 
       ctx.fill();
       break;
     case 'swamp':
-      // Three reeds.
+    case 'swampEdge':
       for (const dx of [-0.35, 0, 0.35]) {
         ctx.fillRect(x + dx * r - 1, y - r * (dx === 0 ? 0.55 : 0.35), 2, r * (dx === 0 ? 0.9 : 0.7));
         ctx.fillRect(x + dx * r - 2, y - r * (dx === 0 ? 0.55 : 0.35), 4, r * 0.25);
       }
       break;
     case 'ice':
-      // Crystal.
       ctx.moveTo(x, y - r * 0.6);
       ctx.lineTo(x + r * 0.35, y);
       ctx.lineTo(x, y + r * 0.6);
@@ -387,8 +453,25 @@ function drawBiomeGlyph(ctx: CanvasRenderingContext2D, biome: string | null, x: 
       ctx.closePath();
       ctx.fill();
       break;
+    case 'mountain':
+      ctx.moveTo(x - r * 0.6, y + r * 0.4);
+      ctx.lineTo(x, y - r * 0.55);
+      ctx.lineTo(x + r * 0.6, y + r * 0.4);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    case 'coast':
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = ctx.fillStyle as string;
+      for (const dy of [-0.2, 0.25]) {
+        ctx.beginPath();
+        ctx.moveTo(x - r * 0.55, y + dy * r);
+        ctx.quadraticCurveTo(x - r * 0.25, y + dy * r - r * 0.3, x, y + dy * r);
+        ctx.quadraticCurveTo(x + r * 0.25, y + dy * r + r * 0.3, x + r * 0.55, y + dy * r);
+        ctx.stroke();
+      }
+      break;
     default:
-      // Tree.
       ctx.moveTo(x, y - r * 0.55);
       ctx.lineTo(x + r * 0.42, y + r * 0.25);
       ctx.lineTo(x - r * 0.42, y + r * 0.25);

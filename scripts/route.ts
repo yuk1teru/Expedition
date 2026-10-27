@@ -1,6 +1,7 @@
 // Full-run bot (PLAN.md 6.8): route on the world map, town visits, shopping.
 // Route: the nearest location not cleared yet with tier ≤ level / 3 + 1, otherwise the
-// nearest boss not defeated yet; back to town (rest, shop) when HP < 40%. A death
+// nearest boss not defeated yet whose recommended level the hero (almost) has, otherwise
+// farming the hardest cleared location; back to town (rest, shop) when HP < 40%. A death
 // returns the bot to the last rest (as the player); too many deaths end the run.
 
 import type { Rng } from '../src/core/rng';
@@ -9,15 +10,15 @@ import { SIM } from '../src/data/balance';
 import { CONSUMABLES, HEAL_ORDER } from '../src/data/consumables';
 import { RARITIES } from '../src/data/items';
 import { buyConsumable, equipFromBag, identifyItem, itemLevelMult, type Item } from '../src/systems/items';
-import { type World, TOWN_ID, effectiveTier, getNode, neighbours } from '../src/systems/mapgen';
+import { type World, effectiveTier, getNode, neighbours, recommendedLevel } from '../src/systems/mapgen';
 import { isRunWon, passThrough, restInTown, restoreCheckpoint, travel } from '../src/systems/run';
 import { runBattle } from './bot';
 
 export interface FullRunResult {
   classId: string;
   won: boolean;
-  /** Depth of every death (4 = a boss); after `maxDeaths` + 1 deaths the run is lost. */
-  deaths: number[];
+  /** Where every death happened: the region, or `boss:<region>`; after `maxDeaths` + 1 deaths the run is lost. */
+  deaths: string[];
   /** Ran out of the day / battle budget without winning or dying. */
   stuck: boolean;
   days: number;
@@ -84,8 +85,14 @@ export function chooseTarget(state: GameState): string | null {
   const tier = (n: (typeof world.nodes)[number]): number => effectiveTier(world, n, state.bossesDefeated.length);
   const open = world.nodes.filter((n) => !n.isTown && !n.isBoss && n.timesCleared === 0 && tier(n) <= limit).map((n) => n.id);
   if (open.length > 0) return byDistance(open);
-  const bosses = world.nodes.filter((n) => n.isBoss && !state.bossesDefeated.includes(n.id)).map((n) => n.id);
-  return byDistance(bosses);
+  // A boss once the hero is about its recommended level (the fixed world has early bosses).
+  const left = world.nodes.filter((n) => n.isBoss && !state.bossesDefeated.includes(n.id));
+  const ready = left.filter((n) => recommendedLevel(tier(n)) <= state.hero.level + SIM.botBossLevelSlack).map((n) => n.id);
+  if (ready.length > 0) return byDistance(ready);
+  // Otherwise farm: replay the hardest cleared location within the limit (or the easiest boss left).
+  const farm = world.nodes.filter((n) => !n.isTown && !n.isBoss && n.timesCleared > 0 && tier(n) <= limit);
+  if (farm.length > 0) return farm.reduce((a, b) => (tier(b) > tier(a) ? b : a)).id;
+  return byDistance(left.map((n) => n.id));
 }
 
 /** Item score for the bot: rarity power × item level. */
@@ -93,9 +100,40 @@ function itemScore(item: Item): number {
   return RARITIES[item.rarity].power * itemLevelMult(item.ilvl, false);
 }
 
+/**
+ * The town to rest in: the nearest one reachable over cleared locations (crossed without
+ * a battle), otherwise the home town (always reachable from the map).
+ */
+function restTown(state: GameState): string[] {
+  const world = state.world;
+  const prev = new Map<string, string | null>([[state.currentNodeId, null]]);
+  const queue = [state.currentNodeId];
+  while (queue.length > 0) {
+    const cur = queue.shift()!;
+    const node = getNode(world, cur);
+    if (node.isTown && cur !== state.currentNodeId) {
+      const path: string[] = [];
+      for (let at: string | null = cur; at !== null && at !== state.currentNodeId; at = prev.get(at) ?? null) path.unshift(at);
+      return path;
+    }
+    if (cur !== state.currentNodeId && !node.isTown && node.timesCleared === 0) continue;
+    for (const n of neighbours(world, cur)) {
+      if (prev.has(n) || getNode(world, n).isBoss) continue;
+      prev.set(n, cur);
+      queue.push(n);
+    }
+  }
+  return [state.homeTown];
+}
+
 /** Town: rest (checkpoint), identify and wear better items, buy potions with what is left. */
 export function townVisit(state: GameState): void {
-  travel(state, TOWN_ID);
+  if (!getNode(state.world, state.currentNodeId).isTown) {
+    for (const id of restTown(state)) {
+      if (getNode(state.world, id).isTown) travel(state, id);
+      else passThrough(state, id);
+    }
+  }
   restInTown(state);
   const hero = state.hero;
   // Identify what could beat the worn item of its slot.
@@ -165,7 +203,7 @@ export function simulateFullRun(state: GameState, opts: FullRunOptions): FullRun
       res.battles++;
       (node.isBoss ? res.bossTimes : res.locationTimes).push(run.time);
       if (!run.summary.won) {
-        res.deaths.push(node.depth);
+        res.deaths.push(node.isBoss ? `boss:${node.region}` : node.region);
         died = true;
         break;
       }

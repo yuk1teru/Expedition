@@ -26,8 +26,9 @@ export function createGameState(seed: number, world: WorldKind = 'full'): GameSt
     day: 1,
     gold: 0,
     hero: createHero(0),
-    world: createWorld(world, rng),
+    world: createWorld(world),
     currentNodeId: TOWN_ID,
+    homeTown: TOWN_ID,
     bossesDefeated: [],
     stats: createRunStats(),
     screen: 'town',
@@ -46,6 +47,7 @@ function snapshot(state: Omit<GameState, 'checkpoint'>): Checkpoint {
     day: state.day,
     world: state.world,
     bossesDefeated: state.bossesDefeated,
+    homeTown: state.homeTown,
   });
 }
 
@@ -55,8 +57,8 @@ export function saveCheckpoint(state: GameState): void {
 }
 
 /**
- * Death is not the end: the hero wakes up in town with the progress of the
- * last rest (level, skills, items, gold, day, map). Run statistics are kept.
+ * Death is not the end: the hero wakes up in the town of the last rest with the
+ * progress of that rest (level, skills, items, gold, day, map). Run statistics are kept.
  */
 export function restoreCheckpoint(state: GameState): void {
   const cp = structuredClone(state.checkpoint);
@@ -65,7 +67,8 @@ export function restoreCheckpoint(state: GameState): void {
   state.day = cp.day;
   state.world = cp.world;
   state.bossesDefeated = cp.bossesDefeated;
-  state.currentNodeId = TOWN_ID;
+  state.homeTown = cp.homeTown;
+  state.currentNodeId = cp.homeTown;
   state.modalQueue = [];
   state.hero.dead = false;
   state.hero.hp = state.hero.maxHp;
@@ -94,8 +97,9 @@ export function teleport(state: GameState, nodeId: string): TravelResult {
   return getNode(state.world, nodeId).isTown ? { kind: 'town' } : { kind: 'battle', nodeId };
 }
 
-/** Full heal and checkpoint; happens automatically every time the hero arrives in town. */
+/** Full heal and checkpoint; happens automatically every time the hero arrives in a town (it becomes the home town). */
 export function restInTown(state: GameState): void {
+  if (getNode(state.world, state.currentNodeId).isTown) state.homeTown = state.currentNodeId;
   healFull(state.hero);
   saveCheckpoint(state);
 }
@@ -109,11 +113,11 @@ export function leaveTown(state: GameState): void {
 }
 
 /**
- * Adjacent nodes, the current location (replay) and the town: going back to town is
- * always free, the way out again leads through the locations.
+ * Adjacent nodes, the current location (replay) and the home town (the last rest):
+ * going back there is always free, the way out again leads through the locations.
  */
 export function canTravel(state: GameState, nodeId: string): boolean {
-  if (state.freeTravel === true || nodeId === TOWN_ID || nodeId === state.currentNodeId) return true;
+  if (state.freeTravel === true || nodeId === state.homeTown || nodeId === state.currentNodeId) return true;
   return areAdjacent(state.world, state.currentNodeId, nodeId);
 }
 

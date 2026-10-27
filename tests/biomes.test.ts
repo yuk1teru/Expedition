@@ -17,7 +17,7 @@ import { spawnEnemy } from '../src/systems/waves';
 function battleIn(biome: string, boss = false): Battle {
   const s = createGameState(21);
   s.hero.immortal = true;
-  const node = s.world.nodes.find((n) => n.biome === biome && (boss ? n.isBoss : n.depth === 1))!;
+  const node = s.world.nodes.filter((n) => n.biome === biome && n.isBoss === boss && !n.isTown).sort((a, b) => a.tier - b.tier)[0]!;
   teleport(s, node.id);
   const b = createBattle(s, node.id);
   b.waves = null;
@@ -46,7 +46,7 @@ describe('biome content', () => {
     }
   });
 
-  it('the boss node of each sector fights its own biome boss', () => {
+  it('the boss location of each biome fights its own boss', () => {
     for (const id of BIOME_ORDER) {
       const b = battleIn(id, true);
       expect(b.boss?.defId).toBe(BIOMES[id]!.boss);

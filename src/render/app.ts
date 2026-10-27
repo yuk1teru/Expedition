@@ -9,7 +9,7 @@ import type { GameState } from '../core/state';
 import { LOOP } from '../data/balance';
 import { type Battle, createBattle, killAll } from '../systems/battle';
 import { grantLevel } from '../systems/leveling';
-import { SLICE_GROVE_ID, TOWN_ID, type WorldKind, getNode, resetClears } from '../systems/mapgen';
+import { SLICE_GROVE_ID, type WorldKind, getNode, resetClears } from '../systems/mapgen';
 import { getSkill } from '../data/skills';
 import {
   type BattleSummary,
@@ -231,9 +231,9 @@ export class App {
     else if (res.kind === 'battle') this.startBattle(res.nodeId);
   }
 
-  /** Map → town (always reachable from the map). */
+  /** Map → the home town (the last rest; always reachable from the map). */
   returnToTown(): void {
-    this.travelTo(TOWN_ID);
+    this.travelTo(this.state.homeTown);
   }
 
   startBattle(nodeId: string, startWave = 0): void {

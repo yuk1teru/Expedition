@@ -20,15 +20,15 @@ export function trapArmed(b: Battle, t: Trap): boolean {
   return b.time - t.spawnedAt >= TRAPS.armTime;
 }
 
-/** New traps for a wave (1-based number). */
-export function trapsForWave(waveNumber: number): number {
-  if (waveNumber < TRAPS.fromWave) return 0;
-  return Math.floor(TRAPS.base + TRAPS.perWave * (waveNumber - TRAPS.fromWave));
+/** New traps for a wave (1-based number); `fromWave` — the location's first trap wave (null: none). */
+export function trapsForWave(waveNumber: number, fromWave: number | null = TRAPS.fromWave): number {
+  if (fromWave === null || waveNumber < fromWave) return 0;
+  return Math.floor(TRAPS.base + TRAPS.perWave * (waveNumber - fromWave));
 }
 
-export function spawnTraps(b: Battle, waveNumber: number): void {
+export function spawnTraps(b: Battle, waveNumber: number, fromWave: number | null = TRAPS.fromWave): void {
   const alive = b.traps.filter((t) => !t.dead).length;
-  const n = Math.min(trapsForWave(waveNumber), TRAPS.max - alive);
+  const n = Math.min(trapsForWave(waveNumber, fromWave), TRAPS.max - alive);
   const damage = TRAPS.damage * tierMultiplier(b.tier) * (b.waves?.mult.damage ?? 1);
   const inset = TRAPS.inset;
   for (let i = 0; i < n; i++) {

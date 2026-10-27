@@ -25,7 +25,7 @@ import {
   unequip,
 } from '../src/systems/items';
 import { gainXp } from '../src/systems/leveling';
-import { SLICE_GROVE_ID, SLICE_LAIR_ID, getNode, markCleared } from '../src/systems/mapgen';
+import { SLICE_GROVE_ID, SLICE_LAIR_ID, TOWN_ID, getNode, markCleared } from '../src/systems/mapgen';
 import { completeBattle, createGameState, leaveTown, restInTown, restoreCheckpoint, teleport } from '../src/systems/run';
 
 describe('items', () => {
@@ -125,7 +125,7 @@ describe('checkpoint', () => {
     expect(s.hero.hp).toBe(s.hero.maxHp);
     expect(s.stats.kills).toBe(42);
     expect(s.stats.deaths).toBe(1);
-    expect(s.currentNodeId).toBe('town');
+    expect(s.currentNodeId).toBe(TOWN_ID);
   });
 
   it('saving works even if a battle ended mid-dash', () => {

@@ -80,7 +80,7 @@ export function createBossEnemy(b: Battle, defId: string, pos: Vec, mult: WaveMu
 
 /** Creates the boss for a boss battle (no waves). */
 export function setupBossBattle(b: Battle): void {
-  const boss = createBossEnemy(b, getBiome(b.biome.id).boss, { x: ARENA.x + ARENA.w / 2, y: ARENA.y + ARENA.h * 0.25 });
+  const boss = createBossEnemy(b, b.node.boss || getBiome(b.biome.id).boss, { x: ARENA.x + ARENA.w / 2, y: ARENA.y + ARENA.h * 0.25 });
   b.boss = boss;
   // Hero starts at the bottom of the arena.
   b.hero.pos = { x: ARENA.x + ARENA.w / 2, y: ARENA.y + ARENA.h * 0.8 };

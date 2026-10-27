@@ -38,6 +38,8 @@ export interface GameState {
   hero: Hero;
   world: World;
   currentNodeId: string;
+  /** The town where the hero rested last: death brings it back here; it is always reachable from the map. */
+  homeTown: string;
   bossesDefeated: string[];
   stats: RunStats;
   screen: ScreenId;
@@ -58,6 +60,7 @@ export interface Checkpoint {
   day: number;
   world: World;
   bossesDefeated: string[];
+  homeTown: string;
 }
 
 export function createRunStats(): RunStats {

@@ -164,11 +164,12 @@ function mainFull(args: Args): void {
     const lv = results.flatMap((r) => (r.bossLevels[k] === undefined ? [] : [r.bossLevels[k]!]));
     if (lv.length > 0) console.log(`  бос ${k + 1}: ${avg(lv).toFixed(1)} (спроб: ${lv.length})`);
   }
-  console.log(`Смерті за глибиною (усього; забіг програно після ${SIM.maxDeaths + 1}-ї):`);
-  for (let d = 1; d <= 4; d++) {
-    const n = results.reduce((a, r) => a + r.deaths.filter((x) => x === d).length, 0);
-    const runs = results.filter((r) => r.deaths.includes(d)).length;
-    console.log(`  глибина ${d}${d === 4 ? ' (бос)' : ''}: ${n} смертей, у ${pct(runs, args.runs)} забігів`);
+  console.log(`Смерті за регіонами (усього; забіг програно після ${SIM.maxDeaths + 1}-ї):`);
+  const places = [...new Set(results.flatMap((r) => r.deaths))].sort();
+  for (const place of places) {
+    const n = results.reduce((a, r) => a + r.deaths.filter((x) => x === place).length, 0);
+    const runs = results.filter((r) => r.deaths.includes(place)).length;
+    console.log(`  ${place}: ${n} смертей, у ${pct(runs, results.length)} забігів`);
   }
   const lost = results.filter((r) => !r.won && !r.stuck);
   console.log(`Програно (забагато смертей): ${lost.length} (${pct(lost.length, args.runs)}); середня кількість смертей за забіг: ${avg(results.map((r) => r.deaths.length)).toFixed(2)}`);

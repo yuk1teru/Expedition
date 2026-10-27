@@ -1,6 +1,7 @@
 // Town screen: arriving rests the hero automatically (full heal + checkpoint).
 
 import type { Screen } from '../core/screens';
+import { getNode } from '../systems/mapgen';
 import { leaveTown, restInTown } from '../systems/run';
 import type { App } from './app';
 import { THEME } from './theme';
@@ -64,7 +65,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
       ctx.fillRect(0, 0, W, app.view.height);
       drawSkyline(ctx, W, app.view.height);
       drawPanel(ctx, panel);
-      drawText(ctx, 'Місто', W / 2, panel.y + 40, { size: 30, bold: true, align: 'center' });
+      drawText(ctx, getNode(state.world, state.currentNodeId).name, W / 2, panel.y + 40, { size: 30, bold: true, align: 'center' });
       drawText(ctx, 'Тут безпечно: герой відпочиває, прогрес зберігається.', W / 2, panel.y + 76, {
         size: 15,
         align: 'center',

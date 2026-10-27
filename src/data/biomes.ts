@@ -119,6 +119,47 @@ export const BIOMES: Record<string, BiomeDef> = {
   },
 };
 
+
+/** Transition zones and the coast: visuals and default roster (locations in world.ts may override). */
+function zone(id: string, name: string, palette: BiomePalette, enemies: string[], miniboss: string, decor: BiomeDef['decor']): BiomeDef {
+  return { id, name, palette, locationNames: [], bossLocation: '', enemies, boss: '', miniboss, decor };
+}
+
+Object.assign(BIOMES, {
+  swampEdge: zone(
+    'swampEdge',
+    'Мокролісся',
+    { ground: '#23332a', groundDark: '#1a261f', accent: '#6fbf8a', decor: ['#2f5a3a', '#3d5c4c', '#4b3a26'], enemies: { mossToad: '#5f9a5a', sporeCap: '#b07ad8', rotStump: '#7a6a4c', slimelet: '#a7e08a', bigToad: '#5f9a4a', galeSpirit: '#9fe3ff' }, eliteAura: '#ffd34d' },
+    ['mossToad', 'sporeCap', 'rotStump'],
+    'bigToad',
+    { count: 26, kinds: ['tree', 'reeds', 'bush', 'reeds'], minSize: 10, maxSize: 28, edgeBand: 44 },
+  ),
+  scrub: zone(
+    'scrub',
+    'Сухе узлісся',
+    { ground: '#3a3a22', groundDark: '#2c2c1a', accent: '#c8b25a', decor: ['#5a6a32', '#7a6440', '#4b3a26'], enemies: { jackal: '#c9945a', thornBush: '#7fae4c', dustBoar: '#8a6a4a', scorpionKing: '#e07a3a', galeSpirit: '#9fe3ff' }, eliteAura: '#ffd34d' },
+    ['jackal', 'thornBush', 'dustBoar'],
+    'scorpionKing',
+    { count: 22, kinds: ['bush', 'tree', 'cactus', 'rock'], minSize: 10, maxSize: 26, edgeBand: 44 },
+  ),
+  mountain: zone(
+    'mountain',
+    'Гори',
+    { ground: '#33343a', groundDark: '#26272c', accent: '#b8c2cf', decor: ['#5b5f66', '#7a808a', '#c8dceb'], enemies: { goat: '#cfc4b0', harpy: '#b08ad8', rockling: '#8a8f99', frostWarden: '#bfe6ff', alpha: '#dfe4ec', galeSpirit: '#9fe3ff' }, eliteAura: '#ffd34d' },
+    ['goat', 'harpy', 'rockling'],
+    'alpha',
+    { count: 22, kinds: ['rock', 'rock', 'crystal', 'tree'], minSize: 12, maxSize: 30, edgeBand: 44 },
+  ),
+  coast: zone(
+    'coast',
+    'Узбережжя',
+    { ground: '#3a3a30', groundDark: '#2c2c24', accent: '#7fc4e8', decor: ['#6a6a5a', '#8c8a70', '#3d5c4c'], enemies: { gull: '#e8ecf4', crab: '#d9634a', mushroom: '#c97ad8', alpha: '#dfe4ec', galeSpirit: '#9fe3ff' }, eliteAura: '#ffd34d' },
+    ['gull', 'crab', 'mushroom'],
+    'alpha',
+    { count: 18, kinds: ['rock', 'rock', 'bush'], minSize: 10, maxSize: 26, edgeBand: 44 },
+  ),
+});
+
 export const BIOME_ORDER = ['forest', 'desert', 'swamp', 'ice'] as const;
 
 export function getBiome(id: string): BiomeDef {

@@ -224,45 +224,14 @@ export const ELITE = {
   goldMult: 3,
 } as const;
 
-/**
- * Full world: the town in the centre, 4 sectors (N, E, S, W) of depth 1–4.
- * tier = depth + random lateral shift; the boss sits alone at depth 4.
- */
+/** The world (towns, locations, roads, terrain) lives in src/data/world.ts; here — its global rules. */
 export const WORLD = {
-  /** Locations per depth 1..4 in every sector (the last one is the boss). */
-  nodesPerDepth: [2, 3, 3, 1],
-  lateralShift: 0.3,
-  bossTier: 4.5,
-  /** Chance that a node gets a second child at the next depth (when one is nearby). */
-  secondChildChance: 0.5,
-  /** Chance of a side road between neighbours of the same depth (inside a sector / across a sector border). */
-  lateralChance: 0.45,
-  crossSectorChance: 0.45,
-  /**
-   * Hand-drawn look: every node is shifted by up to `angle` of its slot on the arc and
-   * `radius` of its depth radius, keeping at least `minGap` px from the nodes placed before.
-   */
-  jitter: { angle: 0.4, radius: 0.09, minGap: 54, tries: 30, margin: { x: 40, top: 80, bottom: 30 } },
   /**
    * Boss threat: every defeated boss adds this much tier to the locations and bosses left,
-   * so the first locations of the next biome are not a walk (HP, damage, XP, gold and item
+   * so the locations of the next biome are not a walk (HP, damage, XP, gold and item
    * level follow the tier). Full world only.
    */
   bossThreat: { locationTier: 1, bossTier: 0.9 },
-  /**
-   * Radial layout, logical px. The view is wide and short, so the "circle" is an ellipse
-   * with its own radius per depth on each axis; the nodes of a depth spread over `arcDeg`
-   * of their sector (narrow near the town, where the sectors are close to each other);
-   * `staggerDeg` turns a depth a little, so the middle nodes of N and S are not stacked
-   * in one column (the view has little height).
-   */
-  layout: {
-    center: { x: 480, y: 298 },
-    radiusX: [0, 130, 230, 330, 425],
-    radiusY: [0, 80, 132, 176, 212],
-    arcDeg: [0, 44, 66, 76, 0],
-    staggerDeg: [0, 0, 9, -9, 0],
-  },
 } as const;
 
 /** Slice-only world rules. */
@@ -322,6 +291,8 @@ export const SIM = {
   maxBattleTime: 400,
   /** The bot uses its strongest healing item below this HP fraction. */
   botHerbBelow: 0.4,
+  /** Full-run bot: takes on a boss once its level ≥ the boss's recommended level − this. */
+  botBossLevelSlack: 1,
   /** Full-run bot: goes back to town (rest, shop) below this HP fraction after a battle. */
   botTownBelow: 0.4,
   /** Full runs: deaths return to the checkpoint like for the player; one more than this ends the run. */
