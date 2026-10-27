@@ -32,6 +32,8 @@ export interface BattleStats {
   gold: number;
   damageDealt: number;
   damageTaken: number;
+  /** Healing items drunk. */
+  heals: number;
   /** Items dropped by bosses and minibosses. */
   loot: Item[];
 }
@@ -150,7 +152,7 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0): B
     waves: node.isBoss ? null : createWaves(startWave),
     portal: null,
     boss: null,
-    stats: { kills: 0, xp: 0, gold: 0, damageDealt: 0, damageTaken: 0, loot: [] },
+    stats: { kills: 0, xp: 0, gold: 0, damageDealt: 0, damageTaken: 0, heals: 0, loot: [] },
     healAcc: 0,
     deathCause: null,
     healTimer: 0,

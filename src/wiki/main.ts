@@ -7,10 +7,13 @@ import balanceSource from '../data/balance.ts?raw';
 import { GAME_VERSION } from '../data/changelog';
 import { type LiteralPath, type Tokens, declaresRoot, keyComment, locateLiteral, tokenize } from './literal';
 import { type Fmt, type Ref, buildSections, esc, formatValue } from './sections';
+import { mountStats } from './stats';
 import './style.css';
 
 const balanceTokens = tokenize(balanceSource);
 const sections = buildSections((root, path) => keyComment(balanceSource, root, path, balanceTokens));
+// Dev only: battle statistics of this browser's game and friends' files (ROADMAP 9.7).
+if (import.meta.env.DEV) sections.push({ id: 'stats', title: 'Статистика боїв (dev)', html: '<div id="stats-root"></div>' });
 
 const app = document.getElementById('wiki')!;
 app.innerHTML = `
@@ -24,6 +27,8 @@ app.innerHTML = `
 </nav>
 <main>${sections.map((s) => `<section id="${s.id}"><h2>${esc(s.title)}</h2>${s.html}</section>`).join('')}</main>
 <div id="toast"></div>`;
+
+if (import.meta.env.DEV) mountStats(document.getElementById('stats-root')!);
 
 // ---- Filter: hides cards and table rows without the text ----
 

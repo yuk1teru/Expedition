@@ -32,7 +32,8 @@ import { createCombatScreen } from './combatView';
 import { type DebugPanel, createDebugPanel } from './debugPanel';
 import { createDeathScreen, createRewardScreen, createVictoryScreen } from './endScreens';
 import { createTombstoneScreen } from './tombstone';
-import { type Grave, type MetaData, makeGrave, readMeta } from '../systems/meta';
+import { type Grave, type MetaData, makeGrave, readMeta, statsExport } from '../systems/meta';
+import { battleRecord, pushRecord } from '../systems/battleLog';
 import { createHelpModal } from './help';
 import { createChangelogModal } from './changelog';
 import { CHANGELOG, CHANGELOG_BASE_VERSION, GAME_VERSION } from '../data/changelog';
@@ -216,7 +217,7 @@ export class App {
   private endHero(abandoned: boolean): void {
     const grave = makeGrave(this.state, { abandoned });
     this.meta.graves.push(grave);
-    this.metaStore?.save(JSON.stringify(this.meta));
+    this.saveMeta();
     this.saves?.clear();
     this.lastGrave = grave;
   }
@@ -226,6 +227,21 @@ export class App {
     this.resetScreens();
     this.titleStartsWithName = true;
     this.screens.go('title');
+  }
+
+  private saveMeta(): void {
+    this.metaStore?.save(JSON.stringify(this.meta));
+  }
+
+  /** Every finished battle goes to the statistics (meta save). */
+  private logBattle(b: Battle): void {
+    pushRecord(this.meta.battles, battleRecord(this.state, b));
+    this.saveMeta();
+  }
+
+  /** Title → "Статистика боїв": the file for the developer. */
+  exportStats(): void {
+    this.files?.download(`expedition-stats-${new Date().toISOString().slice(0, 10)}.json`, statsExport(this.meta, GAME_VERSION));
   }
 
   exportSave(): void {
@@ -290,6 +306,7 @@ export class App {
       // Count the unfinished battle in the run statistics.
       this.battle.outcome = 'lost';
       completeBattle(this.state, this.battle);
+      this.logBattle(this.battle);
     }
     this.battle = null;
     this.endHero(true);
@@ -349,6 +366,7 @@ export class App {
     const b = this.battle;
     if (!b) return;
     this.lastSummary = completeBattle(this.state, b);
+    this.logBattle(b);
     this.battle = null;
     this.loop.paused = false;
     // The last life is gone: the story ends right now (closing the game will not undo it).

@@ -3,6 +3,7 @@
 // tombstones in the capital's cemetery.
 
 import type { GameState } from '../core/state';
+import type { BattleRecord } from './battleLog';
 import type { DeathCause } from './combat';
 
 export const META_VERSION = 1;
@@ -32,10 +33,12 @@ export interface MetaData {
   version: number;
   /** Oldest first. */
   graves: Grave[];
+  /** Every finished battle of every hero, oldest first (ROADMAP 9.7). */
+  battles: BattleRecord[];
 }
 
 export function emptyMeta(): MetaData {
-  return { version: META_VERSION, graves: [] };
+  return { version: META_VERSION, graves: [], battles: [] };
 }
 
 /** The tombstone of the state's hero; `nodeId` — where the story ended. */
@@ -63,7 +66,11 @@ export function readMeta(text: string | null): MetaData {
   try {
     const raw = JSON.parse(text) as Partial<MetaData>;
     if (typeof raw !== 'object' || raw === null || !Array.isArray(raw.graves) || typeof raw.version !== 'number' || raw.version > META_VERSION) return emptyMeta();
-    return { version: META_VERSION, graves: raw.graves.filter((g) => typeof g === 'object' && g !== null && typeof g.name === 'string') };
+    return {
+      version: META_VERSION,
+      graves: raw.graves.filter((g) => typeof g === 'object' && g !== null && typeof g.name === 'string'),
+      battles: Array.isArray(raw.battles) ? raw.battles.filter((r) => typeof r === 'object' && r !== null && typeof r.node === 'string') : [],
+    };
   } catch {
     return emptyMeta();
   }
@@ -82,4 +89,9 @@ export function records(meta: MetaData): Records {
   const best = (key: 'level' | 'bosses' | 'days' | 'kills'): Grave | null =>
     meta.graves.reduce<Grave | null>((top, g) => (top === null || g[key] > top[key] ? g : top), null);
   return { heroes: meta.graves.length, bestLevel: best('level'), mostBosses: best('bosses'), mostDays: best('days'), mostKills: best('kills') };
+}
+
+/** The statistics file friends send (battles and graves). */
+export function statsExport(meta: MetaData, gameVersion: string, now = Date.now()): string {
+  return JSON.stringify({ kind: 'expedition-stats', version: META_VERSION, gameVersion, exportedAt: now, battles: meta.battles, graves: meta.graves });
 }

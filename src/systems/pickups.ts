@@ -66,6 +66,7 @@ export function useHealItem(b: Battle, id: HealId): boolean {
   if (!def.heal || hero.dead || hero.consumables[id] <= 0 || hero.healCooldown > 0 || hero.hp >= hero.maxHp) return false;
   hero.consumables[id] -= 1;
   hero.healCooldown = QUICK_SLOTS.cooldown;
+  b.stats.heals += 1;
   const total = healAmount(def.heal, hero.maxHp);
   // Each use is its own buff, so two different items heal together.
   hero.buffs.push({ id: `heal:${id}:${b.time}`, time: def.heal.duration, attackSpeedMult: 1, damageTakenMult: 1, regen: total / def.heal.duration });

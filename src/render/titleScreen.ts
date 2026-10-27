@@ -66,6 +66,10 @@ export function createTitleScreen(app: App): Screen<CanvasRenderingContext2D> {
       }),
     );
     if (save) menu.add(new Button({ label: 'Експорт героя', rect: { x: x + half + 12, y, w: half, h: 34 }, fontSize: 13, onClick: () => app.exportSave() }));
+    y += 44;
+    if (app.meta.battles.length > 0) {
+      menu.add(new Button({ label: `Статистика боїв (${app.meta.battles.length}) — для розробника`, rect: { x, y, w, h: 30 }, fontSize: 12, onClick: () => app.exportStats() }));
+    }
   };
   entry.add(new Button({ label: 'Почати пригоду', rect: { x: panel.x + 60, y: panel.y + 190, w: panel.w - 120, h: 46 }, hotkey: 'Enter', onClick: start }));
   entry.add(new Button({ label: 'Назад [Esc]', rect: { x: panel.x + 160, y: panel.y + 246, w: panel.w - 320, h: 32 }, fontSize: 13, hotkey: 'Escape', onClick: () => (mode = 'menu') }));
