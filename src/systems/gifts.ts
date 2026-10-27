@@ -2,6 +2,7 @@
 // skills), taking one, and what the taken gifts do — stats, skill parameters, damage of
 // tags, elements and against statuses. Reroll for gold, skip for gold and a short buff.
 
+import { getPromotion } from '../data/promotions';
 import { itemEffects } from './uniques';
 import type { Rng } from '../core/rng';
 import { CARDS } from '../data/balance';
@@ -47,7 +48,14 @@ export function takeGift(hero: Hero, id: string, recompute: (h: Hero) => void): 
 
 /** The gifts' effects and those of the worn legendaries and sets (ROADMAP 14.5). */
 function effects(hero: Hero): GiftDef['effects'] {
-  return [...hero.gifts.flatMap((id) => GIFTS[id]?.effects ?? []), ...itemEffects(hero)];
+  return [...hero.gifts.flatMap((id) => GIFTS[id]?.effects ?? []), ...itemEffects(hero), ...branchForkEffects(hero)];
+}
+
+/** The level-22 branch boost (ROADMAP 15.6): its skill parameters, like a gift's. */
+function branchForkEffects(hero: Hero): GiftDef['effects'] {
+  if (!hero.promotion || !hero.promotion2 || hero.branchFork === undefined || hero.branchFork === null) return [];
+  const f = getPromotion(hero.promotion).forks22[hero.branchFork];
+  return f ? Object.entries(f.set).map(([param, value]) => ({ kind: 'skill' as const, skill: f.skill, param, value })) : [];
 }
 
 /** Sum of the gifts' stat bonuses. */

@@ -180,6 +180,8 @@ export interface Hero extends Body {
   trophies: Record<string, number>;
   /** Rune stones holding a soul, not set into an item yet (soul ids; ROADMAP 14.3). */
   soulStones: string[];
+  /** The branch boost picked at level 22 (ROADMAP 15.6): 0 / 1 of the branch's forks22. */
+  branchFork?: number | null;
   /** The elixir drunk (ROADMAP 14.2): its recipe and the arenas it still holds for. */
   elixir?: { recipe: string; arenas: number } | null;
   /** Healing items on the quick slots Z / X / C (null: empty). */

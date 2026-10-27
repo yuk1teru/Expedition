@@ -65,3 +65,34 @@ export function createConfirmModal(
     },
   };
 }
+
+/** One of two named options ([1] / [2]); no way around it (a level-22 branch boost). */
+export function createChoiceModal(app: App, title: string, options: [{ name: string; text: string }, { name: string; text: string }], onPick: (index: number) => void, color: string = THEME.accent): Modal<CanvasRenderingContext2D> {
+  const W = app.view.width;
+  const panel = { x: W / 2 - 330, y: 110, w: 660, h: 300 };
+  const buttons = new ButtonGroup(
+    options.map(
+      (o, i) => new Button({ label: `${o.name} [${i + 1}]`, rect: { x: W / 2 - 310 + i * 320, y: panel.y + panel.h - 60, w: 300, h: 42 }, hotkey: `Digit${i + 1}`, fontSize: 14, onClick: () => onPick(i) }),
+    ),
+  );
+  return {
+    id: 'confirm',
+    update() {},
+    onInput(e) {
+      buttons.handle(e);
+    },
+    render(ctx) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+      ctx.fillRect(0, 0, W, app.view.height);
+      drawPanel(ctx, panel, THEME.panel, color);
+      drawText(ctx, fillNames(title), W / 2, panel.y + 32, { size: 22, bold: true, align: 'center', color });
+      ctx.font = `14px ${THEME.font}`;
+      options.forEach((o, i) => {
+        const x = W / 2 - 160 + i * 320;
+        drawText(ctx, o.name, x, panel.y + 80, { size: 16, bold: true, align: 'center' });
+        wrapLines(ctx, fillNames(o.text), 280).forEach((l, k) => drawText(ctx, l, x, panel.y + 108 + k * 20, { size: 14, align: 'center', color: THEME.textDim }));
+      });
+      buttons.draw(ctx);
+    },
+  };
+}

@@ -299,12 +299,19 @@ export function chooseClass(state: GameState, classId: string, picks?: string[])
 export function choosePromotion(state: GameState, branchId: string): void {
   promote(state.hero, branchId);
   // Promoted late (past level 22): the second stage comes at once.
-  if (state.hero.level >= PROGRESSION.promotion2Level) promote2(state.hero);
+  if (state.hero.level >= PROGRESSION.promotion2Level) completePromotion(state);
 }
 
-/** Level 22: the second stage of the branch. */
+/** Level 22: the second stage of the branch — and the choice of its skill boost. */
 export function completePromotion(state: GameState): void {
   promote2(state.hero);
+  if (state.hero.branchFork === undefined || state.hero.branchFork === null) state.modalQueue.push({ kind: 'branchFork' });
+}
+
+/** The level-22 branch boost picked (0 / 1). */
+export function chooseBranchFork(state: GameState, index: number): void {
+  if (!state.hero.promotion || !state.hero.promotion2) return;
+  state.hero.branchFork = index === 1 ? 1 : 0;
 }
 
 /** The gift window's offer (its own random stream). */

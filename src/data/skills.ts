@@ -152,10 +152,10 @@ export const SKILLS: Record<string, SkillDef> = {
       landingSamples: 12,
     },
     upgrades: [
-      { set: { damage: 1.8, cooldown: 7.2 } },
+      { set: { damage: 1.6, cooldown: 7.2 } },
       { set: { trail: 1 }, text: 'Залишає вогняний слід на 2 с.' },
       { set: { range: 300, stun: 1 } },
-      { set: { radius: 110, damage: 2.4 }, text: 'Ширша ударна хвиля в точці приземлення.' },
+      { set: { radius: 110, damage: 2.2 }, text: 'Ширша ударна хвиля в точці приземлення.' },
     ],
   }),
   battleCry: skill({
@@ -165,9 +165,9 @@ export const SKILLS: Record<string, SkillDef> = {
     targeting: 'any',
     icon: 'shout',
     description: 'На {duration} с: герой атакує на {attackSpeed%} швидше, вороги в радіусі {tauntRadius} px кидаються на героя (стрільці теж ідуть впритул).',
-    base: { cooldown: 14, duration: 5, attackSpeed: 0.4, tauntRadius: 200, damageReduction: 0, healPerEnemy: 0 },
+    base: { cooldown: 14, duration: 5, attackSpeed: 0.5, tauntRadius: 200, damageReduction: 0, healPerEnemy: 0 },
     upgrades: [
-      { set: { attackSpeed: 0.5 } },
+      { set: { attackSpeed: 0.6 } },
       { set: { damageReduction: 0.2 }, text: '−20% отриманої шкоди на час дії.' },
       { set: { duration: 7, cooldown: 12 } },
       { set: { healPerEnemy: 0.02 }, text: 'Лікує 2% HP за кожного спровокованого ворога.' },
@@ -182,9 +182,9 @@ export const SKILLS: Record<string, SkillDef> = {
     aimable: true,
     icon: 'slam',
     description: 'Удар конусом {angle}° на {range} px у бік курсора: {damage%} атаки героя і відкидання ворогів.',
-    base: { cooldown: 9, angle: 90, range: 220, damage: 2, knockback: 420, stun: 0, executeBelow: 0, executeMult: 1.6 },
+    base: { cooldown: 9, angle: 90, range: 220, damage: 2.3, knockback: 420, stun: 0, executeBelow: 0, executeMult: 1.6 },
     upgrades: [
-      { set: { damage: 2.4 } },
+      { set: { damage: 2.7 } },
       { set: { stun: 0.8 }, text: 'Оглушує на 0.8 с.' },
       { set: { angle: 120, cooldown: 8 } },
       { set: { executeBelow: 0.5 }, text: 'Страта: ×1.6 шкоди ворогам, у яких менше 50% HP.' },
@@ -203,8 +203,8 @@ export const SKILLS: Record<string, SkillDef> = {
       {
         rank: 3,
         options: [
-          { name: 'Крижана сокира', text: 'Сокира з льоду: Вода, пробиває всіх на шляху.', set: { pierce: 99 }, element: 'water' },
-          { name: 'Дві сокири', text: 'Дві сокири віялом.', set: { count: 2 } },
+          { name: 'Крижана сокира', text: 'Сокира з льоду: Вода, удар важчий.', set: { damage: 2.9 }, element: 'water' },
+          { name: 'Дві сокири', text: 'Дві сокири віялом, кожна трохи легша.', set: { count: 2, damage: 1.9 } },
         ],
       },
     ],
@@ -238,7 +238,7 @@ export const SKILLS: Record<string, SkillDef> = {
     targeting: 'self',
     icon: 'quake',
     description: '{pulses} поштовхи раз на 1 с навколо героя (радіус {radius} px): {damage%} атаки героя й сповільнення ворогів на {slow%}.',
-    base: { cooldown: 12, radius: 110, castRange: 130, pulses: 3, interval: 1, damage: 0.6, slow: 0.25, slowTime: 0.8, stun: 0 },
+    base: { cooldown: 12, radius: 110, castRange: 130, pulses: 3, interval: 1, damage: 0.75, slow: 0.25, slowTime: 0.8, stun: 0 },
     forks: [
       {
         rank: 5,
@@ -249,7 +249,7 @@ export const SKILLS: Record<string, SkillDef> = {
       },
     ],
     upgrades: [
-      { set: { damage: 0.75 } },
+      { set: { damage: 0.9 } },
       { set: { pulses: 4 } },
       { set: { radius: 130, cooldown: 11 } },
       { set: { stun: 0.3 }, text: 'Кожен поштовх оглушує на 0.3 с.' },
@@ -364,7 +364,7 @@ export const SKILLS: Record<string, SkillDef> = {
         rank: 3,
         options: [
           { name: 'Вогняні стріли', text: 'П’ять стріл Вогню.', set: { count: 5 }, element: 'fire' },
-          { name: 'Крижані стріли', text: 'П’ять стріл Води.', set: { count: 5 }, element: 'water' },
+          { name: 'Крижані стріли', text: 'Шість стріл Води.', set: { count: 6 }, element: 'water' },
         ],
       },
     ],
@@ -400,9 +400,9 @@ export const SKILLS: Record<string, SkillDef> = {
     aimable: true,
     icon: 'wall',
     description: 'Стіна вогню довжиною {length} px упоперек напрямку до курсора (до {range} px від героя): {duration} с, кожні 0.5 с — {damage%} атаки героя.',
-    base: { cooldown: 10, range: 300, length: 160, duration: 4, tick: 0.5, damage: 0.35, segment: 28, burn: 0, burnDps: 0.3, burnTime: 3, slow: 0 },
+    base: { cooldown: 10, range: 300, length: 160, duration: 4, tick: 0.5, damage: 0.6, segment: 28, burn: 0, burnDps: 0.3, burnTime: 3, slow: 0 },
     upgrades: [
-      { set: { damage: 0.45 } },
+      { set: { damage: 0.72 } },
       { set: { burn: 1 }, text: 'Вороги в стіні горять 3 с (30% атаки героя за секунду).' },
       { set: { length: 220, duration: 5 } },
       { set: { slow: 0.4 }, text: 'Стіна сповільнює ворогів на 40%.' },
@@ -569,11 +569,11 @@ export const SKILLS: Record<string, SkillDef> = {
     targeting: 'any',
     icon: 'rage',
     description: 'На {duration} с: +{attackSpeed%} швидкості атаки і {lifesteal%} вампіризму.',
-    base: { cooldown: 20, duration: 6, attackSpeed: 0.5, lifesteal: 0.15, guard: 0, ccImmune: 0 },
+    base: { cooldown: 20, duration: 6, attackSpeed: 0.6, lifesteal: 0.15, guard: 0, ccImmune: 0 },
     upgrades: [
       { set: { duration: 7 } },
       { set: { guard: 0.3 }, text: 'Під час люті −30% отриманої шкоди.' },
-      { set: { attackSpeed: 0.7, cooldown: 18 } },
+      { set: { attackSpeed: 0.8, cooldown: 18 } },
       { set: { ccImmune: 1 }, text: 'Під час люті — несприйнятливість до оглушень, сповільнень і пасток.' },
     ],
   }),
@@ -621,9 +621,9 @@ export const SKILLS: Record<string, SkillDef> = {
     targeting: 'self',
     icon: 'blizzard',
     description: 'Хуртовина навколо героя на {duration} с (радіус {radius} px): сповільнення ворогів на {slow%} і {damage%} атаки героя кожні 0.5 с.',
-    base: { cooldown: 16, duration: 4, radius: 160, castRange: 200, slow: 0.5, damage: 0.3, tick: 0.5, freezeChance: 0 },
+    base: { cooldown: 16, duration: 4, radius: 160, castRange: 200, slow: 0.5, damage: 0.38, tick: 0.5, freezeChance: 0 },
     upgrades: [
-      { set: { damage: 0.4 } },
+      { set: { damage: 0.5 } },
       { set: { radius: 200, castRange: 240 }, text: 'Ширша хуртовина.' },
       { set: { duration: 6, cooldown: 14 } },
       { set: { freezeChance: 0.2 }, text: 'Кожен порив з шансом 20% заморожує ворога на 1 с.' },
@@ -639,11 +639,11 @@ export const SKILLS: Record<string, SkillDef> = {
     aimable: true,
     icon: 'scope',
     description: 'Наведення {aim} с, потім постріл у бік курсора через усю арену: {damage%} атаки героя кожному на лінії.',
-    base: { cooldown: 14, aim: 1, damage: 5, speed: 1600, range: 1000, vuln: 0, vulnTime: 4, extra: 0, spreadDeg: 8 },
+    base: { cooldown: 12, aim: 1, damage: 6, speed: 1600, range: 1000, vuln: 0, vulnTime: 4, extra: 0, spreadDeg: 8 },
     upgrades: [
-      { set: { damage: 6 } },
+      { set: { damage: 7.2 } },
       { set: { vuln: 0.25 }, text: 'Влучені вороги 4 с отримують +25% шкоди.' },
-      { set: { aim: 0.6, cooldown: 12 } },
+      { set: { aim: 0.6, cooldown: 10 } },
       { set: { extra: 2 }, text: 'Ще 2 постріли віялом.' },
     ],
   }),

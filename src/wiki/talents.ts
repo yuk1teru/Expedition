@@ -47,7 +47,7 @@ export function talentsSection(): Section {
         return `<h4>Ряд ${i + 1}${i ? ` — від ${TALENTS.rowUnlock[i]} очок у дереві` : ' — одразу'}</h4>${table(['Вузол', 'Шкода/с за рангами (× атака)', 'Цінність за очко', 'Розвилки'], [...skills, ...passives, ...arrows], 'wide')}`;
       }).join('');
       const branches = classPromotions(c)
-        .map((p) => `${esc(p.name)}: ${link('skill', p.signature, getSkill(p.signature).name)} (рівень ${PROGRESSION.promotionLevel}), ${link('skill', p.signature2, getSkill(p.signature2).name)} (рівень ${PROGRESSION.promotion2Level}, ${esc(p.bonus2.text)}); пасивки — ${p.passives.map((id) => esc(getPassive(id).name)).join(', ')}`)
+        .map((p) => `${esc(p.name)}: ${link('skill', p.signature, getSkill(p.signature).name)} (рівень ${PROGRESSION.promotionLevel}), ${link('skill', p.signature2, getSkill(p.signature2).name)} (рівень ${PROGRESSION.promotion2Level}, ${esc(p.bonus2.text)}; посилення на вибір: ${p.forks22.map((f) => `<b>${esc(f.name)}</b> — ${esc(f.text)}`).join(' або ')}); пасивки — ${p.passives.map((id) => esc(getPassive(id).name)).join(', ')}`)
         .join('<br>');
       return `<h3 class="group">${esc(CLASSES[c]!.name)} <small class="dim">(усе дерево — ${treeCost(c)} очок)</small></h3>${rows}<p class="small"><b>Гілки:</b><br>${branches}</p>`;
     })

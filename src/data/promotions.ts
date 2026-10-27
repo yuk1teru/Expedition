@@ -18,6 +18,14 @@ export type PromotionEffect =
   /** A wolf companion: `hpFrac` × hero max HP, bites for `damage` × hero attack, back `respawn` s after dying. */
   | { kind: 'companion'; hpFrac: number; damage: number; respawn: number };
 
+/** A branch's level-22 boost of a class skill: its parameters at least these. */
+export interface BranchFork {
+  name: string;
+  text: string;
+  skill: string;
+  set: Record<string, number>;
+}
+
 export interface PromotionDef {
   id: string;
   classId: string;
@@ -32,6 +40,8 @@ export interface PromotionDef {
   signature2: string;
   /** The full boost at level 22: a stat bonus. */
   bonus2: { stat: GiftStat; value: number; text: string };
+  /** Level 22: the player picks one of two boosts of a class skill (ROADMAP 15.6). */
+  forks22: [BranchFork, BranchFork];
   passives: string[];
   /** Outline colour of the hero after the promotion. */
   color: string;
@@ -47,6 +57,10 @@ export const PROMOTIONS: Record<string, PromotionDef> = {
     effect: { kind: 'berserk', maxBonus: 0.6 },
     signature: 'rage',
     signature2: 'bloodFlurry',
+    forks22: [
+      { name: 'Нескінченний вихор', text: 'Вихор крутиться 3 с і ширший (радіус 120).', skill: 'whirlwind', set: { duration: 3, radius: 120 } },
+      { name: 'Шалений ривок', text: 'Ривок оглушує на 1.5 с і б’є ширше (радіус 140).', skill: 'charge', set: { stun: 1.5, radius: 140 } },
+    ],
     bonus2: { stat: 'attackSpeedPct', value: 0.1, text: '+10% швидкості атаки' },
     passives: ['bloodlust', 'unstoppable'],
     color: '#e04a2f',
@@ -60,6 +74,10 @@ export const PROMOTIONS: Record<string, PromotionDef> = {
     effect: { kind: 'aegis', interval: 10, shield: 0.15 },
     signature: 'holyShield',
     signature2: 'judgement',
+    forks22: [
+      { name: 'Освячений удар', text: 'Удар об землю — 150° і оглушує на 1.2 с.', skill: 'groundSlam', set: { angle: 150, stun: 1.2 } },
+      { name: 'Ланцюг віри', text: 'Гак ширший (90°) і б’є вдвічі сильніше.', skill: 'hook', set: { angle: 90, damage: 2 } },
+    ],
     bonus2: { stat: 'armor', value: 12, text: '+12 броні' },
     passives: ['blessing', 'sacredArmor'],
     color: '#f2d16b',
@@ -73,6 +91,10 @@ export const PROMOTIONS: Record<string, PromotionDef> = {
     effect: { kind: 'ignite', dps: 0.3, time: 3, skills: ['fireball', 'flameWall', 'meteor'] },
     signature: 'meteor',
     signature2: 'firestorm',
+    forks22: [
+      { name: 'Пекельна куля', text: 'Вогняна куля б’є сильніше й відкидає.', skill: 'fireball', set: { damage: 3.4, knockback: 400 } },
+      { name: 'Вогняний вал', text: 'Стіна вогню довша (300 px) і завжди підпалює.', skill: 'flameWall', set: { length: 300, burn: 1 } },
+    ],
     bonus2: { stat: 'skillDamagePct', value: 0.12, text: '+12% шкоди скілів' },
     passives: ['embers', 'ashes'],
     color: '#ff7a2f',
@@ -86,6 +108,10 @@ export const PROMOTIONS: Record<string, PromotionDef> = {
     effect: { kind: 'shatter', frozenBonus: 0.5, shards: 6, shardDamage: 0.5, shardSpeed: 420, shardRange: 170 },
     signature: 'blizzard',
     signature2: 'iceSpire',
+    forks22: [
+      { name: 'Вічна мерзлота', text: 'Крижане кільце заморожує на 2.5 с і лишає крижане поле.', skill: 'frostRing', set: { freeze: 2.5, field: 1 } },
+      { name: 'Крижаний шквал', text: 'Сім магічних стріл, кожна відскакує ще раз.', skill: 'magicMissiles', set: { count: 7, ricochet: 1 } },
+    ],
     bonus2: { stat: 'hpPct', value: 0.12, text: '+12% макс. HP' },
     passives: ['coldHeart', 'rime'],
     color: '#7fd0ff',
@@ -99,6 +125,10 @@ export const PROMOTIONS: Record<string, PromotionDef> = {
     effect: { kind: 'marksman', crit: 0.15, pierce: 2 },
     signature: 'aimedShot',
     signature2: 'burstArrow',
+    forks22: [
+      { name: 'Наскрізь', text: 'Пробивна стріла б’є сильніше, а влучені отримують +30% шкоди.', skill: 'piercingShot', set: { damage: 4, vuln: 0.3 } },
+      { name: 'Град стріл', text: 'Мультипостріл — 11 стріл, кожна пробиває ворога.', skill: 'multishot', set: { count: 11, pierce: 1 } },
+    ],
     bonus2: { stat: 'critChance', value: 0.08, text: '+8% шансу криту' },
     passives: ['hawkEye', 'steadyHand'],
     color: '#c8e06a',
@@ -112,6 +142,10 @@ export const PROMOTIONS: Record<string, PromotionDef> = {
     effect: { kind: 'companion', hpFrac: 0.4, damage: 0.4, respawn: 10 },
     signature: 'callOfPack',
     signature2: 'bear',
+    forks22: [
+      { name: 'Ловча сітка', text: 'Сітка ширша (радіус 110) і тримає 3 с.', skill: 'net', set: { radius: 110, stun: 3 } },
+      { name: 'Мисливські пастки', text: 'До 5 пасток, кожна оглушує на 1 с.', skill: 'hunterTrap', set: { max: 5, stun: 1 } },
+    ],
     bonus2: { stat: 'hpPct', value: 0.1, text: '+10% макс. HP' },
     passives: ['packLeader', 'instinct'],
     color: '#b08a5a',

@@ -26,7 +26,9 @@ export interface RunStats {
 /** `bossReward`: the extra card for a boss victory (not a level-up). */
 export type ModalRequest = { kind: 'classChoice' } | { kind: 'gift'; rarity: GiftRarity } | { kind: 'promotion' } | { kind: 'promotion2' }
   /** A soul touched with an empty rune stone in the bag (ROADMAP 14.3). */
-  | { kind: 'soulCatch'; soul: string };
+  | { kind: 'soulCatch'; soul: string }
+  /** Level 22: one of the branch's two skill boosts (ROADMAP 15.6). */
+  | { kind: 'branchFork' };
 
 export interface GameState {
   seed: number;

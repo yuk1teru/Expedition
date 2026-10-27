@@ -1,5 +1,6 @@
 // Headless bot used by the balance simulation.
 
+import { chooseBranchFork } from '../src/systems/run';
 import { getNode } from '../src/systems/mapgen';
 import { catchSoul } from '../src/systems/souls';
 import { type ArenaStep, chooseNext, finishStep, nextChoice, startExpedition, stepBattle as stepBattleOf } from '../src/systems/expedition';
@@ -64,6 +65,8 @@ export function resolveModals(state: GameState, rng: Rng, classId?: string): voi
       if (branches.length > 0) choosePromotion(state, rng.pick(branches).id);
     } else if (req.kind === 'promotion2') {
       completePromotion(state);
+    } else if (req.kind === 'branchFork') {
+      chooseBranchFork(state, rng.int(0, 1));
     } else if (req.kind === 'soulCatch') {
       catchSoul(state, req.soul);
     } else if (req.kind === 'gift' && state.hero.classId) {

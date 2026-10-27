@@ -1,5 +1,6 @@
 // Application shell: owns the view, input, loop, screens and the run state.
 
+import { chooseBranchFork } from '../systems/run';
 import { createGrowthModal } from './growth';
 import { defenseBattle, finishDefense } from '../systems/invasion';
 import { INVASION_EVENTS } from '../data/invasion';
@@ -68,7 +69,7 @@ import { abandonExpedition, chooseNext, finishStep, nextChoice, startExpedition,
 import { createTitleScreen } from './titleScreen';
 import { createCoachModal } from './coach';
 import { createSettingsModal } from './settingsModal';
-import { createConfirmModal, createNoticeModal } from './notice';
+import { createChoiceModal, createConfirmModal, createNoticeModal } from './notice';
 import { createJournalModal } from './journal';
 import { createTalentTreeModal } from './talentTree';
 import { HINTS, type HintId } from '../data/hints';
@@ -708,6 +709,16 @@ export class App {
       return;
     }
     if (!this.state.hero.classId) return;
+    if (req.kind === 'branchFork' && this.state.hero.promotion) {
+      const forks = getPromotion(this.state.hero.promotion).forks22;
+      this.screens.pushModal(
+        createChoiceModal(this, 'Гілка: оберіть посилення скіла', forks, (i) => {
+          chooseBranchFork(this.state, i);
+          this.screens.popModal();
+        }),
+      );
+      return;
+    }
     if (req.kind === 'promotion') {
       this.screens.pushModal(
         createPromotionModal(this, (branchId) => {

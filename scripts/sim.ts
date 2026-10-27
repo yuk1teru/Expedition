@@ -6,12 +6,14 @@
 //   npm run sim                       — 200 full runs, bot uses skills as soon as they are ready
 //   npm run sim -- --no-skills        — bot never uses skills
 //   npm run sim -- --class mage       — only the mage's runs of the rotation (same seeds as in the full run)
+//   npm run sim -- --builds 60        — build diversity test (ROADMAP 15.6): random builds per class
 
 import { Rng } from '../src/core/rng';
 import { SIM } from '../src/data/balance';
 import { CLASS_ORDER } from '../src/data/classes';
 import { createGameState } from '../src/systems/run';
 import { type FullRunResult, simulateFullRun } from './route';
+import { mainBuilds } from './builds';
 
 interface Args {
   runs: number;
@@ -104,4 +106,8 @@ function mainFull(args: Args): void {
   console.log(`\nЧас симуляції: ${((Date.now() - started) / 1000).toFixed(1)} с`);
 }
 
-mainFull(parseArgs(process.argv.slice(2)));
+const argv = process.argv.slice(2);
+if (argv.includes('--builds')) {
+  const a = parseArgs(argv);
+  mainBuilds(Number(argv[argv.indexOf('--builds') + 1]) || 40, a.classId, a.seed);
+} else mainFull(parseArgs(argv));
