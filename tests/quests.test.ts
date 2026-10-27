@@ -85,6 +85,7 @@ describe('quests', () => {
     if (leveled) {
       expect(questsOffered(s, leveled.giver).map((q) => q.id)).not.toContain(leveled.id);
       s.hero.level = leveled.requires!.level!;
+      if (leveled.classId) s.hero.classId = leveled.classId;
       expect(questsOffered(s, leveled.giver).map((q) => q.id)).toContain(leveled.id);
     }
   });

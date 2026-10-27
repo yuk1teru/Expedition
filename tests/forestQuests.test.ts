@@ -20,4 +20,14 @@ describe('the Smerekove chain and board (ROADMAP 15.1)', () => {
     expect(offered.length).toBeGreaterThanOrEqual(3);
     for (const q of offered) expect(q.repeatable).toBe(true);
   });
+
+  it('a class quest is offered to its class only', () => {
+    const s = createGameState(1);
+    s.hero.level = 10;
+    expect(questsOffered(s, 'warriorTeacher').map((q) => q.id)).not.toContain('warriorDrill');
+    s.hero.classId = 'mage';
+    expect(questsOffered(s, 'warriorTeacher').map((q) => q.id)).not.toContain('warriorDrill');
+    s.hero.classId = 'warrior';
+    expect(questsOffered(s, 'warriorTeacher').map((q) => q.id)).toContain('warriorDrill');
+  });
 });

@@ -62,6 +62,8 @@ export function questsOffered(state: GameState, npcId: string): QuestDef[] {
     if (r?.quests?.some((id) => !state.quests.done.includes(id))) return false;
     if (r?.level && state.hero.level < r.level) return false;
     if (r?.flag && !state[r.flag]) return false;
+    // A class quest is for that class only.
+    if (q.classId && state.hero.classId !== q.classId) return false;
     if (r?.captured && state.capturedRegion !== r.captured) return false;
     return true;
   });

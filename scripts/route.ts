@@ -4,6 +4,7 @@
 // farming the hardest cleared location; back to town (rest, shop) when HP < 40%. A death
 // returns the bot to the last rest (as the player); too many deaths end the run.
 
+import { botTownServices } from './botTown';
 import type { Rng } from '../src/core/rng';
 import type { GameState } from '../src/core/state';
 import { SIM } from '../src/data/balance';
@@ -137,6 +138,8 @@ export function townVisit(state: GameState): void {
     travel(state, way.length === 1 ? way[0]! : state.homeTown);
   }
   restInTown(state);
+  // Bot 2.0 (ROADMAP 15.5): quests, trophies, orders, alchemy, the smith, stones, the town.
+  botTownServices(state);
   const hero = state.hero;
   // Identify what could beat the worn item of its slot.
   for (let i = 0; i < hero.bag.length; i++) {

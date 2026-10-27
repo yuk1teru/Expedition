@@ -12,6 +12,12 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.43.1',
+    date: '2026-10-27',
+    title: 'Виправлення',
+    items: ['Класові квести вчителів тепер пропонують лише героям свого класу'],
+  },
+  {
     version: '0.43.0',
     date: '2026-10-27',
     title: 'Смерекове росте',
