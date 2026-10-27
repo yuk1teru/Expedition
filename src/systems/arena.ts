@@ -77,6 +77,20 @@ export function pushOutOfObstacles(a: ArenaState, body: Pick<Body, 'pos' | 'radi
   }
 }
 
+/** Can a shot fly from `a` to `b`: no obstacle crosses the segment (ROADMAP 15.5, the bot). */
+export function lineOfSight(arena: ArenaState, a: Vec, b: Vec, pad = 4): boolean {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy || 1;
+  for (const o of arena.obstacles) {
+    const t = Math.max(0, Math.min(1, ((o.x - a.x) * dx + (o.y - a.y) * dy) / len2));
+    const px = a.x + dx * t - o.x;
+    const py = a.y + dy * t - o.y;
+    if (px * px + py * py < (o.r + pad) ** 2) return false;
+  }
+  return true;
+}
+
 /** Does a circle at (x, y) touch an obstacle (projectiles break on them). */
 export function hitsObstacle(a: ArenaState, x: number, y: number, r: number): boolean {
   return a.obstacles.some((o) => (x - o.x) ** 2 + (y - o.y) ** 2 < (o.r + r) ** 2);

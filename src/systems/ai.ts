@@ -1,7 +1,8 @@
 // Hero auto-combat AI (melee and ranged) and enemy archetype AI.
 
 import { OBJECTIVES } from '../data/objectives';
-import { heroHidden } from './arena';
+import { heroHidden, lineOfSight, terrainAt } from './arena';
+import { type Element, elementMultiplier } from '../data/elements';
 import { ARENA, ENEMY_COMMON, HERO } from '../data/balance';
 import { ENEMIES, type EnemyDef, getEnemyDef } from '../data/enemies';
 import type { Battle } from './battle';
@@ -68,6 +69,44 @@ export function updateHeroAI(b: Battle, dt: number): void {
   if (hero.stats.ranged) rangedHero(b, hero, target);
   else meleeHero(b, hero, target);
   avoidPuddles(b, hero);
+  avoidTerrain(b, hero);
+}
+
+/**
+ * Bot: does not walk into thorns from clear ground — steps around (ROADMAP 15.5). Water only
+ * slows, and a stream may cross the whole arena: the bot wades through it.
+ */
+function avoidTerrain(b: Battle, hero: Hero): void {
+  if (b.arena.terrain.length === 0 || (hero.vel.x === 0 && hero.vel.y === 0)) return;
+  const bad = (p: Vec): boolean => terrainAt(b.arena, p) === 'thorns';
+  if (bad(hero.pos)) return;
+  const ahead = (vx: number, vy: number): Vec => ({ x: hero.pos.x + vx * 0.25, y: hero.pos.y + vy * 0.25 });
+  if (!bad(ahead(hero.vel.x, hero.vel.y))) return;
+  // Turn left or right, whichever keeps dry.
+  for (const s of [1, -1]) {
+    const vx = -hero.vel.y * s;
+    const vy = hero.vel.x * s;
+    if (!bad(ahead(vx, vy))) {
+      hero.vel.x = vx;
+      hero.vel.y = vy;
+      return;
+    }
+  }
+}
+
+/** Bot archer: the learned arrows that hit the target hardest (ROADMAP 15.5). */
+function botArrows(hero: Hero, target: Enemy): void {
+  if (hero.classId !== 'archer' || hero.arrows.length === 0) return;
+  let best: Element = 'neutral';
+  let bestMult = elementMultiplier('neutral', target.element);
+  for (const el of hero.arrows) {
+    const m = elementMultiplier(el, target.element);
+    if (m > bestMult) {
+      best = el;
+      bestMult = m;
+    }
+  }
+  hero.arrowElement = best;
 }
 
 /** Bot: does not walk into boss puddles (stepping out of one is the dodge's job). */
@@ -162,6 +201,16 @@ function rangedHero(b: Battle, hero: Hero, target: Enemy): void {
   const d = dist(hero.pos, target.pos);
   hero.facing = angleOf({ x: target.pos.x - hero.pos.x, y: target.pos.y - hero.pos.y });
   const speed = heroWalkSpeed(hero);
+  botArrows(hero, target);
+  // A tree or a rock between: step around it (sideways and closer) instead of shooting the bark.
+  if (b.arena.obstacles.length > 0 && !lineOfSight(b.arena, hero.pos, target.pos)) {
+    const to = normalize({ x: target.pos.x - hero.pos.x, y: target.pos.y - hero.pos.y });
+    const side = (hero.id + Math.floor(b.time / 2)) % 2 === 0 ? 1 : -1;
+    hero.vel.x = (to.x * 0.6 - to.y * side) * speed;
+    hero.vel.y = (to.y * 0.6 + to.x * side) * speed;
+    slideAlongWalls(hero);
+    return;
+  }
   if (d < r.retreatBelow) {
     moveAway(hero, target.pos, speed);
   } else if (d > r.keepMax) {

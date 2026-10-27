@@ -1,7 +1,8 @@
 // Headless bot used by the balance simulation.
 
+import { getNode } from '../src/systems/mapgen';
 import { catchSoul } from '../src/systems/souls';
-import { chooseNext, finishStep, nextChoice, startExpedition, stepBattle as stepBattleOf } from '../src/systems/expedition';
+import { type ArenaStep, chooseNext, finishStep, nextChoice, startExpedition, stepBattle as stepBattleOf } from '../src/systems/expedition';
 import { TALENTS } from '../src/data/talents';
 import { branchNodes, canLearn, learn, treeNodes } from '../src/systems/talents';
 import type { Rng } from '../src/core/rng';
@@ -133,8 +134,24 @@ function fight(state: GameState, b: Battle, opts: BotOptions): void {
 }
 
 /**
- * A crossing (one wave) or a whole location: its arenas one by one (ROADMAP 13.2), a random
- * arena at the fork; the summary is the one of the whole location.
+ * Bot 2.0 at a fork (ROADMAP 15.5): an unused altar (a gift); hurt — the arena without the
+ * bigger ambush; otherwise the treasure (gold and an item).
+ */
+export function botFork(state: GameState, options: ArenaStep[]): number {
+  if (options.length < 2) return 0;
+  const node = getNode(state.world, state.expedition!.nodeId);
+  const find = (kind: string): number => options.findIndex((o) => o.kind === kind);
+  const altar = find('altar');
+  if (altar >= 0 && !node.altarUsed) return altar;
+  const hurt = state.hero.hp < state.hero.maxHp * 0.5;
+  const treasure = find('treasure');
+  if (treasure >= 0) return hurt ? (treasure === 0 ? 1 : 0) : treasure;
+  return 0;
+}
+
+/**
+ * A crossing (one wave) or a whole location: its arenas one by one (ROADMAP 13.2), the fork
+ * chosen by `botFork`; the summary is the one of the whole location.
  */
 export function runBattle(state: GameState, nodeId: string, opts: BotOptions): BattleRun {
   let time = 0;
@@ -156,8 +173,7 @@ export function runBattle(state: GameState, nodeId: string, opts: BotOptions): B
         summary = res.summary;
         break;
       }
-      const choices = nextChoice(state.expedition!);
-      chooseNext(state, opts.rng.int(0, Math.max(0, choices.length - 1)));
+      chooseNext(state, botFork(state, nextChoice(state.expedition!)));
     }
   }
   // A player would buy magnifiers and wear new items; the bot fills empty slots.
