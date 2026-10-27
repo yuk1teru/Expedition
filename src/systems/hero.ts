@@ -1,5 +1,7 @@
 // Hero creation and derived stats.
 
+import type { SkillDef } from '../data/skills';
+import type { Element } from '../data/elements';
 import { HERO, PROGRESSION } from '../data/balance';
 import { type BasicAttackDef, NOVICE_ATTACK, getClass } from '../data/classes';
 import { getPromotion } from '../data/promotions';
@@ -45,6 +47,7 @@ export function createHero(id: number): Hero {
     promoTimer: 0,
     companionTimer: 0,
     mana: 0,
+    arrowElement: 'neutral',
   };
   recomputeHeroStats(hero);
   hero.hp = hero.maxHp;
@@ -78,6 +81,17 @@ function baseStats(level: number): HeroStats {
 }
 
 /** The hero's auto-attack: the class one, or the novice one before the class choice. */
+/** Element of the hero's basic attack: the archer's arrows, otherwise neutral (a soul stone — stage 14). */
+export function basicElement(hero: Hero): Element {
+  return hero.classId === 'archer' ? hero.arrowElement : 'neutral';
+}
+
+/** Element of a skill's damage for this hero ('arrows' — the arrows in use). */
+export function skillElement(hero: Hero, def: SkillDef): Element {
+  const e = def.element ?? 'neutral';
+  return e === 'arrows' ? hero.arrowElement : e;
+}
+
 export function basicAttackOf(hero: Hero): BasicAttackDef {
   return hero.classId ? getClass(hero.classId).basicAttack : NOVICE_ATTACK;
 }

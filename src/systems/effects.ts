@@ -1,6 +1,7 @@
 // Timed effects: zones (static or following the hero), dashes with
 // invulnerability, hero buffs.
 
+import type { Element } from '../data/elements';
 import { ARENA } from '../data/balance';
 import type { Battle } from './battle';
 import { addStatus, damageEnemy, pull, rollCrit, setBlastHandler } from './combat';
@@ -8,6 +9,8 @@ import type { Blast, Enemy, Hero, HeroBuff, Vec, Zone } from './entities';
 import { dist, distToSegment } from './entities';
 
 export interface ZoneSpec {
+  /** Element of its damage (default: the skill being cast). */
+  element?: Element;
   kind: string;
   pos: Vec;
   radius: number;
@@ -38,6 +41,7 @@ export function addZone(b: Battle, spec: ZoneSpec): Zone {
   const z: Zone = {
     id: b.nextId++,
     kind: spec.kind,
+    element: spec.element ?? b.castElement ?? 'neutral',
     pos: { ...spec.pos },
     radius: spec.radius,
     team: 'hero',
@@ -54,7 +58,7 @@ export function addZone(b: Battle, spec: ZoneSpec): Zone {
     burn: spec.burn ?? 0,
     burnTime: spec.burnTime ?? 0,
     trigger: spec.trigger ?? 0,
-    finale: spec.finale ?? null,
+    finale: spec.finale ? { element: spec.element ?? b.castElement ?? undefined, ...spec.finale } : null,
     line: spec.line ? { a: { ...spec.line.a }, b: { ...spec.line.b } } : null,
     freezeChance: spec.freezeChance ?? 0,
     freezeTime: spec.freezeTime ?? 0,
@@ -106,6 +110,7 @@ export function blast(b: Battle, pos: Vec, spec: Blast, exclude: readonly number
     if (spec.damage > 0) {
       damageEnemy(b, e, rollCrit(b.rng, spec.damage, s.critChance, s.critMult), {
         source: 'skill',
+        element: spec.element ?? b.castElement ?? 'neutral',
         knockFrom: spec.knockback ? pos : undefined,
         knockback: spec.knockback,
       });
@@ -115,7 +120,7 @@ export function blast(b: Battle, pos: Vec, spec: Blast, exclude: readonly number
   }
   if (spec.zone) {
     const z = spec.zone;
-    addZone(b, { kind: z.kind, pos, radius: z.radius, duration: z.duration, tickInterval: z.tickInterval, damage: z.damage, slow: z.slow, slowTime: z.slowTime, burn: z.burn, burnTime: z.burnTime });
+    addZone(b, { kind: z.kind, element: spec.element, pos, radius: z.radius, duration: z.duration, tickInterval: z.tickInterval, damage: z.damage, slow: z.slow, slowTime: z.slowTime, burn: z.burn, burnTime: z.burnTime });
   }
   b.events.emit({ type: 'skillTick', skillId: spec.kind, pos: { ...pos }, radius: spec.radius });
   return hit;
@@ -143,7 +148,7 @@ function tickZone(b: Battle, z: Zone): void {
   const s = b.hero.stats;
   for (const e of b.enemies) {
     if (e.dead || !inZone(z, e.pos, e.radius)) continue;
-    if (z.damage > 0) damageEnemy(b, e, rollCrit(b.rng, z.damage, s.critChance, s.critMult), { source: 'zone' });
+    if (z.damage > 0) damageEnemy(b, e, rollCrit(b.rng, z.damage, s.critChance, s.critMult), { source: 'zone', element: z.element });
     if (e.dead) continue;
     if (z.pull > 0) pull(e, z.pos, z.pull);
     if (z.stun > 0) addStatus(e, 'stun', z.stun);

@@ -265,7 +265,10 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
         fx.burst(e.pos, P.hit, T.splashColor);
         break;
       }
-      if (fx.numbersOn) fx.text({ x: e.pos.x, y: e.pos.y - e.radius - 6 }, String(amount), e.crit ? T.critColor : T.color, e.crit ? T.critSize : T.size);
+      // Elements: a weakness hit is orange and bigger, a resisted one grey (ROADMAP 12.2).
+      const eff = e.eff ?? 1;
+      const color = e.crit ? T.critColor : eff >= 1.25 ? '#ffa040' : eff <= 0.75 ? '#8a8f99' : T.color;
+      if (fx.numbersOn) fx.text({ x: e.pos.x, y: e.pos.y - e.radius - 6 }, String(amount), color, e.crit || eff >= 1.25 ? T.critSize : T.size);
       if (e.source === 'basic') fx.ring(e.pos, e.radius + FX.impact.extra, '#ffffff', FX.impact.life, FX.impact.width);
       fx.burst(e.pos, e.crit ? P.crit : P.hit, e.crit ? T.critColor : '#ffffff');
       if (e.crit) fx.stop(FX.hitStop.crit);

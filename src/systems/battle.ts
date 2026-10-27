@@ -23,6 +23,7 @@ import type { Item } from './items';
 import type { GameEvent } from './gameEvents';
 import { type MapNode, effectiveLevel, getNode } from './mapgen';
 import { levelTier } from './scaling';
+import type { Element } from '../data/elements';
 import { type Trap, updateTraps } from './traps';
 import { type WaveState, createWaves, updateWaves } from './waves';
 import { type WeatherState, updateWeather } from './weather';
@@ -117,6 +118,8 @@ export interface Battle {
   healAcc: number;
   /** What killed the hero (null while alive or when unknown). */
   deathCause: DeathCause | null;
+  /** The element of the skill being cast right now: what it creates (projectiles, zones, blasts) takes it. */
+  castElement: Element | null;
   healTimer: number;
   /** Poison damage since the last popup (shown summed, like lifesteal). */
   poisonAcc: number;
@@ -171,6 +174,7 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0, tr
     stats: { kills: 0, xp: 0, gold: 0, damageDealt: 0, damageTaken: 0, heals: 0, killsById: {}, minibossKills: 0, loot: [] },
     healAcc: 0,
     deathCause: null,
+    castElement: null,
     healTimer: 0,
     poisonAcc: 0,
     goldFrac: 0,
@@ -297,7 +301,7 @@ function updateProjectiles(b: Battle, dt: number): void {
       p.dead = true;
       if (p.puddle && b.outcome === 'running') addPuddle(b, p.puddle.kind, p.pos, p.puddle.radius, p.puddle.duration, p.puddle.dps);
       // An exploding projectile that hit nothing bursts where it stops.
-      if (p.explode && b.outcome === 'running') blast(b, p.pos, p.explode, p.explode.excludeHit ? p.hit : []);
+      if (p.explode && b.outcome === 'running') blast(b, p.pos, { element: p.element, ...p.explode }, p.explode.excludeHit ? p.hit : []);
       continue;
     }
     if (b.outcome !== 'running') continue;
@@ -315,11 +319,11 @@ function updateProjectiles(b: Battle, dt: number): void {
         if (e.dead || p.hit.includes(e.id)) continue;
         if (dist(p.pos, e.pos) > p.radius + e.radius) continue;
         p.hit.push(e.id);
-        if (p.damage > 0) damageEnemy(b, e, { amount: p.damage, crit: p.kind.endsWith('Crit') }, { source: p.source ?? 'basic' });
+        if (p.damage > 0) damageEnemy(b, e, { amount: p.damage, crit: p.kind.endsWith('Crit') }, { source: p.source ?? 'basic', element: p.element });
         if (p.onHit && !e.dead) addStatus(e, p.onHit.id, p.onHit.time, p.onHit.value);
         if (p.explode) {
           p.dead = true;
-          blast(b, p.pos, p.explode, p.explode.excludeHit ? p.hit : []);
+          blast(b, p.pos, { element: p.element, ...p.explode }, p.explode.excludeHit ? p.hit : []);
           break;
         }
         if (p.pierce > 0) {
@@ -384,7 +388,12 @@ function updateCharges(b: Battle, dt: number): void {
   for (const c of b.charges) c.time += dt;
   const ready = b.charges.filter((c) => c.time >= c.delay);
   b.charges = b.hero.dead ? [] : b.charges.filter((c) => c.time < c.delay);
-  for (const c of ready) c.onFire();
+  for (const c of ready) {
+    // A channelled shot fires with the element it was cast with.
+    b.castElement = c.element ?? null;
+    c.onFire();
+    b.castElement = null;
+  }
 }
 
 function cleanup(b: Battle): void {

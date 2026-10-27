@@ -37,6 +37,8 @@ import {
   v,
   whereFound,
 } from './html';
+import { elementTag, elementsSection } from './elements';
+import { ENEMY_ELEMENTS } from '../data/elements';
 import { deathSection, invasionSection, loreSection, questsGivenBy, questsSection, trophiesSection } from './story';
 
 export { esc, formatValue, type Fmt, type Ref, type Section } from './html';
@@ -149,7 +151,7 @@ function skillCard(id: string): string {
   const body = `<p>${t(describeSkill(id, 1), ['SKILLS', id, 'description'], s.description)}</p>${table(['Параметр', ...ranks.map((r) => `Р${r}`)], rows, 'ranks')}${specials ? `<ul>${specials}</ul>` : ''}`;
   const owner = CLASSES[s.classId]?.name ?? s.classId;
   const branch = s.branch ? ` · ${PROMOTIONS[s.branch]?.name ?? s.branch} (R)` : '';
-  return card(anchor('skill', id), t(s.name, ['SKILLS', id, 'name']), body, `${esc(owner)}${esc(branch)}`);
+  return card(anchor('skill', id), t(s.name, ['SKILLS', id, 'name']), body, `${esc(owner)}${esc(branch)}${s.element && s.element !== 'neutral' ? ` · ${elementTag(s.element)}` : ''}`);
 }
 
 function skillsSection(): Section {
@@ -207,12 +209,19 @@ function enemyFeatures(e: EnemyDef): string {
   return out.join('; ');
 }
 
+/** "Вода 2, панцир" — an enemy's defence for the tables. */
+function defenceTag(id: string): string {
+  const p = ENEMY_ELEMENTS[id];
+  if (!p) return '<span class="dim">нейтральний</span>';
+  return `${elementTag(p.type)} ${p.level}${p.shell !== undefined ? ', панцир' : ''}`;
+}
+
 function enemiesSection(): Section {
   const rows = Object.values(ENEMIES).map((e) => {
     const R = (k: string): Ref => ['ENEMIES', e.id, k];
     return [
       `<b id="${anchor('enemy', e.id)}">${t(e.name, R('name'))}</b><div class="dim small">${t(e.trait, R('trait'))}</div>`,
-      ARCHETYPES[e.archetype] ?? e.archetype,
+      `${ARCHETYPES[e.archetype] ?? e.archetype}<div class="small">${defenceTag(e.id)}</div>`,
       v(e.hp, R('hp')),
       v(e.damage, R('damage')),
       v(e.speed, R('speed')),
@@ -262,7 +271,7 @@ function bossCard(b: BossDef): string {
     `<span class="small">${bossParams(b, i, 1)}</span>`,
   ]);
   const body = `${table(['Параметр', 'Значення'], stats, 'kv')}<h4>Атаки</h4>${table(['Атака', 'Фази', 'Вага', 'Перезарядка ф1 / ф2', 'Фаза 1', 'Фаза 2'], attacks, 'wide')}<p class="small">Де: ${whereFound(b.id)}</p>`;
-  return card(anchor('boss', b.id), t(b.name, R('name')), formsLine(b.forms, R('forms')) + body, b.miniboss ? 'мінібос' : 'бос');
+  return card(anchor('boss', b.id), t(b.name, R('name')), formsLine(b.forms, R('forms')) + `<p class="small">Захист: ${defenceTag(b.id)}</p>` + body, b.miniboss ? 'мінібос' : 'бос');
 }
 
 function bossesSection(): Section {
@@ -565,6 +574,7 @@ export function buildSections(comment: (root: string, path: LiteralPath) => stri
     itemsSection(),
     consumablesSection(),
     wavesSection(),
+    elementsSection(),
     formulasSection(),
     // All the numbers of balance.ts — for the developer only.
     ...(import.meta.env.DEV ? [balanceSection(comment)] : []),

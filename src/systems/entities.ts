@@ -1,5 +1,6 @@
 // Entity types shared by combat, AI, skills, bosses and render.
 
+import type { Element, ElementProfile } from '../data/elements';
 import type { ConsumableId, HealId } from '../data/consumables';
 import type { ItemSlot } from '../data/items';
 import type { HitSource } from './gameEvents';
@@ -87,6 +88,8 @@ export interface HeroBuff {
 export interface Blast {
   /** Render key (skill id or effect name). */
   kind: string;
+  /** Element of its damage (default: the skill being cast, else neutral). */
+  element?: Element;
   radius: number;
   damage: number;
   stun?: number;
@@ -187,6 +190,8 @@ export interface Hero extends Body {
   companionTimer: number;
   /** Mage mana (the mana shield); 0 for other classes. */
   mana: number;
+  /** Archer: the element of the arrows in use (ROADMAP 12.5). */
+  arrowElement: Element;
 }
 
 /** A body on the hero's side (wolves of the Beastmaster): chases and bites enemies. */
@@ -206,6 +211,8 @@ export interface Ally extends Body {
 /** A hero skill being channelled (Aimed Shot): fires `onFire` after `delay`. */
 export interface HeroCharge {
   kind: string;
+  /** The element it was cast with. */
+  element?: Element | null;
   time: number;
   delay: number;
   onFire: () => void;
@@ -230,6 +237,8 @@ export interface BossRuntime {
 
 export interface Enemy extends Body {
   defId: string;
+  /** Defence element and level, shell (ROADMAP 12.2). */
+  element?: ElementProfile;
   name: string;
   archetype: Archetype;
   elite: boolean;
@@ -276,6 +285,8 @@ export interface Projectile {
   melee: boolean;
   /** Enemy projectiles: the shooter's enemy or boss id (what killed the hero). */
   owner?: string;
+  /** Hero projectiles: the element of their damage. */
+  element?: Element;
   /** Slows the hero on hit. */
   slow?: { value: number; time: number };
   /** Hero projectiles: damage × this after each enemy passed (falloff < 1, growth > 1). */
@@ -297,6 +308,8 @@ export interface Projectile {
 export interface Zone {
   id: number;
   kind: string;
+  /** Element of its damage. */
+  element: Element;
   pos: Vec;
   radius: number;
   team: Team;

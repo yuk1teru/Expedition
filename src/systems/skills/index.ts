@@ -8,7 +8,7 @@ import { startDash } from '../effects';
 import { bootDash } from '../items';
 import type { Battle } from '../battle';
 import { hasStatus, isDisabled } from '../combat';
-import { skillInSlot } from '../hero';
+import { skillElement, skillInSlot } from '../hero';
 import type { SkillImpl } from './types';
 import { ARCHER_SKILLS } from './archer';
 import { MAGE_SKILLS } from './mage';
@@ -42,7 +42,10 @@ export function useSkill(b: Battle, slot: number): SkillUseResult {
     b.events.emit({ type: 'noTarget', slot, reason: 'rooted' });
     return 'busy';
   }
+  // Everything the skill creates while being cast takes its element (ROADMAP 12.2).
+  b.castElement = skillElement(hero, def);
   const ok = impl({ b, hero, def, rank: s.rank, p, aim: def.aimable ? skillAim(b) : null });
+  b.castElement = null;
   if (!ok) {
     b.events.emit({ type: 'noTarget', slot });
     return 'noTarget';

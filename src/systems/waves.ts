@@ -5,6 +5,7 @@
 // Every 5th wave brings an event: bad weather or an elemental. Until the hero leaves,
 // waves keep coming.
 
+import { ENEMY_ELEMENTS } from '../data/elements';
 import { ARENA, ELITE, ENEMY_COMMON, WAVES, WAVE_EVENTS } from '../data/balance';
 import { getEnemyDef } from '../data/enemies';
 import { WEATHER_ORDER } from '../data/weather';
@@ -366,6 +367,7 @@ export function spawnEnemy(b: Battle, defId: string, pos: Vec, elite = false, su
     spawnedAt: b.time,
     dead: false,
     defId,
+    element: ENEMY_ELEMENTS[defId],
     name: elite ? `${def.name} (елітний)` : def.name,
     archetype: def.archetype,
     elite,

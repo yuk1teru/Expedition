@@ -2,6 +2,7 @@
 // every upgrade sets new absolute values; ranks 3 and 5 add a special modifier.
 
 import { RANKS } from './balance';
+import type { Element } from './elements';
 
 export type Targeting =
   /** Around the hero; needs an enemy within `castRange`. */
@@ -64,6 +65,8 @@ export interface SkillDef {
   aimable?: boolean;
   /** Moves the hero (blocked while rooted by a trap). */
   moves?: boolean;
+  /** Element of the skill's damage (ROADMAP 12.2); 'arrows' — the archer's chosen arrows. Default: neutral. */
+  element?: Element | 'arrows';
   icon: SkillIcon;
   /** Short description; {param} placeholders are filled from rank params. */
   description: string;
@@ -151,6 +154,7 @@ export const SKILLS: Record<string, SkillDef> = {
   groundSlam: skill({
     id: 'groundSlam',
     name: 'Удар об землю',
+    element: 'earth',
     classId: 'warrior',
     targeting: 'cone',
     aimable: true,
@@ -198,6 +202,7 @@ export const SKILLS: Record<string, SkillDef> = {
   earthquake: skill({
     id: 'earthquake',
     name: 'Землетрус',
+    element: 'earth',
     classId: 'warrior',
     targeting: 'self',
     icon: 'quake',
@@ -232,6 +237,7 @@ export const SKILLS: Record<string, SkillDef> = {
   fireball: skill({
     id: 'fireball',
     name: 'Вогняна куля',
+    element: 'fire',
     classId: 'mage',
     targeting: 'densest',
     aimable: true,
@@ -248,6 +254,7 @@ export const SKILLS: Record<string, SkillDef> = {
   frostRing: skill({
     id: 'frostRing',
     name: 'Крижане кільце',
+    element: 'water',
     classId: 'mage',
     targeting: 'self',
     icon: 'frost',
@@ -263,6 +270,7 @@ export const SKILLS: Record<string, SkillDef> = {
   chainLightning: skill({
     id: 'chainLightning',
     name: 'Ланцюгова блискавка',
+    element: 'wind',
     classId: 'mage',
     targeting: 'any',
     aimable: true,
@@ -312,6 +320,7 @@ export const SKILLS: Record<string, SkillDef> = {
   iceBarrier: skill({
     id: 'iceBarrier',
     name: 'Крижаний бар’єр',
+    element: 'water',
     classId: 'mage',
     targeting: 'any',
     icon: 'barrier',
@@ -327,6 +336,7 @@ export const SKILLS: Record<string, SkillDef> = {
   flameWall: skill({
     id: 'flameWall',
     name: 'Стіна вогню',
+    element: 'fire',
     classId: 'mage',
     targeting: 'densest',
     aimable: true,
@@ -343,6 +353,7 @@ export const SKILLS: Record<string, SkillDef> = {
   vortex: skill({
     id: 'vortex',
     name: 'Вирва',
+    element: 'wind',
     classId: 'mage',
     targeting: 'densest',
     aimable: true,
@@ -361,6 +372,7 @@ export const SKILLS: Record<string, SkillDef> = {
   multishot: skill({
     id: 'multishot',
     name: 'Мультипостріл',
+    element: 'arrows',
     classId: 'archer',
     targeting: 'cone',
     aimable: true,
@@ -393,6 +405,7 @@ export const SKILLS: Record<string, SkillDef> = {
   arrowRain: skill({
     id: 'arrowRain',
     name: 'Дощ стріл',
+    element: 'arrows',
     classId: 'archer',
     targeting: 'densest',
     aimable: true,
@@ -426,6 +439,7 @@ export const SKILLS: Record<string, SkillDef> = {
   piercingShot: skill({
     id: 'piercingShot',
     name: 'Пронизлива стріла',
+    element: 'arrows',
     classId: 'archer',
     targeting: 'cone',
     aimable: true,
@@ -474,6 +488,7 @@ export const SKILLS: Record<string, SkillDef> = {
   barrage: skill({
     id: 'barrage',
     name: 'Шквал',
+    element: 'arrows',
     classId: 'archer',
     targeting: 'any',
     icon: 'barrage',
@@ -507,6 +522,7 @@ export const SKILLS: Record<string, SkillDef> = {
   holyShield: skill({
     id: 'holyShield',
     name: 'Священний щит',
+    element: 'holy',
     classId: 'warrior',
     branch: 'paladin',
     targeting: 'any',
@@ -523,6 +539,7 @@ export const SKILLS: Record<string, SkillDef> = {
   meteor: skill({
     id: 'meteor',
     name: 'Метеор',
+    element: 'fire',
     classId: 'mage',
     branch: 'pyromancer',
     targeting: 'densest',
@@ -540,6 +557,7 @@ export const SKILLS: Record<string, SkillDef> = {
   blizzard: skill({
     id: 'blizzard',
     name: 'Хуртовина',
+    element: 'water',
     classId: 'mage',
     branch: 'cryomancer',
     targeting: 'self',
@@ -556,6 +574,7 @@ export const SKILLS: Record<string, SkillDef> = {
   aimedShot: skill({
     id: 'aimedShot',
     name: 'Прицільний постріл',
+    element: 'arrows',
     classId: 'archer',
     branch: 'sniper',
     targeting: 'cone',

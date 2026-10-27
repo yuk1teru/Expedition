@@ -95,6 +95,7 @@ const aimedShot: SkillImpl = ({ b, hero, p, def, rank }) => {
   if (!nearestEnemy(b.enemies, hero.pos)) return false;
   addStatus(hero, 'root', p.aim!);
   b.charges.push({
+    element: b.castElement,
     kind: def.id,
     time: 0,
     delay: p.aim!,

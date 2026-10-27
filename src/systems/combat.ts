@@ -11,7 +11,8 @@ import { ENEMIES } from '../data/enemies';
 import { getClass } from '../data/classes';
 import { LOOT } from '../data/items';
 import { displayName, dropItemLevel, itemLevelRange, rollItem, rollRarity, stashLoot } from './items';
-import { heroAttack, heroLifesteal, heroRegen } from './hero';
+import { basicElement, heroAttack, heroLifesteal, heroRegen } from './hero';
+import { type Element, elementMultiplier } from '../data/elements';
 import { getPromotion } from '../data/promotions';
 import { gainXp } from './leveling';
 import { applyArmor, xpReward } from './scaling';
@@ -19,6 +20,8 @@ import { applyArmor, xpReward } from './scaling';
 export interface Roll {
   amount: number;
   crit: boolean;
+  /** Element of the damage (default: neutral). */
+  element?: Element;
 }
 
 export function rollCrit(rng: Rng, base: number, critChance: number, critMult: number): Roll {
@@ -30,11 +33,16 @@ export function rollCrit(rng: Rng, base: number, critChance: number, critMult: n
 export function heroDamage(b: Battle, mult: number, source: HitSource): Roll {
   const s = b.hero.stats;
   const skillMult = source === 'skill' || source === 'zone' ? s.skillDamageMult : 1;
-  return rollCrit(b.rng, heroAttack(b.hero) * mult * skillMult, s.critChance, s.critMult);
+  const roll = rollCrit(b.rng, heroAttack(b.hero) * mult * skillMult, s.critChance, s.critMult);
+  // Basic attacks: the hero's own element; skills: the element of the skill being cast.
+  roll.element = source === 'basic' ? basicElement(b.hero) : (b.castElement ?? 'neutral');
+  return roll;
 }
 
 export interface HitOptions {
   source: HitSource;
+  /** Element of the damage (overrides the roll's). */
+  element?: Element;
   /** Knockback away from this point. */
   knockFrom?: Vec;
   knockback?: number;
@@ -43,7 +51,9 @@ export interface HitOptions {
 export function damageEnemy(b: Battle, e: Enemy, roll: Roll, opts: HitOptions): number {
   if (e.dead) return 0;
   const vuln = e.statuses.vuln;
-  const amount = applyArmor(roll.amount, e.armor) * (vuln && vuln.time > 0 ? 1 + vuln.value : 1) * frozenBonus(b.hero, e);
+  const element = opts.element ?? roll.element ?? 'neutral';
+  const eff = elementMultiplier(element, e.element);
+  const amount = applyArmor(roll.amount, e.armor) * (vuln && vuln.time > 0 ? 1 + vuln.value : 1) * frozenBonus(b.hero, e) * eff;
   e.hp -= amount;
   e.hitAt = b.time;
   b.stats.damageDealt += amount;
@@ -62,6 +72,8 @@ export function damageEnemy(b: Battle, e: Enemy, roll: Roll, opts: HitOptions): 
     targetId: e.id,
     radius: e.radius,
     source: opts.source,
+    element,
+    eff,
   });
   if (e.hp <= 0) killEnemy(b, e);
   return amount;
@@ -367,8 +379,10 @@ export function updateStatuses(b: Battle, body: Body, dt: number): void {
     if (key === 'burn' && body.team === 'enemy' && st.time > 0) {
       const e = body as Enemy;
       if (!e.dead) {
-        e.hp -= st.value * dt;
-        b.stats.damageDealt += st.value * dt;
+        // Burning is fire damage.
+        const burn = st.value * dt * elementMultiplier('fire', e.element);
+        e.hp -= burn;
+        b.stats.damageDealt += burn;
         if (e.hp <= 0) killEnemy(b, e);
       }
     }

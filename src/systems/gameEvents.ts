@@ -2,6 +2,7 @@
 
 import type { HealId, PickupKind } from '../data/consumables';
 import type { Rarity } from '../data/items';
+import type { Element } from '../data/elements';
 import type { WeatherId } from '../data/weather';
 import type { Vec } from './entities';
 import type { WaveMult } from './waves';
@@ -11,7 +12,7 @@ export type GameEvent =
   | { type: 'checkpoint' }
   /** A quest was handed in (`reward`: what was given). */
   | { type: 'questDone'; name: string; reward: string[] }
-  | { type: 'hit'; pos: Vec; amount: number; crit: boolean; targetId: number; radius: number; source: HitSource }
+  | { type: 'hit'; pos: Vec; amount: number; crit: boolean; targetId: number; radius: number; source: HitSource; element?: Element; eff?: number }
   | { type: 'heroHurt'; pos: Vec; amount: number }
   /** Every basic attack of the hero (swing or shot), for the attack-speed visuals. */
   | { type: 'heroAttack'; pos: Vec; angle: number; reach: number; arc: number; ranged: boolean; targets: number }

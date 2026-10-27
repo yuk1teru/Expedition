@@ -9,7 +9,7 @@ import type { Ally, Enemy, Hero, Projectile, Vec } from './entities';
 import { damageAlly } from './allies';
 import { igniteFor } from './promotion';
 import { angleOf, dist, normalize } from './entities';
-import { basicAttackOf, heroMoveSpeed } from './hero';
+import { basicAttackOf, heroMoveSpeed, basicElement } from './hero';
 import { coneTargets, nearestEnemy } from './targeting';
 
 /** Effective attacks per second including buffs. */
@@ -389,6 +389,7 @@ export function enemyShoot(b: Battle, e: Enemy, speed: number, at: Vec = b.hero.
 
 export function spawnProjectile(b: Battle, p: Omit<Projectile, 'id' | 'hit' | 'dead'>): Projectile {
   const proj: Projectile = { ...p, id: b.nextId++, hit: [], dead: false };
+  if (proj.team === 'hero' && !proj.element) proj.element = b.castElement ?? basicElement(b.hero);
   b.projectiles.push(proj);
   return proj;
 }

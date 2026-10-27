@@ -2,6 +2,7 @@
 // cooldowns, min pause), telegraphs (red zone fills for `delay`, then strikes),
 // optional phase 2, optional contact melee and straight dashes.
 
+import { ENEMY_ELEMENTS } from '../data/elements';
 import { type BossAttackDef, type BossDef, type BossParams, getBoss } from '../data/bosses';
 import { getBiome } from '../data/biomes';
 import { ARENA } from '../data/balance';
@@ -56,6 +57,7 @@ export function createBossEnemy(b: Battle, defId: string, pos: Vec, mult: WaveMu
     spawnedAt: b.time,
     dead: false,
     defId: def.id,
+    element: ENEMY_ELEMENTS[def.id],
     name: def.name,
     archetype: 'tank',
     elite: false,
