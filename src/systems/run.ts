@@ -18,6 +18,7 @@ export const DEFAULT_HERO_NAME = 'Мандрівник';
 import { promote } from './promotion';
 import { applyDeath, recoverLostLoot } from './death';
 import { visitTown } from './coach';
+import { markVisited } from './fog';
 
 /** A new hero's adventure. */
 export function createGameState(seed: number, heroName = DEFAULT_HERO_NAME): GameState {
@@ -45,6 +46,8 @@ export function createGameState(seed: number, heroName = DEFAULT_HERO_NAME): Gam
     lastDeath: null,
     invasionSeen: 0,
     townsVisited: [TOWN_ID],
+    nodesVisited: [TOWN_ID],
+    revealed: [],
   };
   return { ...state, checkpoint: snapshot(state) };
 }
@@ -103,6 +106,7 @@ export function travel(state: GameState, nodeId: string): TravelResult {
   const target = getNode(state.world, nodeId);
   if (!canTravel(state, nodeId)) return { kind: 'blocked' };
   state.currentNodeId = nodeId;
+  markVisited(state, nodeId);
   if (target.isTown) return { kind: 'town' };
   return { kind: 'battle', nodeId };
 }
@@ -111,6 +115,7 @@ export function travel(state: GameState, nodeId: string): TravelResult {
 export function teleport(state: GameState, nodeId: string): TravelResult {
   getNode(state.world, nodeId);
   state.currentNodeId = nodeId;
+  markVisited(state, nodeId);
   return getNode(state.world, nodeId).isTown ? { kind: 'town' } : { kind: 'battle', nodeId };
 }
 

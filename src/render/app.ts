@@ -49,6 +49,7 @@ import { createWaveStartModal } from './waveStart';
 import { createTitleScreen } from './titleScreen';
 import { createCoachModal } from './coach';
 import { visitTown } from '../systems/coach';
+import { markVisited } from '../systems/fog';
 import { type SaveData, fromSave, readSave, saveFileName, toSave, writeSave } from '../systems/save';
 
 /** Where the last seen game version is kept between visits (localStorage in the browser). */
@@ -365,6 +366,7 @@ export class App {
       if (node.isTown) {
         this.state.currentNodeId = next;
         visitTown(this.state, next);
+        markVisited(this.state, next);
         continue;
       }
       travel(this.state, next);

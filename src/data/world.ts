@@ -60,6 +60,8 @@ export interface WorldNodeDef {
   /** Boss of a boss location. */
   boss?: string;
   mechanics?: Partial<LocationMechanics>;
+  /** A secret place: hidden by the fog of war even next to visited ones, until revealed (ROADMAP 10.6). */
+  secret?: boolean;
 }
 
 export const CAPITAL_ID = 'capital';

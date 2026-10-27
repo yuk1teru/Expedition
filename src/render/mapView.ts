@@ -16,6 +16,7 @@ import { canTravel } from '../systems/run';
 import { invasionMultiplier, invasionPct, newInvasionThresholds, xpPenalized } from '../systems/scaling';
 import { INVASION } from '../data/invasion';
 import { createNoticeModal } from './notice';
+import { visibleNodes } from '../systems/fog';
 import type { App } from './app';
 import { THEME, font } from './theme';
 import { TOP_BAR_H, drawTopBar } from './topBar';
@@ -99,7 +100,9 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
 
   function nodeAt(sx: number, sy: number): MapNode | null {
     if (sy < TOP_BAR_H) return null;
+    const seen = visibleNodes(app.state);
     for (const n of app.state.world.nodes) {
+      if (!seen.has(n.id)) continue;
       const p = toScreen(n.pos);
       if (Math.hypot(p.x - sx, p.y - sy) <= nodeRadius(n) * nodeScale(cam.scale) + 6) return n;
     }
@@ -161,17 +164,20 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
       ctx.translate(cam.x, cam.y);
       ctx.scale(cam.scale, cam.scale);
       ctx.drawImage(worldTerrain(), 0, 0);
+      const seen = visibleNodes(state);
       for (const [a, b] of world.edges) {
         const na = world.nodes.find((n) => n.id === a);
         const nb = world.nodes.find((n) => n.id === b);
-        if (!na || !nb) continue;
+        if (!na || !nb || !seen.has(a) || !seen.has(b)) continue;
         drawRoad(ctx, na.pos, nb.pos, a === state.currentNodeId || b === state.currentNodeId, cam.scale);
       }
+      if (!state.noFog) ctx.drawImage(fogLayer(world.nodes.filter((n) => seen.has(n.id)).map((n) => n.pos)), 0, 0, WORLD_MAP.width, WORLD_MAP.height);
       ctx.restore();
 
       // Nodes and labels in screen space (constant size, readable at any zoom).
       const ns = nodeScale(cam.scale);
       for (const n of world.nodes) {
+        if (!seen.has(n.id)) continue;
         const p = toScreen(n.pos);
         drawNode(ctx, n, p.x, p.y, nodeRadius(n) * ns, canTravel(state, n.id), hovered === n.id, t);
         if (n.id === state.currentNodeId) {
@@ -194,7 +200,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
       const priority = (n: MapNode): number =>
         n.id === hovered ? 0 : n.id === state.currentNodeId ? 1 : n.isTown || n.isBoss ? 2 : canTravel(state, n.id) ? 3 : 4;
       const taken: Rect[] = [];
-      for (const n of [...world.nodes].sort((a, b) => priority(a) - priority(b))) {
+      for (const n of [...world.nodes].filter((x) => seen.has(x.id)).sort((a, b) => priority(a) - priority(b))) {
         const p = toScreen(n.pos);
         const named = priority(n) < 4 || cam.scale >= ZOOM.allNames;
         const level = n.isTown ? null : levelOf(n);
@@ -229,6 +235,35 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
       }
     },
   };
+}
+
+/** Fog over the unknown: dark everywhere except soft clearings around the places the hero knows. */
+const FOG_SCALE = 0.25;
+let fogCache: { key: string; canvas: HTMLCanvasElement } | null = null;
+function fogLayer(points: { x: number; y: number }[]): HTMLCanvasElement {
+  const key = points.map((p) => `${p.x},${p.y}`).join(';');
+  if (fogCache?.key === key) return fogCache.canvas;
+  const c = fogCache?.canvas ?? document.createElement('canvas');
+  c.width = Math.ceil(WORLD_MAP.width * FOG_SCALE);
+  c.height = Math.ceil(WORLD_MAP.height * FOG_SCALE);
+  const ctx = c.getContext('2d')!;
+  ctx.clearRect(0, 0, c.width, c.height);
+  ctx.fillStyle = 'rgba(8, 10, 14, 0.82)';
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.globalCompositeOperation = 'destination-out';
+  const r = 220 * FOG_SCALE;
+  for (const p of points) {
+    const g = ctx.createRadialGradient(p.x * FOG_SCALE, p.y * FOG_SCALE, r * 0.35, p.x * FOG_SCALE, p.y * FOG_SCALE, r);
+    g.addColorStop(0, 'rgba(0,0,0,1)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(p.x * FOG_SCALE, p.y * FOG_SCALE, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+  fogCache = { key, canvas: c };
+  return c;
 }
 
 /** Nodes keep a readable size: they shrink a little when zoomed out, never below 70%. */

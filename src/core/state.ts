@@ -54,6 +54,12 @@ export interface GameState {
   events: EventBus<GameEvent>;
   /** Progress saved at the last rest in town; death returns here. */
   checkpoint: Checkpoint;
+  /** Map nodes the hero has been to (fog of war, ROADMAP 10.6). */
+  nodesVisited: string[];
+  /** Secret places revealed (a hint, a quest). */
+  revealed: string[];
+  /** Debug: the map without the fog. */
+  noFog?: boolean;
   /** Towns reached on foot: the coachman goes only there (ROADMAP 10.5). */
   townsVisited: string[];
   /** The highest invasion threshold already announced (ROADMAP 10.3), %. */

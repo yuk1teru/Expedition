@@ -3,6 +3,7 @@
 
 import type { GameState } from '../core/state';
 import { COACH, WAVES } from '../data/balance';
+import { markVisited } from './fog';
 import { getNode } from './mapgen';
 import { clearBonusGold, goldReward, levelTier, waveGoldMult } from './scaling';
 import { waveSize } from './waves';
@@ -43,5 +44,6 @@ export function rideCoach(state: GameState, townId: string): boolean {
   if (state.gold < price) return false;
   state.gold -= price;
   state.currentNodeId = townId;
+  markVisited(state, townId);
   return true;
 }

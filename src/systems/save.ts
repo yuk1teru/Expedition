@@ -45,6 +45,9 @@ export interface SaveData {
   invasionSeen?: number;
   /** Towns reached on foot (absent in early saves: the home town only). */
   townsVisited?: string[];
+  /** Map nodes visited and secret places revealed (fog of war; absent in early saves). */
+  nodesVisited?: string[];
+  revealed?: string[];
 }
 
 /**
@@ -89,6 +92,8 @@ export function toSave(state: GameState, now = Date.now()): SaveData {
     lastDeath: cp.lastDeath,
     invasionSeen: state.invasionSeen,
     townsVisited: state.townsVisited,
+    nodesVisited: state.nodesVisited,
+    revealed: state.revealed,
   });
 }
 
@@ -141,6 +146,8 @@ export function fromSave(data: SaveData): GameState {
     lastDeath: data.lastDeath ?? null,
     invasionSeen: data.invasionSeen ?? 0,
     townsVisited: (data.townsVisited ?? [home]).filter((id) => world.nodes.some((n) => n.id === id && n.isTown)),
+    nodesVisited: (data.nodesVisited ?? [home]).filter((id) => world.nodes.some((n) => n.id === id)),
+    revealed: data.revealed ?? [],
   };
   return { ...state, checkpoint: snapshot(state) };
 }
