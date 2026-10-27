@@ -275,6 +275,7 @@ export const TOWNS: Record<string, TownLayout> = {
       { id: 'forestMerchant', x: 410, y: 420 },
       { id: 'forestHunter', x: 1190, y: 420 },
       { id: 'forestElder', x: 400, y: 830 },
+      { id: 'forestBoard', x: 680, y: 410 },
     ],
     gate: { x: 740, y: 0, w: 120, h: 30 },
     spawn: { x: 800, y: 70 },

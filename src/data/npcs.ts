@@ -378,6 +378,19 @@ export const NPCS: Record<string, NpcDef> = {
       },
     },
   },
+  forestBoard: {
+    id: 'forestBoard',
+    name: 'Дошка доручень',
+    title: 'Смерекове',
+    look: { body: '#7a5a3a', accent: '#c9a36b', hat: 'board' },
+    start: 'hello',
+    nodes: {
+      hello: {
+        text: 'На дошці біля криниці мисливці й лісоруби лишають доручення — і плату за них.',
+        options: [{ text: 'Відійти.', action: 'close' }],
+      },
+    },
+  },
   // ---- Порт ----
   portMerchant: merchant({
     id: 'portMerchant',

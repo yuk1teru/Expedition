@@ -253,7 +253,7 @@ export function npcMark(state: GameState, npcId: string): '!' | '?' | null {
 
 function finish(state: GameState, q: QuestDef): void {
   const got = completeQuest(state, q.id);
-  state.events.emit({ type: 'questDone', name: q.name, reward: got });
+  state.events.emit({ type: 'questDone', name: fillNames(q.name), reward: got });
 }
 
 /**
@@ -270,7 +270,7 @@ export function withQuests(npc: NpcDef, state: GameState): NpcDef {
     if (!o && turnInNpc(q) === npc.id) {
       const id = `quest:${q.id}:done`;
       nodes[id] = { text: q.done, options: [{ text: NPC_LINES.thanks, action: 'close', run: () => finish(state, q) }] };
-      extra.push({ text: `✔ ${q.name}`, next: id });
+      extra.push({ text: `✔ ${fillNames(q.name)}`, next: id });
     } else if (o && (o.kind === 'talk' || o.kind === 'deliver') && o.target === npc.id) {
       const id = `quest:${q.id}:talk${qs.step}`;
       // The last step is a talk with the turn-in NPC: that talk ends the quest.
@@ -278,7 +278,7 @@ export function withQuests(npc: NpcDef, state: GameState): NpcDef {
       nodes[id] = last
         ? { text: q.done, options: [{ text: NPC_LINES.thanks, action: 'close', run: () => (advance(qs), finish(state, q)) }] }
         : { text: o.text ?? (o.kind === 'deliver' ? QUEST_LINES.delivered : QUEST_LINES.talked), options: [{ text: QUEST_LINES.understood, action: 'close', run: () => advance(qs) }] };
-      extra.push({ text: `💬 ${q.name}`, next: id });
+      extra.push({ text: `💬 ${fillNames(q.name)}`, next: id });
     }
   }
   for (const q of questsOffered(state, npc.id)) {
@@ -290,7 +290,7 @@ export function withQuests(npc: NpcDef, state: GameState): NpcDef {
         { text: QUEST_LINES.later, next: npc.start },
       ],
     };
-    extra.push({ text: `❗ ${q.name}`, next: id });
+    extra.push({ text: `❗ ${fillNames(q.name)}`, next: id });
   }
   if (extra.length === 0) return npc;
   const start = nodes[npc.start]!;
