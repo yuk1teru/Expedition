@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { Rng } from '../src/core/rng';
 import { PROGRESSION, RANKS } from '../src/data/balance';
 import { CLASSES } from '../src/data/classes';
 import { PROMOTIONS, classPromotions } from '../src/data/promotions';
 import { PASSIVES, SKILLS, rankChanges, skillParams } from '../src/data/skills';
 import { type Battle, createBattle, stepBattle } from '../src/systems/battle';
-import { offerCards } from '../src/systems/cards';
 import { damageHero, killEnemy } from '../src/systems/combat';
 import { type Enemy } from '../src/systems/entities';
 import { assignClass, heroAttack, heroShield, moveSkill, skillInSlot } from '../src/systems/hero';
@@ -91,23 +89,6 @@ describe('promotion flow', () => {
     moveSkill(s.hero, R, 0);
     expect(skillInSlot(s.hero, R)?.id).toBe('meteor');
     expect(() => promote(s.hero, 'cryomancer')).toThrow();
-  });
-
-  it('after the promotion branch cards come up, about twice as often per card', () => {
-    const s = createGameState(6);
-    assignClass(s.hero, 'archer', CLASSES.archer!.defaultPicks);
-    promote(s.hero, 'sniper');
-    const rng = new Rng(3);
-    let branch = 0;
-    let classPassive = 0;
-    for (let i = 0; i < 2000; i++) {
-      for (const c of offerCards(s.hero, rng)) {
-        if (c.kind === 'passive' && PROMOTIONS.sniper!.passives.includes(c.passiveId)) branch++;
-        if (c.kind === 'passive' && CLASSES.archer!.passives.includes(c.passiveId)) classPassive++;
-      }
-    }
-    // 2 branch passives (weight 2) vs 3 class passives (weight 1).
-    expect(branch / 2).toBeGreaterThan((classPassive / 3) * 1.4);
   });
 });
 

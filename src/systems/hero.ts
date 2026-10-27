@@ -1,5 +1,6 @@
 // Hero creation and derived stats.
 
+import { giftStat } from './gifts';
 import { TALENT_TREES } from '../data/talents';
 import type { SkillDef } from '../data/skills';
 import type { Element } from '../data/elements';
@@ -51,6 +52,8 @@ export function createHero(id: number): Hero {
     arrowElement: 'neutral',
     arrows: [],
     freeSkills: [],
+    gifts: [],
+    castMult: 1,
   };
   recomputeHeroStats(hero);
   hero.hp = hero.maxHp;
@@ -179,6 +182,15 @@ export function recomputeHeroStats(hero: Hero): void {
         break;
     }
   }
+  // Gifts (ROADMAP 12.8).
+  s.attackSpeed *= 1 + giftStat(hero, 'attackSpeedPct');
+  hpPct += giftStat(hero, 'hpPct');
+  s.critChance += giftStat(hero, 'critChance');
+  s.armor += giftStat(hero, 'armor');
+  s.lifesteal += giftStat(hero, 'lifesteal');
+  s.moveSpeed *= 1 + giftStat(hero, 'moveSpeedPct');
+  s.cooldownMult *= 1 - giftStat(hero, 'cooldownPct');
+  s.skillDamageMult *= 1 + giftStat(hero, 'skillDamagePct');
   if (hero.promotion) {
     const fx = getPromotion(hero.promotion).effect;
     if (fx.kind === 'marksman') {

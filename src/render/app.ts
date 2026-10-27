@@ -14,16 +14,16 @@ import { getSkill } from '../data/skills';
 import {
   type BattleSummary,
   canTravel,
-  chooseCard,
+  chooseGift,
   chooseClass,
   choosePromotion,
   completeBattle,
   createGameState,
-  nextCardOffer,
-  rerollCards,
+  nextGiftOffer,
+  rerollGifts,
   restoreCheckpoint,
   startPrologue,
-  skipCards,
+  skipGift,
   teleport,
   travel,
 } from '../systems/run';
@@ -42,7 +42,7 @@ import { createInventoryModal } from './inventory';
 import { createMerchantModal } from './merchant';
 import { createSkillPickModal } from './skillPick';
 import { createMapScreen } from './mapView';
-import { createCardChoiceModal, createClassChoiceModal } from './modals';
+import { createClassChoiceModal, createGiftModal } from './modals';
 import { createPromotionModal } from './promotionModal';
 import { THEME } from './theme';
 import { createTownScreen } from './townView';
@@ -520,17 +520,18 @@ export class App {
       );
       return;
     }
-    const offer = nextCardOffer(this.state);
+    if (req.kind !== 'gift') return;
+    const offer = nextGiftOffer(this.state, req.rarity);
     if (offer.length === 0) return;
     this.screens.pushModal(
-      createCardChoiceModal(this, offer, req.level, req.bossReward ?? false, {
-        onChosen: (card) => {
-          chooseCard(this.state, card);
+      createGiftModal(this, offer, req.rarity, {
+        onChosen: (gift) => {
+          chooseGift(this.state, gift);
           this.screens.popModal();
         },
-        onReroll: (rerolls) => rerollCards(this.state, rerolls),
+        onReroll: (rerolls) => rerollGifts(this.state, req.rarity, rerolls),
         onSkip: () => {
-          skipCards(this.state, req.level, this.battle !== null);
+          skipGift(this.state, this.battle !== null);
           this.screens.popModal();
         },
       }),

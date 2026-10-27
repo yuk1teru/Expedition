@@ -38,6 +38,7 @@ import {
   whereFound,
 } from './html';
 import { elementTag, elementsSection } from './elements';
+import { giftsSection } from './gifts';
 import { ENEMY_ELEMENTS } from '../data/elements';
 import { deathSection, invasionSection, loreSection, questsGivenBy, questsSection, trophiesSection } from './story';
 
@@ -575,6 +576,7 @@ export function buildSections(comment: (root: string, path: LiteralPath) => stri
     consumablesSection(),
     wavesSection(),
     elementsSection(),
+    giftsSection(),
     formulasSection(),
     // All the numbers of balance.ts — for the developer only.
     ...(import.meta.env.DEV ? [balanceSection(comment)] : []),

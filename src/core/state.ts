@@ -8,6 +8,7 @@ import type { Hero } from '../systems/entities';
 import type { World } from '../systems/mapgen';
 import type { DeathCause } from '../systems/combat';
 import type { QuestLog } from '../systems/quests';
+import type { GiftRarity } from '../data/gifts';
 
 export interface RunStats {
   kills: number;
@@ -21,7 +22,7 @@ export interface RunStats {
 }
 
 /** `bossReward`: the extra card for a boss victory (not a level-up). */
-export type ModalRequest = { kind: 'classChoice' } | { kind: 'cardChoice'; level: number; bossReward?: boolean } | { kind: 'promotion' };
+export type ModalRequest = { kind: 'classChoice' } | { kind: 'gift'; rarity: GiftRarity } | { kind: 'promotion' } | { kind: 'promotion2' };
 
 export interface GameState {
   seed: number;
@@ -61,8 +62,6 @@ export interface GameState {
   talentPoints: number;
   /** Rune stones for souls (stage 14). */
   runeStones: number;
-  /** Gifts not opened yet, by rarity (stage 12). */
-  gifts: { common: number; rare: number; legendary: number };
   /** Map nodes the hero has been to (fog of war, ROADMAP 10.6). */
   nodesVisited: string[];
   /** Secret places revealed (a hint, a quest). */

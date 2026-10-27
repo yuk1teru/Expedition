@@ -8,7 +8,7 @@ import { densestPoint, nearestEnemy } from '../targeting';
 
 /** Absolute skill damage: attack × multiplier × class/passive skill bonus (crits are rolled on hit). */
 export function skillAmount(hero: Hero, mult: number): number {
-  return heroAttack(hero) * mult * hero.stats.skillDamageMult;
+  return heroAttack(hero) * mult * hero.stats.skillDamageMult * hero.castMult;
 }
 
 export function clampToArenaPoint(v: Vec, r: number): Vec {

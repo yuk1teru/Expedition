@@ -151,7 +151,7 @@ function giveReward(state: GameState, q: QuestDef): string[] {
     out.push(`${r.runeStones} рунічні камені`);
   }
   if (r.gift) {
-    state.gifts[r.gift] += 1;
+    state.modalQueue.push({ kind: 'gift', rarity: r.gift });
     out.push('дар');
   }
   if (r.unlock) out.push(fillNames(r.unlock));

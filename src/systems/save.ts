@@ -54,7 +54,6 @@ export interface SaveData {
   quests?: QuestLog;
   talentPoints?: number;
   runeStones?: number;
-  gifts?: GameState['gifts'];
 }
 
 /**
@@ -111,7 +110,6 @@ export function toSave(state: GameState, now = Date.now()): SaveData {
     quests: state.quests,
     talentPoints: state.talentPoints,
     runeStones: state.runeStones,
-    gifts: state.gifts,
   });
 }
 
@@ -135,6 +133,8 @@ export function fromSave(data: SaveData): GameState {
   hero.freeSkills ??= [];
   hero.arrows ??= [];
   hero.arrowElement ??= 'neutral';
+  hero.gifts ??= [];
+  hero.castMult = 1;
   // Balance edits since the save apply to the stats; the fight state starts clean.
   hero.dash = null;
   hero.buffs = [];
@@ -172,7 +172,6 @@ export function fromSave(data: SaveData): GameState {
     quests: data.quests ? { active: data.quests.active.filter((q) => QUESTS[q.id]), done: [...data.quests.done] } : emptyQuestLog(),
     talentPoints: data.talentPoints ?? 0,
     runeStones: data.runeStones ?? 0,
-    gifts: data.gifts ?? { common: 0, rare: 0, legendary: 0 },
   };
   return { ...state, checkpoint: snapshot(state) };
 }

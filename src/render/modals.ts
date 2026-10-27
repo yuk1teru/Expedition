@@ -1,11 +1,12 @@
-// Modal windows: class choice (level 3) and card choice (levels 4+).
+// Modal windows: class choice (level 3) and the gift choice.
 
 import type { InputEvent } from '../core/input';
 import type { Modal } from '../core/screens';
 import { CARDS, PROGRESSION, RANKS } from '../data/balance';
 import { CLASS_ORDER, getClass } from '../data/classes';
-import { describePassive, describeSkillFull, getPassive, getSkill, isSpecialRank, rankChanges } from '../data/skills';
-import { type Card, rerollPrice, skipGold } from '../systems/cards';
+import { describePassive, getPassive, getSkill } from '../data/skills';
+import { rerollPrice, skipGold } from '../systems/gifts';
+import { GIFT_RARITY_NAMES, type GiftDef, type GiftRarity } from '../data/gifts';
 import { skillInSlot } from '../systems/hero';
 import type { App } from './app';
 import { drawRankDots } from './hud';
@@ -283,56 +284,44 @@ export function createClassChoiceModal(app: App, onChosen: (classId: string) => 
   };
 }
 
-function cardFace(card: Card): CardFace {
-  if (card.kind === 'passive') {
-    const p = getPassive(card.passiveId);
-    return {
-      title: p.name,
-      kindLabel: 'ПАСИВКА',
-      kindColor: '#9b8cff',
-      rankLine: `Стак ${card.stacks} → ${card.stacks + 1} (макс. ${p.maxStacks})`,
-      body: describePassive(p.id),
-      extra: '',
-      drawIcon: (ctx, x, y) => drawPassiveIcon(ctx, p.stat, x, y, 56, '#9b8cff'),
-      locked: false,
-      accent: '#9b8cff',
-    };
-  }
-  const s = getSkill(card.skillId);
-  if (card.kind === 'newSkill') {
-    return {
-      title: s.name,
-      kindLabel: 'НОВИЙ СКІЛ',
-      kindColor: THEME.good,
-      rankLine: `Ранг 1 з ${RANKS.max}`,
-      body: describeSkillFull(s.id, 1),
-      extra: '',
-      drawIcon: (ctx, x, y) => drawSkillIcon(ctx, s.icon, x, y, 56, THEME.good),
-      locked: false,
-      accent: THEME.good,
-    };
-  }
+const GIFT_COLORS: Record<GiftRarity, string> = { common: '#c8d0dc', rare: '#5ab0ff', legendary: '#f2c14e' };
+
+/** A gift as a card: the rarity, the name, what it does (a curse in red). */
+function giftFace(g: GiftDef): CardFace {
+  const color = g.cursed ? THEME.bad : GIFT_COLORS[g.rarity];
+  const skill = g.effects.find((e) => e.kind === 'skill');
   return {
-    title: s.name,
-    kindLabel: 'ПОКРАЩЕННЯ',
-    kindColor: THEME.accent,
-    rankLine: `Ранг ${card.fromRank} → ${card.toRank} (з ${RANKS.max})`,
-    body: rankChanges(s.id, card.toRank),
-    extra: isSpecialRank(s.id, card.toRank) ? 'Особливий модифікатор' : '',
-    drawIcon: (ctx, x, y) => drawSkillIcon(ctx, s.icon, x, y, 56, THEME.accent),
+    title: g.name,
+    kindLabel: g.cursed ? 'ПРОКЛЯТИЙ ДАР' : GIFT_RARITY_NAMES[g.rarity].toUpperCase(),
+    kindColor: color,
+    rankLine: skill && skill.kind === 'skill' ? getSkill(skill.skill).name : 'назавжди',
+    body: g.text,
+    extra: g.cursed ? 'Сильний, але з мінусом' : '',
+    drawIcon: (ctx, x, y) => (skill && skill.kind === 'skill' ? drawSkillIcon(ctx, getSkill(skill.skill).icon, x, y, 56, color) : drawPassiveIcon(ctx, giftIcon(g), x, y, 56, color)),
     locked: false,
-    accent: THEME.accent,
+    accent: color,
   };
 }
 
-export interface CardChoiceHandlers {
-  onChosen: (card: Card) => void;
+/** A passive icon that fits the gift's first effect. */
+function giftIcon(g: GiftDef): string {
+  const e = g.effects[0];
+  if (!e) return 'skillDamagePct';
+  if (e.kind === 'stat') return e.stat === 'moveSpeedPct' ? 'attackSpeedPct' : e.stat;
+  if (e.kind === 'status') return 'critChance';
+  return 'skillDamagePct';
+}
+
+export interface GiftChoiceHandlers {
+  onChosen: (gift: GiftDef) => void;
   /** Pays for a new offer; null if the hero can't afford it. */
-  onReroll: (rerolls: number) => Card[] | null;
+  onReroll: (rerolls: number) => GiftDef[] | null;
   onSkip: () => void;
 }
 
-export function createCardChoiceModal(app: App, firstOffer: Card[], level: number, bossReward: boolean, h: CardChoiceHandlers): Modal<CanvasRenderingContext2D> {
+/** The gift window (ROADMAP 12.8): one of three for good; reroll for gold or skip for gold and a buff. */
+export function createGiftModal(app: App, firstOffer: GiftDef[], rarity: GiftRarity, h: GiftChoiceHandlers): Modal<CanvasRenderingContext2D> {
+  const level = app.state.hero.level;
   let offer = firstOffer;
   let rects = cardRects(app.view.width, offer.length);
   let hovered = -1;
@@ -370,7 +359,7 @@ export function createCardChoiceModal(app: App, firstOffer: Card[], level: numbe
   });
   const buttons = new ButtonGroup([rerollBtn, skipBtn]);
   return {
-    id: 'cardChoice',
+    id: 'gift',
     update(dt) {
       t += dt;
       const price = rerollPrice(rerolls);
@@ -388,7 +377,7 @@ export function createCardChoiceModal(app: App, firstOffer: Card[], level: numbe
     },
     render(ctx) {
       dim(ctx, app.view.width, app.view.height);
-      drawText(ctx, bossReward ? 'Нагорода за боса! Оберіть картку' : `Новий рівень ${level}! Оберіть картку`, app.view.width / 2, 62, { size: 28, bold: true, align: 'center', color: bossReward ? THEME.accent : THEME.text });
+      drawText(ctx, `${GIFT_RARITY_NAMES[rarity]}! Оберіть один`, app.view.width / 2, 62, { size: 28, bold: true, align: 'center', color: GIFT_COLORS[rarity] });
       drawText(ctx, 'Мишею або клавішами 1–3 · гра на паузі', app.view.width / 2, 92, {
         size: 15,
         align: 'center',
@@ -396,7 +385,7 @@ export function createCardChoiceModal(app: App, firstOffer: Card[], level: numbe
       });
       ctx.save();
       if (!ready()) ctx.globalAlpha = 0.55;
-      offer.forEach((card, i) => drawCard(ctx, rects[i] as Rect, cardFace(card), ready() && hovered === i, i + 1, t));
+      offer.forEach((g, i) => drawCard(ctx, rects[i] as Rect, giftFace(g), ready() && hovered === i, i + 1, t));
       ctx.restore();
       drawInputDelay(ctx, W / 2, 106, t);
       buttons.draw(ctx);
@@ -417,11 +406,12 @@ export function createCardChoiceModal(app: App, firstOffer: Card[], level: numbe
         );
       }
       drawCurrentSkills(ctx, app);
-      // Hovering an offered skill card shows every rank of that skill.
-      const card = hovered >= 0 ? offer[hovered] : undefined;
-      if (card && card.kind !== 'passive' && inRect(rects[hovered] as Rect, app.input.mouse.x, app.input.mouse.y)) {
-        const rank = app.state.hero.skills.find((x) => x.id === card.skillId)?.rank ?? 0;
-        const tip = skillTooltip(card.skillId, rank);
+      // Hovering a skill gift shows every rank of that skill.
+      const g = hovered >= 0 ? offer[hovered] : undefined;
+      const sk = g?.effects.find((e) => e.kind === 'skill');
+      if (sk && sk.kind === 'skill' && inRect(rects[hovered] as Rect, app.input.mouse.x, app.input.mouse.y)) {
+        const hs = app.state.hero.skills.find((x) => x.id === sk.skill);
+        const tip = skillTooltip(sk.skill, hs?.rank ?? 0, [], 1, hs?.forks);
         drawTooltip(ctx, tip.lines, app.input.mouse.x, app.input.mouse.y, W, app.view.height, tip.colors);
       }
     },

@@ -74,8 +74,6 @@ export const PROGRESSION = {
   /** The second stage of the specialization: the second branch skill and the full boost (ROADMAP 12.6). */
   promotion2Level: 22,
   maxLevel: 30,
-  /** A level-up card every `cardEvery` levels after the class choice (other levels: stats only). Talent points replace them (ROADMAP 12). */
-  cardEvery: 2,
   /** xpToNext(level) = round(base × (level + offset)^exponent). */
   xpCurve: { base: 3.3, offset: 0.5, exponent: 1.6 },
   /** XP drops to `mult` when heroLevel − location level > `levelGap`. */
@@ -85,8 +83,6 @@ export const PROGRESSION = {
   signatureSlot: 5,
   /** Skill-bar index of the second branch skill (key F). */
   branchSlot2: 6,
-  /** Branch cards (signature upgrades, branch passives) are this many times likelier after the promotion. */
-  branchCardWeight: 2,
 } as const;
 
 /**

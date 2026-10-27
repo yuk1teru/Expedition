@@ -7,7 +7,7 @@ import type { GameState } from '../src/core/state';
 import { LOOP, SIM } from '../src/data/balance';
 import { CLASS_ORDER, getClass } from '../src/data/classes';
 import { type Battle, createBattle, stepBattle } from '../src/systems/battle';
-import { chooseCard, chooseClass, choosePromotion, completeBattle, type BattleSummary, nextCardOffer } from '../src/systems/run';
+import { chooseClass, chooseGift, choosePromotion, completeBattle, type BattleSummary, nextGiftOffer } from '../src/systems/run';
 import { promotionChoices } from '../src/systems/promotion';
 import { useSkill } from '../src/systems/skills';
 import { botIdentifyAndEquip } from '../src/systems/items';
@@ -60,9 +60,9 @@ export function resolveModals(state: GameState, rng: Rng, classId?: string): voi
     } else if (req.kind === 'promotion') {
       const branches = promotionChoices(state.hero);
       if (branches.length > 0) choosePromotion(state, rng.pick(branches).id);
-    } else if (state.hero.classId) {
-      const offer = nextCardOffer(state);
-      if (offer.length > 0) chooseCard(state, rng.pick(offer));
+    } else if (req.kind === 'gift' && state.hero.classId) {
+      const offer = nextGiftOffer(state, req.rarity);
+      if (offer.length > 0) chooseGift(state, rng.pick(offer));
     }
   }
   if (state.talentPoints > 0) botSpendTalents(state, rng);

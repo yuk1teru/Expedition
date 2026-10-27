@@ -198,6 +198,10 @@ export interface Hero extends Body {
   arrows: Element[];
   /** The starting skills picked at the class choice (their opening was free). */
   freeSkills: string[];
+  /** Gifts taken (ROADMAP 12.8). */
+  gifts: string[];
+  /** While a skill is being cast: its damage multiplier from the tag gifts (1 otherwise). */
+  castMult: number;
 }
 
 /** A body on the hero's side (wolves of the Beastmaster): chases and bites enemies. */

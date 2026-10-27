@@ -9,6 +9,7 @@ import { bootDash } from '../items';
 import type { Battle } from '../battle';
 import { hasStatus, isDisabled } from '../combat';
 import { skillElement, skillInSlot } from '../hero';
+import { giftSkillParams, giftTagMult } from '../gifts';
 import type { SkillImpl } from './types';
 import { ARCHER_SKILLS } from './archer';
 import { MAGE_SKILLS } from './mage';
@@ -36,7 +37,7 @@ export function useSkill(b: Battle, slot: number): SkillUseResult {
   if (s.cooldown > 0) return 'cooldown';
   const impl = SKILL_IMPLS[s.id];
   if (!impl) throw new Error(`No implementation for skill ${s.id}`);
-  const p = skillParams(s.id, s.rank, s.forks);
+  const p = giftSkillParams(hero, s.id, skillParams(s.id, s.rank, s.forks));
   const def = getSkill(s.id);
   if (def.moves && hasStatus(hero, 'root')) {
     b.events.emit({ type: 'noTarget', slot, reason: 'rooted' });
@@ -44,8 +45,10 @@ export function useSkill(b: Battle, slot: number): SkillUseResult {
   }
   // Everything the skill creates while being cast takes its element (ROADMAP 12.2).
   b.castElement = skillElement(hero, def);
+  hero.castMult = giftTagMult(hero, s.id);
   const ok = impl({ b, hero, def, rank: s.rank, p, aim: def.aimable ? skillAim(b) : null });
   b.castElement = null;
+  hero.castMult = 1;
   if (!ok) {
     b.events.emit({ type: 'noTarget', slot });
     return 'noTarget';

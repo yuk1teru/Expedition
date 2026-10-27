@@ -12,6 +12,7 @@ import { getClass } from '../data/classes';
 import { LOOT } from '../data/items';
 import { displayName, dropItemLevel, itemLevelRange, rollItem, rollRarity, stashLoot } from './items';
 import { basicElement, heroAttack, heroLifesteal, heroRegen } from './hero';
+import { giftHitMult } from './gifts';
 import { type Element, elementMultiplier } from '../data/elements';
 import { getPromotion } from '../data/promotions';
 import { gainXp } from './leveling';
@@ -32,7 +33,7 @@ export function rollCrit(rng: Rng, base: number, critChance: number, critMult: n
 /** Hero damage: attack × multiplier, crit roll; skills also get the class skill multiplier. */
 export function heroDamage(b: Battle, mult: number, source: HitSource): Roll {
   const s = b.hero.stats;
-  const skillMult = source === 'skill' || source === 'zone' ? s.skillDamageMult : 1;
+  const skillMult = source === 'skill' || source === 'zone' ? s.skillDamageMult * b.hero.castMult : 1;
   const roll = rollCrit(b.rng, heroAttack(b.hero) * mult * skillMult, s.critChance, s.critMult);
   // Basic attacks: the hero's own element; skills: the element of the skill being cast.
   roll.element = source === 'basic' ? basicElement(b.hero) : (b.castElement ?? 'neutral');
@@ -53,7 +54,9 @@ export function damageEnemy(b: Battle, e: Enemy, roll: Roll, opts: HitOptions): 
   const vuln = e.statuses.vuln;
   const element = opts.element ?? roll.element ?? 'neutral';
   const eff = elementMultiplier(element, e.element);
-  const amount = applyArmor(roll.amount, e.armor) * (vuln && vuln.time > 0 ? 1 + vuln.value : 1) * frozenBonus(b.hero, e) * eff;
+  // Gifts: +damage of an element, against stunned, frozen… (not for thorns).
+  const gift = opts.source === 'thorns' ? 1 : giftHitMult(b.hero, element, e);
+  const amount = applyArmor(roll.amount, e.armor) * (vuln && vuln.time > 0 ? 1 + vuln.value : 1) * frozenBonus(b.hero, e) * eff * gift;
   e.hp -= amount;
   e.hitAt = b.time;
   b.stats.damageDealt += amount;

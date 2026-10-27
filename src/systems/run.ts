@@ -4,9 +4,11 @@ import { EventBus } from '../core/events';
 import { Rng } from '../core/rng';
 import { type Checkpoint, createRunStats, type GameState } from '../core/state';
 import type { GameEvent } from './gameEvents';
-import { type Card, applyCard, offerCards, rerollPrice, skipBuff, skipGold } from './cards';
+import { offerGifts, rerollPrice, skipBuff, skipGold, takeGift } from './gifts';
+import type { GiftDef, GiftRarity } from '../data/gifts';
+import { GIFT_RULES } from '../data/gifts';
 import { addBuff } from './effects';
-import { assignClass, createHero, healFull } from './hero';
+import { assignClass, createHero, healFull, recomputeHeroStats } from './hero';
 import type { Battle } from './battle';
 import type { Item } from './items';
 import { TOWN_ID, areAdjacent, buildWorld, getNode, markCleared } from './mapgen';
@@ -52,7 +54,6 @@ export function createGameState(seed: number, heroName = DEFAULT_HERO_NAME): Gam
     quests: emptyQuestLog(),
     talentPoints: 0,
     runeStones: 0,
-    gifts: { common: 0, rare: 0, legendary: 0 },
   };
   return { ...state, checkpoint: snapshot(state) };
 }
@@ -231,6 +232,11 @@ export function completeBattle(state: GameState, b: Battle): BattleSummary {
     s.locationsCleared += 1;
     state.day += 1;
     if (b.node.isBoss && !state.bossesDefeated.includes(b.node.id)) state.bossesDefeated.push(b.node.id);
+    // Gifts (ROADMAP 12.8): a boss gives a legendary one; the first win over a location's miniboss may give a rare one.
+    if (state.hero.classId && b.node.isBoss) state.modalQueue.push({ kind: 'gift', rarity: 'legendary' });
+    else if (state.hero.classId && b.stats.minibossKills > 0 && b.node.timesCleared === 1 && state.cardRng.chance(GIFT_RULES.minibossChance)) {
+      state.modalQueue.push({ kind: 'gift', rarity: 'rare' });
+    }
     // A boss victory is a milestone: dying later must not roll it back.
     if (b.node.isBoss) saveCheckpoint(state);
   }
@@ -270,33 +276,32 @@ export function choosePromotion(state: GameState, branchId: string): void {
   promote(state.hero, branchId);
 }
 
-/** Offer for the next card choice (uses the run's card stream). */
-export function nextCardOffer(state: GameState): Card[] {
-  return offerCards(state.hero, state.cardRng);
+/** The gift window's offer (its own random stream). */
+export function nextGiftOffer(state: GameState, rarity: GiftRarity): GiftDef[] {
+  return offerGifts(state.hero, state.cardRng, rarity);
 }
 
-export function chooseCard(state: GameState, card: Card): void {
-  applyCard(state.hero, card);
+export function chooseGift(state: GameState, gift: GiftDef): void {
+  takeGift(state.hero, gift.id, recomputeHeroStats);
 }
 
 /** Pays for a new offer; null if there is not enough gold. */
-export function rerollCards(state: GameState, rerolls: number): Card[] | null {
+export function rerollGifts(state: GameState, rarity: GiftRarity, rerolls: number): GiftDef[] | null {
   const price = rerollPrice(rerolls);
   if (state.gold < price) return null;
   state.gold -= price;
-  return offerCards(state.hero, state.cardRng);
+  return offerGifts(state.hero, state.cardRng, rarity);
 }
 
 /**
- * Skips the card choice: some gold and a short buff. In battle the buff starts
- * right away, otherwise with the next battle.
+ * Skips the gift: some gold and a short buff. In battle the buff starts right away,
+ * otherwise with the next battle.
  */
-export function skipCards(state: GameState, level: number, inBattle: boolean): number {
-  const gold = skipGold(level);
+export function skipGift(state: GameState, inBattle: boolean): number {
+  const gold = skipGold(state.hero.level);
   state.gold += gold;
   const buff = skipBuff();
   if (inBattle) addBuff(state.hero, buff);
   else state.hero.pendingBuffs.push(buff);
   return gold;
 }
-

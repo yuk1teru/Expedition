@@ -5,6 +5,7 @@ import type { GameState } from '../core/state';
 import { recomputeHeroStats } from './hero';
 import { xpToNext } from './scaling';
 import { levelPoints } from './talents';
+import { GIFT_RULES } from '../data/gifts';
 
 export function isMaxLevel(level: number): boolean {
   return level >= PROGRESSION.maxLevel;
@@ -44,6 +45,11 @@ export function levelUp(state: GameState): void {
   state.talentPoints += levelPoints(hero.level);
   if (hero.level === PROGRESSION.classChoiceLevel) state.modalQueue.push({ kind: 'classChoice' });
   else if (hero.level === PROGRESSION.promotionLevel) state.modalQueue.push({ kind: 'promotion' });
+  else if (hero.level === PROGRESSION.promotion2Level) state.modalQueue.push({ kind: 'promotion2' });
+  // A gift every few levels (ROADMAP 12.8), sometimes a rare one.
+  if (hero.classId && hero.level % GIFT_RULES.levelEvery === 0) {
+    state.modalQueue.push({ kind: 'gift', rarity: state.cardRng.chance(GIFT_RULES.levelRareChance) ? 'rare' : 'common' });
+  }
 }
 
 /** Debug: exactly one level up (keeps XP progress). */
