@@ -1,4 +1,4 @@
-// Finds the number literal behind a data value in a TypeScript source (PLAN.md 8.5): the
+// Finds the number or string literal behind a data value in a TypeScript source (PLAN.md 8.5): the
 // wiki's dev editing writes the new value straight into src/data/*.ts. A small tokenizer
 // walks `const ROOT = …` (or `Object.assign(ROOT, …)`) down a path of object keys and
 // array indexes; calls like `skill({ … })` are entered through their first argument.
@@ -14,13 +14,18 @@ interface Token {
   e: number;
   /** Comment lines right above the token (own lines only). */
   comment?: string;
+  /** Quote of a string token. */
+  q?: string;
 }
 
 export interface LiteralLocation {
   start: number;
   end: number;
-  /** Source text of the literal (`-0.5`, `120`). */
+  /** Source text of the literal (`-0.5`, `120`, `'Вовк'`). */
   text: string;
+  kind: 'number' | 'string';
+  /** The value the literal stands for (strings unescaped). */
+  value: number | string;
   /** The comment above the last key of the path. */
   comment?: string;
 }
@@ -65,7 +70,7 @@ export function tokenize(src: string): Token[] {
     if (c === "'" || c === '"' || c === '`') {
       let j = i + 1;
       while (j < src.length && src[j] !== c) j += src[j] === '\\' ? 2 : 1;
-      tok = { k: 'str', v: src.slice(i + 1, j), s: i, e: j + 1 };
+      tok = { k: 'str', v: src.slice(i + 1, j), s: i, e: j + 1, q: c };
     } else {
       const rest = src.slice(i, i + 64);
       const num = /\d/.test(c) || (c === '.' && /\d/.test(src[i + 1] ?? '')) ? NUM.exec(rest) : null;
@@ -106,20 +111,50 @@ function skipValue(toks: Token[], i: number): number {
   return i;
 }
 
+/** Source text of a string token (quotes included). */
+function src(_toks: Token[], t: Token): string {
+  return `${t.q ?? "'"}${t.v}${t.q ?? "'"}`;
+}
+
+const ESCAPES: Record<string, string> = { n: '\n', t: '\t', r: '\r', '0': '\0' };
+
+/** The text a string literal stands for (`\n`, `\'`, `’` → characters). */
+export function unescapeString(raw: string): string {
+  return raw.replace(/\\(u\{[0-9a-fA-F]+\}|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|[\s\S])/g, (_m, e: string) => {
+    if (e.startsWith('u{')) return String.fromCodePoint(parseInt(e.slice(2, -1), 16));
+    if (e[0] === 'u' && e.length === 5) return String.fromCharCode(parseInt(e.slice(1), 16));
+    if (e[0] === 'x' && e.length === 3) return String.fromCharCode(parseInt(e.slice(1), 16));
+    return ESCAPES[e] ?? e;
+  });
+}
+
+/** `value` as a string literal with the given quote. */
+export function quoteString(value: string, quote: string): string {
+  let body = value.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/\r/g, '\\r').split(quote).join(`\\${quote}`);
+  if (quote === '`') body = body.replace(/\$\{/g, '\\${');
+  return `${quote}${body}${quote}`;
+}
+
 function resolve(toks: Token[], i: number, path: LiteralPath, anyValue = false): LiteralLocation | null {
   // Calls (`skill({ … })`) and parentheses: look into the first argument.
   while (path.length > 0 && toks[i] && ((toks[i]!.k === 'id' && toks[i + 1]?.v === '(') || toks[i]!.v === '(')) i += toks[i]!.v === '(' ? 1 : 2;
   const t = toks[i];
   if (!t) return null;
   if (path.length === 0) {
-    if (anyValue) return { start: t.s, end: t.s, text: '' };
+    if (anyValue) return { start: t.s, end: t.s, text: '', kind: 'string', value: '' };
     const neg = t.v === '-' && toks[i + 1]?.k === 'num';
     const lit = neg ? toks[i + 1]! : t;
-    if (lit.k !== 'num') return null;
-    // `1 / 3`, `2 * X` — computed, not a literal.
+    if (lit.k !== 'num' && lit.k !== 'str') return null;
+    // `1 / 3`, `2 * X`, `'a' + b` — computed, not a literal.
     const after = toks[i + (neg ? 2 : 1)];
     if (after && after.k === 'p' && !CLOSE.has(after.v) && after.v !== ',' && after.v !== ';') return null;
-    return { start: t.s, end: lit.e, text: (neg ? '-' : '') + lit.v };
+    if (lit.k === 'str') {
+      // Template strings with `${…}` are computed.
+      if (lit.v.includes('${')) return null;
+      return { start: lit.s, end: lit.e, text: src(toks, lit), kind: 'string', value: unescapeString(lit.v) };
+    }
+    const text = (neg ? '-' : '') + lit.v;
+    return { start: t.s, end: lit.e, text, kind: 'number', value: Number(text.replace(/_/g, '')) };
   }
   const [head, ...rest] = path;
   if (t.v === '{') {
@@ -174,7 +209,7 @@ function roots(toks: Token[], root: string): number[] {
   return out;
 }
 
-/** The number literal at `root.path` in `src`, or null. */
+/** The number or string literal at `root.path` in `src`, or null. */
 export function locateLiteral(src: string, root: string, path: LiteralPath, toks: Token[] = tokenize(src)): LiteralLocation | null {
   for (const start of roots(toks, root)) {
     const res = resolve(toks, start, path);
@@ -208,7 +243,8 @@ export function formatLiteral(value: number): string {
   return String(Number(value.toPrecision(12)));
 }
 
-/** `src` with the literal at `loc` replaced by `value`. */
-export function replaceLiteral(src: string, loc: LiteralLocation, value: number): string {
-  return src.slice(0, loc.start) + formatLiteral(value) + src.slice(loc.end);
+/** `src` with the literal at `loc` replaced by `value` (strings keep their quote). */
+export function replaceLiteral(src: string, loc: LiteralLocation, value: number | string): string {
+  const text = typeof value === 'number' ? formatLiteral(value) : quoteString(value, loc.text[0] ?? "'");
+  return src.slice(0, loc.start) + text + src.slice(loc.end);
 }

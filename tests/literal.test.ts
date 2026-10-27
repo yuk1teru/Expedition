@@ -90,4 +90,48 @@ describe('wiki edits', () => {
     expect(applyWikiEdit(dir, { root: 'A', path: ['hp'], value: Number.NaN }).ok).toBe(false);
     expect(readFileSync(join(dir, 'a.ts'), 'utf8')).toBe('export const OTHER = { hp: 1 };\n');
   });
+
+  it('edits texts: keeps the quote, escapes it, refuses type mismatches', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'wiki-'));
+    writeFileSync(join(dir, 'n.ts'), TEXTS);
+    expect(applyWikiEdit(dir, { root: 'N', path: ['town', 'name'], value: "Сніжногір'я", expect: 'Златоград' })).toMatchObject({ ok: true });
+    const out = readFileSync(join(dir, 'n.ts'), 'utf8');
+    expect(out).toContain("name: 'Сніжногір\\'я',");
+    expect(locateLiteral(out, 'N', ['town', 'name'])?.value).toBe("Сніжногір'я");
+    expect(applyWikiEdit(dir, { root: 'N', path: ['town', 'name'], value: 5 }).ok).toBe(false);
+    expect(applyWikiEdit(dir, { root: 'N', path: ['town', 'hp'], value: 'x' }).ok).toBe(false);
+  });
+});
+
+const TEXTS = `
+export const N = {
+  town: { name: 'Златоград', hp: 3, line: "Він сказав \\"так\\"\\nі пішов", tpl: \`a \${x}\`, sum: 'a' + b },
+};
+`;
+
+describe('text literals', () => {
+  it('finds strings with their unescaped value and refuses computed ones', () => {
+    expect(locateLiteral(TEXTS, 'N', ['town', 'name'])).toMatchObject({ kind: 'string', value: 'Златоград', text: "'Златоград'" });
+    expect(locateLiteral(TEXTS, 'N', ['town', 'line'])?.value).toBe('Він сказав "так"\nі пішов');
+    expect(locateLiteral(TEXTS, 'N', ['town', 'hp'])).toMatchObject({ kind: 'number', value: 3 });
+    expect(locateLiteral(TEXTS, 'N', ['town', 'tpl'])).toBeNull();
+    expect(locateLiteral(TEXTS, 'N', ['town', 'sum'])).toBeNull();
+  });
+
+  it('round-trips quotes, backslashes and new lines', () => {
+    const loc = locateLiteral(TEXTS, 'N', ['town', 'line'])!;
+    const tricky = 'лапки " і \' та \\ і\nрядок';
+    const out = replaceLiteral(TEXTS, loc, tricky);
+    expect(locateLiteral(out, 'N', ['town', 'line'])?.value).toBe(tricky);
+    expect(locateLiteral(out, 'N', ['town', 'hp'])?.value).toBe(3);
+  });
+
+  it('finds the names and NPC lines the wiki edits', () => {
+    const npcs = readFileSync('src/data/npcs.ts', 'utf8');
+    expect(locateLiteral(npcs, 'NPCS', ['capitalMerchant', 'name'])?.value).toBe('Мирослава');
+    expect(locateLiteral(npcs, 'NPCS', ['capitalMerchant', 'greeting'])?.kind).toBe('string');
+    expect(locateLiteral(npcs, 'NPCS', ['noticeBoard', 'nodes', 'hello', 'options', 0, 'text'])?.kind).toBe('string');
+    const world = readFileSync('src/data/world.ts', 'utf8');
+    WORLD_NODES.forEach((n, i) => expect(locateLiteral(world, 'WORLD_NODES', [i, 'name'])?.value, n.id).toBe(n.name));
+  });
 });

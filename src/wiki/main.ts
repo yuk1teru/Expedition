@@ -1,5 +1,5 @@
 // Wiki page (PLAN.md 8.5): sections from src/data with a navigation and a filter. In
-// `npm run dev` every number that is a plain literal in the data is editable: a click
+// `npm run dev` every number or text that is a plain literal in the data is editable: a click
 // opens an input, Enter writes the value into the data file (scripts/wikiPlugin.ts) and
 // the page reloads with the new data.
 
@@ -20,7 +20,7 @@ app.innerHTML = `
   <div class="dim small">версія ${esc(GAME_VERSION)}</div>
   <input id="filter" type="search" placeholder="Пошук…" />
   ${sections.map((s) => `<a href="#${s.id}">${esc(s.title)}</a>`).join('')}
-  ${import.meta.env.DEV ? '<div class="devnote">Режим розробника: клік по підкресленому числу — змінити його в даних гри.</div>' : ''}
+  ${import.meta.env.DEV ? '<div class="devnote">Режим розробника: клік по підкресленому числу чи тексту — змінити його в даних гри (Enter — зберегти, Esc — скасувати).</div>' : ''}
 </nav>
 <main>${sections.map((s) => `<section id="${s.id}"><h2>${esc(s.title)}</h2>${s.html}</section>`).join('')}</main>
 <div id="toast"></div>`;
@@ -54,14 +54,20 @@ async function enableEditing(): Promise<void> {
   const raw = import.meta.glob('../data/*.ts', { query: '?raw', import: 'default' });
   const sources = await Promise.all(Object.values(raw).map((load) => load() as Promise<string>));
   const parsed: { src: string; toks: Tokens }[] = sources.map((src) => ({ src, toks: tokenize(src) }));
-  const findLiteral = (root: string, path: LiteralPath): boolean =>
-    parsed.some((f) => declaresRoot(f.src, root) && locateLiteral(f.src, root, path, f.toks) !== null);
-  for (const el of document.querySelectorAll<HTMLElement>('.v[data-ref]')) {
-    const [root, ...path] = JSON.parse(el.dataset.ref!) as Ref;
-    if (!findLiteral(root, path)) continue;
+  const kind = (el: HTMLElement): 'number' | 'string' => (el.classList.contains('t') ? 'string' : 'number');
+  const findLiteral = (root: string, path: LiteralPath, want: 'number' | 'string'): boolean =>
+    parsed.some((f) => declaresRoot(f.src, root) && locateLiteral(f.src, root, path, f.toks)?.kind === want);
+  for (const el of document.querySelectorAll<HTMLElement>('.v[data-refs], .t[data-refs]')) {
+    const ref = (JSON.parse(el.dataset.refs!) as Ref[]).find(([root, ...path]) => findLiteral(root, path, kind(el)));
+    if (!ref) continue;
+    const [root, ...path] = ref;
     el.classList.add('edit');
-    el.title = `${root}.${path.join('.')} = ${el.dataset.raw}`;
-    el.addEventListener('click', () => openEditor(el, root, path));
+    el.title = `${root}.${path.join('.')}`;
+    el.addEventListener('click', (e) => {
+      // Texts inside links: edit, do not navigate.
+      e.preventDefault();
+      openEditor(el, root, path);
+    });
   }
   const saved = sessionStorage.getItem(SCROLL_KEY);
   if (saved) {
@@ -76,14 +82,20 @@ async function enableEditing(): Promise<void> {
 }
 
 function openEditor(el: HTMLElement, root: string, path: LiteralPath): void {
-  if (el.querySelector('input')) return;
-  const old = Number(el.dataset.raw);
+  if (el.querySelector('input, textarea')) return;
+  const isText = el.classList.contains('t');
+  const raw = el.dataset.raw ?? '';
+  const old: number | string = isText ? raw : Number(raw);
   const shown = el.innerHTML;
-  const input = document.createElement('input');
-  input.type = 'number';
-  input.step = 'any';
-  input.value = String(old);
-  input.className = 'num-edit';
+  // Long texts (descriptions, NPC lines) get a text area; Enter saves, Shift+Enter is a new line.
+  const input = isText && raw.length > 50 ? document.createElement('textarea') : document.createElement('input');
+  if (input instanceof HTMLInputElement) {
+    input.type = isText ? 'text' : 'number';
+    if (!isText) input.step = 'any';
+  } else input.rows = Math.min(6, Math.ceil(raw.length / 60) + 1);
+  input.value = raw;
+  input.className = isText ? 'text-edit' : 'num-edit';
+  if (input instanceof HTMLInputElement && isText) input.size = Math.max(10, raw.length + 2);
   el.innerHTML = '';
   el.appendChild(input);
   input.focus();
@@ -91,13 +103,18 @@ function openEditor(el: HTMLElement, root: string, path: LiteralPath): void {
   const cancel = (): void => {
     el.innerHTML = shown;
   };
-  input.addEventListener('keydown', (e) => {
+  (input as HTMLElement).addEventListener('click', (e) => e.stopPropagation());
+  (input as HTMLElement).addEventListener('keydown', (e) => {
     if (e.key === 'Escape') cancel();
-    if (e.key !== 'Enter') return;
-    const value = Number(input.value);
-    if (input.value.trim() === '' || !Number.isFinite(value)) {
-      toast('Потрібне число', true);
-      return;
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    e.preventDefault();
+    let value: number | string = input.value;
+    if (!isText) {
+      value = Number(input.value);
+      if (input.value.trim() === '' || !Number.isFinite(value)) {
+        toast('Потрібне число', true);
+        return;
+      }
     }
     if (value === old) {
       cancel();
@@ -105,10 +122,15 @@ function openEditor(el: HTMLElement, root: string, path: LiteralPath): void {
     }
     void save(el, root, path, old, value, shown);
   });
-  input.addEventListener('blur', () => window.setTimeout(() => el.contains(input) && cancel(), 150));
+  (input as HTMLElement).addEventListener('blur', () => window.setTimeout(() => el.contains(input) && cancel(), 150));
 }
 
-async function save(el: HTMLElement, root: string, path: LiteralPath, old: number, value: number, shown: string): Promise<void> {
+function describe(value: number | string, fmt: Fmt): string {
+  if (typeof value === 'number') return formatValue(value, fmt);
+  return `«${value.length > 40 ? `${value.slice(0, 40)}…` : value}»`;
+}
+
+async function save(el: HTMLElement, root: string, path: LiteralPath, old: number | string, value: number | string, shown: string): Promise<void> {
   el.innerHTML = '…';
   try {
     const res = await fetch('/__wiki/edit', {
@@ -120,7 +142,7 @@ async function save(el: HTMLElement, root: string, path: LiteralPath, old: numbe
     if (!out.ok) throw new Error(out.error ?? res.statusText);
     const fmt = (el.dataset.fmt ?? 'n') as Fmt;
     sessionStorage.setItem(SCROLL_KEY, String(window.scrollY));
-    sessionStorage.setItem(TOAST_KEY, `Збережено: ${root}.${path.join('.')} ${formatValue(old, fmt)} → ${formatValue(value, fmt)} (${out.file})`);
+    sessionStorage.setItem(TOAST_KEY, `Збережено: ${root}.${path.join('.')} ${describe(old, fmt)} → ${describe(value, fmt)} (${out.file})`);
     // Vite reloads the page after the data file changes; reload anyway if it does not.
     window.setTimeout(() => location.reload(), 1500);
   } catch (err) {

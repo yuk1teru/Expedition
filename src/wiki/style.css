@@ -92,3 +92,7 @@ summary { cursor: pointer; }
   nav { position: static; width: auto; border-right: none; border-bottom: 1px solid var(--border); }
   main { margin-left: 0; padding: 12px; }
 }
+.t.edit { border-bottom: 1px dashed rgba(242, 193, 78, 0.55); cursor: text; }
+.t.edit:hover { background: rgba(242, 193, 78, 0.12); }
+.text-edit { max-width: 100%; padding: 2px 6px; background: var(--bg); color: var(--text); border: 1px solid var(--accent); border-radius: 4px; font: inherit; }
+textarea.text-edit { width: 100%; resize: vertical; }

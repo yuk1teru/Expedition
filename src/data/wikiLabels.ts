@@ -1,4 +1,4 @@
-// Display names the data does not carry: boss attacks and their parameters (wiki only).
+// Names the game data does not carry yet, shown and editable in the wiki: boss attacks and their parameters.
 
 /** Attack id (or `bossId.attackId` where two bosses share an id) → name. */
 export const BOSS_ATTACK_NAMES: Record<string, string> = {
@@ -59,4 +59,5 @@ export const BOSS_PARAM_LABELS: Record<string, string> = {
   reach: 'досяжність',
   trigger: 'з відстані',
   chance: 'шанс',
+  ring: 'кільце',
 };

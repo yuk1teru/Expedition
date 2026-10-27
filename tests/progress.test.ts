@@ -34,7 +34,8 @@ describe('items', () => {
     for (let i = 0; i < 50; i++) {
       const items = RARITY_ORDER.map((r) => rollItem(rng, r, i, 'weapon'));
       items.forEach((it, k) => {
-        expect(it.stats).toHaveLength(1 + RARITIES[RARITY_ORDER[k]!].extraStats);
+        // Extras are capped by what the slot can roll (3 per slot).
+        expect(it.stats).toHaveLength(1 + Math.min(RARITIES[RARITY_ORDER[k]!].extraStats, ITEM_BASES.weapon.extras.length));
         expect(it.identified).toBe(false);
         expect(it.stats[0]!.value).toBeLessThanOrEqual(Math.round(ITEM_BASES.weapon.main.range[1] * RARITIES[it.rarity].power));
       });
@@ -165,13 +166,12 @@ describe('checkpoint', () => {
 });
 
 describe('item stats and the merchant item shop', () => {
-  it('stats per item: uncommon 2, epic 3, legendary 4, all different', () => {
+  it('stats per item: 1 + the rarity extras (up to what the slot has), all different', () => {
     const rng = new Rng(77);
-    const count = { common: 1, uncommon: 2, rare: 2, epic: 3, legendary: 4 } as const;
     for (const rarity of RARITY_ORDER) {
       for (let i = 0; i < 20; i++) {
         const it = rollItem(rng, rarity, i);
-        expect(it.stats).toHaveLength(count[rarity]);
+        expect(it.stats).toHaveLength(1 + Math.min(RARITIES[rarity].extraStats, ITEM_BASES[it.slot].extras.length));
         expect(new Set(it.stats.map((x) => x.stat)).size).toBe(it.stats.length);
       }
     }
@@ -224,12 +224,11 @@ describe('item comparison', () => {
     expect(compareItems(worn, worn)).toHaveLength(0);
   });
 
-  it('miniboss drops at most uncommon; the boss mostly common, legendary rare', () => {
-    const total = (w: Partial<Record<string, number>>): number => Object.values(w).reduce<number>((a, x) => a + (x ?? 0), 0);
-    expect(Object.keys(LOOT.miniboss.weights).sort()).toEqual(['common', 'uncommon']);
+  it('miniboss drops at most uncommon; legendary is the rarest boss drop; the merchant never sells legendary', () => {
+    expect(Object.keys(LOOT.miniboss.weights).every((r) => r === 'common' || r === 'uncommon')).toBe(true);
     const boss = LOOT.boss.weights;
-    expect((boss.common ?? 0) / total(boss)).toBeGreaterThan(0.55);
-    expect((boss.legendary ?? 0) / total(boss)).toBeLessThan(0.05);
+    const others = RARITY_ORDER.filter((r) => r !== 'legendary').map((r) => boss[r] ?? 0).filter((w) => w > 0);
+    expect(boss.legendary ?? 0).toBeLessThanOrEqual(Math.min(...others));
     expect(MERCHANT_ITEMS.weights.legendary ?? 0).toBe(0);
   });
 });

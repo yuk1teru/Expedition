@@ -1,6 +1,6 @@
 // Wiki content (PLAN.md 8.5): every section is generated from src/data, so the wiki is
-// always what the game uses. Numbers are rendered by `v()` with a reference to their place
-// in the data (`[ROOT, ...path]`); in `npm run dev` such numbers become editable.
+// always what the game uses. Numbers (`v()`) and texts (`t()`) carry a reference to their
+// place in the data (`[ROOT, ...path]`); in `npm run dev` they become editable.
 
 import * as BALANCE from '../data/balance';
 import { BIOMES } from '../data/biomes';
@@ -9,7 +9,7 @@ import { CLASSES, CLASS_ORDER } from '../data/classes';
 import { CONSUMABLES, PICKUPS, PICKUP_SPAWN } from '../data/consumables';
 import { ENEMIES, type EnemyDef } from '../data/enemies';
 import { BOOT_DASH, ITEM_BASES, ITEM_LEVEL, ITEM_SLOTS, LOOT, MERCHANT_ITEMS, RARITIES, RARITY_ORDER, STAT_LABELS } from '../data/items';
-import { NPCS } from '../data/npcs';
+import { NPCS, NPC_LINES } from '../data/npcs';
 import { ALLY_WOLF, PROMOTIONS } from '../data/promotions';
 import { PARAM_INFO, PASSIVES, SKILLS, describePassive, describeSkill } from '../data/skills';
 import { TOWNS } from '../data/towns';
@@ -17,7 +17,7 @@ import { WEATHER } from '../data/weather';
 import { WORLD_MAP, WORLD_NODES, WORLD_ROADS } from '../data/world';
 import { nodeFromDef, recommendedLevel } from '../systems/mapgen';
 import type { LiteralPath } from './literal';
-import { BOSS_ATTACK_NAMES, BOSS_PARAM_LABELS } from './labels';
+import { BOSS_ATTACK_NAMES, BOSS_PARAM_LABELS } from '../data/wikiLabels';
 
 export type Fmt = 'n' | 'pct' | 's' | 'px' | 'deg' | 'x';
 export type Ref = [string, ...LiteralPath];
@@ -55,8 +55,19 @@ export function formatValue(value: number, fmt: Fmt): string {
 /** A number with its data reference (editable in dev). */
 export function v(value: number | undefined, ref: Ref | null = null, fmt: Fmt = 'n'): string {
   if (value === undefined) return '—';
-  const attrs = ref ? ` data-ref="${esc(JSON.stringify(ref))}" data-raw="${value}" data-fmt="${fmt}"` : '';
+  const attrs = ref ? ` data-refs="${esc(JSON.stringify([ref]))}" data-raw="${value}" data-fmt="${fmt}"` : '';
   return `<span class="v"${attrs}>${formatValue(value, fmt)}</span>`;
+}
+
+/**
+ * A text with its data reference (editable in dev). Several refs: the first one that is a
+ * plain string in the data is edited (NPC lines come from helper arguments). `raw` — the
+ * stored text when the shown one is filled in (skill descriptions with {param}).
+ */
+export function t(text: string, refs: Ref | Ref[] | null = null, raw: string = text): string {
+  if (!refs) return esc(text);
+  const list = (Array.isArray(refs[0]) ? refs : [refs]) as Ref[];
+  return `<span class="t" data-refs="${esc(JSON.stringify(list))}" data-raw="${esc(raw)}">${esc(text)}</span>`;
 }
 
 function table(head: string[], rows: string[][], cls = ''): string {
@@ -79,6 +90,12 @@ function monsterLink(id: string): string {
 }
 
 const NODES = WORLD_NODES.map(nodeFromDef);
+
+/** Ref of a shared NPC line (`NPC_LINES`) with this text, if any. */
+function sharedLine(text: string): Ref[] {
+  const key = Object.entries(NPC_LINES).find(([, line]) => line === text)?.[0];
+  return key ? [['NPC_LINES', key]] : [];
+}
 
 /** Locations where a monster appears (waves, miniboss or boss). */
 function whereFound(id: string): string {
@@ -103,13 +120,13 @@ function classesSection(): Section {
   const parts = CLASS_ORDER.map((id) => {
     const c = CLASSES[id]!;
     const R = (...p: LiteralPath): Ref => ['CLASSES', id, ...p];
-    const t = c.traits;
+    const tr = c.traits;
     const traitRows: string[][] = [];
-    if (t.combatRegenPct !== undefined) traitRows.push(['Реген у бою (частка макс. HP за с)', v(t.combatRegenPct, R('traits', 'combatRegenPct'), 'pct')]);
-    if (t.dodgeMelee !== undefined) traitRows.push(['Ухилення від ближніх ударів', v(t.dodgeMelee, R('traits', 'dodgeMelee'), 'pct')]);
-    if (t.moveSpeedMult !== undefined) traitRows.push(['Швидкість руху', v(t.moveSpeedMult, R('traits', 'moveSpeedMult'), 'x')]);
-    if (t.mana) {
-      const m = t.mana;
+    if (tr.combatRegenPct !== undefined) traitRows.push(['Реген у бою (частка макс. HP за с)', v(tr.combatRegenPct, R('traits', 'combatRegenPct'), 'pct')]);
+    if (tr.dodgeMelee !== undefined) traitRows.push(['Ухилення від ближніх ударів', v(tr.dodgeMelee, R('traits', 'dodgeMelee'), 'pct')]);
+    if (tr.moveSpeedMult !== undefined) traitRows.push(['Швидкість руху', v(tr.moveSpeedMult, R('traits', 'moveSpeedMult'), 'x')]);
+    if (tr.mana) {
+      const m = tr.mana;
       traitRows.push(
         ['Мана: база / за рівень', `${v(m.base, R('traits', 'mana', 'base'))} / ${v(m.perLevel, R('traits', 'mana', 'perLevel'))}`],
         ['HP, які поглинає 1 мана', v(m.absorb, R('traits', 'mana', 'absorb'))],
@@ -132,7 +149,7 @@ function classesSection(): Section {
           ];
     const promos = Object.values(PROMOTIONS).filter((p) => p.classId === id);
     const body = `
-<p>${esc(c.description)} <span class="dim">${esc(c.role)}.</span></p>
+<p>${t(c.description, R('description'))} <span class="dim">${t(c.role, R('role'))}.</span></p>
 ${table(
   ['Параметр', 'Значення'],
   [
@@ -144,11 +161,11 @@ ${table(
   ],
   'kv',
 )}
-<h4>Базова атака</h4><p>${esc(a.description)}</p>${table(['Параметр', 'Значення'], attackRows, 'kv')}
+<h4>Базова атака</h4><p>${t(a.description, R('basicAttack', 'description'))}</p>${table(['Параметр', 'Значення'], attackRows, 'kv')}
 <h4>Скіли</h4><p>${c.skills.map((s) => link('skill', s, SKILLS[s]!.name)).join(' · ')}</p>
 <h4>Пасивки</h4><p>${c.passives.map((p) => link('passive', p, PASSIVES[p]!.name)).join(' · ')}</p>
 <h4>Просування (рівень 13)</h4><p>${promos.map((p) => link('promo', p.id, p.name)).join(' · ')}</p>`;
-    return card(anchor('class', id), esc(c.name), body, esc(c.traitText));
+    return card(anchor('class', id), t(c.name, R('name')), body, t(c.traitText, R('traitText')));
   });
   const hero = BALANCE.HERO;
   const base = table(
@@ -189,11 +206,11 @@ function skillCard(id: string): string {
       }),
     ];
   });
-  const specials = s.upgrades.map((u, i) => (u.text ? `<li><b>Ранг ${i + 2}:</b> ${esc(u.text)}</li>` : '')).join('');
-  const body = `<p>${esc(describeSkill(id, 1))}</p>${table(['Параметр', ...ranks.map((r) => `Р${r}`)], rows, 'ranks')}${specials ? `<ul>${specials}</ul>` : ''}`;
+  const specials = s.upgrades.map((u, i) => (u.text ? `<li><b>Ранг ${i + 2}:</b> ${t(u.text, ['SKILLS', id, 'upgrades', i, 'text'])}</li>` : '')).join('');
+  const body = `<p>${t(describeSkill(id, 1), ['SKILLS', id, 'description'], s.description)}</p>${table(['Параметр', ...ranks.map((r) => `Р${r}`)], rows, 'ranks')}${specials ? `<ul>${specials}</ul>` : ''}`;
   const owner = CLASSES[s.classId]?.name ?? s.classId;
   const branch = s.branch ? ` · ${PROMOTIONS[s.branch]?.name ?? s.branch} (R)` : '';
-  return card(anchor('skill', id), esc(s.name), body, `${esc(owner)}${esc(branch)}`);
+  return card(anchor('skill', id), t(s.name, ['SKILLS', id, 'name']), body, `${esc(owner)}${esc(branch)}`);
 }
 
 function skillsSection(): Section {
@@ -207,11 +224,11 @@ function skillsSection(): Section {
 
 function passivesSection(): Section {
   const rows = Object.values(PASSIVES).map((p) => [
-    `<span id="${anchor('passive', p.id)}">${esc(p.name)}</span>`,
+    `<span id="${anchor('passive', p.id)}">${t(p.name, ['PASSIVES', p.id, 'name'])}</span>`,
     esc(CLASSES[p.classId]?.name ?? p.classId) + (p.branch ? ` · ${esc(PROMOTIONS[p.branch]?.name ?? p.branch)}` : ''),
     v(p.value, ['PASSIVES', p.id, 'value'], p.format === 'percent' ? 'pct' : p.format === 'seconds' ? 's' : 'n'),
     v(p.maxStacks, ['PASSIVES', p.id, 'maxStacks']),
-    esc(describePassive(p.id)),
+    t(describePassive(p.id), ['PASSIVES', p.id, 'description'], p.description),
   ]);
   return { id: 'passives', title: 'Пасивки', html: table(['Пасивка', 'Клас', 'За стак', 'Стаків', 'Опис'], rows) };
 }
@@ -222,11 +239,11 @@ function promotionsSection(): Section {
       const eff = Object.entries(p.effect)
         .filter(([k, val]) => k !== 'kind' && typeof val === 'number')
         .map(([k, val]) => [`<code>${k}</code>`, v(val as number, ['PROMOTIONS', p.id, 'effect', k])]);
-      const body = `<p>${esc(p.description)}</p><p><b>Механіка:</b> ${esc(p.mechanic)}</p>${table(['Параметр', 'Значення'], eff, 'kv')}
+      const body = `<p>${t(p.description, ['PROMOTIONS', p.id, 'description'])}</p><p><b>Механіка:</b> ${t(p.mechanic, ['PROMOTIONS', p.id, 'mechanic'])}</p>${table(['Параметр', 'Значення'], eff, 'kv')}
 <p><b>Скіл (R):</b> ${link('skill', p.signature, SKILLS[p.signature]?.name ?? p.signature)} · <b>Пасивки:</b> ${p.passives
         .map((x) => link('passive', x, PASSIVES[x]?.name ?? x))
         .join(', ')}</p>`;
-      return card(anchor('promo', p.id), esc(p.name), body, esc(CLASSES[p.classId]?.name ?? ''));
+      return card(anchor('promo', p.id), t(p.name, ['PROMOTIONS', p.id, 'name']), body, esc(CLASSES[p.classId]?.name ?? ''));
     })
     .join('');
   const wolf = Object.entries(ALLY_WOLF)
@@ -255,7 +272,7 @@ function enemiesSection(): Section {
   const rows = Object.values(ENEMIES).map((e) => {
     const R = (k: string): Ref => ['ENEMIES', e.id, k];
     return [
-      `<b id="${anchor('enemy', e.id)}">${esc(e.name)}</b><div class="dim small">${esc(e.trait)}</div>`,
+      `<b id="${anchor('enemy', e.id)}">${t(e.name, R('name'))}</b><div class="dim small">${t(e.trait, R('trait'))}</div>`,
       ARCHETYPES[e.archetype] ?? e.archetype,
       v(e.hp, R('hp')),
       v(e.damage, R('damage')),
@@ -276,7 +293,7 @@ ${table(['Ворог', 'Тип', 'HP', 'Шкода', 'Швидк.', 'Броня'
 function bossParams(boss: BossDef, ai: number, phase: 0 | 1): string {
   const params = boss.attacks[ai]!.params[phase];
   const items = Object.entries(params).map(
-    ([k, val]) => `${esc(BOSS_PARAM_LABELS[k] ?? k)} ${v(val, ['BOSSES', boss.id, 'attacks', ai, 'params', phase, k])}`,
+    ([k, val]) => `${t(BOSS_PARAM_LABELS[k] ?? k, ['BOSS_PARAM_LABELS', k])} ${v(val, ['BOSSES', boss.id, 'attacks', ai, 'params', phase, k])}`,
   );
   return items.length ? items.join('<br>') : '—';
 }
@@ -296,7 +313,7 @@ function bossCard(b: BossDef): string {
   if (b.melee) stats.push(['Ближній удар', `${v(b.melee.damage, R('melee', 'damage'), 'x')} шкоди раз на ${v(b.melee.interval, R('melee', 'interval'), 's')}`]);
   if (b.coldAura) stats.push(['Аура холоду', `сповільнює на ${v(b.coldAura.slow, R('coldAura', 'slow'), 'pct')} у радіусі ${v(b.coldAura.radius, R('coldAura', 'radius'))} (з фази ${b.coldAura.phase})`]);
   const attacks = b.attacks.map((a, i) => [
-    `<b>${esc(BOSS_ATTACK_NAMES[`${b.id}.${a.id}`] ?? BOSS_ATTACK_NAMES[a.id] ?? a.id)}</b>${a.enemyId ? `<div class="small">кличе: ${monsterLink(a.enemyId)}</div>` : ''}${
+    `<b>${t(BOSS_ATTACK_NAMES[`${b.id}.${a.id}`] ?? BOSS_ATTACK_NAMES[a.id] ?? a.id, [['BOSS_ATTACK_NAMES', `${b.id}.${a.id}`], ['BOSS_ATTACK_NAMES', a.id]])}</b>${a.enemyId ? `<div class="small">кличе: ${monsterLink(a.enemyId)}</div>` : ''}${
       a.followUp ? `<div class="small">з шансом ${v(a.followUp.chance, R('attacks', i, 'followUp', 'chance'), 'pct')} одразу ${esc(BOSS_ATTACK_NAMES[a.followUp.id] ?? a.followUp.id)}</div>` : ''
     }`,
     a.phases.join(', '),
@@ -306,7 +323,7 @@ function bossCard(b: BossDef): string {
     `<span class="small">${bossParams(b, i, 1)}</span>`,
   ]);
   const body = `${table(['Параметр', 'Значення'], stats, 'kv')}<h4>Атаки</h4>${table(['Атака', 'Фази', 'Вага', 'Перезарядка ф1 / ф2', 'Фаза 1', 'Фаза 2'], attacks, 'wide')}<p class="small">Де: ${whereFound(b.id)}</p>`;
-  return card(anchor('boss', b.id), esc(b.name), body, b.miniboss ? 'мінібос' : 'бос');
+  return card(anchor('boss', b.id), t(b.name, R('name')), body, b.miniboss ? 'мінібос' : 'бос');
 }
 
 function bossesSection(): Section {
@@ -343,7 +360,7 @@ function worldSection(): Section {
           .map((id) => link('loc', id, NODES.find((x) => x.id === id)?.name ?? id))
           .join(', ');
         return [
-          `<b id="${anchor('loc', n.id)}">${esc(n.name)}</b><div class="dim small">${esc(n.description)}</div>`,
+          `<b id="${anchor('loc', n.id)}">${t(n.name, ['WORLD_NODES', i, 'name'])}</b><div class="dim small">${t(n.description, ['WORLD_NODES', i, 'description'])}</div>`,
           kind,
           n.isTown ? '—' : v(n.tier, ['WORLD_NODES', i, 'tier']),
           n.isTown ? '—' : String(recommendedLevel(n.tier)),
@@ -353,7 +370,8 @@ function worldSection(): Section {
           `<span class="small">${roads}</span>`,
         ];
       });
-      return `<h3 class="group">${esc(WORLD_MAP.regions.find((x) => x.id === r)?.name ?? BIOMES[r]?.name ?? r)}</h3>${table(['Місце', 'Тип', 'Tier', 'Рівень', 'Вороги / жителі', 'Мінібос', 'Механіки', 'Дороги'], rows, 'wide')}`;
+      const ri = WORLD_MAP.regions.findIndex((x) => x.id === r);
+      return `<h3 class="group">${ri >= 0 ? t(WORLD_MAP.regions[ri]!.name, ['WORLD_MAP', 'regions', ri, 'name']) : esc(BIOMES[r]?.name ?? r)}</h3>${table(['Місце', 'Тип', 'Tier', 'Рівень', 'Вороги / жителі', 'Мінібос', 'Механіки', 'Дороги'], rows, 'wide')}`;
     })
     .join('');
   const threat = BALANCE.WORLD.bossThreat;
@@ -375,23 +393,32 @@ function townNpcs(townId: string): string {
 
 function townsSection(): Section {
   const html = Object.values(TOWNS)
-    .map((t) => {
-      const node = NODES.find((n) => n.id === t.id);
-      const npcs = t.npcs
+    .map((town) => {
+      const ni = WORLD_NODES.findIndex((n) => n.id === town.id);
+      const node = NODES[ni];
+      const npcs = town.npcs
         .map((n) => {
           const npc = NPCS[n.id]!;
           const nodes = Object.entries(npc.nodes)
             .map(
               ([nid, node]) =>
-                `<li><code>${nid}</code> «${esc(node.text)}»<br><span class="small">${node.options
-                  .map((o) => `→ ${esc(o.text)}${o.next ? ` <code>${o.next}</code>` : ''}${o.action ? ` <i>[${o.action}]</i>` : ''}`)
+                `<li><code>${nid}</code> «${t(node.text, [
+                  ['NPCS', npc.id, 'nodes', nid, 'text'],
+                  ['NPCS', npc.id, nid === 'hello' ? 'greeting' : nid],
+                  ...sharedLine(node.text),
+                ])}»<br><span class="small">${node.options
+                  .map((o, oi) => `→ ${t(o.text, [['NPCS', npc.id, 'nodes', nid, 'options', oi, 'text'], ...sharedLine(o.text)])}${o.next ? ` <code>${o.next}</code>` : ''}${o.action ? ` <i>[${o.action}]</i>` : ''}`)
                   .join(' · ')}</span></li>`,
             )
             .join('');
-          return `<div id="${anchor('npc', npc.id)}"><b>${esc(npc.name)}</b> — ${esc(npc.title)}<ul class="dialogue">${nodes}</ul></div>`;
+          return `<div id="${anchor('npc', npc.id)}"><b>${t(npc.name, ['NPCS', npc.id, 'name'])}</b> — ${t(npc.title, [['NPCS', npc.id, 'title'], ...sharedLine(npc.title)])}<ul class="dialogue">${nodes}</ul></div>`;
         })
         .join('');
-      return card(anchor('town', t.id), esc(node?.name ?? t.id), `<p class="dim">${esc(node?.description ?? '')}</p>${npcs}`);
+      return card(
+        anchor('town', town.id),
+        node ? t(node.name, ['WORLD_NODES', ni, 'name']) : esc(town.id),
+        `<p class="dim">${node ? t(node.description, ['WORLD_NODES', ni, 'description']) : ''}</p>${npcs}`,
+      );
     })
     .join('');
   return { id: 'towns', title: 'Міста й жителі', html: `<p>У місті герой відпочиває (повне HP, збереження). Розмова з NPC — клавіша E або клік; торгівля — з розмови з торговцем.</p>${html}` };
@@ -410,7 +437,7 @@ function itemsSection(): Section {
   const rarity = RARITY_ORDER.map((r) => {
     const d = RARITIES[r];
     return [
-      `<b style="color:${d.color}">${esc(d.name)}</b>`,
+      `<b style="color:${d.color}">${t(d.name, ['RARITIES', r, 'name'])}</b>`,
       v(d.power, ['RARITIES', r, 'power'], 'x'),
       v(d.extraStats, ['RARITIES', r, 'extraStats']),
       v(d.sellPrice, ['RARITIES', r, 'sellPrice']),
@@ -420,13 +447,13 @@ function itemsSection(): Section {
     ];
   });
   const ilvl = ITEM_LEVEL.byTier.map((row, i) => [v(row[0], ['ITEM_LEVEL', 'byTier', i, 0]), v(row[1], ['ITEM_LEVEL', 'byTier', i, 1]), v(row[2], ['ITEM_LEVEL', 'byTier', i, 2])]);
-  const stat = (s: string): string => STAT_LABELS[s as keyof typeof STAT_LABELS]?.label ?? s;
+  const stat = (s: string): string => t(STAT_LABELS[s as keyof typeof STAT_LABELS]?.label ?? s, ['STAT_LABELS', s, 'label']);
   const pct = (s: string): Fmt => (STAT_LABELS[s as keyof typeof STAT_LABELS]?.percent ? 'pct' : 'n');
-  const bases = ITEM_SLOTS.map(({ id, name }) => {
+  const bases = ITEM_SLOTS.map(({ id, name }, si) => {
     const b = ITEM_BASES[id];
     const roll = (r: typeof b.main, ...p: LiteralPath): string =>
-      `${esc(stat(r.stat))} ${v(r.range[0], ['ITEM_BASES', id, ...p, 'range', 0], pct(r.stat))}–${v(r.range[1], ['ITEM_BASES', id, ...p, 'range', 1], pct(r.stat))}`;
-    return [esc(name), roll(b.main, 'main'), b.extras.map((e, i) => roll(e, 'extras', i)).join('<br>')];
+      `${stat(r.stat)} ${v(r.range[0], ['ITEM_BASES', id, ...p, 'range', 0], pct(r.stat))}–${v(r.range[1], ['ITEM_BASES', id, ...p, 'range', 1], pct(r.stat))}`;
+    return [t(name, ['ITEM_SLOTS', si, 'name']), roll(b.main, 'main'), b.extras.map((e, i) => roll(e, 'extras', i)).join('<br>')];
   });
   const dash = Object.entries(BOOT_DASH).map(([r, d]) => [
     `<span style="color:${RARITIES[r as keyof typeof RARITIES].color}">${esc(RARITIES[r as keyof typeof RARITIES].name)}</span>`,
@@ -452,10 +479,10 @@ function consumablesSection(): Section {
     const R = (...p: LiteralPath): Ref => ['CONSUMABLES', c.id, ...p];
     const heal = c.heal
       ? `${v(c.heal.pct, R('heal', 'pct'), 'pct')} макс. HP + ${v(c.heal.flat, R('heal', 'flat'))} HP за ${v(c.heal.duration, R('heal', 'duration'), 's')}`
-      : esc(c.description ?? '');
-    return [esc(c.name), heal, c.price > 0 ? v(c.price, R('price')) : 'не продається', v(c.max, R('max'))];
+      : t(c.description ?? '', R('description'));
+    return [t(c.name, R('name')), heal, c.price > 0 ? v(c.price, R('price')) : 'не продається', v(c.max, R('max'))];
   });
-  const pickups = Object.values(PICKUPS).map((p) => [esc(p.name), v(p.weight, ['PICKUPS', p.id, 'weight'])]);
+  const pickups = Object.values(PICKUPS).map((p) => [t(p.name, ['PICKUPS', p.id, 'name']), v(p.weight, ['PICKUPS', p.id, 'weight'])]);
   const html = `${table(['Предмет', 'Дія', 'Ціна', 'Максимум'], rows)}
 <h3 class="group">Рослинки на арені</h3>
 <p>На початку кожної ${v(PICKUP_SPAWN.everyWaves, ['PICKUP_SPAWN', 'everyWaves'])}-ї хвилі може вирости рослинка (на арені не більше ${v(PICKUP_SPAWN.max, ['PICKUP_SPAWN', 'max'])}).</p>
@@ -471,8 +498,8 @@ function wavesSection(): Section {
   const weatherRows = Object.values(WEATHER).map((w) => {
     const R = (...p: LiteralPath): Ref => ['WEATHER', w.id, ...p];
     return [
-      esc(w.name),
-      esc(w.description),
+      t(w.name, R('name')),
+      t(w.description, R('description')),
       v(w.moveSpeedMult, R('moveSpeedMult'), 'x'),
       v(w.attackSpeedMult, R('attackSpeedMult'), 'x'),
       w.visionRadius ? v(w.visionRadius, R('visionRadius')) : '—',
@@ -536,7 +563,7 @@ function balanceSection(comment: (root: string, path: LiteralPath) => string | u
       if (typeof val === 'number') cell = v(val, [root, ...p]);
       else if (Array.isArray(val)) cell = val.map((x, i) => (typeof x === 'number' ? v(x, [root, ...p, i]) : esc(JSON.stringify(x)))).join(', ');
       else if (val && typeof val === 'object') cell = '';
-      else cell = `<span class="dim">${esc(String(val))}</span>`;
+      else cell = typeof val === 'string' ? t(val, [root, ...p]) : `<span class="dim">${esc(String(val))}</span>`;
       out.push(`<tr><td>${key}</td><td>${cell}</td><td class="small dim">${esc(note ?? '')}</td></tr>`);
       if (val && typeof val === 'object' && !Array.isArray(val)) out.push(...rows(root, val, p, depth + 1));
     }
