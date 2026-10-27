@@ -167,6 +167,14 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
     },
 
     render(ctx) {
+      // Tutorial hints at the moment they are needed.
+      if (battle) {
+        app.hint('battle');
+        if (battle.telegraphs.length > 0) app.hint('telegraph');
+        if (battle.hero.skills.length > 0) app.hint('skills');
+        const h = battle.hero;
+        if (h.hp < h.maxHp * 0.5 && h.quickSlots.some((id) => id && h.consumables[id] > 0)) app.hint('potion');
+      }
       // Settings may change on the pause screen.
       fx.shakeOn = app.settings.shake;
       fx.numbersOn = app.settings.damageNumbers;

@@ -16,6 +16,8 @@ export interface DialogueOption {
   /** Node to show next (the conversation ends if neither `next` nor a staying action). */
   next?: string;
   action?: DialogueAction;
+  /** Built in code only (quest options): runs when the option is chosen. */
+  run?: () => void;
 }
 
 export interface DialogueNode {
@@ -47,6 +49,7 @@ export const NPC_LINES = {
   askQuest: 'Чи є для мене доручення?',
   noQuest: 'Поки що ні. Заглядай згодом — роботи на всіх вистачить.',
   bye: 'Бувай.',
+  thanks: 'Дякую.',
   coachTitle: 'Візник',
   coachRide: 'Поїхали.',
 };

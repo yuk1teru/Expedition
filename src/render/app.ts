@@ -22,6 +22,7 @@ import {
   nextCardOffer,
   rerollCards,
   restoreCheckpoint,
+  startPrologue,
   skipCards,
   teleport,
   travel,
@@ -49,6 +50,12 @@ import { createWaveStartModal } from './waveStart';
 import { createTitleScreen } from './titleScreen';
 import { createCoachModal } from './coach';
 import { createSettingsModal } from './settingsModal';
+import { createNoticeModal } from './notice';
+import { createJournalModal } from './journal';
+import { HINTS, type HintId } from '../data/hints';
+import { HINT_SECONDS, drawHint } from './hint';
+import { setNpcTownLookup } from '../systems/quests';
+import { TOWNS } from '../data/towns';
 import { type GameSettings, readSettings } from '../core/settings';
 import { visitTown } from '../systems/coach';
 import { markVisited } from '../systems/fog';
@@ -116,6 +123,8 @@ export class App {
   ) {
     this.reducedMotion = opts.reducedMotion;
     this.firstSeed = seed;
+    // Quests find the town of an NPC by the town layouts.
+    setNpcTownLookup((npcId) => Object.values(TOWNS).find((t) => t.npcs.some((n) => n.id === npcId))?.id ?? null);
     this.settings = readSettings(opts.settings?.load() ?? null);
     this.saves = opts.saves ?? null;
     this.files = opts.files ?? null;
@@ -162,6 +171,19 @@ export class App {
   showChangelog(): void {
     if (this.screens.topModal) return;
     this.screens.pushModal(createChangelogModal(this, CHANGELOG, () => this.screens.popModal()));
+  }
+
+  /** The tutorial hint on screen (ROADMAP 11.4) and how long it stays. */
+  private hintText = '';
+  private hintTime = 0;
+
+  /** Shows a tutorial hint once per player. */
+  hint(id: HintId): void {
+    if (this.meta.hintsSeen.includes(id) || this.screens.current === 'title') return;
+    this.meta.hintsSeen.push(id);
+    this.saveMeta();
+    this.hintText = HINTS[id]!;
+    this.hintTime = HINT_SECONDS;
   }
 
   /** The settings window (title screen, pause). */
@@ -226,7 +248,9 @@ export class App {
     const seed = this.firstSeed ?? randomSeed();
     this.firstSeed = null;
     this.resetScreens();
-    this.setState(createGameState(seed, name));
+    const state = createGameState(seed, name);
+    startPrologue(state);
+    this.setState(state);
     this.screens.go('town');
     this.showHelp();
   }
@@ -288,6 +312,10 @@ export class App {
 
   private setState(state: GameState): void {
     this.state = state;
+    // A handed-in quest: what it gave.
+    state.events.on('questDone', (e) => {
+      this.screens.pushModal(createNoticeModal(this, `Квест виконано: ${e.name}`, e.reward.length ? `Нагорода: ${e.reward.join(' · ')}` : '', () => this.screens.popModal(), THEME.good));
+    });
     // Every checkpoint (rest, leaving town, a boss) is written to the save slot.
     state.events.on('checkpoint', () => this.saves?.save(writeSave(toSave(state))));
   }
@@ -532,6 +560,7 @@ export class App {
 
   private frameUpdate(dt: number): void {
     this.time += dt;
+    if (!this.screens.topModal) this.hintTime = Math.max(0, this.hintTime - dt);
     // Play time stops on the result screens (death, victory, run over).
     const screen = this.screens.current;
     if (screen !== 'title' && screen !== 'death' && screen !== 'victory' && screen !== 'tombstone') this.state.stats.playTime += dt;
@@ -548,12 +577,21 @@ export class App {
         return;
       }
     }
+    // J: the quest journal (not over other windows).
+    if (e.type === 'key' && e.code === 'KeyJ' && !this.screens.topModal) {
+      const screen = this.screens.current;
+      if (screen === 'map' || screen === 'town' || screen === 'combat') {
+        this.screens.pushModal(createJournalModal(this, () => this.screens.popModal()));
+        return;
+      }
+    }
     this.screens.onInput(e);
   }
 
   private render(): void {
     beginFrame(this.view, THEME.letterbox);
     this.screens.render(this.view.ctx);
+    if (this.hintTime > 0 && !this.screens.topModal) drawHint(this.view.ctx, this.view.width, this.view.height, this.hintText, this.hintTime);
     this.debug?.draw(this.view.ctx);
     endFrame(this.view);
   }

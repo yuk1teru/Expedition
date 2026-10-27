@@ -13,6 +13,8 @@ import { Rng } from '../core/rng';
 import { getNode } from '../systems/mapgen';
 import { leaveTown, restInTown } from '../systems/run';
 import { forgetDeath, wakeTalk } from '../systems/death';
+import { hasNewItems } from '../systems/items';
+import { npcMark, withQuests } from '../systems/quests';
 import type { Grave } from '../systems/meta';
 import { drawTombstone, graveTalk } from './tombstone';
 import { type TownWalker, atGate, createWalker, npcAt, npcInReach, stepWalker } from '../systems/town';
@@ -89,7 +91,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
     walker.talkTo = null;
     const npc = layout.npcs.find((n) => n.id === npcId);
     if (npc) walker.facing = Math.atan2(npc.y - walker.pos.y, npc.x - walker.pos.x);
-    app.screens.pushModal(createDialogueModal(app, npcId, runAction));
+    app.screens.pushModal(createDialogueModal(app, withQuests(getNpc(npcId), app.state), runAction));
   };
 
   return {
@@ -99,9 +101,13 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
       restedFlash = TOWN_REST_FLASH;
       layout = getTownLayout(app.state.currentNodeId);
       walker = createWalker(layout);
+      // The prologue: the hero wakes up by the sea, not at the gate.
+      if (app.state.arriving && layout.arrival) walker.pos = { ...layout.arrival };
+      app.state.arriving = false;
       prevPos = { ...walker.pos };
       leaving = false;
       follow();
+      app.hint('town');
       // Woken up after a death: the doctor tells what happened.
       const death = app.state.lastDeath;
       if (death) {
@@ -175,6 +181,8 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
           const npc = getNpc(n.id);
           drawNpc(ctx, npc.look, n.x, n.y, TOWN_SCENE.npcRadius, app.time);
           nameplate(ctx, n.x, n.y - TOWN_SCENE.npcRadius * 2 - 10, npc.name, npc.title, npc.id === near);
+          const mark = npcMark(state, n.id);
+          if (mark) questMark(ctx, n.x, n.y - TOWN_SCENE.npcRadius * 2 - 34, mark, app.time);
         },
       }));
       const nearGrave = near ? null : graveInReach();
@@ -210,6 +218,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
         color: THEME.textDim,
       });
       drawTopBar(ctx, state, W, app.totalBosses(), app.time);
+      if (hasNewItems(state.hero)) app.hint('loot');
     },
   };
 }
@@ -233,6 +242,19 @@ function nameplate(ctx: CanvasRenderingContext2D, x: number, y: number, name: st
   ctx.fill();
   drawText(ctx, name, x, y - 1, { size: 12, bold: true, align: 'center', color: near ? THEME.accent : THEME.text });
   drawText(ctx, title, x, y + 11, { size: 10, align: 'center', color: THEME.textDim });
+}
+
+/** "!" — a quest to take, "?" — something to report (ROADMAP 11.2). */
+function questMark(ctx: CanvasRenderingContext2D, x: number, y: number, mark: '!' | '?', t: number): void {
+  const bob = Math.sin(t * 3) * 2;
+  ctx.fillStyle = mark === '!' ? '#f2c14e' : '#7fd3ff';
+  ctx.strokeStyle = '#1b1e27';
+  ctx.lineWidth = 3;
+  ctx.font = font(22, 'bold');
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.strokeText(mark, x, y + bob);
+  ctx.fillText(mark, x, y + bob);
 }
 
 function prompt(ctx: CanvasRenderingContext2D, x: number, y: number, text: string): void {

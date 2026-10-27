@@ -17,6 +17,15 @@ export const QUEST_KINDS: Record<QuestKind, { name: string; description: string 
   board: { name: 'Дошка доручень', description: 'Повторювані завдання за золото.' },
 };
 
+/** Lines of the quest options in conversations (all quests share them). */
+export const QUEST_LINES = {
+  accept: 'Візьмуся.',
+  later: 'Не зараз.',
+  understood: 'Зрозумів.',
+  talked: 'Слухай уважно, двічі не повторюватиму…',
+  delivered: 'Посилка? Для мене? Дякую, що доніс.',
+};
+
 export type ObjectiveKind = 'kill' | 'killMiniboss' | 'killBoss' | 'clear' | 'reach' | 'bring' | 'deliver' | 'talk' | 'special';
 
 export interface QuestObjective {

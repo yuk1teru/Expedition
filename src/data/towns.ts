@@ -59,6 +59,8 @@ export interface TownLayout {
   gate: TownRect;
   /** Where the hero appears (next to the gate). */
   spawn: { x: number; y: number };
+  /** Where the hero wakes up at the start of the adventure (the prologue), if not at the gate. */
+  arrival?: { x: number; y: number };
   /** Cemetery plots for the tombstones of fallen heroes, the newest first (ROADMAP 9.6). */
   graves?: { x: number; y: number }[];
 }
@@ -170,6 +172,7 @@ export const TOWNS: Record<string, TownLayout> = {
       { id: 'portKeeper', x: 390, y: 250 },
     ],
     gate: { x: 1570, y: 440, w: 30, h: 80 },
+    arrival: { x: 268, y: 230 },
     spawn: { x: 1520, y: 480 },
   },
   forestTown: {

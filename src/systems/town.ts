@@ -141,6 +141,7 @@ export function currentNode(c: Conversation): DialogueNode {
 export function chooseOption(c: Conversation, index: number): { action: DialogueAction | null; ended: boolean } {
   const opt = currentNode(c).options[index];
   if (!opt) return { action: null, ended: false };
+  opt.run?.();
   if (opt.next) c.nodeId = opt.next;
   return { action: opt.action ?? null, ended: !opt.next };
 }

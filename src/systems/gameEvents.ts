@@ -9,6 +9,8 @@ import type { WaveMult } from './waves';
 export type GameEvent =
   /** Progress was saved as the checkpoint (the app writes the save). */
   | { type: 'checkpoint' }
+  /** A quest was handed in (`reward`: what was given). */
+  | { type: 'questDone'; name: string; reward: string[] }
   | { type: 'hit'; pos: Vec; amount: number; crit: boolean; targetId: number; radius: number; source: HitSource }
   | { type: 'heroHurt'; pos: Vec; amount: number }
   /** Every basic attack of the hero (swing or shot), for the attack-speed visuals. */

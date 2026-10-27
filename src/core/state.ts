@@ -7,6 +7,7 @@ import type { ScreenId } from './screens';
 import type { Hero } from '../systems/entities';
 import type { World } from '../systems/mapgen';
 import type { DeathCause } from '../systems/combat';
+import type { QuestLog } from '../systems/quests';
 
 export interface RunStats {
   kills: number;
@@ -54,6 +55,14 @@ export interface GameState {
   events: EventBus<GameEvent>;
   /** Progress saved at the last rest in town; death returns here. */
   checkpoint: Checkpoint;
+  /** Quests taken and done (ROADMAP 11.1). */
+  quests: QuestLog;
+  /** Talent points not spent yet (quests give them; the tree comes in stage 12). */
+  talentPoints: number;
+  /** Rune stones for souls (stage 14). */
+  runeStones: number;
+  /** Gifts not opened yet, by rarity (stage 12). */
+  gifts: { common: number; rare: number; legendary: number };
   /** Map nodes the hero has been to (fog of war, ROADMAP 10.6). */
   nodesVisited: string[];
   /** Secret places revealed (a hint, a quest). */
@@ -72,6 +81,8 @@ export interface GameState {
   noInvasion?: boolean;
   /** Debug: a death takes no life. */
   infiniteLives?: boolean;
+  /** The prologue's first moment: the hero wakes up at the town's arrival point (not saved). */
+  arriving?: boolean;
   /** Debug: travel to any node, not only to neighbours. */
   freeTravel?: boolean;
 }

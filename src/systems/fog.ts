@@ -5,12 +5,15 @@
 import type { GameState } from '../core/state';
 import { WORLD_NODES } from '../data/world';
 import { neighbours } from './mapgen';
+import { questsArrive } from './quests';
 
 const isSecret = (id: string): boolean => WORLD_NODES.some((n) => n.id === id && n.secret);
 
 /** Marks a node as visited (the hero has been there). */
 export function markVisited(state: GameState, id: string): void {
   if (!state.nodesVisited.includes(id)) state.nodesVisited.push(id);
+  // Arriving somewhere may finish a "reach" objective.
+  questsArrive(state, id);
 }
 
 /** Reveals a secret place (it shows once the hero has been next to it). */

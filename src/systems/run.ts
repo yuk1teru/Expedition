@@ -19,6 +19,7 @@ import { promote } from './promotion';
 import { applyDeath, recoverLostLoot } from './death';
 import { visitTown } from './coach';
 import { markVisited } from './fog';
+import { emptyQuestLog, questsAfterBattle } from './quests';
 
 /** A new hero's adventure. */
 export function createGameState(seed: number, heroName = DEFAULT_HERO_NAME): GameState {
@@ -48,9 +49,29 @@ export function createGameState(seed: number, heroName = DEFAULT_HERO_NAME): Gam
     townsVisited: [TOWN_ID],
     nodesVisited: [TOWN_ID],
     revealed: [],
+    quests: emptyQuestLog(),
+    talentPoints: 0,
+    runeStones: 0,
+    gifts: { common: 0, rare: 0, legendary: 0 },
   };
   return { ...state, checkpoint: snapshot(state) };
 }
+
+/**
+ * The prologue (ROADMAP 11.3): a new adventure starts in the sea port — the hero is washed
+ * ashore and the first way leads to the capital by the coast road.
+ */
+export function startPrologue(state: GameState): void {
+  state.currentNodeId = PROLOGUE_TOWN;
+  state.homeTown = PROLOGUE_TOWN;
+  state.townsVisited = [PROLOGUE_TOWN];
+  state.nodesVisited = [PROLOGUE_TOWN];
+  state.arriving = true;
+  state.checkpoint = snapshot(state);
+}
+
+/** Where a new adventure starts. */
+export const PROLOGUE_TOWN = 'port';
 
 /** The checkpoint of the current progress. */
 export function snapshot(state: Omit<GameState, 'checkpoint'>): Checkpoint {
@@ -191,6 +212,14 @@ export function completeBattle(state: GameState, b: Battle): BattleSummary {
   let clearBonus = 0;
   let recovered: BattleSummary['recovered'] = null;
   if (!won) applyDeath(state, b);
+  questsAfterBattle(state, {
+    nodeId: b.node.id,
+    won,
+    transit: b.transit,
+    isBoss: b.node.isBoss,
+    killsById: b.stats.killsById,
+    minibossKills: b.stats.minibossKills,
+  });
   if (won && b.transit) {
     // A crossing on the way costs a day; the location's progress stays as it was.
     state.day += 1;

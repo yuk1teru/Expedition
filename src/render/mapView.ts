@@ -17,6 +17,7 @@ import { invasionMultiplier, invasionPct, newInvasionThresholds, xpPenalized } f
 import { INVASION } from '../data/invasion';
 import { createNoticeModal } from './notice';
 import { visibleNodes } from '../systems/fog';
+import { questTargets } from '../systems/quests';
 import type { App } from './app';
 import { THEME, font } from './theme';
 import { TOP_BAR_H, drawTopBar } from './topBar';
@@ -113,6 +114,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
     enter() {
       cam.scale = ZOOM.start;
       focusHero();
+      app.hint('map');
       // New invasion thresholds are announced when the hero looks at the map.
       for (const t of newInvasionThresholds(app.state)) app.screens.pushModal(createNoticeModal(app, t.title, t.text, () => app.screens.popModal()));
     },
@@ -196,6 +198,21 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
           ctx.lineWidth = 2;
           ctx.stroke();
         }
+      }
+      // Quest hints: where the active quests lead (ROADMAP 11.2).
+      for (const id of questTargets(state)) {
+        const n = world.nodes.find((x) => x.id === id);
+        if (!n || !seen.has(id)) continue;
+        const p = toScreen(n.pos);
+        const y = p.y - nodeRadius(n) * ns - 14 + Math.sin(t * 3) * 2;
+        ctx.font = font(20, 'bold');
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#1b1e27';
+        ctx.strokeText('!', p.x, y);
+        ctx.fillStyle = THEME.accent;
+        ctx.fillText('!', p.x, y);
       }
       const priority = (n: MapNode): number =>
         n.id === hovered ? 0 : n.id === state.currentNodeId ? 1 : n.isTown || n.isBoss ? 2 : canTravel(state, n.id) ? 3 : 4;

@@ -80,11 +80,13 @@ describe('the fixed world', () => {
     }
   });
 
-  it('the forest is the easiest biome; the ice — the hardest', () => {
+  it('the coast road (prologue) is the easiest, then the forest; the ice — the hardest', () => {
     const maxTier = (r: string): number => Math.max(...byRegion(r).filter((n) => !n.isBoss).map((n) => n.level));
     const minTier = (r: string): number => Math.min(...byRegion(r).filter((n) => !n.isTown).map((n) => n.level));
-    const all = Math.min(...WORLD_NODES.filter((n) => n.kind !== 'town').map((n) => n.level));
-    expect(minTier('forest')).toBe(all);
+    // The coast road is the prologue: the easiest place; after it — the forest.
+    const levels = WORLD_NODES.filter((n) => n.kind !== 'town');
+    expect(Math.min(...levels.map((n) => n.level))).toBe(WORLD_NODES.find((n) => n.id === 'coastRoad')!.level);
+    expect(minTier('forest')).toBe(Math.min(...levels.filter((n) => n.region !== 'coast').map((n) => n.level)));
     expect(maxTier('forest')).toBeLessThan(minTier('swamp'));
     expect(maxTier('forest')).toBeLessThan(minTier('desert'));
     expect(minTier('ice')).toBeGreaterThan(minTier('swamp'));

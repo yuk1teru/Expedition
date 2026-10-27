@@ -35,10 +35,12 @@ export interface MetaData {
   graves: Grave[];
   /** Every finished battle of every hero, oldest first (ROADMAP 9.7). */
   battles: BattleRecord[];
+  /** Tutorial hints already shown (ROADMAP 11.4): once per player, not per hero. */
+  hintsSeen: string[];
 }
 
 export function emptyMeta(): MetaData {
-  return { version: META_VERSION, graves: [], battles: [] };
+  return { version: META_VERSION, graves: [], battles: [], hintsSeen: [] };
 }
 
 /** The tombstone of the state's hero; `nodeId` — where the story ended. */
@@ -70,6 +72,7 @@ export function readMeta(text: string | null): MetaData {
       version: META_VERSION,
       graves: raw.graves.filter((g) => typeof g === 'object' && g !== null && typeof g.name === 'string'),
       battles: Array.isArray(raw.battles) ? raw.battles.filter((r) => typeof r === 'object' && r !== null && typeof r.node === 'string') : [],
+      hintsSeen: Array.isArray(raw.hintsSeen) ? raw.hintsSeen.filter((h) => typeof h === 'string') : [],
     };
   } catch {
     return emptyMeta();

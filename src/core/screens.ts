@@ -4,7 +4,7 @@
 import type { InputEvent } from './input';
 
 export type ScreenId = 'title' | 'map' | 'town' | 'combat' | 'reward' | 'death' | 'victory' | 'tombstone';
-export type ModalId = 'classChoice' | 'skillPick' | 'cardChoice' | 'promotion' | 'inventory' | 'help' | 'merchant' | 'waveStart' | 'changelog' | 'dialogue' | 'notice' | 'coach' | 'settings';
+export type ModalId = 'classChoice' | 'skillPick' | 'cardChoice' | 'promotion' | 'inventory' | 'help' | 'merchant' | 'waveStart' | 'changelog' | 'dialogue' | 'notice' | 'coach' | 'settings' | 'journal';
 
 export interface Screen<R> {
   enter?(): void;

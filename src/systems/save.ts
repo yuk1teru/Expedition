@@ -12,6 +12,8 @@ import type { GameEvent } from './gameEvents';
 import type { Hero } from './entities';
 import { recomputeHeroStats } from './hero';
 import { type MapNode, buildWorld } from './mapgen';
+import { QUESTS } from '../data/quests';
+import { type QuestLog, emptyQuestLog } from './quests';
 import { snapshot } from './run';
 
 /** Version of the save format; bump it and add a migration when the format changes. */
@@ -48,6 +50,11 @@ export interface SaveData {
   /** Map nodes visited and secret places revealed (fog of war; absent in early saves). */
   nodesVisited?: string[];
   revealed?: string[];
+  /** Quests and what they gave that is not used yet (absent in early saves). */
+  quests?: QuestLog;
+  talentPoints?: number;
+  runeStones?: number;
+  gifts?: GameState['gifts'];
 }
 
 /**
@@ -94,6 +101,10 @@ export function toSave(state: GameState, now = Date.now()): SaveData {
     townsVisited: state.townsVisited,
     nodesVisited: state.nodesVisited,
     revealed: state.revealed,
+    quests: state.quests,
+    talentPoints: state.talentPoints,
+    runeStones: state.runeStones,
+    gifts: state.gifts,
   });
 }
 
@@ -148,6 +159,10 @@ export function fromSave(data: SaveData): GameState {
     townsVisited: (data.townsVisited ?? [home]).filter((id) => world.nodes.some((n) => n.id === id && n.isTown)),
     nodesVisited: (data.nodesVisited ?? [home]).filter((id) => world.nodes.some((n) => n.id === id)),
     revealed: data.revealed ?? [],
+    quests: data.quests ? { active: data.quests.active.filter((q) => QUESTS[q.id]), done: [...data.quests.done] } : emptyQuestLog(),
+    talentPoints: data.talentPoints ?? 0,
+    runeStones: data.runeStones ?? 0,
+    gifts: data.gifts ?? { common: 0, rare: 0, legendary: 0 },
   };
   return { ...state, checkpoint: snapshot(state) };
 }

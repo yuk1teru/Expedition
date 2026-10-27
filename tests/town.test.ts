@@ -55,6 +55,13 @@ describe('town layouts', () => {
 });
 
 describe('town walking', () => {
+  it('the prologue arrival point is walkable and next to the first quest giver', () => {
+    const port = TOWNS.port!;
+    expect(port.arrival).toBeDefined();
+    expect(isWalkable(port, port.arrival!.x, port.arrival!.y)).toBe(true);
+    expect(npcInReach(port, port.arrival!)).toBe('portFisher');
+  });
+
   const layout = getTownLayout('capital');
 
   it('buildings block the hero, who slides along the wall', () => {

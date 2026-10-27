@@ -76,7 +76,7 @@ export const WORLD_NODES: WorldNodeDef[] = [
   { id: 'iceTown', name: 'Сніжногір’я', kind: 'town', biome: 'ice', region: 'ice', level: 0, pos: { x: 1700, y: 160 }, forms: { of: 'Сніжногір’я', in: 'Сніжногір’ї' }, description: 'Гірське поселення серед вічних снігів.' },
 
   // ---------------- Coast (Столиця → порт) ----------------
-  { id: 'coastRoad', name: 'Прибережна дорога', kind: 'location', biome: 'coast', region: 'coast', level: 7, pos: { x: 790, y: 650 }, description: 'Скелястий берег: чайки-розбійниці й краби. Погода тут мінлива — злива або туман.', mechanics: { weathers: ['rain', 'fog'], trapsFrom: null } },
+  { id: 'coastRoad', name: 'Прибережна дорога', kind: 'location', biome: 'coast', region: 'coast', level: 3, pos: { x: 790, y: 650 }, description: 'Скелястий берег: чайки-розбійниці й краби. Погода тут мінлива — злива або туман.', mechanics: { weathers: ['rain', 'fog'], trapsFrom: null } },
 
   // ---------------- Forest ----------------
   { id: 'quietGrove', name: 'Тихий гай', kind: 'location', biome: 'forest', region: 'forest', level: 5, pos: { x: 1060, y: 790 }, description: 'Найближчий до столиці гай: вовки, гриби й пеньки. Без капканів.', mechanics: { trapsFrom: null } },

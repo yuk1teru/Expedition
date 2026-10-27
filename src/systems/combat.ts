@@ -72,6 +72,8 @@ export function killEnemy(b: Battle, e: Enemy): void {
   e.dead = true;
   e.hp = 0;
   b.stats.kills += 1;
+  if (!e.boss) b.stats.killsById[e.defId] = (b.stats.killsById[e.defId] ?? 0) + 1;
+  else if (getBoss(e.boss.defId).miniboss) b.stats.minibossKills += 1;
   const cdr = b.hero.stats.killCdr;
   if (cdr > 0) for (const s of b.hero.skills) s.cooldown = Math.max(0, s.cooldown - cdr);
   const isBoss = e.boss !== null;
