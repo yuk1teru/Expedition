@@ -1,3 +1,4 @@
+import { LEGENDARIES } from '../src/data/uniques';
 import { WORLD_NODES } from '../src/data/world';
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../src/core/rng';
@@ -95,7 +96,8 @@ describe('items', () => {
     expect(b.stats.loot.every((i) => allowed(LOOT.miniboss.weights, i.rarity))).toBe(true);
     const boss = createBossEnemy(b, 'enat', { x: 500, y: 300 });
     damageEnemy(b, boss, { amount: 1e7, crit: false }, { source: 'skill' });
-    const bossLoot = b.stats.loot.slice(LOOT.miniboss.count);
+    // Besides the table, a boss's own legendary at the first win (ROADMAP 15.3).
+    const bossLoot = b.stats.loot.slice(LOOT.miniboss.count).filter((i) => !i.legendary || !LEGENDARIES[i.legendary]?.boss);
     expect(bossLoot).toHaveLength(LOOT.boss.count);
     expect(bossLoot.every((i) => allowed(LOOT.boss.weights, i.rarity))).toBe(true);
   });

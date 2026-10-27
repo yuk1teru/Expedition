@@ -40,10 +40,17 @@ export function applyUniques(rng: Rng, item: Item, classId: string | null | unde
 }
 
 /** One of these legendaries: of the hero's class with AFFIXES.legendaryOwnClass, else any. */
-export function pickLegendary(rng: Rng, from: LegendaryDef[], classId: string | null | undefined): LegendaryDef | undefined {
+export function pickLegendary(rng: Rng, all: LegendaryDef[], classId: string | null | undefined): LegendaryDef | undefined {
+  // A boss's own legendary never drops at random.
+  const from = all.filter((l) => !l.boss);
   if (from.length === 0) return undefined;
   const own = from.filter((l) => l.classId === classId);
   return rng.pick(own.length > 0 && rng.chance(AFFIXES.legendaryOwnClass) ? own : from);
+}
+
+/** The boss's own legendary, if it has one (ROADMAP 15.3). */
+export function bossLegendary(bossId: string): LegendaryDef | undefined {
+  return Object.values(LEGENDARIES).find((l) => l.boss === bossId);
 }
 
 /** A miniboss / boss item of the set's region may be a set piece (keeps its rarity and stats). */

@@ -9,8 +9,10 @@ export interface LegendaryDef {
   id: string;
   name: string;
   slot: ItemSlot;
-  /** The class whose skill it changes (others can wear it for the stats). */
-  classId: string;
+  /** The class whose skill it changes (others can wear it for the stats); null — any class. */
+  classId: string | null;
+  /** A boss's own legendary (ROADMAP 15.3): it drops from this boss only (the first win always). */
+  boss?: string;
   text: string;
   effects: GiftEffect[];
 }
@@ -82,6 +84,20 @@ export const LEGENDARIES: Record<string, LegendaryDef> = {
       { kind: 'skill', skill: 'arrowRain', param: 'slow', value: 0.4 },
     ],
   },
+};
+
+// Bosses' own legendaries.
+LEGENDARIES.enatBark = {
+  id: 'enatBark',
+  name: 'Кора Старого Ената',
+  slot: 'armor',
+  classId: null,
+  boss: 'enat',
+  text: 'Енат віддав свою кору: +15% макс. HP і +25% шкоди Землею.',
+  effects: [
+    { kind: 'stat', stat: 'hpPct', value: 0.15 },
+    { kind: 'element', element: 'earth', value: 0.25 },
+  ],
 };
 
 export const AFFIXES = {

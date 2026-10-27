@@ -6,7 +6,9 @@ import { ITEM_SETS, LEGENDARIES } from '../src/data/uniques';
 import { giftSkillParams } from '../src/systems/gifts';
 import { assignClass, recomputeHeroStats } from '../src/systems/hero';
 import { type Item, rollItem } from '../src/systems/items';
-import { createGameState } from '../src/systems/run';
+import { createGameState, teleport } from '../src/systems/run';
+import { createBattle } from '../src/systems/battle';
+import { killEnemy } from '../src/systems/combat';
 import { affixCooldownMult, effectiveRank, maybeSetPiece } from '../src/systems/uniques';
 
 function warrior() {
@@ -23,9 +25,24 @@ function wear(s: ReturnType<typeof warrior>, item: Item) {
 }
 
 describe('items with effects', () => {
+  it('a boss’s own legendary drops at its first defeat and never at random', () => {
+    const rng = new Rng(4);
+    for (let i = 0; i < 200; i++) expect(LEGENDARIES[rollItem(rng, 'legendary', i, undefined, 20, 'warrior').legendary!]!.boss).toBeUndefined();
+    const s = warrior();
+    teleport(s, 'enatLair');
+    const b = createBattle(s, 'enatLair');
+    killEnemy(b, b.boss!);
+    expect(b.stats.loot.some((x) => x.legendary === 'enatBark')).toBe(true);
+    s.bossesDefeated.push('enatLair');
+    const again = createBattle(s, 'enatLair');
+    killEnemy(again, again.boss!);
+    expect(again.stats.loot.some((x) => x.legendary === 'enatBark')).toBe(false);
+  });
+
   it('data: legendaries change a real skill of their class, two per class', () => {
     const per: Record<string, number> = {};
     for (const l of Object.values(LEGENDARIES)) {
+      if (!l.classId) continue;
       per[l.classId] = (per[l.classId] ?? 0) + 1;
       for (const e of l.effects) {
         if (e.kind !== 'skill') continue;

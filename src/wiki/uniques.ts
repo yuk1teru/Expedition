@@ -11,7 +11,7 @@ export function uniquesSection(): Section {
   const legend = Object.values(LEGENDARIES).map((l) => [
     `<b style="color:#ff9f1c">${t(l.name, ['LEGENDARIES', l.id, 'name'])}</b>`,
     esc(slotName(l.slot)),
-    esc(CLASSES[l.classId]?.name ?? l.classId),
+    esc(l.classId ? (CLASSES[l.classId]?.name ?? l.classId) : l.boss ? 'будь-який (з боса)' : 'будь-який'),
     t(l.text, ['LEGENDARIES', l.id, 'text']),
   ]);
   const sets = Object.values(ITEM_SETS).map((s) => [
