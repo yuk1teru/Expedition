@@ -1,4 +1,5 @@
 // World map screen: nodes, edges, current position, tooltip, travel by click.
+// The map zooms with the mouse wheel (around the cursor) and pans by dragging.
 
 import type { InputEvent } from '../core/input';
 import type { Screen } from '../core/screens';
@@ -22,6 +23,15 @@ function nodeRadius(n: MapNode): number {
   return n.isTown ? TOWN_R : n.isBoss ? BOSS_R : NODE_R;
 }
 
+/** Map camera: zoom and pan (screen = world × scale + offset). */
+const ZOOM = { min: 1, max: 2.6, step: 1.15, /** From this zoom on every location is named. */ allNames: 1.6, /** Mouse travel that turns a click into a drag, px. */ drag: 5 };
+
+interface Camera {
+  scale: number;
+  x: number;
+  y: number;
+}
+
 export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
   let hovered: string | null = null;
   const buttons = new ButtonGroup([
@@ -34,7 +44,30 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
     }),
   ]);
 
-  function nodeAt(x: number, y: number): MapNode | null {
+  const W = app.view.width;
+  const H = app.view.height;
+  const cam: Camera = { scale: 1, x: 0, y: 0 };
+  let drag: { x: number; y: number; camX: number; camY: number; moved: boolean } | null = null;
+
+  const toWorld = (x: number, y: number): { x: number; y: number } => ({ x: (x - cam.x) / cam.scale, y: (y - cam.y) / cam.scale });
+
+  /** Keeps the zoomed map covering the view (no empty space past its edges). */
+  function clampCamera(): void {
+    cam.x = Math.min(0, Math.max(W - W * cam.scale, cam.x));
+    cam.y = Math.min(0, Math.max(H - H * cam.scale, cam.y));
+  }
+
+  function zoomAt(sx: number, sy: number, factor: number): void {
+    const p = toWorld(sx, sy);
+    cam.scale = Math.max(ZOOM.min, Math.min(ZOOM.max, cam.scale * factor));
+    cam.x = sx - p.x * cam.scale;
+    cam.y = sy - p.y * cam.scale;
+    clampCamera();
+  }
+
+  function nodeAt(sx: number, sy: number): MapNode | null {
+    if (sy < TOP_BAR_H) return null;
+    const { x, y } = toWorld(sx, sy);
     for (const n of app.state.world.nodes) {
       if (Math.hypot(n.pos.x - x, n.pos.y - y) <= nodeRadius(n) + 6) return n;
     }
@@ -46,9 +79,26 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
 
     onInput(e: InputEvent) {
       if (buttons.handle(e)) return;
-      if (e.type === 'mousemove') {
+      if (e.type === 'wheel') {
+        zoomAt(e.x, e.y, e.delta < 0 ? ZOOM.step : 1 / ZOOM.step);
         hovered = nodeAt(e.x, e.y)?.id ?? null;
-      } else if (e.type === 'mousedown') {
+      } else if (e.type === 'mousemove') {
+        if (drag) {
+          if (Math.hypot(e.x - drag.x, e.y - drag.y) > ZOOM.drag) drag.moved = true;
+          if (drag.moved) {
+            cam.x = drag.camX + (e.x - drag.x);
+            cam.y = drag.camY + (e.y - drag.y);
+            clampCamera();
+          }
+        }
+        hovered = drag?.moved ? null : (nodeAt(e.x, e.y)?.id ?? null);
+      } else if (e.type === 'mousedown' && e.button === 0) {
+        drag = { x: e.x, y: e.y, camX: cam.x, camY: cam.y, moved: false };
+      } else if (e.type === 'mouseup' && drag) {
+        // A click (no drag) travels; a drag only moves the map.
+        const wasDrag = drag.moved;
+        drag = null;
+        if (wasDrag) return;
         const n = nodeAt(e.x, e.y);
         if (n && canTravel(app.state, n.id)) app.travelTo(n.id);
       }
@@ -61,6 +111,13 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
       const t = app.time;
       ctx.fillStyle = THEME.bg;
       ctx.fillRect(0, 0, app.view.width, app.view.height);
+      ctx.save();
+      // The world (grid, roads, nodes, labels) moves with the camera; the UI does not.
+      ctx.beginPath();
+      ctx.rect(0, TOP_BAR_H, W, H - TOP_BAR_H);
+      ctx.clip();
+      ctx.translate(cam.x, cam.y);
+      ctx.scale(cam.scale, cam.scale);
       drawBackdrop(ctx, app.view.width, app.view.height);
 
       // Edges.
@@ -110,19 +167,21 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
       const taken: Rect[] = [];
       for (const n of [...world.nodes].sort((a, b) => priority(a) - priority(b))) {
         const reachable = canTravel(state, n.id);
-        const named = priority(n) < 4;
+        const named = priority(n) < 4 || cam.scale >= ZOOM.allNames;
         const level = n.isTown ? null : recommendedLevel(tierOf(n));
         drawNodeLabels(ctx, n, named, reachable, level === null ? null : { text: `рів. ${level}`, color: levelColor(state.hero.level, level) }, app.view.width, taken);
       }
+      ctx.restore();
 
       drawTopBar(ctx, state, app.view.width, app.totalBosses(), app.time);
       if (state.world.kind === 'full') drawThreat(ctx, state.day, state.bossesDefeated.length);
       buttons.draw(ctx);
-      drawText(ctx, 'Клік по сусідній локації — вирушити', app.view.width - 14, app.view.height - 14, {
-        size: 12,
-        align: 'right',
-        color: THEME.textDim,
-      });
+      const hint = 'Клік по сусідній локації — вирушити · коліщатко — зум · тягніть — рух карти';
+      ctx.font = font(12);
+      const hw = ctx.measureText(hint).width;
+      ctx.fillStyle = 'rgba(10, 12, 18, 0.8)';
+      ctx.fillRect(W - hw - 22, H - 26, hw + 22, 26);
+      drawText(ctx, hint, W - 12, H - 13, { size: 12, align: 'right', color: THEME.textDim });
 
       if (hovered) {
         const n = world.nodes.find((x) => x.id === hovered);
@@ -178,6 +237,9 @@ function drawThreat(ctx: CanvasRenderingContext2D, day: number, bosses: number):
   const soon = left <= 2;
   const bossPart = bosses > 0 ? ` · Боси: локації +${bosses * WORLD.bossThreat.locationTier} до складності` : '';
   const text = `День ${day} · Загроза +${pct}% · Через ${left} ${left === 1 ? 'день' : left < 5 ? 'дні' : 'днів'} вороги посиляться${bossPart}`;
+  ctx.font = font(13, soon ? 'bold' : 'normal');
+  ctx.fillStyle = 'rgba(10, 12, 18, 0.8)';
+  ctx.fillRect(0, TOP_BAR_H + 1, ctx.measureText(text).width + 28, 30);
   drawText(ctx, text, 16, TOP_BAR_H + 16, { size: 13, bold: soon, color: soon ? THEME.bad : THEME.textDim });
 }
 

@@ -235,6 +235,14 @@ export const WORLD = {
   bossTier: 4.5,
   /** Chance that a node gets a second child at the next depth (when one is nearby). */
   secondChildChance: 0.5,
+  /** Chance of a side road between neighbours of the same depth (inside a sector / across a sector border). */
+  lateralChance: 0.45,
+  crossSectorChance: 0.45,
+  /**
+   * Hand-drawn look: every node is shifted by up to `angle` of its slot on the arc and
+   * `radius` of its depth radius, keeping at least `minGap` px from the nodes placed before.
+   */
+  jitter: { angle: 0.4, radius: 0.09, minGap: 54, tries: 30, margin: { x: 40, top: 80, bottom: 30 } },
   /**
    * Boss threat: every defeated boss adds this much tier to the locations and bosses left,
    * so the first locations of the next biome are not a walk (HP, damage, XP, gold and item

@@ -1,7 +1,7 @@
 // World map: node/edge types and generators.
 
 import type { Rng } from '../core/rng';
-import { SCALING, SLICE, WORLD } from '../data/balance';
+import { SCALING, SLICE, VIEW, WORLD } from '../data/balance';
 import { BIOME_ORDER, getBiome } from '../data/biomes';
 import type { Vec } from './entities';
 
@@ -93,9 +93,10 @@ export function nodeId(sector: Sector, depth: number, lateralIndex: number): str
 /**
  * Full world (PLAN.md 1.11): the town in the centre and 4 sectors with 2 / 3 / 3
  * locations at depths 1–3 and the boss at depth 4. Biomes are shuffled between the
- * sectors. Edges: town ↔ every depth-1 node; each node ↔ 1–2 nodes one step deeper in
- * its sector (every deeper node has a parent); lateral edges between neighbours of the
- * same depth, also across sector borders (the world is a ring) at depths 1–3.
+ * sectors; positions are shifted a little at random. Edges: town ↔ every depth-1 node;
+ * each node ↔ 1–2 nodes one step deeper in its sector (every deeper node has a parent);
+ * some side roads between neighbours of the same depth, and at least one road across
+ * every sector border (the world is a ring).
  */
 export function generateWorld(rng: Rng): World {
   const r = rng.fork('world');
@@ -130,7 +131,7 @@ export function generateWorld(rng: Rng): World {
           timesCleared: 0,
           lastWave: 0,
           name: isBoss ? biome.bossLocation : (names[nameIdx++ % names.length] ?? biome.name),
-          pos: nodePos(sector, depth, i, count),
+          pos: jitteredPos(r, nodes, sector, depth, i, count),
         });
       }
       grid[sector].push(ids);
@@ -141,16 +142,20 @@ export function generateWorld(rng: Rng): World {
     const depths = grid[sector];
     for (const id of depths[0]!) edges.push([TOWN_ID, id]);
     for (let d = 0; d + 1 < depths.length; d++) linkDepths(r, depths[d]!, depths[d + 1]!, edges);
-    // Lateral edges inside the sector (not for the lone boss).
+    // Some side roads inside the sector (not every neighbour is linked; not for the lone boss).
     for (let d = 0; d < depths.length - 1; d++) {
       const row = depths[d]!;
-      for (let i = 0; i + 1 < row.length; i++) edges.push([row[i]!, row[i + 1]!]);
+      for (let i = 0; i + 1 < row.length; i++) if (r.chance(WORLD.lateralChance)) edges.push([row[i]!, row[i + 1]!]);
     }
   }
-  // Across sector borders: the last (clockwise) node of a sector ↔ the first of the next one.
+  // Across sector borders: the last (clockwise) node of a sector ↔ the first of the next one,
+  // at some depths — at least one road per border, so the world stays a ring.
   SECTORS.forEach((sector, si) => {
     const next = SECTORS[(si + 1) % SECTORS.length]!;
-    for (let d = 0; d < WORLD.nodesPerDepth.length - 1; d++) {
+    const depthsWithRoads: number[] = [];
+    for (let d = 0; d < WORLD.nodesPerDepth.length - 1; d++) if (r.chance(WORLD.crossSectorChance)) depthsWithRoads.push(d);
+    if (depthsWithRoads.length === 0) depthsWithRoads.push(r.int(0, WORLD.nodesPerDepth.length - 2));
+    for (const d of depthsWithRoads) {
       const a = grid[sector][d]!;
       const b = grid[next][d]!;
       edges.push([a[a.length - 1]!, b[0]!]);
@@ -198,15 +203,44 @@ function linkDepths(rng: Rng, parents: string[], children: string[], edges: MapE
   });
 }
 
-function nodePos(sector: Sector, depth: number, i: number, count: number): Vec {
+function nodePos(sector: Sector, depth: number, i: number, count: number, angleShift = 0, radiusMult = 1): Vec {
   const { center, radiusX, radiusY, arcDeg, staggerDeg } = WORLD.layout;
   const deg = Math.PI / 180;
   const arc = (arcDeg[depth] ?? 0) * deg;
-  const a = SECTOR_ANGLE[sector] + (staggerDeg[depth] ?? 0) * deg + (count === 1 ? 0 : (i / (count - 1) - 0.5) * arc);
+  const a = SECTOR_ANGLE[sector] + (staggerDeg[depth] ?? 0) * deg + (count === 1 ? 0 : (i / (count - 1) - 0.5) * arc) + angleShift;
   return {
-    x: Math.round(center.x + Math.cos(a) * (radiusX[depth] ?? 0)),
-    y: Math.round(center.y + Math.sin(a) * (radiusY[depth] ?? 0)),
+    x: Math.round(center.x + Math.cos(a) * (radiusX[depth] ?? 0) * radiusMult),
+    y: Math.round(center.y + Math.sin(a) * (radiusY[depth] ?? 0) * radiusMult),
   };
+}
+
+/**
+ * Node position with a random shift (angle along the arc, radius), retried until it
+ * keeps `minGap` from every node placed so far; otherwise the roomiest spot tried.
+ */
+function jitteredPos(rng: Rng, placed: MapNode[], sector: Sector, depth: number, i: number, count: number): Vec {
+  const j = WORLD.jitter;
+  const deg = Math.PI / 180;
+  const slot = count > 1 ? ((WORLD.layout.arcDeg[depth] ?? 0) * deg) / (count - 1) : (WORLD.layout.arcDeg[2] ?? 60) * deg * 0.3;
+  const gap = (p: Vec): number => Math.min(Infinity, ...placed.map((n) => Math.hypot(n.pos.x - p.x, n.pos.y - p.y)));
+  // The regular slot is the fallback; any shifted spot that keeps more room wins.
+  let best = nodePos(sector, depth, i, count);
+  let bestGap = gap(best);
+  for (let t = 0; t < j.tries; t++) {
+    // Depth 3 only shifts inwards and the boss not at all: the outer ring stays free for the lairs.
+    const outward = depth >= WORLD.nodesPerDepth.length - 1 ? 0 : j.radius;
+    const inward = depth >= WORLD.nodesPerDepth.length ? 0 : j.radius;
+    const p = nodePos(sector, depth, i, count, rng.float(-j.angle, j.angle) * slot, 1 + rng.float(-inward, outward));
+    const inside = p.x >= j.margin.x && p.x <= VIEW.width - j.margin.x && p.y >= j.margin.top && p.y <= VIEW.height - j.margin.bottom;
+    if (!inside) continue;
+    const g = gap(p);
+    if (g >= j.minGap) return p;
+    if (g > bestGap) {
+      best = p;
+      bestGap = g;
+    }
+  }
+  return best;
 }
 
 /** The world of a new run. */

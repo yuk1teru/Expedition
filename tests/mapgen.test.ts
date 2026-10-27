@@ -89,7 +89,7 @@ describe('full world', () => {
     }
   });
 
-  it('lateral edges link neighbours of the same depth, across sector borders too (the world is a ring)', () => {
+  it('side roads link only neighbours of the same depth; every sector border has a road (the world is a ring)', () => {
     for (const w of worlds) {
       for (const [a, b] of w.edges) {
         const na = getNode(w, a);
@@ -100,19 +100,24 @@ describe('full world', () => {
       for (let i = 0; i < SECTORS.length; i++) {
         const s = SECTORS[i]!;
         const next = SECTORS[(i + 1) % SECTORS.length]!;
-        for (let d = 1; d <= 3; d++) {
-          const crosses = w.edges.some(([a, b]) => {
-            const [na, nb] = [getNode(w, a), getNode(w, b)];
-            return na.depth === d && nb.depth === d && new Set([na.sector, nb.sector]).size === 2 && [na.sector, nb.sector].includes(s) && [na.sector, nb.sector].includes(next);
-          });
-          expect(crosses).toBe(true);
-        }
+        const crosses = w.edges.some(([a, b]) => {
+          const [na, nb] = [getNode(w, a), getNode(w, b)];
+          return na.depth === nb.depth && [na.sector, nb.sector].includes(s) && [na.sector, nb.sector].includes(next) && na.sector !== nb.sector;
+        });
+        expect(crosses).toBe(true);
       }
     }
   });
 
+  it('not every neighbour is linked sideways (the map is not a grid)', () => {
+    const sideRoads = (w: World): number => w.edges.filter(([a, b]) => getNode(w, a).depth === getNode(w, b).depth && getNode(w, a).depth > 0).length;
+    const max = 4 * (1 + 2 + 2) + 4 * 3;
+    expect(worlds.some((w) => sideRoads(w) < max)).toBe(true);
+    expect(new Set(worlds.map(sideRoads)).size).toBeGreaterThan(3);
+  });
+
   it('nodes do not overlap (centres > 40 px apart) and stay on screen', () => {
-    for (const w of worlds.slice(0, 5)) {
+    for (const w of worlds.slice(0, 60)) {
       for (const a of w.nodes) {
         expect(a.pos.x).toBeGreaterThan(20);
         expect(a.pos.x).toBeLessThan(940);

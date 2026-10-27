@@ -5,7 +5,9 @@ export type InputEvent =
   | { type: 'key'; code: string; key: string; shift: boolean }
   | { type: 'mousedown'; x: number; y: number; button: number }
   | { type: 'mouseup'; x: number; y: number; button: number }
-  | { type: 'mousemove'; x: number; y: number };
+  | { type: 'mousemove'; x: number; y: number }
+  /** Mouse wheel: `delta` > 0 scrolls down (zoom out on the map). */
+  | { type: 'wheel'; x: number; y: number; delta: number };
 
 /** Movement keys (KeyboardEvent.code) → direction. */
 export const MOVE_KEYS: Record<string, { x: number; y: number }> = {
@@ -49,8 +51,13 @@ export interface PointerLike {
   button: number;
 }
 
+export interface WheelLike extends PointerLike {
+  deltaY: number;
+  preventDefault(): void;
+}
+
 export interface EventSourceLike {
-  addEventListener(type: string, fn: (e: unknown) => void): void;
+  addEventListener(type: string, fn: (e: unknown) => void, options?: { passive?: boolean }): void;
 }
 
 export class Input {
@@ -118,6 +125,17 @@ export function bindInput(
     const p = toLogical(e.clientX, e.clientY);
     input.push({ type: 'mousedown', x: p.x, y: p.y, button: e.button });
   });
+  // The wheel zooms the map; the page itself must not scroll.
+  pointerSource.addEventListener(
+    'wheel',
+    (raw) => {
+      const e = raw as WheelLike;
+      e.preventDefault();
+      const p = toLogical(e.clientX, e.clientY);
+      input.push({ type: 'wheel', x: p.x, y: p.y, delta: e.deltaY });
+    },
+    { passive: false },
+  );
   // Mouse-up is listened on the key source (window) so drags ending outside the canvas still finish.
   keySource.addEventListener('mouseup', (raw) => {
     const e = raw as PointerLike;
