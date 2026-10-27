@@ -47,6 +47,8 @@ import { THEME } from './theme';
 import { createTownScreen } from './townView';
 import { createWaveStartModal } from './waveStart';
 import { createTitleScreen } from './titleScreen';
+import { createCoachModal } from './coach';
+import { visitTown } from '../systems/coach';
 import { type SaveData, fromSave, readSave, saveFileName, toSave, writeSave } from '../systems/save';
 
 /** Where the last seen game version is kept between visits (localStorage in the browser). */
@@ -152,6 +154,12 @@ export class App {
   showChangelog(): void {
     if (this.screens.topModal) return;
     this.screens.pushModal(createChangelogModal(this, CHANGELOG, () => this.screens.popModal()));
+  }
+
+  /** Town coachman: the «Швидка тарадайка» window. */
+  openCoach(): void {
+    if (this.screens.topModal) return;
+    this.screens.pushModal(createCoachModal(this, () => this.screens.popModal()));
   }
 
   /** Town merchant window. */
@@ -356,6 +364,7 @@ export class App {
       const node = getNode(this.state.world, next);
       if (node.isTown) {
         this.state.currentNodeId = next;
+        visitTown(this.state, next);
         continue;
       }
       travel(this.state, next);

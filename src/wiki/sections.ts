@@ -28,6 +28,7 @@ import {
   formsLine,
   link,
   monsterLink,
+  nodeLink,
   round,
   sharedLine,
   t,
@@ -39,6 +40,8 @@ import { deathSection, invasionSection, loreSection, questsGivenBy, questsSectio
 
 export { esc, formatValue, type Fmt, type Ref, type Section } from './html';
 import { BOSS_ATTACK_NAMES, BOSS_PARAM_LABELS } from '../data/wikiLabels';
+import { coachPrice } from '../systems/coach';
+import { createGameState } from '../systems/run';
 
 // ---- Sections ----
 
@@ -315,8 +318,18 @@ function worldSection(): Section {
     html: `<p>Рівень — рівень монстрів локації (герой того ж рівня — саме для неї). Кожен переможений бос додає локаціям +${v(
       threat.locationLevels,
       ['WORLD', 'bossThreat', 'locationLevels'],
-    )} рівнів, а іншим босам +${v(threat.bossLevels, ['WORLD', 'bossThreat', 'bossLevels'])} (загроза), але не вище ${BALANCE.PROGRESSION.maxLevel}.</p>${html}`,
+    )} рівнів, а іншим босам +${v(threat.bossLevels, ['WORLD', 'bossThreat', 'bossLevels'])} (загроза), але не вище ${BALANCE.PROGRESSION.maxLevel}.</p>${html}${coachTable()}`,
   };
+}
+
+/** «Швидка тарадайка»: the ride price to every town. */
+function coachTable(): string {
+  const s = createGameState(1);
+  const C = BALANCE.COACH;
+  const rows = NODES.filter((n) => n.isTown).map((n) => [nodeLink(n.id), `${coachPrice(s, n.id)} зол.`]);
+  return `<h3 class="group">«Швидка тарадайка»</h3>
+<p>Візник у кожному місті возить між містами, до яких герой уже дійшов сам, — без днів і боїв. Ціна — ${v(C.share, ['COACH', 'share'], 'pct')} золота, яке дає найлегша локація регіону міста призначення (обов’язкові хвилі + бонус за зачистку), округлено до ${v(C.roundTo, ['COACH', 'roundTo'])}, не менше ${v(C.min, ['COACH', 'min'])}.</p>
+${table(['Куди', 'Ціна'], rows)}`;
 }
 
 function townNpcs(townId: string): string {

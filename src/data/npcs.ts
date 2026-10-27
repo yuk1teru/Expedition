@@ -9,7 +9,7 @@
 import type { NameForms } from './names';
 
 /** What an option can do besides moving to another node. */
-export type DialogueAction = 'openShop' | 'openChangelog' | 'openInventory' | 'close';
+export type DialogueAction = 'openShop' | 'openChangelog' | 'openInventory' | 'openCoach' | 'close';
 
 export interface DialogueOption {
   text: string;
@@ -47,6 +47,8 @@ export const NPC_LINES = {
   askQuest: 'Чи є для мене доручення?',
   noQuest: 'Поки що ні. Заглядай згодом — роботи на всіх вистачить.',
   bye: 'Бувай.',
+  coachTitle: 'Візник',
+  coachRide: 'Поїхали.',
 };
 
 const BYE: DialogueOption = { text: NPC_LINES.bye, action: 'close' };
@@ -91,7 +93,65 @@ function local(o: { id: string; name: string; forms?: NameForms; title: string; 
   };
 }
 
+/** A coachman of the «Швидка тарадайка» (ROADMAP 10.5): the ride window opens from the talk. */
+function coachman(o: { id: string; name: string; forms?: NameForms; look: NpcDef['look']; greeting: string }): NpcDef {
+  return {
+    id: o.id,
+    name: o.name,
+    forms: o.forms,
+    title: NPC_LINES.coachTitle,
+    look: o.look,
+    start: 'hello',
+    nodes: {
+      hello: { text: o.greeting, options: [{ text: NPC_LINES.coachRide, action: 'openCoach' }, BYE] },
+    },
+  };
+}
+
 export const NPCS: Record<string, NpcDef> = {
+  // ---- Візники (у кожному місті) ----
+  capitalCoach: coachman({
+    id: 'capitalCoach',
+    name: 'Остап',
+    forms: { to: 'Остапові', with: 'Остапом', of: 'Остапа' },
+    look: { body: '#6a4a2a', accent: '#c8a050', hat: 'cap' },
+    greeting: '«Швидка тарадайка» до ваших послуг! Вожу лише туди, де ти вже бував сам: дороги там знайомі, а коні — ні.',
+  }),
+  portCoach: coachman({
+    id: 'portCoach',
+    name: 'Левко',
+    forms: { to: 'Левкові', with: 'Левком', of: 'Левка' },
+    look: { body: '#4a5a6a', accent: '#c8a050', hat: 'cap' },
+    greeting: 'Сідай, поки коні не передумали. Від моря — куди скажеш, якщо ти там уже бував.',
+  }),
+  forestCoach: coachman({
+    id: 'forestCoach',
+    name: 'Панас',
+    forms: { to: 'Панасові', with: 'Панасом', of: 'Панаса' },
+    look: { body: '#3a5a2a', accent: '#c8a050', hat: 'fur' },
+    greeting: 'Через Ліс їжджу тільки вдень і тільки битою дорогою. Тобі куди?',
+  }),
+  swampCoach: coachman({
+    id: 'swampCoach',
+    name: 'Охрім',
+    forms: { to: 'Охрімові', with: 'Охрімом', of: 'Охріма' },
+    look: { body: '#3a4a3a', accent: '#c8a050', hat: 'hood' },
+    greeting: 'Колеса в багні не тонуть — я їх заговорив. Ну, майже не тонуть.',
+  }),
+  desertCoach: coachman({
+    id: 'desertCoach',
+    name: 'Назар',
+    forms: { to: 'Назарові', with: 'Назаром', of: 'Назара' },
+    look: { body: '#a87a3a', accent: '#c8a050', hat: 'turban' },
+    greeting: 'Верблюдів не маю, зате маю тарадайку. Пісок у колесах — за мій рахунок.',
+  }),
+  iceCoach: coachman({
+    id: 'iceCoach',
+    name: 'Кирило',
+    forms: { to: 'Кирилові', with: 'Кирилом', of: 'Кирила' },
+    look: { body: '#6a7a8a', accent: '#c8a050', hat: 'fur' },
+    greeting: 'Полози замість коліс — і жодного перевалу пішки. Тільки туди, де ти вже бував.',
+  }),
   // ---- Столиця ----
   capitalMerchant: merchant({
     id: 'capitalMerchant',

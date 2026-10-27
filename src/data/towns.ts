@@ -110,6 +110,7 @@ export const TOWNS: Record<string, TownLayout> = {
       P('barrel', 760, 900), P('crate', 1450, 960), P('well', 1700, 1000),
     ],
     npcs: [
+      { id: 'capitalCoach', x: 1100, y: 1185 },
       { id: 'capitalMerchant', x: 620, y: 582 },
       { id: 'capitalGuard', x: 1510, y: 372 },
       { id: 'warriorTeacher', x: 1760, y: 360 },
@@ -163,6 +164,7 @@ export const TOWNS: Record<string, TownLayout> = {
       P('rock', 1550, 900), P('rock', 1520, 120),
     ],
     npcs: [
+      { id: 'portCoach', x: 1480, y: 370 },
       { id: 'portFisher', x: 210, y: 230 },
       { id: 'portMerchant', x: 580, y: 428 },
       { id: 'portKeeper', x: 390, y: 250 },
@@ -197,6 +199,7 @@ export const TOWNS: Record<string, TownLayout> = {
       P('well', 900, 580), P('crate', 560, 420), P('barrel', 1000, 420),
     ],
     npcs: [
+      { id: 'forestCoach', x: 930, y: 95 },
       { id: 'forestMerchant', x: 410, y: 420 },
       { id: 'forestHunter', x: 1190, y: 420 },
       { id: 'forestElder', x: 400, y: 830 },
@@ -237,6 +240,7 @@ export const TOWNS: Record<string, TownLayout> = {
       P('lamp', 740, 430), P('lamp', 1480, 430), P('barrel', 600, 480),
     ],
     npcs: [
+      { id: 'swampCoach', x: 120, y: 370 },
       { id: 'swampMerchant', x: 380, y: 400 },
       { id: 'swampBoatman', x: 1100, y: 560 },
       { id: 'swampWitch', x: 1350, y: 380 },
@@ -270,6 +274,7 @@ export const TOWNS: Record<string, TownLayout> = {
       P('rock', 1520, 520), P('stall', 580, 560), P('crate', 560, 420), P('barrel', 1060, 420),
     ],
     npcs: [
+      { id: 'desertCoach', x: 930, y: 95 },
       { id: 'desertMerchant', x: 400, y: 420 },
       { id: 'desertCaravan', x: 1240, y: 580 },
       { id: 'desertWater', x: 1140, y: 400 },
@@ -303,6 +308,7 @@ export const TOWNS: Record<string, TownLayout> = {
       P('rock', 960, 560), P('lamp', 720, 400), P('barrel', 580, 460), P('crate', 1000, 460),
     ],
     npcs: [
+      { id: 'iceCoach', x: 930, y: 860 },
       { id: 'iceMerchant', x: 380, y: 390 },
       { id: 'iceSeeker', x: 1180, y: 390 },
       { id: 'iceSmith', x: 420, y: 570 },

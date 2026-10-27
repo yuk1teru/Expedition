@@ -43,6 +43,8 @@ export interface SaveData {
   lastDeath: LastDeath | null;
   /** The highest invasion threshold announced (absent in early saves). */
   invasionSeen?: number;
+  /** Towns reached on foot (absent in early saves: the home town only). */
+  townsVisited?: string[];
 }
 
 /**
@@ -86,6 +88,7 @@ export function toSave(state: GameState, now = Date.now()): SaveData {
     nodes,
     lastDeath: cp.lastDeath,
     invasionSeen: state.invasionSeen,
+    townsVisited: state.townsVisited,
   });
 }
 
@@ -137,6 +140,7 @@ export function fromSave(data: SaveData): GameState {
     events: new EventBus<GameEvent>(),
     lastDeath: data.lastDeath ?? null,
     invasionSeen: data.invasionSeen ?? 0,
+    townsVisited: (data.townsVisited ?? [home]).filter((id) => world.nodes.some((n) => n.id === id && n.isTown)),
   };
   return { ...state, checkpoint: snapshot(state) };
 }

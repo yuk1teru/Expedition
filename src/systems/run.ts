@@ -17,6 +17,7 @@ import { LIVES } from '../data/balance';
 export const DEFAULT_HERO_NAME = 'Мандрівник';
 import { promote } from './promotion';
 import { applyDeath, recoverLostLoot } from './death';
+import { visitTown } from './coach';
 
 /** A new hero's adventure. */
 export function createGameState(seed: number, heroName = DEFAULT_HERO_NAME): GameState {
@@ -43,6 +44,7 @@ export function createGameState(seed: number, heroName = DEFAULT_HERO_NAME): Gam
     events: new EventBus<GameEvent>(),
     lastDeath: null,
     invasionSeen: 0,
+    townsVisited: [TOWN_ID],
   };
   return { ...state, checkpoint: snapshot(state) };
 }
@@ -114,7 +116,10 @@ export function teleport(state: GameState, nodeId: string): TravelResult {
 
 /** Full heal and checkpoint; happens automatically every time the hero arrives in a town (it becomes the home town). */
 export function restInTown(state: GameState): void {
-  if (getNode(state.world, state.currentNodeId).isTown) state.homeTown = state.currentNodeId;
+  if (getNode(state.world, state.currentNodeId).isTown) {
+    state.homeTown = state.currentNodeId;
+    visitTown(state, state.currentNodeId);
+  }
   healFull(state.hero);
   saveCheckpoint(state);
 }

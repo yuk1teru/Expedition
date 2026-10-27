@@ -250,6 +250,19 @@ export const WORLD = {
   bossThreat: { locationLevels: 6, bossLevels: 5 },
 } as const;
 
+/**
+ * «Швидка тарадайка» (ROADMAP 10.5): the coachman takes the hero between towns already
+ * reached on foot — no days, no battles. Price: `share` of the gold one location of the
+ * destination region brings (its easiest location: kills of the mandatory waves + the clear
+ * bonus), rounded to `roundTo`.
+ */
+export const COACH = {
+  share: 0.5,
+  roundTo: 5,
+  /** Never cheaper than this. */
+  min: 10,
+} as const;
+
 /** Lives of a hero (ROADMAP 9.4): a death takes one; with none left the hero's story ends at the cemetery. */
 export const LIVES = {
   start: 3,

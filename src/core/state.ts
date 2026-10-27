@@ -54,10 +54,14 @@ export interface GameState {
   events: EventBus<GameEvent>;
   /** Progress saved at the last rest in town; death returns here. */
   checkpoint: Checkpoint;
+  /** Towns reached on foot: the coachman goes only there (ROADMAP 10.5). */
+  townsVisited: string[];
   /** The highest invasion threshold already announced (ROADMAP 10.3), %. */
   invasionSeen: number;
   /** Set by a death; the doctor talks about it when the hero wakes up in town. */
   lastDeath: LastDeath | null;
+  /** Debug: the coachman rides for free. */
+  freeCoach?: boolean;
   /** Debug: travel to any node, not only to neighbours. */
   freeTravel?: boolean;
 }
