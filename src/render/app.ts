@@ -1,5 +1,8 @@
 // Application shell: owns the view, input, loop, screens and the run state.
 
+import { QUESTS } from '../data/quests';
+import { createAlchemyModal } from './alchemy';
+import { ORDERS_QUEST, ordersUnlocked } from '../systems/orders';
 import { createOrdersModal } from './orders';
 import { SoundPlayer, eventSound } from './sound';
 import type { InputEvent } from '../core/input';
@@ -234,10 +237,22 @@ export class App {
     this.screens.pushModal(createCoachModal(this, () => this.screens.popModal()));
   }
 
-  /** The artifact buyer's orders (ROADMAP 14.1а). */
+  /** The artifact buyer's orders (ROADMAP 14.1а): open after his first quest. */
   openOrders(): void {
     if (this.screens.topModal) return;
+    if (!ordersUnlocked(this.state)) {
+      const q = QUESTS[ORDERS_QUEST];
+      this.screens.pushModal(createNoticeModal(this, 'Замовлень ще немає', `Спершу візьміть і виконайте квест «${q?.name ?? ORDERS_QUEST}».`, () => this.screens.popModal()));
+      return;
+    }
     this.screens.pushModal(createOrdersModal(this, () => this.screens.popModal()));
+  }
+
+  /** The brewer's recipes (ROADMAP 14.2). */
+  openAlchemy(npcId: string): void {
+    if (this.screens.topModal || !npcId) return;
+    const npc = getNpc(npcId);
+    this.screens.pushModal(createAlchemyModal(this, npcId, `${npc.name} — ${npc.title}`, () => this.screens.popModal()));
   }
 
   /** Town merchant window. */

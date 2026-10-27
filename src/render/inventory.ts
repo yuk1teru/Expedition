@@ -5,6 +5,7 @@
 // Herbs and potions go onto the quick slots by dragging or via the right-click menu.
 // The game is paused while it is open.
 
+import { getRecipe } from '../systems/alchemy';
 import type { InputEvent } from '../core/input';
 import type { Modal } from '../core/screens';
 import { CONSUMABLES, type ConsumableId, HEAL_ORDER, QUICK_SLOTS, describeConsumable } from '../data/consumables';
@@ -470,6 +471,7 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
         `Рух ${Math.round(s.moveSpeed)}`,
         `Золото ${app.state.gold}`,
         `Життів ${app.state.lives}`,
+        ...(h.elixir ? [`${getRecipe(h.elixir.recipe)?.name ?? ''}: ще ${h.elixir.arenas} арен`] : []),
       ].join('  ·  ');
       drawText(ctx, summary, PANEL.x + PANEL.w / 2, PANEL.y + PANEL.h - 20, { size: 13, align: 'center' });
       if (messageTime > 0) {

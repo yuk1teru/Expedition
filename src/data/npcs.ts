@@ -6,12 +6,13 @@
 // references ({town:capital}, {npc:capitalGuard}, {boss:enat}… — src/data/names.ts), so a
 // rename changes them everywhere; `forms` hold the case forms used by such references.
 
+import { RECIPES } from './alchemy';
 import type { ConsumableId } from './consumables';
 import type { ItemSlot } from './items';
 import type { NameForms } from './names';
 
 /** What an option can do besides moving to another node. */
-export type DialogueAction = 'openShop' | 'openChangelog' | 'openInventory' | 'openCoach' | 'resetTree' | 'openOrders' | 'close';
+export type DialogueAction = 'openShop' | 'openChangelog' | 'openInventory' | 'openCoach' | 'resetTree' | 'openOrders' | 'openAlchemy' | 'close';
 
 export interface DialogueOption {
   text: string;
@@ -54,6 +55,7 @@ export interface NpcDef {
 /** Lines shared by many NPCs (the helpers below); editing one changes all of them. */
 export const NPC_LINES = {
   showOrders: 'Покажи замовлення.',
+  brew: 'Звари мені щось.',
   merchantTitle: 'Торговець',
   showGoods: 'Покажи товари.',
   aboutPlace: 'Що тут цікавого?',
@@ -508,6 +510,12 @@ export const NPCS: Record<string, NpcDef> = {
     news: 'Крижані кристали горять у горні синім полум’ям. Принесеш — скую щось добре. Колись.',
   }),
 };
+
+// Brewers (ROADMAP 14.2): whoever brews a recipe offers it first in the talk.
+for (const id of new Set(RECIPES.flatMap((r) => r.at))) {
+  const npc = NPCS[id];
+  npc?.nodes[npc.start]?.options.unshift({ text: NPC_LINES.brew, action: 'openAlchemy' });
+}
 
 export function getNpc(id: string): NpcDef {
   const n = NPCS[id];

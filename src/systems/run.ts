@@ -1,5 +1,6 @@
 // Run-level flow: new expedition, travel on the map, town actions.
 
+import { elixirArenaDone } from './alchemy';
 import { EventBus } from '../core/events';
 import { Rng } from '../core/rng';
 import { type Checkpoint, createRunStats, type GameState } from '../core/state';
@@ -217,6 +218,8 @@ export function completeBattle(state: GameState, b: Battle, opts: { final?: bool
   let clearBonus = 0;
   let recovered: BattleSummary['recovered'] = null;
   if (!won) applyDeath(state, b);
+  // Every arena behind wanes the elixir (ROADMAP 14.2).
+  elixirArenaDone(state.hero);
   questsAfterBattle(state, {
     nodeId: b.node.id,
     won: won && final,

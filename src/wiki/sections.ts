@@ -2,6 +2,7 @@
 // always what the game uses. Numbers (`v()`) and texts (`t()`) carry a reference to their
 // place in the data (`[ROOT, ...path]`); in `npm run dev` they become editable.
 
+import { alchemySection } from './alchemy';
 import { soundsSection } from './sounds';
 import * as BALANCE from '../data/balance';
 import { BIOMES } from '../data/biomes';
@@ -576,6 +577,7 @@ export function buildSections(comment: (root: string, path: LiteralPath) => stri
     invasionSection(),
     questsSection(),
     trophiesSection(),
+    alchemySection(),
     itemsSection(),
     consumablesSection(),
     wavesSection(),

@@ -1,5 +1,7 @@
 // Hero creation and derived stats.
 
+import { elixirStat } from './alchemy';
+import type { GiftStat } from '../data/gifts';
 import { giftStat } from './gifts';
 import { TALENT_TREES } from '../data/talents';
 import type { SkillDef } from '../data/skills';
@@ -42,6 +44,7 @@ export function createHero(id: number): Hero {
     bag: [],
     consumables: { magnifier: 0, herbGreen: 0, herbRed: 0, herbWhite: 0, potionSmall: 0, potionMedium: 0, potionLarge: 0 },
     trophies: {},
+    elixir: null,
     quickSlots: [null, null, null],
     healCooldown: 0,
     dodgeCooldown: 0,
@@ -195,15 +198,16 @@ export function recomputeHeroStats(hero: Hero): void {
         break;
     }
   }
-  // Gifts (ROADMAP 12.8).
-  s.attackSpeed *= 1 + giftStat(hero, 'attackSpeedPct');
-  hpPct += giftStat(hero, 'hpPct');
-  s.critChance += giftStat(hero, 'critChance');
-  s.armor += giftStat(hero, 'armor');
-  s.lifesteal += giftStat(hero, 'lifesteal');
-  s.moveSpeed *= 1 + giftStat(hero, 'moveSpeedPct');
-  s.cooldownMult *= 1 - giftStat(hero, 'cooldownPct');
-  s.skillDamageMult *= 1 + giftStat(hero, 'skillDamagePct');
+  // Gifts (ROADMAP 12.8) and the elixir drunk (14.2).
+  const bonus = (st: GiftStat): number => giftStat(hero, st) + elixirStat(hero, st);
+  s.attackSpeed *= 1 + bonus('attackSpeedPct');
+  hpPct += bonus('hpPct');
+  s.critChance += bonus('critChance');
+  s.armor += bonus('armor');
+  s.lifesteal += bonus('lifesteal');
+  s.moveSpeed *= 1 + bonus('moveSpeedPct');
+  s.cooldownMult *= 1 - bonus('cooldownPct');
+  s.skillDamageMult *= 1 + bonus('skillDamagePct');
   // The second stage of the branch: its stat bonus.
   if (hero.promotion && hero.promotion2) {
     const b2 = getPromotion(hero.promotion).bonus2;

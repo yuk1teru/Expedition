@@ -12,6 +12,13 @@ export function getOrder(id: string): ArtifactOrder | undefined {
   return ARTIFACT_ORDERS.find((o) => o.id === id);
 }
 
+/** The buyer shows his orders after this quest (he first wants to see an old coin). */
+export const ORDERS_QUEST = 'systemBuyer';
+
+export function ordersUnlocked(state: GameState): boolean {
+  return state.quests.done.includes(ORDERS_QUEST);
+}
+
 export function orderOpen(state: GameState, id: string): boolean {
   return !state.ordersDone.includes(id);
 }
@@ -25,7 +32,7 @@ export function orderProgress(state: GameState, order: ArtifactOrder): { have: n
 /** Hands the set in: the trophies leave the bag, the gold comes. False — not ready or done. */
 export function completeOrder(state: GameState, id: string): boolean {
   const order = getOrder(id);
-  if (!order || !orderOpen(state, id) || !orderProgress(state, order).ready) return false;
+  if (!order || !ordersUnlocked(state) || !orderOpen(state, id) || !orderProgress(state, order).ready) return false;
   for (const w of order.wants) {
     const left = (state.hero.trophies[w.trophy] ?? 0) - w.count;
     if (left > 0) state.hero.trophies[w.trophy] = left;
@@ -38,6 +45,7 @@ export function completeOrder(state: GameState, id: string): boolean {
 
 /** How many of this trophy the open orders want (kept from the merchant). */
 export function ordersWant(state: GameState, trophyId: string): number {
+  if (!ordersUnlocked(state)) return 0;
   let n = 0;
   for (const o of ARTIFACT_ORDERS) {
     if (!orderOpen(state, o.id)) continue;

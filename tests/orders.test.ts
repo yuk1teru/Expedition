@@ -19,6 +19,7 @@ describe('artifact orders', () => {
 
   it('a full set is handed in once: the trophies go, the gold comes', () => {
     const s = createGameState(1);
+    s.quests.done.push('systemBuyer');
     const need = furs.wants[0]!.count;
     addTrophy(s, 'wolfPelt', need - 1);
     expect(orderProgress(s, furs).ready).toBe(false);
@@ -32,9 +33,14 @@ describe('artifact orders', () => {
     expect(completeOrder(s, 'furs')).toBe(false);
   });
 
-  it('the merchant does not buy what an open order waits for; a done order frees it', () => {
+  it('orders open after the buyer\u2019s first quest; then the merchant keeps what they wait for, a done order frees it', () => {
     const s = createGameState(1);
     addTrophy(s, 'wolfPelt', 4);
+    expect(ordersWant(s, 'wolfPelt')).toBe(0);
+    addTrophy(s, 'wolfPelt', 10);
+    expect(completeOrder(s, 'furs')).toBe(false);
+    s.hero.trophies.wolfPelt = 4;
+    s.quests.done.push('systemBuyer');
     expect(ordersWant(s, 'wolfPelt')).toBeGreaterThan(0);
     expect(trophySale(s).count).toBe(0);
     s.ordersDone.push('furs');
