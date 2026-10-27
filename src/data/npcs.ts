@@ -125,6 +125,18 @@ function buyer(o: Parameters<typeof local>[0]): NpcDef {
   return npc;
 }
 
+/** A town's errand board (ROADMAP 15.1): its quests come from the data (giver — the board). */
+function board(id: string, title: string, text: string): NpcDef {
+  return {
+    id,
+    name: 'Дошка доручень',
+    title,
+    look: { body: '#7a5a3a', accent: '#c9a36b', hat: 'board' },
+    start: 'hello',
+    nodes: { hello: { text, options: [{ text: 'Відійти.', action: 'close' }] } },
+  };
+}
+
 /** A class teacher: a local NPC who also resets the talent tree (ROADMAP 12.9). */
 function teacher(o: Parameters<typeof local>[0]): NpcDef {
   const npc = local(o);
@@ -380,19 +392,11 @@ export const NPCS: Record<string, NpcDef> = {
       },
     },
   },
-  forestBoard: {
-    id: 'forestBoard',
-    name: 'Дошка доручень',
-    title: 'Смерекове',
-    look: { body: '#7a5a3a', accent: '#c9a36b', hat: 'board' },
-    start: 'hello',
-    nodes: {
-      hello: {
-        text: 'На дошці біля криниці мисливці й лісоруби лишають доручення — і плату за них.',
-        options: [{ text: 'Відійти.', action: 'close' }],
-      },
-    },
-  },
+  forestBoard: board('forestBoard', 'Смерекове', 'На дошці біля криниці мисливці й лісоруби лишають доручення — і плату за них.'),
+  portBoard: board('portBoard', '{town:port}', 'Рибалки й купці приколюють до дошки записки: хто що просить і скільки платить.'),
+  swampBoard: board('swampBoard', '{town:swampTown}', 'Дошка на палях над водою. Записки підмоклі, але плата справжня.'),
+  desertBoard: board('desertBoard', '{town:desertTown}', 'Караванники лишають тут доручення — і мішечки з монетами в старости.'),
+  iceBoard: board('iceBoard', '{town:iceTown}', 'Обмерзла дошка біля корчми: доручення шукачів і ковалів.'),
   // ---- Порт ----
   portMerchant: merchant({
     id: 'portMerchant',

@@ -87,7 +87,7 @@ export function createDialogueModal(app: App, who: string | NpcDef, onAction: (a
       if (npc.id === 'grave') drawTombstone(ctx, PANEL.x + 64, PANEL.y + 108, 1.5, '');
       else drawNpc(ctx, npc.look, PANEL.x + 64, PANEL.y + 82, 34, app.time);
       drawText(ctx, npc.name, PANEL.x + 64, PANEL.y + 140, { size: 14, bold: true, align: 'center', color: THEME.accent });
-      drawText(ctx, npc.title, PANEL.x + 64, PANEL.y + 158, { size: 11, align: 'center', color: THEME.textDim });
+      drawText(ctx, fillNames(npc.title), PANEL.x + 64, PANEL.y + 158, { size: 11, align: 'center', color: THEME.textDim });
       // The line, typed out.
       ctx.font = font(16);
       ctx.fillStyle = THEME.text;

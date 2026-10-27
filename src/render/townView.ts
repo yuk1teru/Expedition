@@ -231,7 +231,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
         draw: () => {
           const npc = getNpc(n.id);
           drawNpc(ctx, npc.look, n.x, n.y, TOWN_SCENE.npcRadius, app.time);
-          nameplate(ctx, n.x, n.y - TOWN_SCENE.npcRadius * 2 - 10, npc.name, npc.title, npc.id === near);
+          nameplate(ctx, n.x, n.y - TOWN_SCENE.npcRadius * 2 - 10, npc.name, fillNames(npc.title), npc.id === near);
           const mark = npcMark(state, n.id);
           if (mark) questMark(ctx, n.x, n.y - TOWN_SCENE.npcRadius * 2 - 34, mark, app.time);
         },

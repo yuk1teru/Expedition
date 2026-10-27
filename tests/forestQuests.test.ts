@@ -30,4 +30,20 @@ describe('the Smerekove chain and board (ROADMAP 15.1)', () => {
     s.hero.classId = 'warrior';
     expect(questsOffered(s, 'warriorTeacher').map((q) => q.id)).toContain('warriorDrill');
   });
+
+  it('every land town has its errand board and a 4-step chain (ROADMAP 16)', () => {
+    const chains: Record<string, string[]> = {
+      port: ['portGulls', 'portShells', 'portBlackSails', 'portLighthouse'],
+      swampTown: ['swampSlime', 'swampTongues', 'swampToad', 'swampWell'],
+      desertTown: ['desertStings', 'desertScarabs', 'desertKing', 'desertOasis'],
+      iceTown: ['iceSnowmen', 'iceCrystals', 'iceKnightTrail', 'iceBanner'],
+    };
+    const s = createGameState(1);
+    for (const [town, chain] of Object.entries(chains)) {
+      const boardId = TOWNS[town]!.npcs.map((n) => n.id).find((id) => id.endsWith('Board'));
+      expect(boardId, town).toBeDefined();
+      expect(questsOffered(s, boardId!).length, town).toBeGreaterThanOrEqual(3);
+      for (let i = 0; i < chain.length - 1; i++) expect(QUESTS[chain[i]!]!.next, chain[i]).toBe(chain[i + 1]);
+    }
+  });
 });
