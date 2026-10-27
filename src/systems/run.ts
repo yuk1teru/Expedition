@@ -42,6 +42,7 @@ export function createGameState(seed: number, heroName = DEFAULT_HERO_NAME): Gam
     modalQueue: [],
     events: new EventBus<GameEvent>(),
     lastDeath: null,
+    invasionSeen: 0,
   };
   return { ...state, checkpoint: snapshot(state) };
 }

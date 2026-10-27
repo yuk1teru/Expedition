@@ -4,6 +4,7 @@
 import { LIVES } from '../data/balance';
 import { CLASSES } from '../data/classes';
 import { GRAVE, WAKE } from '../data/death';
+import { INVASION } from '../data/invasion';
 import { RARITIES } from '../data/items';
 import { LORE } from '../data/lore';
 import { LORE_NAMES } from '../data/names';
@@ -256,5 +257,21 @@ ${table(['Причина', 'Що каже лікар'], causes, 'kv')}
 <h3 class="group">Надгробок</h3>
 <p class="dim small"><code>{hero}</code>, <code>{class}</code>, <code>{level}</code>, <code>{days}</code>, <code>{kills}</code>, <code>{bosses}</code>, <code>{place}</code>.</p>
 ${table(['Що', 'Текст'], grave.map(([k, text, key]) => [esc(k), t(text, ['GRAVE', key])]), 'kv')}`,
+  };
+}
+
+// ---- Invasion ----
+
+export function invasionSection(): Section {
+  const rows = INVASION.thresholds.map((th, i) => [
+    `${v(th.at, ['INVASION', 'thresholds', i, 'at'])}%`,
+    `<b>${t(th.title, ['INVASION', 'thresholds', i, 'title'])}</b><div class="small">${t(th.text, ['INVASION', 'thresholds', i, 'text'])}</div>`,
+  ]);
+  return {
+    id: 'invasion',
+    title: 'Навала',
+    html: `<p>Шкала навали видна на карті. Вона росте на ${v(INVASION.perDay, ['INVASION', 'perDay'])}% за день (кожна перемога — день) до 100%. Вороги й боси сильнішають разом з нею: на 100% — +${v(INVASION.strengthAt100, ['INVASION', 'strengthAt100'], 'pct')} HP і шкоди, між порогами — пропорційно.</p>
+<p class="dim small">На порогах з’являється повідомлення; самі події (набіги, захоплений край, напад на місто) — етап 15, облога столиці — етап 17 (ROADMAP.md).</p>
+${table(['Поріг', 'Що стається'], rows, 'kv')}`,
   };
 }

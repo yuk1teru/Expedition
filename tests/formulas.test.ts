@@ -1,4 +1,5 @@
 import { HERO, LEVELS } from '../src/data/balance';
+import { INVASION } from '../src/data/invasion';
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../src/core/rng';
 import { GOLD, PROGRESSION, SCALING } from '../src/data/balance';
@@ -7,8 +8,9 @@ import { gainXp } from '../src/systems/leveling';
 import { createGameState } from '../src/systems/run';
 import {
   applyArmor,
-  dayMultiplier,
-  daysToNextThreat,
+  invasionMultiplier,
+  invasionPct,
+  newInvasionThresholds,
   threatMultiplier,
   levelTier,
   xpPenalized,
@@ -54,20 +56,21 @@ describe('crits', () => {
 });
 
 describe('enemy scaling', () => {
-  it('base × (1 + 0.45 × (tier − 1)) × day multiplier', () => {
+  it('base × (1 + 0.45 × (tier − 1)) × invasion multiplier', () => {
     expect(enemyStats({ hp: 100, damage: 10 }, 1)).toEqual({ hp: 100, damage: 10 });
     const t3 = enemyStats({ hp: 100, damage: 10 }, 3);
     expect(t3.hp).toBeCloseTo(100 * (1 + SCALING.perTier * 2));
     expect(t3.damage).toBeCloseTo(10 * (1 + SCALING.perTier * 2));
-    const withDays = enemyStats({ hp: 100, damage: 10 }, 2, 1.2);
-    expect(withDays.hp).toBeCloseTo(145 * 1.2);
+    const withInvasion = enemyStats({ hp: 100, damage: 10 }, 2, 1.2);
+    expect(withInvasion.hp).toBeCloseTo(145 * 1.2);
   });
 
-  it('day multiplier grows by 10% every 5 days when enabled', () => {
-    expect(dayMultiplier(4, true)).toBe(1);
-    expect(dayMultiplier(5, true)).toBeCloseTo(1.1);
-    expect(dayMultiplier(12, true)).toBeCloseTo(1.2);
-    expect(dayMultiplier(50, false)).toBe(1);
+  it('the invasion grows with the days up to 100% and makes enemies stronger in proportion', () => {
+    expect(invasionPct(1)).toBe(0);
+    expect(invasionMultiplier(1)).toBe(1);
+    for (let d = 1; d < 400; d++) expect(invasionPct(d + 1)).toBeGreaterThanOrEqual(invasionPct(d));
+    expect(invasionPct(10_000)).toBe(100);
+    expect(invasionMultiplier(10_000)).toBeCloseTo(1 + INVASION.strengthAt100);
   });
 
   it('gold rewards scale with tier', () => {
@@ -120,13 +123,15 @@ describe('xp', () => {
   });
 });
 
-describe('day threat', () => {
-  it('enemies grow +10% every 5 days; the map counts the days left', () => {
+describe('invasion', () => {
+  it('enemies of a run follow the invasion; each threshold is announced once', () => {
     const s = createGameState(3);
-    s.day = 12;
-    expect(threatMultiplier(s)).toBeCloseTo(1.2);
-    expect(daysToNextThreat(12)).toBe(3);
-    expect(daysToNextThreat(14)).toBe(1);
+    s.day = 1 + Math.ceil(26 / INVASION.perDay);
+    expect(threatMultiplier(s)).toBeCloseTo(invasionMultiplier(s.day));
+    expect(newInvasionThresholds(s).map((t) => t.at)).toEqual([25]);
+    expect(newInvasionThresholds(s)).toEqual([]);
+    s.day = 10_000;
+    expect(newInvasionThresholds(s).map((t) => t.at)).toEqual([50, 75, 100]);
     expect(xpPenalized(5, 5 + PROGRESSION.xpPenalty.levelGap + 1)).toBe(true);
     expect(xpPenalized(5, 5 + PROGRESSION.xpPenalty.levelGap)).toBe(false);
   });

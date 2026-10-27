@@ -12,11 +12,13 @@ import { WEATHER } from '../data/weather';
 import { WORLD_MAP } from '../data/world';
 import { type MapNode, effectiveLevel } from '../systems/mapgen';
 import { canTravel } from '../systems/run';
-import { dayMultiplier, daysToNextThreat, xpPenalized } from '../systems/scaling';
+import { invasionMultiplier, invasionPct, newInvasionThresholds, xpPenalized } from '../systems/scaling';
+import { INVASION } from '../data/invasion';
+import { createNoticeModal } from './notice';
 import type { App } from './app';
 import { THEME, font } from './theme';
 import { TOP_BAR_H, drawTopBar } from './topBar';
-import { Button, ButtonGroup, type Rect, drawText, drawTooltip } from './ui';
+import { Button, ButtonGroup, type Rect, drawText, drawTooltip, roundRect } from './ui';
 import { worldTerrain } from './worldTerrain';
 
 const NODE_R = 15;
@@ -101,6 +103,8 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
     enter() {
       cam.scale = ZOOM.start;
       focusHero();
+      // New invasion thresholds are announced when the hero looks at the map.
+      for (const t of newInvasionThresholds(app.state)) app.screens.pushModal(createNoticeModal(app, t.title, t.text, () => app.screens.popModal()));
     },
 
     update() {},
@@ -192,7 +196,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
       ctx.restore();
 
       drawTopBar(ctx, state, W, app.totalBosses(), app.time);
-      drawThreat(ctx, state.day, state.bossesDefeated.length);
+      drawInvasion(ctx, state.day, state.bossesDefeated.length);
       buttons.draw(ctx);
       const hint = 'Клік по сусідній локації — вирушити · коліщатко, +/− — зум · тягніть — рух карти · C — до героя';
       ctx.font = font(12);
@@ -266,17 +270,29 @@ function drawNodeLabel(
   if (level) drawText(ctx, level.text, x, bottom + (showName ? 25 : 10), { size: 11, align: 'center', color: level.color });
 }
 
-/** "День 7 · Загроза +10% · Через 3 дні вороги посиляться" under the top bar. */
-function drawThreat(ctx: CanvasRenderingContext2D, day: number, bosses: number): void {
-  const pct = Math.round((dayMultiplier(day) - 1) * 100);
-  const left = daysToNextThreat(day);
-  const soon = left <= 2;
-  const bossPart = bosses > 0 ? ` · Боси: локації +${bosses * WORLD.bossThreat.locationLevels} рівнів` : '';
-  const text = `День ${day} · Загроза +${pct}% · Через ${left} ${left === 1 ? 'день' : left < 5 ? 'дні' : 'днів'} вороги посиляться${bossPart}`;
-  ctx.font = font(13, soon ? 'bold' : 'normal');
-  ctx.fillStyle = 'rgba(10, 12, 18, 0.8)';
-  ctx.fillRect(0, TOP_BAR_H + 1, ctx.measureText(text).width + 28, 30);
-  drawText(ctx, text, 16, TOP_BAR_H + 16, { size: 13, bold: soon, color: soon ? THEME.bad : THEME.textDim });
+/** The invasion scale under the top bar: day, percent with a bar, the enemies' bonus (ROADMAP 10.3). */
+function drawInvasion(ctx: CanvasRenderingContext2D, day: number, bosses: number): void {
+  const pct = invasionPct(day);
+  const bonus = Math.round((invasionMultiplier(day) - 1) * 100);
+  const x = 12;
+  const y = TOP_BAR_H + 8;
+  const w = 300;
+  ctx.fillStyle = 'rgba(10, 12, 18, 0.82)';
+  roundRect(ctx, x, y, w, bosses > 0 ? 62 : 46, 8);
+  ctx.fill();
+  drawText(ctx, `День ${day} · Навала ${Math.floor(pct)}%`, x + 12, y + 13, { size: 13, bold: true, color: pct >= 75 ? THEME.bad : THEME.text });
+  drawText(ctx, `вороги +${bonus}%`, x + w - 12, y + 13, { size: 12, align: 'right', color: THEME.textDim });
+  // The bar with the threshold marks.
+  const bx = x + 12;
+  const by = y + 26;
+  const bw = w - 24;
+  ctx.fillStyle = '#2a1a1e';
+  ctx.fillRect(bx, by, bw, 8);
+  ctx.fillStyle = THEME.bad;
+  ctx.fillRect(bx, by, (bw * pct) / 100, 8);
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  for (const t of INVASION.thresholds) if (t.at < 100) ctx.fillRect(bx + (bw * t.at) / 100 - 1, by - 2, 2, 12);
+  if (bosses > 0) drawText(ctx, `Боси: локації +${bosses * WORLD.bossThreat.locationLevels} рівнів`, x + 12, y + 50, { size: 12, color: THEME.textDim });
 }
 
 /** Monster levels of a region: "7–9" (one number when all are equal). */

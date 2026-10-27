@@ -54,6 +54,8 @@ export interface GameState {
   events: EventBus<GameEvent>;
   /** Progress saved at the last rest in town; death returns here. */
   checkpoint: Checkpoint;
+  /** The highest invasion threshold already announced (ROADMAP 10.3), %. */
+  invasionSeen: number;
   /** Set by a death; the doctor talks about it when the hero wakes up in town. */
   lastDeath: LastDeath | null;
   /** Debug: travel to any node, not only to neighbours. */

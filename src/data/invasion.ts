@@ -1,0 +1,33 @@
+// The invasion (ROADMAP 10.3): a visible 0–100% scale that grows with the days and makes
+// enemies stronger. Its thresholds bring events — for now only a message (the events
+// themselves come in stage 15); at 100% the dead besiege the capital (stage 17).
+// Names inside texts — references (src/data/names.ts).
+
+export const INVASION = {
+  /** Percent of the scale per day (every won battle is a day). */
+  perDay: 1,
+  /** Enemy HP and damage at 100%: × (1 + this); in between — in proportion. */
+  strengthAt100: 0.4,
+  thresholds: [
+    {
+      at: 25,
+      title: 'Навала: набіги',
+      text: 'Мерці з {name:dead:of} пробують кордони: загони нападають на дороги й локації. Що довше зволікаєш, то сміливіші вони стають.',
+    },
+    {
+      at: 50,
+      title: 'Навала: край захоплено',
+      text: 'Мерці захопили цілий край. Без допомоги він не встоїть — шукай доручення, щоб його відбити.',
+    },
+    {
+      at: 75,
+      title: 'Навала: місто в небезпеці',
+      text: 'Мерці підступили до одного з міст. Ворота тримаються, але недовго.',
+    },
+    {
+      at: 100,
+      title: 'Навала: облога столиці',
+      text: '{name:lord} веде мерців на {town:capital:acc}. Облога почалася — усі, хто може тримати зброю, мають бути на стінах.',
+    },
+  ],
+};

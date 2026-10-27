@@ -41,6 +41,8 @@ export interface SaveData {
   nodes: Record<string, { timesCleared: number; lastWave: number; lostLoot?: MapNode['lostLoot'] }>;
   /** A death the doctor has not told about yet. */
   lastDeath: LastDeath | null;
+  /** The highest invasion threshold announced (absent in early saves). */
+  invasionSeen?: number;
 }
 
 /**
@@ -83,6 +85,7 @@ export function toSave(state: GameState, now = Date.now()): SaveData {
     bossesDefeated: cp.bossesDefeated,
     nodes,
     lastDeath: cp.lastDeath,
+    invasionSeen: state.invasionSeen,
   });
 }
 
@@ -133,6 +136,7 @@ export function fromSave(data: SaveData): GameState {
     modalQueue: [...data.modalQueue],
     events: new EventBus<GameEvent>(),
     lastDeath: data.lastDeath ?? null,
+    invasionSeen: data.invasionSeen ?? 0,
   };
   return { ...state, checkpoint: snapshot(state) };
 }
