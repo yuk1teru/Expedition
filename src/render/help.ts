@@ -1,6 +1,7 @@
 // "Як грати": controls shown before the game starts and on the pause screen.
 
 import type { InputEvent } from '../core/input';
+import { PROGRESSION } from '../data/balance';
 import type { Modal } from '../core/screens';
 import type { App } from './app';
 import { THEME } from './theme';
@@ -10,7 +11,7 @@ export const CONTROLS: [string, string][] = [
   ['WASD / стрілки', 'рух героя'],
   ['Миша', 'напрямок автоатаки й скілів'],
   ['1–4 або клік по слоту', 'скіли; слоти можна перетягувати'],
-  ['R', 'фірмовий скіл гілки (після 13 рівня)'],
+  ['R', `фірмовий скіл гілки (після ${PROGRESSION.promotionLevel} рівня)`],
   ['E / кнопка біля порталу', 'вийти з локації після 3-ї хвилі'],
   ['N', 'одразу наступна хвиля (у перерві)'],
   ['Shift', 'ривок черевиків у напрямку руху (зелені й кращі)'],

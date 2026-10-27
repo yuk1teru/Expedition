@@ -44,7 +44,7 @@ export function levelUp(state: GameState): void {
   } else if (hero.level === PROGRESSION.promotionLevel) {
     // The promotion replaces this level's card.
     state.modalQueue.push({ kind: 'promotion' });
-  } else if (hero.level > PROGRESSION.classChoiceLevel) {
+  } else if (hero.level > PROGRESSION.classChoiceLevel && (hero.level - PROGRESSION.classChoiceLevel) % PROGRESSION.cardEvery === 0) {
     state.modalQueue.push({ kind: 'cardChoice', level: hero.level });
   }
 }

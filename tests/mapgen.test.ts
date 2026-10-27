@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { WORLD } from '../src/data/balance';
+import { PROGRESSION, WORLD } from '../src/data/balance';
 import { BIOME_ORDER } from '../src/data/biomes';
-import { type MapNode, type World, effectiveTier, buildWorld, getNode, markCleared, neighbours } from '../src/systems/mapgen';
+import { type MapNode, type World, effectiveLevel, buildWorld, getNode, markCleared, neighbours } from '../src/systems/mapgen';
 import { canPassThrough, canTravel, createGameState, passThrough, restInTown, restoreCheckpoint, travel } from '../src/systems/run';
 import { BOSSES } from '../src/data/bosses';
 import { ENEMIES } from '../src/data/enemies';
-import { CAPITAL_ID, WORLD_MAP } from '../src/data/world';
+import { CAPITAL_ID, WORLD_MAP, WORLD_NODES } from '../src/data/world';
 
 function reachable(world: World, from: string): Set<string> {
   const seen = new Set([from]);
@@ -75,14 +75,15 @@ describe('the fixed world', () => {
     }
     for (const region of BIOME_ORDER) {
       const boss = byRegion(region).find((n) => n.isBoss)!;
-      for (const n of byRegion(region)) if (!n.isBoss) expect(n.tier).toBeLessThan(boss.tier);
+      for (const n of byRegion(region)) if (!n.isBoss) expect(n.level).toBeLessThan(boss.level);
     }
   });
 
   it('the forest is the easiest biome; the ice — the hardest', () => {
-    const maxTier = (r: string): number => Math.max(...byRegion(r).filter((n) => !n.isBoss).map((n) => n.tier));
-    const minTier = (r: string): number => Math.min(...byRegion(r).filter((n) => !n.isTown).map((n) => n.tier));
-    expect(minTier('forest')).toBe(1);
+    const maxTier = (r: string): number => Math.max(...byRegion(r).filter((n) => !n.isBoss).map((n) => n.level));
+    const minTier = (r: string): number => Math.min(...byRegion(r).filter((n) => !n.isTown).map((n) => n.level));
+    const all = Math.min(...WORLD_NODES.filter((n) => n.kind !== 'town').map((n) => n.level));
+    expect(minTier('forest')).toBe(all);
     expect(maxTier('forest')).toBeLessThan(minTier('swamp'));
     expect(maxTier('forest')).toBeLessThan(minTier('desert'));
     expect(minTier('ice')).toBeGreaterThan(minTier('swamp'));
@@ -108,13 +109,13 @@ describe('travel in the fixed world', () => {
     expect(canTravel(s, 'forestTown')).toBe(true);
   });
 
-  it('cleared tiers stay fixed in the full world ', () => {
+  it('a cleared location keeps its level', () => {
     const s = createGameState(3);
     const n = getNode(s.world, 'rotMarsh');
-    const tier = n.tier;
+    const level = n.level;
     markCleared(n, 3);
     markCleared(n, 3);
-    expect(n.tier).toBe(tier);
+    expect(n.level).toBe(level);
   });
 });
 
@@ -123,8 +124,13 @@ describe('boss threat', () => {
     const s = createGameState(8);
     const d1 = getNode(s.world, 'quietGrove');
     const boss = s.world.nodes.find((n) => n.isBoss)!;
-    expect(effectiveTier(d1, 0)).toBe(d1.tier);
-    expect(effectiveTier(d1, 2)).toBeCloseTo(d1.tier + 2 * WORLD.bossThreat.locationTier);
-    expect(effectiveTier(boss, 1)).toBeCloseTo(boss.tier + WORLD.bossThreat.bossTier);
+    expect(effectiveLevel(d1, 0)).toBe(d1.level);
+    expect(effectiveLevel(d1, 2)).toBe(d1.level + 2 * WORLD.bossThreat.locationLevels);
+    expect(effectiveLevel(boss, 1)).toBe(boss.level + WORLD.bossThreat.bossLevels);
+  });
+
+  it('the threat never lifts a location above the hero maximum level', () => {
+    const s = createGameState(8);
+    for (const n of s.world.nodes) if (!n.isTown) expect(effectiveLevel(n, 10)).toBeLessThanOrEqual(Math.max(n.level, PROGRESSION.maxLevel));
   });
 });

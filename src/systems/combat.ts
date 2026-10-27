@@ -86,7 +86,7 @@ export function killEnemy(b: Battle, e: Enemy): void {
     b.events.emit({ type: 'gold', pos: { ...e.pos }, amount: gold });
   }
   if (e.xp > 0) {
-    const xp = xpReward(e.xp, b.tier, b.hero.level);
+    const xp = xpReward(e.xp, b.level, b.hero.level);
     b.stats.xp += xp;
     gainXp(b.state, xp);
   }
@@ -159,7 +159,7 @@ function dropLoot(b: Battle, e: Enemy): void {
   const wave = (b.waves?.index ?? 0) + 1;
   for (let i = 0; i < table.count; i++) {
     const rarity = rollRarity(st.lootRng, table.weights);
-    const ilvl = dropItemLevel(st.lootRng, itemLevelRange(b.tier), source, wave);
+    const ilvl = dropItemLevel(st.lootRng, itemLevelRange(b.level), source, wave);
     const item = rollItem(st.lootRng, rarity, st.nextItemUid++, undefined, ilvl);
     stashLoot(b.hero, item);
     b.stats.loot.push(item);

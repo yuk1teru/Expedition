@@ -81,6 +81,15 @@ describe('save', () => {
     expect(readSave(JSON.stringify(data))).not.toBeNull();
   });
 
+  it('a save of the old level scale (format 1) gets the new levels', () => {
+    const data = toSave(createGameState(5));
+    const old = { ...data, version: 1, hero: { ...data.hero, level: 7, xp: 30 } };
+    const read = readSave(JSON.stringify(old))!;
+    expect(read.version).toBe(SAVE_VERSION);
+    expect(read.hero.level).toBe(13);
+    expect(fromSave(read).hero.level).toBe(13);
+  });
+
   it('export file name has the hero and the date', () => {
     const data = toSave(createGameState(5, 'Сірий Вовк'), Date.UTC(2026, 9, 27));
     expect(saveFileName(data)).toBe('expedition-Сірий_Вовк-2026-10-27.json');

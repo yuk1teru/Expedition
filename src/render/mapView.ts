@@ -10,7 +10,7 @@ import { getBoss } from '../data/bosses';
 import { getEnemyDef } from '../data/enemies';
 import { WEATHER } from '../data/weather';
 import { WORLD_MAP } from '../data/world';
-import { type MapNode, effectiveTier, recommendedLevel } from '../systems/mapgen';
+import { type MapNode, effectiveLevel } from '../systems/mapgen';
 import { canTravel } from '../systems/run';
 import { dayMultiplier, daysToNextThreat, xpPenalized } from '../systems/scaling';
 import type { App } from './app';
@@ -135,7 +135,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
     render(ctx) {
       const state = app.state;
       const { world } = state;
-      const tierOf = (n: MapNode): number => effectiveTier(n, state.bossesDefeated.length);
+      const levelOf = (n: MapNode): number => effectiveLevel(n, state.bossesDefeated.length);
       const t = app.time;
       ctx.fillStyle = '#0d1016';
       ctx.fillRect(0, 0, W, H);
@@ -185,7 +185,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
       for (const n of [...world.nodes].sort((a, b) => priority(a) - priority(b))) {
         const p = toScreen(n.pos);
         const named = priority(n) < 4 || cam.scale >= ZOOM.allNames;
-        const level = n.isTown ? null : recommendedLevel(tierOf(n));
+        const level = n.isTown ? null : levelOf(n);
         const lvl = level === null ? null : { text: `рів. ${level}`, color: levelColor(state.hero.level, level) };
         drawNodeLabel(ctx, n, p.x, p.y + nodeRadius(n) * ns, named, canTravel(state, n.id), lvl, taken);
       }
@@ -204,7 +204,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
 
       if (hovered) {
         const n = world.nodes.find((x) => x.id === hovered);
-        if (n) drawTooltip(ctx, tooltipLines(n, state.currentNodeId, state.hero.level, tierOf(n)), app.input.mouse.x, app.input.mouse.y, W, H);
+        if (n) drawTooltip(ctx, tooltipLines(n, state.currentNodeId, state.hero.level, levelOf(n), regionLevels(world.nodes, n.region, levelOf)), app.input.mouse.x, app.input.mouse.y, W, H);
       }
     },
   };
@@ -271,7 +271,7 @@ function drawThreat(ctx: CanvasRenderingContext2D, day: number, bosses: number):
   const pct = Math.round((dayMultiplier(day) - 1) * 100);
   const left = daysToNextThreat(day);
   const soon = left <= 2;
-  const bossPart = bosses > 0 ? ` · Боси: локації +${bosses * WORLD.bossThreat.locationTier} до складності` : '';
+  const bossPart = bosses > 0 ? ` · Боси: локації +${bosses * WORLD.bossThreat.locationLevels} рівнів` : '';
   const text = `День ${day} · Загроза +${pct}% · Через ${left} ${left === 1 ? 'день' : left < 5 ? 'дні' : 'днів'} вороги посиляться${bossPart}`;
   ctx.font = font(13, soon ? 'bold' : 'normal');
   ctx.fillStyle = 'rgba(10, 12, 18, 0.8)';
@@ -279,13 +279,22 @@ function drawThreat(ctx: CanvasRenderingContext2D, day: number, bosses: number):
   drawText(ctx, text, 16, TOP_BAR_H + 16, { size: 13, bold: soon, color: soon ? THEME.bad : THEME.textDim });
 }
 
-function tooltipLines(n: MapNode, current: string, heroLevel: number, tier: number): string[] {
+/** Monster levels of a region: "7–9" (one number when all are equal). */
+function regionLevels(nodes: MapNode[], region: string, levelOf: (n: MapNode) => number): string {
+  const lv = nodes.filter((x) => x.region === region && !x.isTown).map(levelOf);
+  if (lv.length === 0) return '';
+  const lo = Math.min(...lv);
+  const hi = Math.max(...lv);
+  return lo === hi ? String(lo) : `${lo}–${hi}`;
+}
+
+function tooltipLines(n: MapNode, current: string, heroLevel: number, level: number, region: string): string[] {
   if (n.isTown) return [n.name, n.description, 'Місто: відпочинок і збереження, торговець і жителі', 'Клік — увійти в місто'];
   const lines = [
     n.name,
     n.description,
-    `Регіон: ${getBiome(n.biome).name} · складність ${tier.toFixed(1)}${n.isBoss ? ' (бос)' : ''}${tier > n.tier ? ` (загроза босів +${(tier - n.tier).toFixed(1)})` : ''}`,
-    `Рекомендований рівень: ${recommendedLevel(tier)}`,
+    `Рівень ${level}${n.isBoss ? ' (бос)' : ''}${level > n.level ? ` (загроза босів +${level - n.level})` : ''}`,
+    `Регіон: ${getBiome(n.biome).name} · рівні ${region}`,
   ];
   if (n.isBoss) lines.push(`Бос: ${getBoss(n.boss).name}`);
   else {
@@ -300,7 +309,7 @@ function tooltipLines(n: MapNode, current: string, heroLevel: number, tier: numb
     if (m.herbs) parts.push('трава');
     if (parts.length > 0) lines.push(`Механіки: ${parts.join(', ')}`);
   }
-  if (xpPenalized(tier, heroLevel)) lines.push(`Досвід: ${Math.round(PROGRESSION.xpPenalty.mult * 100)}% (ви набагато сильніші)`);
+  if (xpPenalized(level, heroLevel)) lines.push(`Досвід: ${Math.round(PROGRESSION.xpPenalty.mult * 100)}% (ви набагато сильніші)`);
   lines.push(`Пройдено разів: ${n.timesCleared}`);
   if (n.lastWave > 0) lines.push(`Минулого разу: ${n.lastWave} хвиль (можна продовжити)`);
   if (n.id === current) lines.push('Клік — пройти ще раз');

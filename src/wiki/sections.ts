@@ -15,7 +15,6 @@ import { PARAM_INFO, PASSIVES, SKILLS, describePassive, describeSkill } from '..
 import { TOWNS } from '../data/towns';
 import { WEATHER } from '../data/weather';
 import { WORLD_MAP, WORLD_NODES, WORLD_ROADS } from '../data/world';
-import { recommendedLevel } from '../systems/mapgen';
 import type { LiteralPath } from './literal';
 import {
   type Fmt,
@@ -48,10 +47,7 @@ function intro(): Section {
 <p>Уся інформація про гру: історія світу, класи, скіли, вороги, боси, локації, міста, квести, трофеї, речі й формули. Сторінка будується прямо з даних гри,
 тож числа тут завжди ті самі, що в грі.</p>
 <p class="dim">Імена в текстах — посилання: перейменуй місто, NPC чи боса, і нова назва з’явиться в усіх репліках, квестах і лорі. Для речень, де ім’я стоїть не в називному відмінку, поруч із назвою є відмінки — їх теж можна правити.</p>
-<p class="dim">Рівень складності локації (tier) визначає силу ворогів і рекомендований рівень героя (tier × ${v(
-    BALANCE.SCALING.recommendedLevelPerTier,
-    ['SCALING', 'recommendedLevelPerTier'],
-  )}). Кожен переможений бос посилює решту світу (загроза).</p>`;
+<p class="dim">Рівень локації — рівень її монстрів на тій самій шкалі, що й рівень героя (1–${v(BALANCE.PROGRESSION.maxLevel, ['PROGRESSION', 'maxLevel'])}). Від нього рахуються сила ворогів, досвід, золото й рівень речей. Кожен переможений бос піднімає рівень решти світу (загроза).</p>`;
   return { id: 'about', title: 'Про вікі', html };
 }
 
@@ -103,7 +99,7 @@ ${table(
 <h4>Базова атака</h4><p>${t(a.description, R('basicAttack', 'description'))}</p>${table(['Параметр', 'Значення'], attackRows, 'kv')}
 <h4>Скіли</h4><p>${c.skills.map((s) => link('skill', s, SKILLS[s]!.name)).join(' · ')}</p>
 <h4>Пасивки</h4><p>${c.passives.map((p) => link('passive', p, PASSIVES[p]!.name)).join(' · ')}</p>
-<h4>Просування (рівень 13)</h4><p>${promos.map((p) => link('promo', p.id, p.name)).join(' · ')}</p>`;
+<h4>Просування (рівень ${BALANCE.PROGRESSION.promotionLevel})</h4><p>${promos.map((p) => link('promo', p.id, p.name)).join(' · ')}</p>`;
     return card(anchor('class', id), t(c.name, R('name')), body, t(c.traitText, R('traitText')));
   });
   const hero = BALANCE.HERO;
@@ -224,7 +220,7 @@ function enemiesSection(): Section {
       `<span class="small">${whereFound(e.id)}</span>`,
     ];
   });
-  const html = `<p>HP і шкода — для tier 1; у локації вони множаться на складність (tier), хвилю й загрозу. Вага — відносний шанс з’явитися у хвилі.</p>
+  const html = `<p>HP і шкода — для сили 1 (рівень монстрів ${BALANCE.LEVELS.base}); у локації вони множаться на силу її рівня, хвилю й загрозу. Вага — відносний шанс з’явитися у хвилі.</p>
 ${table(['Ворог', 'Тип', 'HP', 'Шкода', 'Швидк.', 'Броня', 'Атака раз на', 'XP', 'Вага', 'Особливості', 'Де'], rows, 'wide')}`;
   return { id: 'enemies', title: 'Вороги', html };
 }
@@ -301,8 +297,7 @@ function worldSection(): Section {
         return [
           `<b id="${anchor('loc', n.id)}">${t(n.name, ['WORLD_NODES', i, 'name'])}</b><div class="dim small">${t(n.description, ['WORLD_NODES', i, 'description'])}</div>${formsLine(WORLD_NODES[i]?.forms, ['WORLD_NODES', i, 'forms'])}`,
           kind,
-          n.isTown ? '—' : v(n.tier, ['WORLD_NODES', i, 'tier']),
-          n.isTown ? '—' : String(recommendedLevel(n.tier)),
+          n.isTown ? '—' : v(n.level, ['WORLD_NODES', i, 'level']),
           n.isTown ? townNpcs(n.id) : n.isBoss ? monsterLink(n.boss) : n.enemies.map(monsterLink).join(', '),
           n.isTown || n.isBoss || !n.miniboss ? '—' : monsterLink(n.miniboss),
           `<span class="small">${mechanicsText(n)}</span>`,
@@ -310,17 +305,17 @@ function worldSection(): Section {
         ];
       });
       const ri = WORLD_MAP.regions.findIndex((x) => x.id === r);
-      return `<h3 class="group">${ri >= 0 ? t(WORLD_MAP.regions[ri]!.name, ['WORLD_MAP', 'regions', ri, 'name']) : esc(BIOMES[r]?.name ?? r)}</h3>${table(['Місце', 'Тип', 'Tier', 'Рівень', 'Вороги / жителі', 'Мінібос', 'Механіки', 'Дороги'], rows, 'wide')}`;
+      return `<h3 class="group">${ri >= 0 ? t(WORLD_MAP.regions[ri]!.name, ['WORLD_MAP', 'regions', ri, 'name']) : esc(BIOMES[r]?.name ?? r)}</h3>${table(['Місце', 'Тип', 'Рівень', 'Вороги / жителі', 'Мінібос', 'Механіки', 'Дороги'], rows, 'wide')}`;
     })
     .join('');
   const threat = BALANCE.WORLD.bossThreat;
   return {
     id: 'world',
     title: 'Світ і локації',
-    html: `<p>Рекомендований рівень = tier × ${v(BALANCE.SCALING.recommendedLevelPerTier, ['SCALING', 'recommendedLevelPerTier'])}. Кожен переможений бос додає локаціям +${v(
-      threat.locationTier,
-      ['WORLD', 'bossThreat', 'locationTier'],
-    )} tier, а іншим босам +${v(threat.bossTier, ['WORLD', 'bossThreat', 'bossTier'])} (загроза).</p>${html}`,
+    html: `<p>Рівень — рівень монстрів локації (герой того ж рівня — саме для неї). Кожен переможений бос додає локаціям +${v(
+      threat.locationLevels,
+      ['WORLD', 'bossThreat', 'locationLevels'],
+    )} рівнів, а іншим босам +${v(threat.bossLevels, ['WORLD', 'bossThreat', 'bossLevels'])} (загроза), але не вище ${BALANCE.PROGRESSION.maxLevel}.</p>${html}`,
   };
 }
 
@@ -388,7 +383,7 @@ function itemsSection(): Section {
       merchantCell(r),
     ];
   });
-  const ilvl = ITEM_LEVEL.byTier.map((row, i) => [v(row[0], ['ITEM_LEVEL', 'byTier', i, 0]), v(row[1], ['ITEM_LEVEL', 'byTier', i, 1]), v(row[2], ['ITEM_LEVEL', 'byTier', i, 2])]);
+  const ilvl = ITEM_LEVEL.byLevel.map((row, i) => [v(row[0], ['ITEM_LEVEL', 'byLevel', i, 0]), v(row[1], ['ITEM_LEVEL', 'byLevel', i, 1]), v(row[2], ['ITEM_LEVEL', 'byLevel', i, 2])]);
   const stat = (s: string): string => t(STAT_LABELS[s as keyof typeof STAT_LABELS]?.label ?? s, ['STAT_LABELS', s, 'label']);
   const pct = (s: string): Fmt => (STAT_LABELS[s as keyof typeof STAT_LABELS]?.percent ? 'pct' : 'n');
   const bases = ITEM_SLOTS.map(({ id, name }, si) => {
@@ -407,9 +402,9 @@ function itemsSection(): Section {
 Торговець продає випадкову розпізнану річ для обраного слота за ${v(MERCHANT_ITEMS.price, ['MERCHANT_ITEMS', 'price'])} зол.</p>
 ${table(['Рідкість', 'Сила', 'Дод. характеристик', 'Ціна продажу', 'Мінібос', 'Бос', 'Торговець'], rarity)}
 <h3 class="group">Рівень предмета</h3>
-<p>Діапазон рівня речі залежить від tier локації (між рядками — плавно). Максимум — ${v(ITEM_LEVEL.max, ['ITEM_LEVEL', 'max'])}.
+<p>Діапазон рівня речі залежить від рівня монстрів локації (між рядками — плавно). Максимум — ${v(ITEM_LEVEL.max, ['ITEM_LEVEL', 'max'])}.
 Плоскі характеристики множаться на ${v(ITEM_LEVEL.floor, ['ITEM_LEVEL', 'floor'])} + (1 − ${ITEM_LEVEL.floor}) · рівень / ${v(ITEM_LEVEL.reference, ['ITEM_LEVEL', 'reference'])}, відсоткові — на корінь із цього.</p>
-${table(['Tier', 'Мін. рівень', 'Макс. рівень'], ilvl)}
+${table(['Рівень монстрів', 'Мін. рівень речі', 'Макс. рівень речі'], ilvl)}
 <h3 class="group">Характеристики за слотом</h3><p>Діапазони — для звичайної речі рівня ${ITEM_LEVEL.reference}; множаться на силу рідкості.</p>
 ${table(['Слот', 'Головна', 'Додаткові'], bases)}
 <h3 class="group">Ривок черевиків (Shift)</h3>${table(['Рідкість', 'Відстань', 'Перезарядка'], dash)}`;
@@ -475,17 +470,18 @@ function formulasSection(): Section {
   const S = BALANCE.SCALING;
   const html = `
 <ul>
+<li><b>Сила</b> локації рівня L: tier = 1 + (L − ${v(BALANCE.LEVELS.base, ['LEVELS', 'base'])}) / ${v(BALANCE.LEVELS.perTier, ['LEVELS', 'perTier'])} (рівень ${v(BALANCE.LEVELS.base, ['LEVELS', 'base'])} — сила 1, кожні ${v(BALANCE.LEVELS.perTier, ['LEVELS', 'perTier'])} рівнів — +1).</li>
 <li><b>Сила ворогів:</b> HP і шкода = база × (1 + ${v(S.perTier, ['SCALING', 'perTier'])} × (tier − 1)) × ріст хвилі.</li>
-<li><b>Рекомендований рівень</b> = tier × ${v(S.recommendedLevelPerTier, ['SCALING', 'recommendedLevelPerTier'])}.</li>
-<li><b>XP за вбивство</b> = база × (1 + ${v(S.xpPerTier, ['SCALING', 'xpPerTier'])} × (tier − 1)); якщо герой перевищує рекомендований рівень більш як на ${v(
+<li><b>XP за вбивство</b> = база × (1 + ${v(S.xpPerTier, ['SCALING', 'xpPerTier'])} × (tier − 1)); якщо герой перевищує рівень локації більш як на ${v(
     BALANCE.PROGRESSION.xpPenalty.levelGap,
     ['PROGRESSION', 'xpPenalty', 'levelGap'],
   )}, — лише ${v(BALANCE.PROGRESSION.xpPenalty.mult, ['PROGRESSION', 'xpPenalty', 'mult'], 'pct')}.</li>
 <li><b>Золото за вбивство</b> = ${v(BALANCE.GOLD.perEnemyPerTier, ['GOLD', 'perEnemyPerTier'])} × tier × (1 + ${v(BALANCE.GOLD.perWave, ['GOLD', 'perWave'])} × хвиля).</li>
-<li><b>Загроза:</b> кожен переможений бос додає +${v(BALANCE.WORLD.bossThreat.locationTier, ['WORLD', 'bossThreat', 'locationTier'])} tier локаціям і +${v(
-    BALANCE.WORLD.bossThreat.bossTier,
-    ['WORLD', 'bossThreat', 'bossTier'],
-  )} босам.</li>
+<li><b>Досвід до наступного рівня</b> = ${v(BALANCE.PROGRESSION.xpCurve.base, ['PROGRESSION', 'xpCurve', 'base'])} × (рівень + ${v(BALANCE.PROGRESSION.xpCurve.offset, ['PROGRESSION', 'xpCurve', 'offset'])})<sup>${v(BALANCE.PROGRESSION.xpCurve.exponent, ['PROGRESSION', 'xpCurve', 'exponent'])}</sup>; максимум — рівень ${v(BALANCE.PROGRESSION.maxLevel, ['PROGRESSION', 'maxLevel'])}.</li>
+<li><b>Загроза:</b> кожен переможений бос додає +${v(BALANCE.WORLD.bossThreat.locationLevels, ['WORLD', 'bossThreat', 'locationLevels'])} рівнів локаціям і +${v(
+    BALANCE.WORLD.bossThreat.bossLevels,
+    ['WORLD', 'bossThreat', 'bossLevels'],
+  )} босам, але не вище максимального рівня героя.</li>
 </ul>`;
   return { id: 'formulas', title: 'Формули', html };
 }

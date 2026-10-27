@@ -1,3 +1,4 @@
+import { HERO, LEVELS } from '../src/data/balance';
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../src/core/rng';
 import { GOLD, PROGRESSION, SCALING } from '../src/data/balance';
@@ -9,6 +10,7 @@ import {
   dayMultiplier,
   daysToNextThreat,
   threatMultiplier,
+  levelTier,
   xpPenalized,
   enemyStats,
   goldReward,
@@ -76,36 +78,45 @@ describe('enemy scaling', () => {
 });
 
 describe('xp', () => {
-  it('curve is round(20 × level^1.6)', () => {
-    expect(xpToNext(1)).toBe(20);
-    expect(xpToNext(2)).toBe(Math.round(20 * Math.pow(2, 1.6)));
-    expect(xpToNext(9)).toBe(Math.round(20 * Math.pow(9, 1.6)));
-    for (let l = 1; l < 20; l++) expect(xpToNext(l + 1)).toBeGreaterThan(xpToNext(l));
+  it('curve is round(base × (level + offset)^exponent) and grows', () => {
+    const c = PROGRESSION.xpCurve;
+    expect(xpToNext(1)).toBe(Math.round(c.base * Math.pow(1 + c.offset, c.exponent)));
+    expect(xpToNext(9)).toBe(Math.round(c.base * Math.pow(9 + c.offset, c.exponent)));
+    for (let l = 1; l < PROGRESSION.maxLevel; l++) expect(xpToNext(l + 1)).toBeGreaterThan(xpToNext(l));
   });
 
-  it('penalty: only 25% when the hero is more than 3 levels above the recommended level', () => {
-    // tier 1 → recommended level 3.
-    expect(xpReward(8, 1, 6)).toBe(8);
-    expect(xpReward(8, 1, 7)).toBe(2);
+  it('penalty: only a share of XP when the hero is far above the location level', () => {
+    const gap = PROGRESSION.xpPenalty.levelGap;
+    expect(xpReward(8, 5, 5 + gap)).toBe(8);
+    expect(xpReward(8, 5, 5 + gap + 1)).toBe(Math.max(1, Math.round(8 * PROGRESSION.xpPenalty.mult)));
+  });
+
+  it('a location level stands for strength: LEVELS.base is strength 1, +1 every perTier levels', () => {
+    expect(levelTier(LEVELS.base)).toBe(1);
+    expect(levelTier(LEVELS.base + LEVELS.perTier)).toBe(2);
   });
 
   it('gainXp levels up several times, queues choices and respects the cap', () => {
     const s = createGameState(3);
-    gainXp(s, xpToNext(1) + xpToNext(2) + xpToNext(3));
-    expect(s.hero.level).toBe(4);
-    expect(s.modalQueue).toEqual([{ kind: 'classChoice' }, { kind: 'cardChoice', level: 4 }]);
+    const to = (lv: number): number => Array.from({ length: lv - 1 }, (_, i) => xpToNext(i + 1)).reduce((a, x) => a + x, 0);
+    const card = PROGRESSION.classChoiceLevel + PROGRESSION.cardEvery;
+    gainXp(s, to(card));
+    expect(s.hero.level).toBe(card);
+    // Only the class choice and then a card every `cardEvery` levels.
+    expect(s.modalQueue).toEqual([{ kind: 'classChoice' }, { kind: 'cardChoice', level: card }]);
     gainXp(s, 1e9);
     expect(s.hero.level).toBe(PROGRESSION.maxLevel);
     expect(s.hero.xp).toBe(0);
   });
 
-  it('every level adds +15 HP and +2 attack', () => {
+  it('every level adds the per-level HP (whole points) and attack', () => {
     const s = createGameState(3);
     const hp = s.hero.maxHp;
     const atk = s.hero.stats.attack;
-    gainXp(s, xpToNext(1));
-    expect(s.hero.maxHp).toBe(hp + 15);
-    expect(s.hero.stats.attack).toBe(atk + 2);
+    gainXp(s, xpToNext(1) + xpToNext(2));
+    expect(s.hero.maxHp).toBe(Math.round(hp + 2 * HERO.perLevel.hp));
+    expect(Number.isInteger(s.hero.maxHp)).toBe(true);
+    expect(s.hero.stats.attack).toBeCloseTo(atk + 2 * HERO.perLevel.attack);
   });
 });
 
@@ -116,7 +127,7 @@ describe('day threat', () => {
     expect(threatMultiplier(s)).toBeCloseTo(1.2);
     expect(daysToNextThreat(12)).toBe(3);
     expect(daysToNextThreat(14)).toBe(1);
-    expect(xpPenalized(1, 8)).toBe(true);
-    expect(xpPenalized(1, 6)).toBe(false);
+    expect(xpPenalized(5, 5 + PROGRESSION.xpPenalty.levelGap + 1)).toBe(true);
+    expect(xpPenalized(5, 5 + PROGRESSION.xpPenalty.levelGap)).toBe(false);
   });
 });

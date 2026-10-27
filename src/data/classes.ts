@@ -131,7 +131,7 @@ export const CLASSES: Record<string, ClassDef> = {
     },
     color: '#3b7dd8',
     icon: 'orb',
-    traits: { mana: { base: 100, perLevel: 12, absorb: 2, perKill: 3, orbChance: 0.35, orbMana: 10, orbLife: 10, orbRadius: 16 } },
+    traits: { mana: { base: 100, perLevel: 6, absorb: 2, perKill: 3, orbChance: 0.35, orbMana: 10, orbLife: 10, orbRadius: 16 } },
     traitText: 'Щит мани поглинає удари',
   },
   archer: {

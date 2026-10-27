@@ -64,19 +64,22 @@ describe('promotion data', () => {
 });
 
 describe('promotion flow', () => {
-  it('level 13 asks for the promotion instead of a card; the cap is level 20', () => {
+  it('the promotion level asks for the promotion instead of a card; the cap is the max level', () => {
     const s = createGameState(2);
+    const P = PROGRESSION.promotionLevel;
     assignClass(s.hero, 'warrior', CLASSES.warrior!.defaultPicks);
-    s.hero.level = 12;
+    s.hero.level = P - 1;
     s.modalQueue = [];
-    gainXp(s, xpToNext(12));
+    gainXp(s, xpToNext(P - 1));
     expect(s.modalQueue).toEqual([{ kind: 'promotion' }]);
     s.modalQueue = [];
-    gainXp(s, xpToNext(13));
-    expect(s.modalQueue).toEqual([{ kind: 'cardChoice', level: 14 }]);
+    let next = P + 1;
+    while ((next - PROGRESSION.classChoiceLevel) % PROGRESSION.cardEvery !== 0) next++;
+    for (let lv = P; lv < next; lv++) gainXp(s, xpToNext(lv));
+    expect(s.modalQueue).toEqual([{ kind: 'cardChoice', level: next }]);
     for (let i = 0; i < 20; i++) gainXp(s, 1e6);
     expect(s.hero.level).toBe(PROGRESSION.maxLevel);
-    expect(PROGRESSION.maxLevel).toBe(20);
+    expect(PROGRESSION.maxLevel).toBe(30);
     expect(isMaxLevel(s.hero.level)).toBe(true);
   });
 

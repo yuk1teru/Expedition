@@ -21,7 +21,8 @@ import { nearestEnemy } from './targeting';
 import { blast, updateBuffs, updateDash, updateZones } from './effects';
 import type { Item } from './items';
 import type { GameEvent } from './gameEvents';
-import { type MapNode, effectiveTier, getNode } from './mapgen';
+import { type MapNode, effectiveLevel, getNode } from './mapgen';
+import { levelTier } from './scaling';
 import { type Trap, updateTraps } from './traps';
 import { type WaveState, createWaves, updateWaves } from './waves';
 import { type WeatherState, updateWeather } from './weather';
@@ -71,6 +72,9 @@ export interface HeroInput {
 export interface Battle {
   state: GameState;
   node: MapNode;
+  /** Monster level of this fight (boss threat included). */
+  level: number;
+  /** Strength for the formulas (from the level). */
   tier: number;
   biome: BiomeDef;
   kind: 'waves' | 'boss';
@@ -126,10 +130,12 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0): B
   state.battleCount += 1;
   const hero = state.hero;
   resetHeroForBattle(hero);
+  const level = effectiveLevel(node, state.bossesDefeated.length);
   const b: Battle = {
     state,
     node,
-    tier: effectiveTier(node, state.bossesDefeated.length),
+    level,
+    tier: levelTier(level),
     biome: getBiome(node.biome),
     kind: node.isBoss ? 'boss' : 'waves',
     rng: state.rng.fork(`battle-${state.battleCount}`),

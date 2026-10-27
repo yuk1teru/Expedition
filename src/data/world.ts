@@ -48,8 +48,8 @@ export interface WorldNodeDef {
   biome: string;
   /** Region on the world map the node belongs to (for labels and the Wiki). */
   region: string;
-  /** Difficulty; recommended level = tier × 3. Towns: 0. */
-  tier: number;
+  /** Monster level (ROADMAP 10.1; towns: 0): enemy strength, rewards and item levels follow it. */
+  level: number;
   pos: { x: number; y: number };
   /** One line for the map tooltip and the Wiki. */
   description: string;
@@ -66,53 +66,53 @@ export const CAPITAL_ID = 'capital';
 
 export const WORLD_NODES: WorldNodeDef[] = [
   // ---------------- Towns ----------------
-  { id: CAPITAL_ID, name: 'Ізяслав', kind: 'town', biome: 'forest', region: 'plains', tier: 0, pos: { x: 1150, y: 620 }, forms: { of: 'Ізяслава', in: 'Ізяславі' }, description: 'Столиця королівства: звідси дороги ведуть у всі краї.' },
-  { id: 'port', name: 'Чайкова Гавань', kind: 'town', biome: 'coast', region: 'coast', tier: 0, pos: { x: 430, y: 700 }, forms: { of: 'Чайкової Гавані', in: 'Чайковій Гавані' }, description: 'Портове місто на березі моря: кораблі, рибалки й чутки з-за моря.' },
-  { id: 'forestTown', name: 'Смерекове', kind: 'town', biome: 'forest', region: 'forest', tier: 0, pos: { x: 1160, y: 930 }, forms: { of: 'Смерекового', in: 'Смерековому' }, description: 'Лісове містечко мисливців посеред Лісу.' },
-  { id: 'swampTown', name: 'Очеретянка', kind: 'town', biome: 'swamp', region: 'swamp', tier: 0, pos: { x: 1890, y: 780 }, forms: { of: 'Очеретянки', in: 'Очеретянці' }, description: 'Село на палях серед Болота.' },
-  { id: 'desertTown', name: 'Барханськ', kind: 'town', biome: 'desert', region: 'desert', tier: 0, pos: { x: 1160, y: 1450 }, forms: { of: 'Барханська', in: 'Барханську' }, description: 'Піщане місто-оаза в серці Пустелі.' },
-  { id: 'iceTown', name: 'Сніжногір’я', kind: 'town', biome: 'ice', region: 'ice', tier: 0, pos: { x: 1700, y: 160 }, forms: { of: 'Сніжногір’я', in: 'Сніжногір’ї' }, description: 'Гірське поселення серед вічних снігів.' },
+  { id: CAPITAL_ID, name: 'Ізяслав', kind: 'town', biome: 'forest', region: 'plains', level: 0, pos: { x: 1150, y: 620 }, forms: { of: 'Ізяслава', in: 'Ізяславі' }, description: 'Столиця королівства: звідси дороги ведуть у всі краї.' },
+  { id: 'port', name: 'Чайкова Гавань', kind: 'town', biome: 'coast', region: 'coast', level: 0, pos: { x: 430, y: 700 }, forms: { of: 'Чайкової Гавані', in: 'Чайковій Гавані' }, description: 'Портове місто на березі моря: кораблі, рибалки й чутки з-за моря.' },
+  { id: 'forestTown', name: 'Смерекове', kind: 'town', biome: 'forest', region: 'forest', level: 0, pos: { x: 1160, y: 930 }, forms: { of: 'Смерекового', in: 'Смерековому' }, description: 'Лісове містечко мисливців посеред Лісу.' },
+  { id: 'swampTown', name: 'Очеретянка', kind: 'town', biome: 'swamp', region: 'swamp', level: 0, pos: { x: 1890, y: 780 }, forms: { of: 'Очеретянки', in: 'Очеретянці' }, description: 'Село на палях серед Болота.' },
+  { id: 'desertTown', name: 'Барханськ', kind: 'town', biome: 'desert', region: 'desert', level: 0, pos: { x: 1160, y: 1450 }, forms: { of: 'Барханська', in: 'Барханську' }, description: 'Піщане місто-оаза в серці Пустелі.' },
+  { id: 'iceTown', name: 'Сніжногір’я', kind: 'town', biome: 'ice', region: 'ice', level: 0, pos: { x: 1700, y: 160 }, forms: { of: 'Сніжногір’я', in: 'Сніжногір’ї' }, description: 'Гірське поселення серед вічних снігів.' },
 
   // ---------------- Coast (Столиця → порт) ----------------
-  { id: 'coastRoad', name: 'Прибережна дорога', kind: 'location', biome: 'coast', region: 'coast', tier: 1.3, pos: { x: 790, y: 650 }, description: 'Скелястий берег: чайки-розбійниці й краби. Погода тут мінлива — злива або туман.', mechanics: { weathers: ['rain', 'fog'], trapsFrom: null } },
+  { id: 'coastRoad', name: 'Прибережна дорога', kind: 'location', biome: 'coast', region: 'coast', level: 7, pos: { x: 790, y: 650 }, description: 'Скелястий берег: чайки-розбійниці й краби. Погода тут мінлива — злива або туман.', mechanics: { weathers: ['rain', 'fog'], trapsFrom: null } },
 
   // ---------------- Forest ----------------
-  { id: 'quietGrove', name: 'Тихий гай', kind: 'location', biome: 'forest', region: 'forest', tier: 1, pos: { x: 1060, y: 790 }, description: 'Найближчий до столиці гай: вовки, гриби й пеньки. Без капканів.', mechanics: { trapsFrom: null } },
-  { id: 'wolfTrail', name: 'Вовча стежка', kind: 'location', biome: 'forest', region: 'forest', tier: 1.15, pos: { x: 1260, y: 800 }, description: 'Стежка вовчих зграй: вовків тут удвічі більше.', enemies: ['wolf', 'wolf', 'mushroom', 'stump'] },
-  { id: 'mushroomGlade', name: 'Грибна галявина', kind: 'location', biome: 'forest', region: 'forest', tier: 1.5, pos: { x: 980, y: 1010 }, description: 'Галявина грибів-плювак: багато стрільців і туман.', enemies: ['mushroom', 'mushroom', 'wolf', 'stump'], mechanics: { weathers: ['fog'] } },
-  { id: 'mossyRavine', name: 'Моховий яр', kind: 'location', biome: 'forest', region: 'forest', tier: 1.65, pos: { x: 1320, y: 1010 }, description: 'Сирий яр на межі з болотом: пеньки й злива.', enemies: ['stump', 'stump', 'wolf', 'mushroom'], mechanics: { weathers: ['rain'] } },
-  { id: 'darkThicket', name: 'Темна гущавина', kind: 'location', biome: 'forest', region: 'forest', tier: 1.9, pos: { x: 850, y: 1100 }, description: 'Хаща перед лігвом Ената: гроза й капкани вже з 3-ї хвилі.', mechanics: { trapsFrom: 3, weathers: ['storm'] } },
-  { id: 'enatLair', name: 'Лігво Старого Ената', kind: 'boss', biome: 'forest', region: 'forest', tier: 2.5, pos: { x: 720, y: 1180 }, description: 'Старий Енат: коріння, виклик вовків, удар навколо себе.', boss: 'enat' },
+  { id: 'quietGrove', name: 'Тихий гай', kind: 'location', biome: 'forest', region: 'forest', level: 5, pos: { x: 1060, y: 790 }, description: 'Найближчий до столиці гай: вовки, гриби й пеньки. Без капканів.', mechanics: { trapsFrom: null } },
+  { id: 'wolfTrail', name: 'Вовча стежка', kind: 'location', biome: 'forest', region: 'forest', level: 6, pos: { x: 1260, y: 800 }, description: 'Стежка вовчих зграй: вовків тут удвічі більше.', enemies: ['wolf', 'wolf', 'mushroom', 'stump'] },
+  { id: 'mushroomGlade', name: 'Грибна галявина', kind: 'location', biome: 'forest', region: 'forest', level: 8, pos: { x: 980, y: 1010 }, description: 'Галявина грибів-плювак: багато стрільців і туман.', enemies: ['mushroom', 'mushroom', 'wolf', 'stump'], mechanics: { weathers: ['fog'] } },
+  { id: 'mossyRavine', name: 'Моховий яр', kind: 'location', biome: 'forest', region: 'forest', level: 9, pos: { x: 1320, y: 1010 }, description: 'Сирий яр на межі з болотом: пеньки й злива.', enemies: ['stump', 'stump', 'wolf', 'mushroom'], mechanics: { weathers: ['rain'] } },
+  { id: 'darkThicket', name: 'Темна гущавина', kind: 'location', biome: 'forest', region: 'forest', level: 10, pos: { x: 850, y: 1100 }, description: 'Хаща перед лігвом Ената: гроза й капкани вже з 3-ї хвилі.', mechanics: { trapsFrom: 3, weathers: ['storm'] } },
+  { id: 'enatLair', name: 'Лігво Старого Ената', kind: 'boss', biome: 'forest', region: 'forest', level: 14, pos: { x: 720, y: 1180 }, description: 'Старий Енат: коріння, виклик вовків, удар навколо себе.', boss: 'enat' },
 
   // ---------------- Forest → Swamp ----------------
-  { id: 'wetwood', name: 'Мокролісся', kind: 'location', biome: 'swampEdge', region: 'swampEdge', tier: 2.2, pos: { x: 1500, y: 930 }, description: 'Ліс, що тоне в болоті: мохові ропухи, болотяні гриби й гнилі пні.', mechanics: { weathers: ['fog', 'rain'] } },
+  { id: 'wetwood', name: 'Мокролісся', kind: 'location', biome: 'swampEdge', region: 'swampEdge', level: 12, pos: { x: 1500, y: 930 }, description: 'Ліс, що тоне в болоті: мохові ропухи, болотяні гриби й гнилі пні.', mechanics: { weathers: ['fog', 'rain'] } },
 
   // ---------------- Swamp ----------------
-  { id: 'fogMire', name: 'Туманна трясовина', kind: 'location', biome: 'swamp', region: 'swamp', tier: 2.4, pos: { x: 1660, y: 840 }, description: 'Вічний туман: погода тут — лише туман.', mechanics: { weathers: ['fog'] } },
-  { id: 'rotMarsh', name: 'Гнилі мочари', kind: 'location', biome: 'swamp', region: 'swamp', tier: 2.6, pos: { x: 1740, y: 700 }, description: 'Слизні, що діляться, і болотяники.', enemies: ['slime', 'slime', 'frog', 'bogman'] },
-  { id: 'frogPond', name: 'Жаб’яче озерце', kind: 'location', biome: 'swamp', region: 'swamp', tier: 2.9, pos: { x: 2040, y: 680 }, description: 'Царство жаб: стрибки з усіх боків.', enemies: ['frog', 'frog', 'slime', 'bogman'] },
-  { id: 'blackMuck', name: 'Чорна багнюка', kind: 'location', biome: 'swamp', region: 'swamp', tier: 3.2, pos: { x: 2080, y: 860 }, description: 'Липка багнюка перед гніздом: капкани з 3-ї хвилі, злива.', mechanics: { trapsFrom: 3, weathers: ['rain'] } },
-  { id: 'motherNest', name: 'Гніздо Отруйної Матері', kind: 'boss', biome: 'swamp', region: 'swamp', tier: 3.7, pos: { x: 2250, y: 760 }, description: 'Отруйна Мати: калюжі отрути, слизні, токсична хвиля.', boss: 'poisonMother' },
+  { id: 'fogMire', name: 'Туманна трясовина', kind: 'location', biome: 'swamp', region: 'swamp', level: 13, pos: { x: 1660, y: 840 }, description: 'Вічний туман: погода тут — лише туман.', mechanics: { weathers: ['fog'] } },
+  { id: 'rotMarsh', name: 'Гнилі мочари', kind: 'location', biome: 'swamp', region: 'swamp', level: 15, pos: { x: 1740, y: 700 }, description: 'Слизні, що діляться, і болотяники.', enemies: ['slime', 'slime', 'frog', 'bogman'] },
+  { id: 'frogPond', name: 'Жаб’яче озерце', kind: 'location', biome: 'swamp', region: 'swamp', level: 16, pos: { x: 2040, y: 680 }, description: 'Царство жаб: стрибки з усіх боків.', enemies: ['frog', 'frog', 'slime', 'bogman'] },
+  { id: 'blackMuck', name: 'Чорна багнюка', kind: 'location', biome: 'swamp', region: 'swamp', level: 18, pos: { x: 2080, y: 860 }, description: 'Липка багнюка перед гніздом: капкани з 3-ї хвилі, злива.', mechanics: { trapsFrom: 3, weathers: ['rain'] } },
+  { id: 'motherNest', name: 'Гніздо Отруйної Матері', kind: 'boss', biome: 'swamp', region: 'swamp', level: 21, pos: { x: 2250, y: 760 }, description: 'Отруйна Мати: калюжі отрути, слизні, токсична хвиля.', boss: 'poisonMother' },
 
   // ---------------- Forest → Desert ----------------
-  { id: 'dryEdge', name: 'Сухе узлісся', kind: 'location', biome: 'scrub', region: 'scrub', tier: 2.2, pos: { x: 1150, y: 1180 }, description: 'Ліс рідшає, починається пісок: шакали, колючі кущі, пилові вепри.', mechanics: { weathers: ['storm'] } },
+  { id: 'dryEdge', name: 'Сухе узлісся', kind: 'location', biome: 'scrub', region: 'scrub', level: 12, pos: { x: 1150, y: 1180 }, description: 'Ліс рідшає, починається пісок: шакали, колючі кущі, пилові вепри.', mechanics: { weathers: ['storm'] } },
 
   // ---------------- Desert ----------------
-  { id: 'sandDunes', name: 'Піщані дюни', kind: 'location', biome: 'desert', region: 'desert', tier: 2.4, pos: { x: 1020, y: 1320 }, description: 'Дюни скорпіонів.', enemies: ['scorpion', 'scorpion', 'cactus', 'scarab'], mechanics: { trapsFrom: null } },
-  { id: 'dryRiver', name: 'Сухе русло', kind: 'location', biome: 'desert', region: 'desert', tier: 2.6, pos: { x: 1290, y: 1330 }, description: 'Колишня річка: кактуси вздовж берегів.', enemies: ['cactus', 'cactus', 'scorpion', 'scarab'] },
-  { id: 'boneValley', name: 'Кістяна долина', kind: 'location', biome: 'desert', region: 'desert', tier: 2.9, pos: { x: 980, y: 1560 }, description: 'Скарабеї серед кісток: багато розпаду на малих.', enemies: ['scarab', 'scarab', 'scorpion', 'cactus'] },
-  { id: 'scorchedPlain', name: 'Розпечена рівнина', kind: 'location', biome: 'desert', region: 'desert', tier: 3.2, pos: { x: 1340, y: 1580 }, description: 'Гроза над піском і капкани з 3-ї хвилі.', mechanics: { trapsFrom: 3, weathers: ['storm'] } },
-  { id: 'wormBurrow', name: 'Нора Піщаного Хробака', kind: 'boss', biome: 'desert', region: 'desert', tier: 3.8, pos: { x: 1160, y: 1700 }, description: 'Піщаний Хробак: зарививається, кислота, піщана буря.', boss: 'sandWorm' },
+  { id: 'sandDunes', name: 'Піщані дюни', kind: 'location', biome: 'desert', region: 'desert', level: 13, pos: { x: 1020, y: 1320 }, description: 'Дюни скорпіонів.', enemies: ['scorpion', 'scorpion', 'cactus', 'scarab'], mechanics: { trapsFrom: null } },
+  { id: 'dryRiver', name: 'Сухе русло', kind: 'location', biome: 'desert', region: 'desert', level: 15, pos: { x: 1290, y: 1330 }, description: 'Колишня річка: кактуси вздовж берегів.', enemies: ['cactus', 'cactus', 'scorpion', 'scarab'] },
+  { id: 'boneValley', name: 'Кістяна долина', kind: 'location', biome: 'desert', region: 'desert', level: 16, pos: { x: 980, y: 1560 }, description: 'Скарабеї серед кісток: багато розпаду на малих.', enemies: ['scarab', 'scarab', 'scorpion', 'cactus'] },
+  { id: 'scorchedPlain', name: 'Розпечена рівнина', kind: 'location', biome: 'desert', region: 'desert', level: 18, pos: { x: 1340, y: 1580 }, description: 'Гроза над піском і капкани з 3-ї хвилі.', mechanics: { trapsFrom: 3, weathers: ['storm'] } },
+  { id: 'wormBurrow', name: 'Нора Піщаного Хробака', kind: 'boss', biome: 'desert', region: 'desert', level: 22, pos: { x: 1160, y: 1700 }, description: 'Піщаний Хробак: зарививається, кислота, піщана буря.', boss: 'sandWorm' },
 
   // ---------------- Mountain pass (Столиця → Крига) ----------------
-  { id: 'foothills', name: 'Передгір’я', kind: 'location', biome: 'mountain', region: 'mountain', tier: 2.8, pos: { x: 1200, y: 470 }, description: 'Підніжжя гір: гірські цапи, гарпії, кам’яники.', mechanics: { weathers: ['rain', 'fog'] } },
-  { id: 'mountainPass', name: 'Гірський перевал', kind: 'location', biome: 'mountain', region: 'mountain', tier: 3.2, pos: { x: 1330, y: 330 }, description: 'Єдиний шлях у Кригу: вітер, туман і Дух бурі частіше.', miniboss: 'frostWarden', mechanics: { events: ['elemental', 'weather'], weathers: ['fog', 'storm'] } },
+  { id: 'foothills', name: 'Передгір’я', kind: 'location', biome: 'mountain', region: 'mountain', level: 16, pos: { x: 1200, y: 470 }, description: 'Підніжжя гір: гірські цапи, гарпії, кам’яники.', mechanics: { weathers: ['rain', 'fog'] } },
+  { id: 'mountainPass', name: 'Гірський перевал', kind: 'location', biome: 'mountain', region: 'mountain', level: 18, pos: { x: 1330, y: 330 }, description: 'Єдиний шлях у Кригу: вітер, туман і Дух бурі частіше.', miniboss: 'frostWarden', mechanics: { events: ['elemental', 'weather'], weathers: ['fog', 'storm'] } },
 
   // ---------------- Ice ----------------
-  { id: 'whiteSlope', name: 'Білий схил', kind: 'location', biome: 'ice', region: 'ice', tier: 3.5, pos: { x: 1540, y: 230 }, description: 'Крижані вовки на засніженому схилі.', enemies: ['iceWolf', 'iceWolf', 'snowman', 'iceGolem'] },
-  { id: 'iceLake', name: 'Крижане озеро', kind: 'location', biome: 'ice', region: 'ice', tier: 3.8, pos: { x: 1880, y: 230 }, description: 'Сніговики на льоду: туман над озером.', enemies: ['snowman', 'snowman', 'iceWolf', 'iceGolem'], mechanics: { weathers: ['fog'] } },
-  { id: 'glassGlacier', name: 'Скляний льодовик', kind: 'location', biome: 'ice', region: 'ice', tier: 4.1, pos: { x: 2050, y: 150 }, description: 'Големи перед цитаделлю: капкани з 3-ї хвилі.', enemies: ['iceGolem', 'iceGolem', 'iceWolf', 'snowman'], mechanics: { trapsFrom: 3 } },
-  { id: 'iceCitadel', name: 'Цитадель Крижаного Лицаря', kind: 'boss', biome: 'ice', region: 'ice', tier: 4.5, pos: { x: 2220, y: 210 }, description: 'Крижаний Лицар: таран до стіни, кільце шипів, аура холоду.', boss: 'iceKnight' },
+  { id: 'whiteSlope', name: 'Білий схил', kind: 'location', biome: 'ice', region: 'ice', level: 20, pos: { x: 1540, y: 230 }, description: 'Крижані вовки на засніженому схилі.', enemies: ['iceWolf', 'iceWolf', 'snowman', 'iceGolem'] },
+  { id: 'iceLake', name: 'Крижане озеро', kind: 'location', biome: 'ice', region: 'ice', level: 22, pos: { x: 1880, y: 230 }, description: 'Сніговики на льоду: туман над озером.', enemies: ['snowman', 'snowman', 'iceWolf', 'iceGolem'], mechanics: { weathers: ['fog'] } },
+  { id: 'glassGlacier', name: 'Скляний льодовик', kind: 'location', biome: 'ice', region: 'ice', level: 24, pos: { x: 2050, y: 150 }, description: 'Големи перед цитаделлю: капкани з 3-ї хвилі.', enemies: ['iceGolem', 'iceGolem', 'iceWolf', 'snowman'], mechanics: { trapsFrom: 3 } },
+  { id: 'iceCitadel', name: 'Цитадель Крижаного Лицаря', kind: 'boss', biome: 'ice', region: 'ice', level: 26, pos: { x: 2220, y: 210 }, description: 'Крижаний Лицар: таран до стіни, кільце шипів, аура холоду.', boss: 'iceKnight' },
 ];
 
 /** Roads between nodes (both ways). */

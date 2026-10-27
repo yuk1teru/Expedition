@@ -1,6 +1,11 @@
 // Scaling formulas: enemy stats by tier/day, XP and gold rewards, XP curve.
 
-import { GOLD, PROGRESSION, SCALING } from '../data/balance';
+import { GOLD, LEVELS, PROGRESSION, SCALING } from '../data/balance';
+
+/** Strength of a monster level (the formulas' tier): 1 at LEVELS.base, +1 every LEVELS.perTier levels. */
+export function levelTier(level: number): number {
+  return 1 + (level - LEVELS.base) / LEVELS.perTier;
+}
 
 export function tierMultiplier(tier: number): number {
   return 1 + SCALING.perTier * (tier - 1);
@@ -23,9 +28,9 @@ export function daysToNextThreat(day: number): number {
   return n - (day % n);
 }
 
-/** Whether the hero gets only part of the XP at a location of this tier. */
-export function xpPenalized(tier: number, heroLevel: number): boolean {
-  return heroLevel - recommendedLevelForTier(tier) > PROGRESSION.xpPenalty.levelGap;
+/** Whether the hero gets only part of the XP at a location of this monster level. */
+export function xpPenalized(level: number, heroLevel: number): boolean {
+  return heroLevel - level > PROGRESSION.xpPenalty.levelGap;
 }
 
 export interface ScaledStats {
@@ -39,14 +44,10 @@ export function enemyStats(base: ScaledStats, tier: number, dayMult: number = 1)
   return { hp: base.hp * m, damage: base.damage * m };
 }
 
-export function recommendedLevelForTier(tier: number): number {
-  return Math.round(tier * SCALING.recommendedLevelPerTier);
-}
-
-/** XP for a kill; reduced when the hero outlevels the location. */
-export function xpReward(baseXp: number, tier: number, heroLevel: number): number {
-  const scaled = baseXp * (1 + SCALING.xpPerTier * (tier - 1));
-  const mult = xpPenalized(tier, heroLevel) ? PROGRESSION.xpPenalty.mult : 1;
+/** XP for a kill at a location of this monster level; reduced when the hero outlevels it. */
+export function xpReward(baseXp: number, level: number, heroLevel: number): number {
+  const scaled = baseXp * (1 + SCALING.xpPerTier * (levelTier(level) - 1));
+  const mult = xpPenalized(level, heroLevel) ? PROGRESSION.xpPenalty.mult : 1;
   return Math.max(1, Math.round(scaled * mult));
 }
 
@@ -67,7 +68,7 @@ export function clearBonusGold(tier: number): number {
 /** XP needed to go from `level` to `level + 1`. */
 export function xpToNext(level: number): number {
   const c = PROGRESSION.xpCurve;
-  return Math.round(c.base * Math.pow(level, c.exponent));
+  return Math.round(c.base * Math.pow(level + c.offset, c.exponent));
 }
 
 /** Damage after armor: dmg × k / (k + armor). */

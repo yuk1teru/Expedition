@@ -1,6 +1,6 @@
 // World map: node/edge types and the fixed world (src/data/world.ts).
 
-import { SCALING, WORLD } from '../data/balance';
+import { PROGRESSION, WORLD } from '../data/balance';
 import { getBiome } from '../data/biomes';
 import { CAPITAL_ID, DEFAULT_MECHANICS, type LocationMechanics, WORLD_NODES, WORLD_ROADS, type WorldNodeDef } from '../data/world';
 import type { Vec } from './entities';
@@ -9,8 +9,8 @@ import type { Item } from './items';
 export interface MapNode {
   id: string;
   name: string;
-  /** Difficulty; recommended level = tier × 3. Towns: 0. */
-  tier: number;
+  /** Monster level (towns: 0). */
+  level: number;
   /** Arena look (palette, decor); for towns — their style. */
   biome: string;
   /** Map region (forest, swamp, coast…). */
@@ -68,7 +68,7 @@ export function nodeFromDef(def: WorldNodeDef): MapNode {
   return {
     id: def.id,
     name: def.name,
-    tier: def.tier,
+    level: def.level,
     biome: def.biome,
     region: def.region,
     isBoss: def.kind === 'boss',
@@ -106,15 +106,12 @@ export function resetClears(node: MapNode): void {
 }
 
 /**
- * Tier a location fights at: its own tier plus the boss threat (every boss defeated
- * makes what is left harder).
+ * Monster level a location fights at: its own level plus the boss threat (every boss
+ * defeated makes what is left harder), never above the hero's maximum level (ROADMAP 10.2).
  */
-export function effectiveTier(node: MapNode, bossesDefeated: number): number {
-  if (node.isTown) return node.tier;
+export function effectiveLevel(node: MapNode, bossesDefeated: number): number {
+  if (node.isTown) return node.level;
   const t = WORLD.bossThreat;
-  return node.tier + bossesDefeated * (node.isBoss ? t.bossTier : t.locationTier);
-}
-
-export function recommendedLevel(tier: number): number {
-  return Math.round(tier * SCALING.recommendedLevelPerTier);
+  const raised = node.level + bossesDefeated * (node.isBoss ? t.bossLevels : t.locationLevels);
+  return Math.min(Math.max(node.level, PROGRESSION.maxLevel), raised);
 }

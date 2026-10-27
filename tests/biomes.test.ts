@@ -17,7 +17,7 @@ import { spawnEnemy } from '../src/systems/waves';
 function battleIn(biome: string, boss = false): Battle {
   const s = createGameState(21);
   s.hero.immortal = true;
-  const node = s.world.nodes.filter((n) => n.biome === biome && n.isBoss === boss && !n.isTown).sort((a, b) => a.tier - b.tier)[0]!;
+  const node = s.world.nodes.filter((n) => n.biome === biome && n.isBoss === boss && !n.isTown).sort((a, b) => a.level - b.level)[0]!;
   teleport(s, node.id);
   const b = createBattle(s, node.id);
   b.waves = null;

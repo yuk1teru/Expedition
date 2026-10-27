@@ -20,7 +20,7 @@ import {
   UNIDENTIFIED_SELL_MULT,
 } from '../data/items';
 import type { Hero } from './entities';
-import { effectiveTier } from './mapgen';
+import { effectiveLevel } from './mapgen';
 import { recomputeHeroStats } from './hero';
 
 export interface ItemStatValue {
@@ -89,18 +89,18 @@ export function rollItem(rng: Rng, rarity: Rarity, uid: number, slot?: ItemSlot,
   };
 }
 
-/** Item level range [min, max] of a location of this tier. */
-export function itemLevelRange(tier: number): [number, number] {
-  const pts = ITEM_LEVEL.byTier;
+/** Item level range [min, max] of a location of this monster level. */
+export function itemLevelRange(level: number): [number, number] {
+  const pts = ITEM_LEVEL.byLevel;
   const first = pts[0]!;
   const last = pts[pts.length - 1]!;
-  if (tier <= first[0]) return [first[1], first[2]];
-  if (tier >= last[0]) return [last[1], last[2]];
+  if (level <= first[0]) return [first[1], first[2]];
+  if (level >= last[0]) return [last[1], last[2]];
   for (let i = 1; i < pts.length; i++) {
     const [t1, lo1, hi1] = pts[i]!;
-    if (tier > t1) continue;
+    if (level > t1) continue;
     const [t0, lo0, hi0] = pts[i - 1]!;
-    const k = (tier - t0) / (t1 - t0);
+    const k = (level - t0) / (t1 - t0);
     return [Math.round(lo0 + (lo1 - lo0) * k), Math.round(hi0 + (hi1 - hi0) * k)];
   }
   return [last[1], last[2]];
@@ -124,9 +124,9 @@ export function merchantItemLevels(state: GameState): [number, number] {
   const locations = state.world.nodes.filter((n) => !n.isTown);
   const cleared = locations.filter((n) => n.timesCleared > 0);
   // Nothing cleared yet: the easiest location.
-  const tierOf = (n: (typeof locations)[number]): number => effectiveTier(n, state.bossesDefeated.length);
-  const tier = cleared.length > 0 ? Math.max(...cleared.map(tierOf)) : Math.min(...locations.map(tierOf));
-  const [min, max] = itemLevelRange(tier);
+  const levelOf = (n: (typeof locations)[number]): number => effectiveLevel(n, state.bossesDefeated.length);
+  const level = cleared.length > 0 ? Math.max(...cleared.map(levelOf)) : Math.min(...locations.map(levelOf));
+  const [min, max] = itemLevelRange(level);
   const [lo, hi] = ITEM_LEVEL.merchant;
   return [Math.round(min + (max - min) * lo), Math.round(min + (max - min) * hi)];
 }

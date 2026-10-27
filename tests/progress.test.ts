@@ -1,3 +1,4 @@
+import { WORLD_NODES } from '../src/data/world';
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../src/core/rng';
 import { CONSUMABLES } from '../src/data/consumables';
@@ -250,15 +251,14 @@ describe('item level', () => {
     expect(sellPrice(high)).toBeGreaterThan(sellPrice(low));
   });
 
-  it('item level follows the location tier: first locations up to 40, the edge of the world up to 300', () => {
-    expect(itemLevelRange(1)[1]).toBeLessThanOrEqual(40);
-    expect(itemLevelRange(1.3)[1]).toBe(40);
-    expect(itemLevelRange(4.5)[1]).toBe(ITEM_LEVEL.max);
-    for (let t = 1; t < 4.5; t += 0.1) expect(itemLevelRange(t + 0.1)[1]).toBeGreaterThanOrEqual(itemLevelRange(t)[1]);
+  it('item level follows the monster level: the hardest location drops up to the maximum, and it only grows', () => {
+    const top = Math.max(...WORLD_NODES.map((n) => n.level));
+    expect(itemLevelRange(top)[1]).toBe(ITEM_LEVEL.max);
+    for (let l = 1; l < top; l++) expect(itemLevelRange(l + 1)[1]).toBeGreaterThanOrEqual(itemLevelRange(l)[1]);
   });
 
   it('drops stay within the location range: bosses near the top, minibosses climb with the wave', () => {
-    const range = itemLevelRange(1.3);
+    const range = itemLevelRange(7);
     const rng = new Rng(21);
     const levels = (source: 'miniboss' | 'boss', wave: number): number[] => Array.from({ length: 200 }, () => dropItemLevel(rng, range, source, wave));
     const avg = (xs: number[]): number => xs.reduce((a, x) => a + x, 0) / xs.length;

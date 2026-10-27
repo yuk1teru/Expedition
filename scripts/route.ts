@@ -10,7 +10,7 @@ import { SIM } from '../src/data/balance';
 import { CONSUMABLES, HEAL_ORDER } from '../src/data/consumables';
 import { RARITIES } from '../src/data/items';
 import { buyConsumable, equipFromBag, identifyItem, itemLevelMult, type Item } from '../src/systems/items';
-import { type World, effectiveTier, getNode, neighbours, recommendedLevel } from '../src/systems/mapgen';
+import { type World, effectiveLevel, getNode, neighbours } from '../src/systems/mapgen';
 import { isRunWon, passThrough, restInTown, restoreCheckpoint, travel } from '../src/systems/run';
 import { runBattle } from './bot';
 
@@ -63,10 +63,10 @@ export function findPath(world: World, from: string, to: string): string[] {
   return path;
 }
 
-/** The plan's route rule: nearest uncleared location with tier ≤ level / 3 + 1, else nearest boss left. */
+/** The plan's route rule: nearest uncleared location up to 6 levels above the hero, else nearest boss left. */
 export function chooseTarget(state: GameState): string | null {
   const world = state.world;
-  const limit = state.hero.level / 3 + 1;
+  const limit = state.hero.level + 6;
   const from = state.currentNodeId;
   const byDistance = (ids: string[]): string | null => {
     let best: string | null = null;
@@ -82,12 +82,12 @@ export function chooseTarget(state: GameState): string | null {
     }
     return best;
   };
-  const tier = (n: (typeof world.nodes)[number]): number => effectiveTier(n, state.bossesDefeated.length);
+  const tier = (n: (typeof world.nodes)[number]): number => effectiveLevel(n, state.bossesDefeated.length);
   const open = world.nodes.filter((n) => !n.isTown && !n.isBoss && n.timesCleared === 0 && tier(n) <= limit).map((n) => n.id);
   if (open.length > 0) return byDistance(open);
   // A boss once the hero is about its recommended level (the fixed world has early bosses).
   const left = world.nodes.filter((n) => n.isBoss && !state.bossesDefeated.includes(n.id));
-  const ready = left.filter((n) => recommendedLevel(tier(n)) <= state.hero.level + SIM.botBossLevelSlack).map((n) => n.id);
+  const ready = left.filter((n) => tier(n) <= state.hero.level + SIM.botBossLevelSlack).map((n) => n.id);
   if (ready.length > 0) return byDistance(ready);
   // Otherwise farm: replay the hardest cleared location within the limit (or the easiest boss left).
   const farm = world.nodes.filter((n) => !n.isTown && !n.isBoss && n.timesCleared > 0 && tier(n) <= limit);

@@ -53,7 +53,7 @@ export function createHero(id: number): Hero {
 
 function baseStats(level: number): HeroStats {
   return {
-    maxHp: HERO.hp + HERO.perLevel.hp * (level - 1),
+    maxHp: Math.round(HERO.hp + HERO.perLevel.hp * (level - 1)),
     attack: HERO.attack + HERO.perLevel.attack * (level - 1),
     attackSpeed: HERO.attackSpeed,
     moveSpeed: HERO.moveSpeed,

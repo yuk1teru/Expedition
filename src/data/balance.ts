@@ -60,22 +60,24 @@ export const HERO = {
   /** Lifesteal heals are summed and shown as one number every this many seconds. */
   healPopupInterval: 0.5,
   /** Growth on every level-up (levels 1–2 are auto-only). */
-  perLevel: { hp: 15, attack: 2 },
+  perLevel: { hp: 7.5, attack: 1 },
 } as const;
 
 export const PROGRESSION = {
   /** Levels at which only automatic stat growth happens. */
-  autoLevelsUpTo: 2,
-  classChoiceLevel: 3,
+  autoLevelsUpTo: 4,
+  classChoiceLevel: 5,
   /** Skills chosen from the class pool at the class choice (the rest come from cards). */
   startingSkillPicks: 3,
   /** Level of the class promotion (two branches; a signature skill on its own slot). */
-  promotionLevel: 13,
-  maxLevel: 20,
-  /** xpToNext(level) = round(base × level^exponent). */
-  xpCurve: { base: 20, exponent: 1.6 },
-  /** XP drops to `mult` when heroLevel − recommendedLevel > `levelGap`. */
-  xpPenalty: { levelGap: 3, mult: 0.25 },
+  promotionLevel: 25,
+  maxLevel: 30,
+  /** A level-up card every `cardEvery` levels after the class choice (other levels: stats only). Talent points replace them (ROADMAP 12). */
+  cardEvery: 2,
+  /** xpToNext(level) = round(base × (level + offset)^exponent). */
+  xpCurve: { base: 3.3, offset: 0.5, exponent: 1.6 },
+  /** XP drops to `mult` when heroLevel − location level > `levelGap`. */
+  xpPenalty: { levelGap: 6, mult: 0.25 },
   skillSlots: 4,
   /** Skill-bar index of the promotion signature skill (key R), after the class slots. */
   signatureSlot: 4,
@@ -83,11 +85,21 @@ export const PROGRESSION = {
   branchCardWeight: 2,
 } as const;
 
+/**
+ * Monster levels (ROADMAP 10.1): locations have a level on the hero's scale (1–30). The
+ * formulas work with the strength `tier` = 1 + (level − base) / perTier: every `perTier`
+ * levels enemies get +SCALING.perTier HP and damage, more XP and gold.
+ */
+export const LEVELS = {
+  /** Level of strength 1 (the first forest locations). */
+  base: 5,
+  /** Levels per +1 strength. */
+  perTier: 6,
+} as const;
+
 export const SCALING = {
   /** Enemy HP/damage multiplier per tier above 1. */
   perTier: 0.45,
-  /** Recommended level = round(tier × recommendedLevelPerTier). */
-  recommendedLevelPerTier: 3,
   /** Day threat: enemies and bosses +perStep HP and damage every `everyDays`. */
   dayThreat: { enabled: true, everyDays: 5, perStep: 0.1 },
   /** Armor formula: damage × k / (k + armor). 200: 50 armor → −20%, 100 armor → −33%. */
@@ -233,11 +245,11 @@ export const ELITE = {
 /** The world (towns, locations, roads, terrain) lives in src/data/world.ts; here — its global rules. */
 export const WORLD = {
   /**
-   * Boss threat: every defeated boss adds this much tier to the locations and bosses left,
+   * Boss threat: every defeated boss adds this many levels to the locations and bosses left,
    * so the locations of the next biome are not a walk (HP, damage, XP, gold and item
    * level follow the tier).
    */
-  bossThreat: { locationTier: 1, bossTier: 0.9 },
+  bossThreat: { locationLevels: 6, bossLevels: 5 },
 } as const;
 
 /** Lives of a hero (ROADMAP 9.4): a death takes one; with none left the hero's story ends at the cemetery. */
@@ -273,7 +285,7 @@ export const CARDS = {
   /** Skipping the choice: gold (base + perLevel × level) and a short buff. */
   skip: {
     goldBase: 5,
-    goldPerLevel: 1,
+    goldPerLevel: 0.5,
     buff: { duration: 12, regen: 5, damageMult: 1.2, moveSpeedMult: 1.2 },
   },
 } as const;
@@ -292,7 +304,7 @@ export const SIM = {
   /** The bot uses its strongest healing item below this HP fraction. */
   botHerbBelow: 0.4,
   /** Full-run bot: takes on a boss once its level ≥ the boss's recommended level − this. */
-  botBossLevelSlack: 1,
+  botBossLevelSlack: 2,
   /** Full-run bot: goes back to town (rest, shop) below this HP fraction after a battle. */
   botTownBelow: 0.4,
   /** Full runs: deaths return to the checkpoint like for the player; one more than this ends the run. */

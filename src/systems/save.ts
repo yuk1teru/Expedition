@@ -15,7 +15,7 @@ import { type MapNode, buildWorld } from './mapgen';
 import { snapshot } from './run';
 
 /** Version of the save format; bump it and add a migration when the format changes. */
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 export interface SaveData {
   version: number;
@@ -47,7 +47,15 @@ export interface SaveData {
  * Migrations from version N to N + 1. A save of an older format goes through all of them
  * in order; one of a newer game (higher version) is not loaded.
  */
-const MIGRATIONS: Record<number, (data: Record<string, unknown>) => Record<string, unknown>> = {};
+const MIGRATIONS: Record<number, (data: Record<string, unknown>) => Record<string, unknown>> = {
+  // 2: hero levels on the 1–30 scale (ROADMAP 10.1): new level = 2 × old − 1; the XP of the level starts over.
+  1: (d) => {
+    const hero = d.hero as { level: number; xp: number };
+    const level = Math.max(1, 2 * hero.level - 1);
+    const queue = (d.modalQueue as { kind: string; level?: number }[]).map((m) => (m.level ? { ...m, level: 2 * m.level - 1 } : m));
+    return { ...d, hero: { ...hero, level, xp: 0 }, modalQueue: queue };
+  },
+};
 
 /** The save of the hero's progress at the last checkpoint. */
 export function toSave(state: GameState, now = Date.now()): SaveData {

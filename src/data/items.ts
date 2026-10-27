@@ -39,7 +39,7 @@ export const RARITIES: Record<Rarity, RarityDef> = {
 
 /**
  * Item level (ilvl): how strong an item is within its rarity. The ilvl range of a location
- * follows its tier (`byTier`, interpolated): the first locations drop up to 40, the bosses
+ * follows its monster level (`byLevel`, interpolated): the first locations drop up to 40, the bosses
  * at the edge of the world up to 300 — the strongest items in the game.
  * Base stat ranges are tuned for `reference`. Flat stats (attack, armor) and the sell
  * price scale by `floor + (1 − floor) · ilvl / reference` (ilvl 10 ×0.8, 40 ×1.4,
@@ -48,14 +48,14 @@ export const RARITIES: Record<Rarity, RarityDef> = {
  */
 export const ITEM_LEVEL = {
   max: 300,
-  /** [tier, min ilvl, max ilvl]; tiers in between are interpolated, outside — clamped. */
-  byTier: [
-    [1, 5, 35],
-    [1.3, 8, 40],
-    [2, 35, 90],
-    [3, 85, 160],
-    [4, 150, 240],
-    [4.5, 200, 300],
+  /** [monster level, min ilvl, max ilvl]; levels in between are interpolated, outside — clamped. */
+  byLevel: [
+    [5, 5, 35],
+    [7, 8, 40],
+    [11, 35, 90],
+    [17, 85, 160],
+    [23, 150, 240],
+    [26, 200, 300],
   ] as [number, number, number][],
   reference: 20,
   floor: 0.6,

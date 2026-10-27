@@ -69,7 +69,7 @@ describe('literal locator', () => {
     const balance = readFileSync('src/data/balance.ts', 'utf8');
     expect(Number(locateLiteral(balance, 'WAVES', ['overlapAt'])?.text)).toBe(WAVES.overlapAt);
     const world = readFileSync('src/data/world.ts', 'utf8');
-    WORLD_NODES.forEach((n, i) => expect(Number(locateLiteral(world, 'WORLD_NODES', [i, 'tier'])?.text), n.id).toBe(n.tier));
+    WORLD_NODES.forEach((n, i) => expect(Number(locateLiteral(world, 'WORLD_NODES', [i, 'level'])?.text), n.id).toBe(n.level));
     const skills = readFileSync('src/data/skills.ts', 'utf8');
     const first = Object.values(SKILLS)[0]!;
     const param = Object.keys(first.ranks[0]!)[0]!;
