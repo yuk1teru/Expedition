@@ -5,6 +5,7 @@ import { lineOfSight, terrainAt } from '../src/systems/arena';
 import { assignClass } from '../src/systems/hero';
 import { createGameState, teleport } from '../src/systems/run';
 import { spawnEnemy } from '../src/systems/waves';
+import { botCoach } from '../scripts/route';
 
 function battle(nodeId: string, classId: string, skills: string[]) {
   const s = createGameState(5);
@@ -60,5 +61,16 @@ describe('bot 2.0 in battle (ROADMAP 15.5)', () => {
     crab.speed = 0;
     stepBattle(b, LOOP.step);
     expect(s.hero.arrowElement).not.toBe('neutral');
+  });
+
+  it('the bot rides the coach to a town much nearer its target', () => {
+    const s = createGameState(5);
+    s.gold = 500;
+    s.townsVisited.push('forestTown');
+    teleport(s, 'capital');
+    expect(botCoach(s, 'enatLair')).toBe(true);
+    expect(s.currentNodeId).toBe('forestTown');
+    // Already there: no ride.
+    expect(botCoach(s, 'enatLair')).toBe(false);
   });
 });

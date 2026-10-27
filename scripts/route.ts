@@ -14,6 +14,7 @@ import { buyConsumable, equipFromBag, identifyItem, itemLevelMult, type Item } f
 import { type World, effectiveLevel, getNode, neighbours } from '../src/systems/mapgen';
 import { isRunWon, restInTown, restoreCheckpoint, travel } from '../src/systems/run';
 import { runBattle } from './bot';
+import { coachDestinations, coachPrice, rideCoach } from '../src/systems/coach';
 
 export interface FullRunResult {
   classId: string;
@@ -97,6 +98,22 @@ export function chooseTarget(state: GameState): string | null {
   const farm = world.nodes.filter((n) => !n.isTown && !n.isBoss && n.timesCleared > 0 && tier(n) <= limit);
   if (farm.length > 0) return farm.reduce((a, b) => (tier(b) > tier(a) ? b : a)).id;
   return byDistance(left.map((n) => n.id));
+}
+
+/** Rides the coach when another reachable town is at least 2 steps nearer the target and gold allows. */
+export function botCoach(state: GameState, target: string): boolean {
+  if (!getNode(state.world, state.currentNodeId).isTown) return false;
+  const here = findPath(state.world, state.currentNodeId, target).length;
+  let best: string | null = null;
+  let bestLen = here - 1;
+  for (const town of coachDestinations(state)) {
+    const len = findPath(state.world, town, target).length;
+    if (len > 0 && len < bestLen && state.gold - coachPrice(state, town) >= 60) {
+      best = town;
+      bestLen = len;
+    }
+  }
+  return best !== null && rideCoach(state, best);
 }
 
 /** Item score for the bot: rarity power × item level. */
@@ -191,6 +208,8 @@ export function simulateFullRun(state: GameState, opts: FullRunOptions): FullRun
       res.stuck = true;
       break;
     }
+    // Bot 2.0: from a town, the coach to a town much nearer the target (ROADMAP 15.5).
+    if (target !== state.currentNodeId) botCoach(state, target);
     const path = target === state.currentNodeId ? [target] : findPath(state.world, state.currentNodeId, target);
     let died = false;
     for (const id of path) {
