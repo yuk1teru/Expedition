@@ -140,7 +140,7 @@ export const CLASSES: Record<string, ClassDef> = {
     role: 'Дальній бій, прудкий',
     description: 'Злива стріл і пастки.',
     locked: false,
-    hpMult: 1.3,
+    hpMult: 1.15,
     attackSpeedMult: 1.4,
     skillDamageMult: 1,
     ranged: true,

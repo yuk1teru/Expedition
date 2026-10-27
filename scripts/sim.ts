@@ -5,7 +5,7 @@
 //
 //   npm run sim                       — 200 full runs, bot uses skills as soon as they are ready
 //   npm run sim -- --no-skills        — bot never uses skills
-//   npm run sim -- --runs 60 --seed 1 --class mage
+//   npm run sim -- --class mage       — only the mage's runs of the rotation (same seeds as in the full run)
 //   npm run sim -- --slice            — the old mini simulation of the slice (grove × N, boss)
 //   npm run sim -- --slice --passes 6 --class archer
 
@@ -121,7 +121,11 @@ function mainFull(args: Args): void {
   const results: FullRunResult[] = [];
   for (let i = 0; i < args.runs; i++) {
     const seed = args.seed + i;
-    const classId = args.classId || CLASS_ORDER[i % CLASS_ORDER.length]!;
+    const turn = CLASS_ORDER[i % CLASS_ORDER.length]!;
+    // One class: exactly the runs (seeds) it gets in the full rotation, so its result can
+    // be put next to the other classes' numbers from SIM_RESULTS.md.
+    if (args.classId && args.classId !== turn) continue;
+    const classId = turn;
     const state = createGameState(seed);
     results.push(
       simulateFullRun(state, {
@@ -137,7 +141,7 @@ function mainFull(args: Args): void {
   }
   const wins = results.filter((r) => r.won);
   console.log('Експедиція — симуляція повних забігів');
-  console.log(`Забігів: ${args.runs} · скіли: ${args.useSkills ? 'так' : 'ні'} · класи: ${args.classId || 'по черзі'} · seed від ${args.seed}`);
+  console.log(`Забігів: ${results.length} · скіли: ${args.useSkills ? 'так' : 'ні'} · класи: ${args.classId || 'по черзі'} · seed від ${args.seed}`);
   console.log('');
   const byClass: Record<string, string> = {};
   for (const c of CLASS_ORDER) {
