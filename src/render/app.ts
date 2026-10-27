@@ -1,5 +1,6 @@
 // Application shell: owns the view, input, loop, screens and the run state.
 
+import { MusicPlayer, themeFor } from './music';
 import { finishFloor, isBossFloor, towerBattle, towerStart } from '../systems/tower';
 import { CAPITAL_ID } from '../data/world';
 import { finishSiege, siegeBattle } from '../systems/siege';
@@ -131,6 +132,8 @@ export class App {
   settings: GameSettings;
   /** Procedural sound; starts on the first key or click (`unlockSound`). */
   readonly sound = new SoundPlayer(() => this.settings.volume);
+  /** Procedural music (ROADMAP 19.4); plays on the sound's audio context. */
+  readonly music = new MusicPlayer(() => this.settings.music);
   private readonly saves: SaveStore | null;
   private readonly metaStore: SaveStore | null;
   /** What outlives heroes: the graves (the cemetery, records). */
@@ -879,9 +882,26 @@ export class App {
     if (screen !== 'title' && screen !== 'death' && screen !== 'victory' && screen !== 'tombstone') this.state.stats.playTime += dt;
     for (const e of this.input.drain()) this.handleInput(e);
     this.processModalQueue();
+    this.updateMusic();
     // Between arenas: once the gift windows are closed, the way on.
     if (this.wayOn && !this.screens.topModal && this.state.modalQueue.length === 0) this.openWayOn();
     if (this.towerNext !== null && !this.screens.topModal && this.state.modalQueue.length === 0) this.openTowerChoice();
+  }
+
+  /** The theme of what is on screen (ROADMAP 19.4). */
+  private updateMusic(): void {
+    const ctx = this.sound.context;
+    if (!ctx) return;
+    this.music.attach(ctx);
+    const b = this.battle;
+    this.music.play(
+      themeFor({
+        screen: this.screens.current ?? '',
+        battle: b
+          ? { land: b.node.biome, boss: b.kind === 'boss' || b.enemies.some((e) => e.boss && !e.dead), siege: !!b.siege, tower: !!b.towerFloor }
+          : null,
+      }),
+    );
   }
 
   private handleInput(e: InputEvent): void {

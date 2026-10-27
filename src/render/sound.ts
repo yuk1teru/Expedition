@@ -51,6 +51,11 @@ export class SoundPlayer {
 
   constructor(private volume: () => number) {}
 
+  /** The audio context once started (the music plays on it too). */
+  get context(): AudioContext | null {
+    return this.ctx;
+  }
+
   /** Starts the audio (call from a key or click handler). */
   unlock(): void {
     if (this.ctx || typeof AudioContext === 'undefined') {

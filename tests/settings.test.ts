@@ -6,6 +6,6 @@ describe('settings', () => {
     expect(readSettings(null)).toEqual(DEFAULT_SETTINGS);
     expect(readSettings('{oops')).toEqual(DEFAULT_SETTINGS);
     expect(readSettings(JSON.stringify({ volume: 7, shake: 'no' }))).toEqual(DEFAULT_SETTINGS);
-    expect(readSettings(JSON.stringify({ volume: 0.3, shake: false, damageNumbers: false }))).toEqual({ volume: 0.3, shake: false, damageNumbers: false });
+    expect(readSettings(JSON.stringify({ volume: 0.3, shake: false, damageNumbers: false }))).toEqual({ ...DEFAULT_SETTINGS, volume: 0.3, shake: false, damageNumbers: false });
   });
 });
