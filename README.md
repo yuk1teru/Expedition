@@ -102,17 +102,30 @@ Seed забігу показано в правому верхньому куті
 src/
   main.ts            вхід: полотно, ввід, App
   core/              RNG (mulberry32 + fork), seed, стан забігу, екрани й модальні вікна, цикл, ввід, шина подій
-  data/              УСІ числа і контент: balance, biomes, enemies, skills, classes, bosses, fx
-  systems/           логіка без DOM: mapgen, run, battle, combat, ai, collision, waves, leveling,
-                     scaling, targeting, effects, cards, boss, hero
-  systems/skills/    реєстр скілів (index.ts) + реалізації класу (warrior.ts)
-  systems/bosses/    поведінка босів і мінібосів (enat, alpha, galeSpirit), реєстрація в index.ts
+  data/              УСІ числа і контент: balance, biomes, enemies, skills, classes, promotions, bosses,
+                     items, consumables, weather, fx, changelog
+  systems/           логіка без DOM: mapgen, run, battle, combat, ai, allies, collision, waves, hazards,
+                     leveling, scaling, targeting, effects, cards, boss, hero, promotion, items, pickups
+  systems/skills/    реєстр скілів (index.ts), спільні хелпери (common.ts) і реалізації: warrior, mage,
+                     archer, promotion (фірмові скіли гілок)
+  systems/bosses/    поведінка босів і мінібосів (enat, alpha, galeSpirit, sandWorm, scorpionKing,
+                     poisonMother, bigToad, iceKnight, frostWarden), реєстрація в index.ts
   render/            полотно, UI-примітиви, екрани, HUD, ефекти, модальні вікна, дебаг-панель
-scripts/sim.ts       безголова симуляція; scripts/bot.ts — бот; scripts/probe.ts — смерті бота по хвилях
+scripts/sim.ts       безголова симуляція; scripts/route.ts — бот повного забігу; scripts/bot.ts — бій ботом;
+                     scripts/probe.ts — смерті бота по хвилях у гаю зрізу
 tests/               rng, mapgen, formulas, cards, boss, biomes, waves, skills, classes, promotion, progress, pickups, controls, version
 ```
 
 Логіка (`src/core`, `src/systems`, `src/data`) нічого не імпортує з `src/render` і не звертається до DOM/window — тому `npm run sim` працює в Node.
+
+## Як додати контент
+
+- **Скіл**: запис у `SKILLS` (`src/data/skills.ts`) — `classId`, `targeting`, `aimable` (летить до курсора), `moves` (рух героя; блокується капканом), `icon`, опис з `{param}` / `{param%}`, `base` (ранг 1) і 4 `upgrades` (ранги 2–5; 3 і 5 — з `text`, це особливий модифікатор). Реалізація — функція `SkillImpl` у `src/systems/skills/<клас>.ts` (повертає `false`, якщо немає цілі — тоді перезарядка не витрачається), додайте її в об’єкт класу й, за потреби, новий `SkillIcon` у `src/render/icons.ts` / `classIcons.ts` та ефекти в `src/render/skillFx.ts`. Щоб скіл випадав у картках — додайте id у `skills` класу (`src/data/classes.ts`).
+- **Картку**: окремих карток немає — картки «Новий скіл», «Покращення» й «Пасивка» генеруються з пулу класу (і гілки після підвищення) у `src/systems/cards.ts`. Нова пасивка — запис у `PASSIVES` (`stat`, `value` за стак, `maxStacks`) + id у `passives` класу чи гілки; новий `stat` обробіть у `recomputeHeroStats` (`src/systems/hero.ts`).
+- **Ворога**: запис у `ENEMIES` (`src/data/enemies.ts`) з архетипом і рисою (`dash`, `volley`, `stomp`, `cripple`, `poison`, `split`, `shotSlow`), id — у `enemies` біому (`src/data/biomes.ts`), колір — у `palette.enemies`. Форму малює `drawEnemy` за архетипом.
+- **Боса чи мінібоса**: запис у `BOSSES` (`src/data/bosses.ts`) — статистики, `phase2`, `melee`, `coldAura`, таблиця атак (`weight`, `cooldown` по фазах, `params` по фазах, `followUp` для комбо); поведінка — `registerBoss('<id>', { attacks, canUse })` у `src/systems/bosses/<id>.ts` + рядок в `index.ts`. Інструменти: `addTelegraph` / `addShapedTelegraph` (коло, лінія), `bossDash`, `bossBusy`, `spawnEnemy`, `addPuddle` / `addRing` (`hazards.ts`). Вигляд — художник у `src/render/biomeBosses.ts` (або `bossView.ts`). Призначте `boss` чи `miniboss` біому.
+- **Гілку підвищення**: запис у `PROMOTIONS` (`src/data/promotions.ts`) з `effect` (новий вид обробіть у `src/systems/promotion.ts`), фірмовий скіл (з `branch`) і дві пасивки гілки.
+- **Біом**: запис у `BIOMES` — палітра, 8 назв локацій, назва лігва боса, 3 вороги, мінібос, бос, декор; id — у `BIOME_ORDER`.
 
 ## Де міняти баланс і контент
 
@@ -124,7 +137,7 @@ tests/               rng, mapgen, formulas, cards, boss, biomes, waves, skills, 
 - **Класи** — `src/data/classes.ts` (пул скілів і пасивок для карток).
 - **Боси** — `src/data/bosses.ts` (статистики, таблиця атак з вагами, кулдаунами й параметрами по фазах) + поведінка в `src/systems/bosses/<бос>.ts` через `registerBoss`.
 - **Відчуття** (тряска, хіт-стоп, частинки, цифри) — `src/data/fx.ts`.
-- **Речі, рідкості, типи, таблиці здобичі, ціни продажу, рівень предмета** — `src/data/items.ts` (`ITEM_LEVEL`; діапазон рівнів біому — поле `itemLevel` у `src/data/biomes.ts`) (вигляд — `src/render/itemArt.ts`). **Лупа, трава, зілля, швидкі слоти, рослинки** — `src/data/consumables.ts`. **Хвилі, портал, додаткові хвилі** — `WAVES` у `src/data/balance.ts`; **події 5-ї хвилі, пастки** — `WAVE_EVENTS`, `TRAPS` там само; **погода** — `src/data/weather.ts`; **риси ворогів** (стрибок, віяло, тупотіння, сповільнення) — поля `dash`, `volley`, `stomp`, `cripple` у `src/data/enemies.ts`. **Мінібос локації** — поле `miniboss` біому + запис у `src/data/bosses.ts` (`miniboss: true`) + поведінка в `src/systems/bosses/`.
+- **Речі, рідкості, типи, таблиці здобичі, ціни продажу, рівень предмета** — `src/data/items.ts` (`ITEM_LEVEL.byTier`: рівень речей від tier локації) (вигляд — `src/render/itemArt.ts`). **Лупа, трава, зілля, швидкі слоти, рослинки** — `src/data/consumables.ts`. **Хвилі, портал, додаткові хвилі** — `WAVES` у `src/data/balance.ts`; **події 5-ї хвилі, пастки** — `WAVE_EVENTS`, `TRAPS` там само; **погода** — `src/data/weather.ts`; **риси ворогів** (стрибок, віяло, тупотіння, сповільнення, отрута, розпад, сповільнювальні постріли) — поля `dash`, `volley`, `stomp`, `cripple`, `poison`, `split`, `shotSlow` у `src/data/enemies.ts`. **Світ** (вузли на глибині, tier, макет карти, загроза босів) — `WORLD` у `src/data/balance.ts`. **Гілки підвищення** — `src/data/promotions.ts`. **Мінібос локації** — поле `miniboss` біому + запис у `src/data/bosses.ts` (`miniboss: true`) + поведінка в `src/systems/bosses/`.
 
 ## Рішення прототипу
 
