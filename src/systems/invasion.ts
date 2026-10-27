@@ -2,6 +2,7 @@
 // locations (driven off by clearing them, or the location falls), a captured land (its quest
 // wins it back) and an attack on a town (a battle at its gates when the hero comes).
 
+import { townDefense } from './growth';
 import type { GameState } from '../core/state';
 import { INVASION_EVENTS } from '../data/invasion';
 import { fillNames } from '../data/names';
@@ -99,7 +100,9 @@ export function defenseBattle(state: GameState, townId: string): Battle {
   const town = getNode(state.world, townId);
   const near = state.world.nodes.filter((n) => !n.isTown && !n.isBoss && n.region === town.region).sort((a, b) => a.level - b.level)[0];
   if (!near) throw new Error(`No location near ${townId}`);
-  const b = createBattle(state, near.id, 0, false, { waves: INVASION_EVENTS.townAttack.waves, miniboss: false, boss: false });
+  // A grown town's palisade shortens the battle (ROADMAP 15.4).
+  const waves = Math.max(1, INVASION_EVENTS.townAttack.waves - townDefense(state, townId));
+  const b = createBattle(state, near.id, 0, false, { waves, miniboss: false, boss: false });
   b.raid = true;
   b.defense = townId;
   return b;

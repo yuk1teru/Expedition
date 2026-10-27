@@ -8,7 +8,8 @@ import { TOWN_SCENE } from '../data/balance';
 import { fillNames } from '../data/names';
 import type { DialogueAction } from '../data/npcs';
 import { getNpc } from '../data/npcs';
-import { type TownBuilding, type TownLayout, type TownPropKind, type TownRect, getInterior, getTownLayout } from '../data/towns';
+import { type TownBuilding, type TownLayout, type TownPropKind, type TownRect, getInterior, getTownLayout, grownLayout } from '../data/towns';
+import { townLevel } from '../systems/growth';
 import { WAKE } from '../data/death';
 import { Rng } from '../core/rng';
 import { getNode } from '../systems/mapgen';
@@ -75,6 +76,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
     else if (action === 'openAlchemy') app.openAlchemy(talkingTo ?? '');
     else if (action === 'openSmith') app.openSmith(talkingTo ?? '');
     else if (action === 'sellBlind') app.askSellBlind();
+    else if (action === 'openGrowth') app.openGrowth(app.state.currentNodeId);
   };
   /** Tombstones of fallen heroes on the cemetery plots, the newest first. */
   const graves = (): { g: Grave; x: number; y: number }[] => {
@@ -134,7 +136,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
       // Every arrival in town is a rest: full HP and a saved checkpoint.
       restInTown(app.state);
       restedFlash = TOWN_REST_FLASH;
-      town = getTownLayout(app.state.currentNodeId);
+      town = grownLayout(getTownLayout(app.state.currentNodeId), townLevel(app.state, app.state.currentNodeId));
       layout = town;
       door = null;
       walker = createWalker(layout);
@@ -348,9 +350,10 @@ function drawWalker(ctx: CanvasRenderingContext2D, w: TownWalker, pos: { x: numb
 
 const backgrounds = new Map<string, HTMLCanvasElement>();
 
-/** Ground, paths, buildings and props of a town, painted once. */
+/** Ground, paths, buildings and props of a town, painted once per look (a grown town is another look). */
 function townBackground(layout: TownLayout): HTMLCanvasElement {
-  const cached = backgrounds.get(layout.id);
+  const key = `${layout.id}:${layout.buildings.length}:${layout.props.length}`;
+  const cached = backgrounds.get(key);
   if (cached) return cached;
   const c = document.createElement('canvas');
   c.width = layout.width;
@@ -361,7 +364,7 @@ function townBackground(layout: TownLayout): HTMLCanvasElement {
   ctx.fillRect(0, 0, c.width, c.height);
   if (layout.style === 'interior') {
     paintRoom(ctx, layout);
-    backgrounds.set(layout.id, c);
+    backgrounds.set(key, c);
     return c;
   }
   // Ground speckles.
@@ -414,7 +417,7 @@ function townBackground(layout: TownLayout): HTMLCanvasElement {
   for (const b of layout.bridges ?? []) drawBridge(ctx, b);
   for (const b of layout.buildings) drawBuilding(ctx, b, layout);
   for (const p of layout.props) drawProp(ctx, p.kind, p.x, p.y, layout);
-  backgrounds.set(layout.id, c);
+  backgrounds.set(key, c);
   return c;
 }
 
@@ -828,6 +831,18 @@ function drawProp(ctx: CanvasRenderingContext2D, kind: TownPropKind, x: number, 
       ctx.moveTo(x - 9, y);
       ctx.quadraticCurveTo(x - 18, y - 2, x - 16, y - 10);
       ctx.stroke();
+      break;
+    case 'fence':
+      // A stake of the palisade.
+      ctx.fillStyle = '#6a4a2a';
+      ctx.fillRect(x - 5, y - 26, 10, 30);
+      ctx.beginPath();
+      ctx.moveTo(x - 5, y - 26);
+      ctx.lineTo(x, y - 34);
+      ctx.lineTo(x + 5, y - 26);
+      ctx.fill();
+      ctx.fillStyle = '#4a3220';
+      ctx.fillRect(x - 22, y - 16, 44, 4);
       break;
     case 'stall':
       ctx.fillStyle = '#7a5a3a';

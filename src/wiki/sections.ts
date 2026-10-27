@@ -2,6 +2,7 @@
 // always what the game uses. Numbers (`v()`) and texts (`t()`) carry a reference to their
 // place in the data (`[ROOT, ...path]`); in `npm run dev` they become editable.
 
+import { growthSection } from './growth';
 import { uniquesSection } from './uniques';
 import { smithSection } from './smith';
 import { soulsSection } from './souls';
@@ -576,6 +577,7 @@ export function buildSections(comment: (root: string, path: LiteralPath) => stri
     bossesSection(),
     worldSection(),
     townsSection(),
+    growthSection(),
     arenasSection(),
     deathSection(),
     invasionSection(),

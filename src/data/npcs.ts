@@ -6,6 +6,7 @@
 // references ({town:capital}, {npc:capitalGuard}, {boss:enat}… — src/data/names.ts), so a
 // rename changes them everywhere; `forms` hold the case forms used by such references.
 
+import { TOWN_GROWTH } from './growth';
 import { BLIND_BUYER } from './items';
 import { SMITH } from './smith';
 import { RECIPES } from './alchemy';
@@ -14,7 +15,7 @@ import type { ItemSlot } from './items';
 import type { NameForms } from './names';
 
 /** What an option can do besides moving to another node. */
-export type DialogueAction = 'openShop' | 'openChangelog' | 'openInventory' | 'openCoach' | 'resetTree' | 'openOrders' | 'openAlchemy' | 'openSmith' | 'sellBlind' | 'close';
+export type DialogueAction = 'openShop' | 'openChangelog' | 'openInventory' | 'openCoach' | 'resetTree' | 'openOrders' | 'openAlchemy' | 'openSmith' | 'sellBlind' | 'openGrowth' | 'close';
 
 export interface DialogueOption {
   text: string;
@@ -60,6 +61,7 @@ export const NPC_LINES = {
   brew: 'Звари мені щось.',
   forge: 'Підправ мені річ.',
   sellBlind: 'Купиш нерозпізнане?',
+  invest: 'Вкласти золото в розвиток.',
   merchantTitle: 'Торговець',
   showGoods: 'Покажи товари.',
   aboutPlace: 'Що тут цікавого?',
@@ -436,6 +438,15 @@ export const NPCS: Record<string, NpcDef> = {
     greeting: 'Тихо. Вовки чують навіть думки.',
     news: '{boss:enat} кличе вовків, коли злий. Як побачиш коріння під ногами — тікай з кола.',
   }),
+  forestSmith: local({
+    id: 'forestSmith',
+    name: 'Остап',
+    forms: { to: 'Остапові', with: 'Остапом', of: 'Остапа' },
+    title: 'Коваль',
+    look: { body: '#4a3a32', accent: '#e07a5f', hat: 'none' },
+    greeting: 'Кузню поставили — тепер і в лісі є кому підкувати. Що принесли?',
+    news: 'Учився в {npc:capitalMatvii:of}. Каже, сокиру треба гострити, як вовка годувати: щодня й обережно.',
+  }),
   forestElder: local({
     id: 'forestElder',
     name: 'Микола',
@@ -527,6 +538,12 @@ export const NPCS: Record<string, NpcDef> = {
     news: 'Крижані кристали горять у горні синім полум’ям. Принесеш — скую щось добре. Колись.',
   }),
 };
+
+// Town stewards (ROADMAP 15.4): gold invested in the town.
+for (const g of Object.values(TOWN_GROWTH)) {
+  const npc = NPCS[g.steward];
+  npc?.nodes[npc.start]?.options.unshift({ text: NPC_LINES.invest, action: 'openGrowth' });
+}
 
 // The buyer of unidentified items (ROADMAP 14.6).
 for (const id of BLIND_BUYER.at) {

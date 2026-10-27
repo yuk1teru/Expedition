@@ -1,6 +1,7 @@
 // Town merchant: buy magnifiers, potions and random items for a chosen slot. A click on a
 // bag item opens a dropdown: identify, wear or sell. The full equipment window opens on top (Tab).
 
+import { shopPrice } from '../systems/growth';
 import { sellTrophies, trophySale } from '../systems/trophies';
 import type { InputEvent } from '../core/input';
 import type { Modal } from '../core/screens';
@@ -41,7 +42,7 @@ export function createMerchantModal(app: App, onClose: () => void, shop: ShopDef
   const buyButtons = GOODS.map(
     (id, i) =>
       new Button({
-        label: `Купити — ${CONSUMABLES[id].price}`,
+        label: `Купити — ${shopPrice(app.state, CONSUMABLES[id].price)}`,
         rect: { x: PANEL.x + 262, y: PANEL.y + GOODS_Y + i * GOODS_ROW, w: 128, h: 28 },
         fontSize: 13,
         onClick: () => {
@@ -134,7 +135,7 @@ export function createMerchantModal(app: App, onClose: () => void, shop: ShopDef
       flashTime = Math.max(0, flashTime - dt);
       GOODS.forEach((id, i) => (buyButtons[i]!.enabled = canBuy(app.state, id)));
       if (!menu) selected = -1;
-      for (const b of itemButtons) b.enabled = app.state.gold >= MERCHANT_ITEMS.price;
+      for (const b of itemButtons) b.enabled = app.state.gold >= shopPrice(app.state, MERCHANT_ITEMS.price);
       const sale = trophySale(app.state);
       trophyBtn.enabled = sale.count > 0;
       trophyBtn.label = sale.count > 0 ? `Продати трофеї: ${sale.count} — ${sale.gold} зол.` : 'Трофеїв на продаж немає';
@@ -215,7 +216,7 @@ export function createMerchantModal(app: App, onClose: () => void, shop: ShopDef
         drawText(ctx, `…ще ${st.hero.bag.length - COLS * ROWS} у сумці (Tab)`, SELL_X + COLS * CELL - 6, SELL_Y - 22, { size: 11, align: 'right', color: THEME.textDim });
       }
       const [lo, hi] = merchantItemLevels(st);
-      if (SLOTS.length > 0) drawText(ctx, `Купити річ — ${MERCHANT_ITEMS.price} зол. (зелена, синя або епічна; рівень ${lo}–${hi})`, SELL_X, ITEM_Y - 14, {
+      if (SLOTS.length > 0) drawText(ctx, `Купити річ — ${shopPrice(st, MERCHANT_ITEMS.price)} зол. (зелена, синя або епічна; рівень ${lo}–${hi})`, SELL_X, ITEM_Y - 14, {
         size: 12,
         bold: true,
         color: THEME.accent,

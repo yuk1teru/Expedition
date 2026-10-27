@@ -1,5 +1,6 @@
 // Application shell: owns the view, input, loop, screens and the run state.
 
+import { createGrowthModal } from './growth';
 import { defenseBattle, finishDefense } from '../systems/invasion';
 import { INVASION_EVENTS } from '../data/invasion';
 import { createStashModal } from './stash';
@@ -276,6 +277,18 @@ export class App {
           }
         },
       ),
+    );
+  }
+
+  /** Investing in the town (ROADMAP 15.4): the town grows when the window closes. */
+  openGrowth(townId: string): void {
+    if (this.screens.topModal) return;
+    this.screens.pushModal(
+      createGrowthModal(this, townId, () => {
+        this.screens.popModal();
+        // Rebuild the town as it stands now.
+        if (this.screens.current === 'town') this.goTown();
+      }),
     );
   }
 

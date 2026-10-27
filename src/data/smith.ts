@@ -6,7 +6,7 @@ import type { Rarity } from './items';
 
 export const SMITH = {
   /** NPCs who do the work. */
-  at: ['capitalMatvii', 'iceSmith'],
+  at: ['capitalMatvii', 'iceSmith', 'forestSmith'],
   /** Reroll a stat line: gold × rarity × item level factor. */
   reroll: 12,
   /** Raise the level: gold per item level gained × rarity. */

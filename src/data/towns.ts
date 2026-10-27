@@ -37,7 +37,8 @@ export type TownPropKind =
   | 'bench'
   | 'candle'
   | 'chair'
-  | 'cat';
+  | 'cat'
+  | 'fence';
 
 export interface TownBuilding extends TownRect {
   wall: string;
@@ -48,6 +49,8 @@ export interface TownBuilding extends TownRect {
   interior?: string;
   /** Look: a house (default), a stone city wall or tower, a piece of furniture in a room. */
   kind?: 'house' | 'wall' | 'furniture';
+  /** Built at this town growth level (ROADMAP 15.4). */
+  growth?: number;
 }
 
 /** A street drawn as a bent line (no collision): curved streets instead of straight paths. */
@@ -74,9 +77,9 @@ export interface TownLayout {
   bridges?: TownRect[];
   waterColor: string;
   buildings: TownBuilding[];
-  props: { kind: TownPropKind; x: number; y: number }[];
-  /** NPCs standing here; `home` — the room they live or work in (they stand near it now). */
-  npcs: { id: string; x: number; y: number; home?: string }[];
+  props: { kind: TownPropKind; x: number; y: number; growth?: number }[];
+  /** NPCs standing here; `home` — the room they live or work in (they stand near it now); `growth` — they come at that town level. */
+  npcs: { id: string; x: number; y: number; home?: string; growth?: number }[];
   /** Walking into it leads to the world map (in a room — back out to the street). */
   gate: TownRect;
   /** Where the hero appears (next to the gate). */
@@ -263,12 +266,92 @@ export const TOWNS: Record<string, TownLayout> = {
       { x: 280, y: 640, w: 240, h: 160, wall: '#7a5a3a', roof: '#2f4a2a', label: 'Хата старости' },
       { x: 1100, y: 640, w: 240, h: 150, wall: '#8a6a44', roof: '#4a3a2a', label: 'Лісопилка' },
       { x: 900, y: 820, w: 160, h: 110, wall: '#7a5a3a', roof: '#3a5a2a' },
+      // The smithy, at growth level 3.
+      { x: 1360, y: 230, w: 180, h: 130, wall: '#4a3a32', roof: '#2a2420', label: 'Кузня', growth: 3 },
     ],
     props: [
       P('pine', 80, 100), P('pine', 260, 110), P('pine', 580, 120), P('pine', 980, 110), P('pine', 1420, 110),
       P('pine', 1520, 320), P('pine', 80, 330), P('pine', 620, 640), P('pine', 80, 860), P('pine', 620, 880), P('pine', 1260, 900),
       P('tree', 1540, 560), P('tree', 980, 600),
       P('well', 900, 580), P('crate', 560, 420), P('barrel', 1000, 420),
+      // Growth (ROADMAP 15.4): the palisade (1), the market stalls (2).
+      { kind: 'fence', x: 40, y: 30, growth: 1 },
+      { kind: 'fence', x: 84, y: 30, growth: 1 },
+      { kind: 'fence', x: 128, y: 30, growth: 1 },
+      { kind: 'fence', x: 172, y: 30, growth: 1 },
+      { kind: 'fence', x: 216, y: 30, growth: 1 },
+      { kind: 'fence', x: 260, y: 30, growth: 1 },
+      { kind: 'fence', x: 304, y: 30, growth: 1 },
+      { kind: 'fence', x: 348, y: 30, growth: 1 },
+      { kind: 'fence', x: 392, y: 30, growth: 1 },
+      { kind: 'fence', x: 436, y: 30, growth: 1 },
+      { kind: 'fence', x: 480, y: 30, growth: 1 },
+      { kind: 'fence', x: 524, y: 30, growth: 1 },
+      { kind: 'fence', x: 568, y: 30, growth: 1 },
+      { kind: 'fence', x: 612, y: 30, growth: 1 },
+      { kind: 'fence', x: 656, y: 30, growth: 1 },
+      { kind: 'fence', x: 900, y: 30, growth: 1 },
+      { kind: 'fence', x: 944, y: 30, growth: 1 },
+      { kind: 'fence', x: 988, y: 30, growth: 1 },
+      { kind: 'fence', x: 1032, y: 30, growth: 1 },
+      { kind: 'fence', x: 1076, y: 30, growth: 1 },
+      { kind: 'fence', x: 1120, y: 30, growth: 1 },
+      { kind: 'fence', x: 1164, y: 30, growth: 1 },
+      { kind: 'fence', x: 1208, y: 30, growth: 1 },
+      { kind: 'fence', x: 1252, y: 30, growth: 1 },
+      { kind: 'fence', x: 1296, y: 30, growth: 1 },
+      { kind: 'fence', x: 1340, y: 30, growth: 1 },
+      { kind: 'fence', x: 1384, y: 30, growth: 1 },
+      { kind: 'fence', x: 1428, y: 30, growth: 1 },
+      { kind: 'fence', x: 1472, y: 30, growth: 1 },
+      { kind: 'fence', x: 1516, y: 30, growth: 1 },
+      { kind: 'fence', x: 1560, y: 30, growth: 1 },
+      { kind: 'fence', x: 24, y: 80, growth: 1 },
+      { kind: 'fence', x: 1576, y: 80, growth: 1 },
+      { kind: 'fence', x: 24, y: 124, growth: 1 },
+      { kind: 'fence', x: 1576, y: 124, growth: 1 },
+      { kind: 'fence', x: 24, y: 168, growth: 1 },
+      { kind: 'fence', x: 1576, y: 168, growth: 1 },
+      { kind: 'fence', x: 24, y: 212, growth: 1 },
+      { kind: 'fence', x: 1576, y: 212, growth: 1 },
+      { kind: 'fence', x: 24, y: 256, growth: 1 },
+      { kind: 'fence', x: 1576, y: 256, growth: 1 },
+      { kind: 'fence', x: 24, y: 300, growth: 1 },
+      { kind: 'fence', x: 1576, y: 300, growth: 1 },
+      { kind: 'fence', x: 24, y: 344, growth: 1 },
+      { kind: 'fence', x: 1576, y: 344, growth: 1 },
+      { kind: 'fence', x: 24, y: 388, growth: 1 },
+      { kind: 'fence', x: 1576, y: 388, growth: 1 },
+      { kind: 'fence', x: 24, y: 432, growth: 1 },
+      { kind: 'fence', x: 1576, y: 432, growth: 1 },
+      { kind: 'fence', x: 24, y: 476, growth: 1 },
+      { kind: 'fence', x: 1576, y: 476, growth: 1 },
+      { kind: 'fence', x: 24, y: 520, growth: 1 },
+      { kind: 'fence', x: 1576, y: 520, growth: 1 },
+      { kind: 'fence', x: 24, y: 564, growth: 1 },
+      { kind: 'fence', x: 1576, y: 564, growth: 1 },
+      { kind: 'fence', x: 24, y: 608, growth: 1 },
+      { kind: 'fence', x: 1576, y: 608, growth: 1 },
+      { kind: 'fence', x: 24, y: 652, growth: 1 },
+      { kind: 'fence', x: 1576, y: 652, growth: 1 },
+      { kind: 'fence', x: 24, y: 696, growth: 1 },
+      { kind: 'fence', x: 1576, y: 696, growth: 1 },
+      { kind: 'fence', x: 24, y: 740, growth: 1 },
+      { kind: 'fence', x: 1576, y: 740, growth: 1 },
+      { kind: 'fence', x: 24, y: 784, growth: 1 },
+      { kind: 'fence', x: 1576, y: 784, growth: 1 },
+      { kind: 'fence', x: 24, y: 828, growth: 1 },
+      { kind: 'fence', x: 1576, y: 828, growth: 1 },
+      { kind: 'fence', x: 24, y: 872, growth: 1 },
+      { kind: 'fence', x: 1576, y: 872, growth: 1 },
+      { kind: 'fence', x: 24, y: 916, growth: 1 },
+      { kind: 'fence', x: 1576, y: 916, growth: 1 },
+      { kind: 'stall', x: 620, y: 560, growth: 2 },
+      { kind: 'stall', x: 980, y: 560, growth: 2 },
+      { kind: 'stall', x: 1110, y: 570, growth: 2 },
+      { kind: 'tent', x: 1000, y: 360, growth: 2 },
+      { kind: 'barrel', x: 660, y: 580, growth: 2 },
+      { kind: 'crate', x: 940, y: 580, growth: 2 },
     ],
     npcs: [
       { id: 'forestCoach', x: 930, y: 95 },
@@ -276,6 +359,7 @@ export const TOWNS: Record<string, TownLayout> = {
       { id: 'forestHunter', x: 1190, y: 420 },
       { id: 'forestElder', x: 400, y: 830 },
       { id: 'forestBoard', x: 680, y: 410 },
+      { id: 'forestSmith', x: 1450, y: 410, growth: 3 },
     ],
     gate: { x: 740, y: 0, w: 120, h: 30 },
     spawn: { x: 800, y: 70 },
@@ -403,6 +487,12 @@ export function getInterior(id: string): Interior | undefined {
 
 export function getTownLayout(townId: string): TownLayout {
   return TOWNS[townId] ?? TOWNS.capital!;
+}
+
+/** The town as it stands at this growth level: what is built later is left out (ROADMAP 15.4). */
+export function grownLayout(layout: TownLayout, level: number): TownLayout {
+  const has = (x: { growth?: number }): boolean => (x.growth ?? 0) <= level;
+  return { ...layout, buildings: layout.buildings.filter(has), props: layout.props.filter(has), npcs: layout.npcs.filter(has) };
 }
 
 // ---- Rooms (ROADMAP 11.6) ----

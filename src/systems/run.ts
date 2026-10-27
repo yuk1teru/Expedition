@@ -60,6 +60,7 @@ export function createGameState(seed: number, heroName = DEFAULT_HERO_NAME): Gam
     ordersDone: [],
     soulSeen: false,
     stash: [],
+    townGrowth: {},
     raids: {},
     lastRaidDay: 0,
     capturedRegion: null,
@@ -100,6 +101,7 @@ export function snapshot(state: Omit<GameState, 'checkpoint'>): Checkpoint {
     homeTown: state.homeTown,
     lastDeath: state.lastDeath,
     stash: state.stash,
+    townGrowth: state.townGrowth,
   });
 }
 
@@ -124,6 +126,7 @@ export function restoreCheckpoint(state: GameState): void {
   state.homeTown = cp.homeTown;
   state.lastDeath = cp.lastDeath;
   state.stash = cp.stash ?? [];
+  state.townGrowth = cp.townGrowth ?? {};
   state.currentNodeId = cp.homeTown;
   state.modalQueue = [];
   state.hero.dead = false;

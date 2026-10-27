@@ -1,5 +1,6 @@
 // Items: rolls (with a unique look), identification, equipping, selling, consumables.
 
+import { shopPrice } from './growth';
 import { LEGENDARIES } from '../data/uniques';
 import { applyUniques, pickLegendary, uniqueLines } from './uniques';
 import type { Rng } from '../core/rng';
@@ -261,8 +262,9 @@ export function assignQuickSlot(hero: Hero, slot: number, id: HealId | null): vo
 
 /** Merchant: a random identified item for `slot` (uncommon to epic) into the bag; null if no gold. */
 export function buyItem(state: GameState, slot: ItemSlot): Item | null {
-  if (state.gold < MERCHANT_ITEMS.price) return null;
-  state.gold -= MERCHANT_ITEMS.price;
+  const price = shopPrice(state, MERCHANT_ITEMS.price);
+  if (state.gold < price) return null;
+  state.gold -= price;
   const [lo, hi] = merchantItemLevels(state);
   const rarity = rollRarity(state.lootRng, MERCHANT_ITEMS.weights);
   const item = rollItem(state.lootRng, rarity, state.nextItemUid++, slot, state.lootRng.int(lo, hi), state.hero.classId);
@@ -274,12 +276,12 @@ export function buyItem(state: GameState, slot: ItemSlot): Item | null {
 
 export function canBuy(state: GameState, id: ConsumableId): boolean {
   const def = CONSUMABLES[id];
-  return def.price > 0 && state.gold >= def.price && state.hero.consumables[id] < def.max;
+  return def.price > 0 && state.gold >= shopPrice(state, def.price) && state.hero.consumables[id] < def.max;
 }
 
 export function buyConsumable(state: GameState, id: ConsumableId): boolean {
   if (!canBuy(state, id)) return false;
-  state.gold -= CONSUMABLES[id].price;
+  state.gold -= shopPrice(state, CONSUMABLES[id].price);
   gainConsumable(state.hero, id);
   return true;
 }

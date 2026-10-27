@@ -83,6 +83,8 @@ export interface GameState {
   invasionNews: { title: string; text: string }[];
   /** Items in the stash, shared by all towns (ROADMAP 14.7); part of the checkpoint like the bag. */
   stash: Item[];
+  /** Town growth levels (ROADMAP 15.4); part of the checkpoint like the gold paid for them. */
+  townGrowth: Record<string, number>;
   /** Map nodes the hero has been to (fog of war, ROADMAP 10.6). */
   nodesVisited: string[];
   /** Secret places revealed (a hint, a quest). */
@@ -126,6 +128,7 @@ export interface Checkpoint {
   homeTown: string;
   lastDeath: LastDeath | null;
   stash: Item[];
+  townGrowth: Record<string, number>;
 }
 
 export function createRunStats(): RunStats {
