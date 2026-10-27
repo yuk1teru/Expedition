@@ -2,6 +2,7 @@
 // locations, the hero's position, tooltips, travel by click. The map zooms with the
 // mouse wheel (25%…160%, around the cursor) and pans by dragging — always.
 
+import type { GameState } from '../core/state';
 import type { InputEvent } from '../core/input';
 import type { Screen } from '../core/screens';
 import { PROGRESSION, WORLD } from '../data/balance';
@@ -10,7 +11,7 @@ import { getBoss } from '../data/bosses';
 import { getEnemyDef } from '../data/enemies';
 import { WEATHER } from '../data/weather';
 import { WORLD_MAP } from '../data/world';
-import { type MapNode, effectiveLevel } from '../systems/mapgen';
+import { type MapNode, effectiveLevel, findRoute, getNode } from '../systems/mapgen';
 import { canTravel } from '../systems/run';
 import { invasionMultiplier, invasionPct, newInvasionThresholds, xpPenalized } from '../systems/scaling';
 import { INVASION } from '../data/invasion';
@@ -62,6 +63,12 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
     new Button({ label: 'Герой', rect: { x: W - 86, y: TOP_BAR_H + 84, w: 70, h: 30 }, hotkey: 'KeyC', fontSize: 13, onClick: () => focusHero() }),
   ]);
 
+  // On the way (autopath): go on or stop.
+  const routeButtons = new ButtonGroup([
+    new Button({ label: 'Далі в дорогу [Enter]', rect: { x: W / 2 - 200, y: H - 96, w: 230, h: 38 }, hotkey: 'Enter', fontSize: 14, onClick: () => app.continueRoute() }),
+    new Button({ label: 'Зупинитися [Backspace]', rect: { x: W / 2 + 40, y: H - 96, w: 190, h: 38 }, hotkey: 'Backspace', fontSize: 13, onClick: () => app.stopRoute() }),
+  ]);
+
   const worldSize = (): { w: number; h: number } => ({ w: WORLD_MAP.width, h: WORLD_MAP.height });
   const toScreen = (p: { x: number; y: number }): { x: number; y: number } => ({ x: p.x * cam.scale + cam.x, y: p.y * cam.scale + cam.y });
   const toWorld = (x: number, y: number): { x: number; y: number } => ({ x: (x - cam.x) / cam.scale, y: (y - cam.y) / cam.scale });
@@ -110,6 +117,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
     update() {},
 
     onInput(e: InputEvent) {
+      if (app.route.length > 0 && routeButtons.handle(e)) return;
       if (buttons.handle(e)) return;
       if (e.type === 'wheel') {
         zoomAt(e.x, e.y, e.delta < 0 ? ZOOM.step : 1 / ZOOM.step);
@@ -132,7 +140,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
         drag = null;
         if (wasDrag) return;
         const n = nodeAt(e.x, e.y);
-        if (n && canTravel(app.state, n.id)) app.travelTo(n.id);
+        if (n && app.canReach(n.id)) app.travelTo(n.id);
       }
     },
 
@@ -198,7 +206,16 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
       drawTopBar(ctx, state, W, app.totalBosses(), app.time);
       drawInvasion(ctx, state.day, state.bossesDefeated.length);
       buttons.draw(ctx);
-      const hint = 'Клік по сусідній локації — вирушити · коліщатко, +/− — зум · тягніть — рух карти · C — до героя';
+      if (app.route.length > 0) {
+        const goal = world.nodes.find((x) => x.id === app.route[app.route.length - 1]);
+        const crossings = app.route.slice(0, -1).filter((id) => !world.nodes.find((x) => x.id === id)?.isTown).length;
+        const text = `У дорозі до «${goal?.name ?? ''}»: ще ${crossings} ${crossings === 1 ? 'перехід' : crossings < 5 ? 'переходи' : 'переходів'} по 1 хвилі`;
+        ctx.fillStyle = 'rgba(10, 12, 18, 0.88)';
+        ctx.fillRect(W / 2 - 260, H - 138, 520, 92);
+        drawText(ctx, text, W / 2, H - 120, { size: 14, bold: true, align: 'center', color: THEME.accent });
+        routeButtons.draw(ctx);
+      }
+      const hint = 'Клік по локації — вирушити (далеко — автошляхом через пройдені) · коліщатко, +/− — зум · тягніть — рух карти · C — до героя';
       ctx.font = font(12);
       const hw = ctx.measureText(hint).width;
       ctx.fillStyle = 'rgba(10, 12, 18, 0.8)';
@@ -208,7 +225,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
 
       if (hovered) {
         const n = world.nodes.find((x) => x.id === hovered);
-        if (n) drawTooltip(ctx, tooltipLines(n, state.currentNodeId, state.hero.level, levelOf(n), regionLevels(world.nodes, n.region, levelOf)), app.input.mouse.x, app.input.mouse.y, W, H);
+        if (n) drawTooltip(ctx, tooltipLines(n, state.currentNodeId, state.hero.level, levelOf(n), regionLevels(world.nodes, n.region, levelOf), routeHint(state, n.id)), app.input.mouse.x, app.input.mouse.y, W, H);
       }
     },
   };
@@ -304,8 +321,17 @@ function regionLevels(nodes: MapNode[], region: string, levelOf: (n: MapNode) =>
   return lo === hi ? String(lo) : `${lo}–${hi}`;
 }
 
-function tooltipLines(n: MapNode, current: string, heroLevel: number, level: number, region: string): string[] {
-  if (n.isTown) return [n.name, n.description, 'Місто: відпочинок і збереження, торговець і жителі', 'Клік — увійти в місто'];
+/** Tooltip line about the way to a node that is not a neighbour (autopath). */
+function routeHint(state: GameState, id: string): string | null {
+  if (canTravel(state, id)) return null;
+  const way = findRoute(state.world, state.currentNodeId, id);
+  if (!way) return 'Шляху немає: спершу пройдіть локації ближче';
+  const crossings = way.slice(0, -1).filter((x) => !getNode(state.world, x).isTown).length;
+  return crossings > 0 ? `Автошлях: ${crossings} × по 1 хвилі в пройдених локаціях` : 'Автошлях через місто';
+}
+
+function tooltipLines(n: MapNode, current: string, heroLevel: number, level: number, region: string, route: string | null): string[] {
+  if (n.isTown) return [n.name, n.description, 'Місто: відпочинок і збереження, торговець і жителі', ...(route ? [route] : []), 'Клік — увійти в місто'];
   const lines = [
     n.name,
     n.description,
@@ -329,6 +355,7 @@ function tooltipLines(n: MapNode, current: string, heroLevel: number, level: num
   lines.push(`Пройдено разів: ${n.timesCleared}`);
   if (n.lastWave > 0) lines.push(`Минулого разу: ${n.lastWave} хвиль (можна продовжити)`);
   if (n.id === current) lines.push('Клік — пройти ще раз');
+  if (route) lines.push(route);
   return lines;
 }
 

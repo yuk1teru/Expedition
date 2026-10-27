@@ -20,8 +20,10 @@ export interface BotOptions {
   rng: Rng;
   /** Safety cap for a single battle, seconds. */
   maxBattleTime: number;
-  /** Class to take at level 3 (default: the first one). */
+  /** Class to take at the class choice (default: the first one). */
   classId?: string;
+  /** A one-wave crossing of a cleared location (autopath). */
+  transit?: boolean;
 }
 
 /** Resolves pending level-up choices: the given (or first unlocked) class, random cards. */
@@ -89,7 +91,7 @@ export interface BattleRun {
 }
 
 export function runBattle(state: GameState, nodeId: string, opts: BotOptions): BattleRun {
-  const b = createBattle(state, nodeId);
+  const b = createBattle(state, nodeId, 0, opts.transit ?? false);
   while (!b.finished && b.time < opts.maxBattleTime) {
     if (opts.useSkills) useReadySkills(b);
     if (b.hero.hp < b.hero.maxHp * SIM.botHerbBelow) botHeal(b);

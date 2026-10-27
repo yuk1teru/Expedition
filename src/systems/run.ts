@@ -136,17 +136,10 @@ export function canTravel(state: GameState, nodeId: string): boolean {
   return areAdjacent(state.world, state.currentNodeId, nodeId);
 }
 
-/** A location cleared before can be crossed without a battle (not the boss: it is a dead end). */
+/** A location cleared before can be crossed with a one-wave fight (not the boss: it is a dead end). */
 export function canPassThrough(state: GameState, nodeId: string): boolean {
   const node = getNode(state.world, nodeId);
   return !node.isTown && !node.isBoss && node.timesCleared > 0 && nodeId !== state.currentNodeId && canTravel(state, nodeId);
-}
-
-/** Moves the hero onto a cleared location without a battle (see canPassThrough). */
-export function passThrough(state: GameState, nodeId: string): boolean {
-  if (!canPassThrough(state, nodeId)) return false;
-  state.currentNodeId = nodeId;
-  return true;
 }
 
 export interface BattleSummary {
@@ -169,6 +162,8 @@ export interface BattleSummary {
   loot: Item[];
   /** This battle defeated the last remaining boss (show the victory screen once). */
   runCompleted: boolean;
+  /** A crossing on the way (one wave). */
+  transit: boolean;
   /** Loot left here by an earlier death and picked up now. */
   recovered: { items: Item[]; gold: number } | null;
   /** Lives left after this battle (a loss takes one). */
@@ -186,7 +181,10 @@ export function completeBattle(state: GameState, b: Battle): BattleSummary {
   let clearBonus = 0;
   let recovered: BattleSummary['recovered'] = null;
   if (!won) applyDeath(state, b);
-  if (won) {
+  if (won && b.transit) {
+    // A crossing on the way costs a day; the location's progress stays as it was.
+    state.day += 1;
+  } else if (won) {
     recovered = recoverLostLoot(state, b.node);
     clearBonus = clearBonusGold(b.tier);
     state.gold += clearBonus;
@@ -217,6 +215,7 @@ export function completeBattle(state: GameState, b: Battle): BattleSummary {
     runCompleted: won && !wasWon && isRunWon(state),
     recovered,
     lives: state.lives,
+    transit: b.transit,
   };
 }
 

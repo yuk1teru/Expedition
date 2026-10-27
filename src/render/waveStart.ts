@@ -35,7 +35,7 @@ export function createWaveStartModal(app: App, node: MapNode, onPick: (startWave
     ...(canPass
       ? [
           new Button({
-            label: 'Пройти без бою [3]',
+            label: 'Пройти (1 хвиля) [3]',
             rect: { x: panel.x + 255, y: panel.y + 200, w: 195, h: 38 },
             hotkey: 'Digit3',
             fontSize: 14,

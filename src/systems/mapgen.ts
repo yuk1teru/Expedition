@@ -115,3 +115,30 @@ export function effectiveLevel(node: MapNode, bossesDefeated: number): number {
   const raised = node.level + bossesDefeated * (node.isBoss ? t.bossLevels : t.locationLevels);
   return Math.min(Math.max(node.level, PROGRESSION.maxLevel), raised);
 }
+
+/**
+ * Autopath (ROADMAP 10.4): the shortest way from `from` to `to` that goes only through
+ * towns and cleared locations (never through a boss lair); `to` itself may be anything
+ * next to such a way. The node ids after `from`, ending with `to`; null — no such way.
+ */
+export function findRoute(world: World, from: string, to: string): string[] | null {
+  if (from === to) return [];
+  const prev = new Map<string, string | null>([[from, null]]);
+  const queue = [from];
+  while (queue.length > 0) {
+    const cur = queue.shift()!;
+    if (cur === to) break;
+    const node = getNode(world, cur);
+    // The way goes on only from the start, towns and cleared locations.
+    if (cur !== from && !node.isTown && (node.isBoss || node.timesCleared === 0)) continue;
+    for (const n of neighbours(world, cur)) {
+      if (prev.has(n)) continue;
+      prev.set(n, cur);
+      queue.push(n);
+    }
+  }
+  if (!prev.has(to)) return null;
+  const path: string[] = [];
+  for (let at: string | null = to; at !== null && at !== from; at = prev.get(at) ?? null) path.unshift(at);
+  return path;
+}

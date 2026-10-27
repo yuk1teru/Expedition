@@ -11,7 +11,7 @@ import { CONSUMABLES, HEAL_ORDER } from '../src/data/consumables';
 import { RARITIES } from '../src/data/items';
 import { buyConsumable, equipFromBag, identifyItem, itemLevelMult, type Item } from '../src/systems/items';
 import { type World, effectiveLevel, getNode, neighbours } from '../src/systems/mapgen';
-import { isRunWon, passThrough, restInTown, restoreCheckpoint, travel } from '../src/systems/run';
+import { isRunWon, restInTown, restoreCheckpoint, travel } from '../src/systems/run';
 import { runBattle } from './bot';
 
 export interface FullRunResult {
@@ -101,8 +101,8 @@ function itemScore(item: Item): number {
 }
 
 /**
- * The town to rest in: the nearest one reachable over cleared locations (crossed without
- * a battle), otherwise the home town (always reachable from the map).
+ * The way to the nearest town over cleared locations (each crossing is a one-wave fight);
+ * the home town is always reachable from the map for free.
  */
 function restTown(state: GameState): string[] {
   const world = state.world;
@@ -129,10 +129,9 @@ function restTown(state: GameState): string[] {
 /** Town: rest (checkpoint), identify and wear better items, buy potions with what is left. */
 export function townVisit(state: GameState): void {
   if (!getNode(state.world, state.currentNodeId).isTown) {
-    for (const id of restTown(state)) {
-      if (getNode(state.world, id).isTown) travel(state, id);
-      else passThrough(state, id);
-    }
+    // A town next door, else the free way back to the home town (no crossings while hurt).
+    const way = restTown(state);
+    travel(state, way.length === 1 ? way[0]! : state.homeTown);
   }
   restInTown(state);
   const hero = state.hero;
@@ -195,13 +194,13 @@ export function simulateFullRun(state: GameState, opts: FullRunOptions): FullRun
         res.townVisits++;
         continue;
       }
-      // Cleared locations on the way are crossed; the target and new ones are fought.
-      if (id !== target && node.timesCleared > 0 && passThrough(state, id)) continue;
+      // Cleared locations on the way are crossed with one wave; the target and new ones are fought.
+      const transit = id !== target && node.timesCleared > 0 && !node.isBoss;
       travel(state, id);
       if (node.isBoss) res.bossLevels.push(state.hero.level);
-      const run = runBattle(state, id, battleOpts);
+      const run = runBattle(state, id, { ...battleOpts, transit });
       res.battles++;
-      (node.isBoss ? res.bossTimes : res.locationTimes).push(run.time);
+      if (!transit) (node.isBoss ? res.bossTimes : res.locationTimes).push(run.time);
       if (!run.summary.won) {
         res.deaths.push(node.isBoss ? `boss:${node.region}` : node.region);
         died = true;

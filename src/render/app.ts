@@ -9,7 +9,7 @@ import type { GameState } from '../core/state';
 import { LOOP } from '../data/balance';
 import { type Battle, createBattle, killAll } from '../systems/battle';
 import { grantLevel } from '../systems/leveling';
-import { getNode, resetClears } from '../systems/mapgen';
+import { findRoute, getNode, resetClears } from '../systems/mapgen';
 import { getSkill } from '../data/skills';
 import {
   type BattleSummary,
@@ -20,7 +20,6 @@ import {
   completeBattle,
   createGameState,
   nextCardOffer,
-  passThrough,
   rerollCards,
   restoreCheckpoint,
   skipCards,
@@ -94,6 +93,8 @@ export class App {
   private readonly files: SaveFiles | null;
   /** Seed of the first new hero (`?seed=` in the URL); later heroes get random ones. */
   private firstSeed: number | null;
+  /** Autopath (ROADMAP 10.4): the nodes still ahead on the way (the last one is the goal). */
+  route: string[] = [];
   /** The title screen opens straight at the name of a new hero ("Новий герой" on the end screens). */
   titleStartsWithName = false;
   readonly debug: DebugPanel | null;
@@ -323,10 +324,52 @@ export class App {
   }
 
   /**
-   * Map click. A wave location cleared before asks first: continue from the next
-   * wave, start from wave 1 or cross it without a battle.
+   * Map click. A neighbour: go there (a wave location cleared before asks first: continue
+   * from the next wave, start from wave 1 or cross it with one wave). Further away: the
+   * autopath over towns and cleared locations, one wave in each of those locations.
    */
   travelTo(nodeId: string): void {
+    this.route = [];
+    if (!canTravel(this.state, nodeId)) {
+      const way = findRoute(this.state.world, this.state.currentNodeId, nodeId);
+      if (!way || way.length === 0) return;
+      this.route = way;
+      this.continueRoute();
+      return;
+    }
+    this.goTo(nodeId);
+  }
+
+  /** Can the hero get to this node: a neighbour or by the autopath. */
+  canReach(nodeId: string): boolean {
+    return canTravel(this.state, nodeId) || !!findRoute(this.state.world, this.state.currentNodeId, nodeId);
+  }
+
+  /** The next step of the autopath: a town is passed by, a cleared location is a one-wave crossing, the goal is entered. */
+  continueRoute(): void {
+    while (this.route.length > 0) {
+      const next = this.route.shift()!;
+      if (this.route.length === 0) {
+        this.goTo(next);
+        return;
+      }
+      const node = getNode(this.state.world, next);
+      if (node.isTown) {
+        this.state.currentNodeId = next;
+        continue;
+      }
+      travel(this.state, next);
+      this.startBattle(next, 0, true);
+      return;
+    }
+  }
+
+  /** Map → stop the autopath where the hero stands. */
+  stopRoute(): void {
+    this.route = [];
+  }
+
+  private goTo(nodeId: string): void {
     if (!canTravel(this.state, nodeId)) return;
     const node = getNode(this.state.world, nodeId);
     if (!node.isTown && !node.isBoss && node.lastWave > 0) {
@@ -336,7 +379,8 @@ export class App {
           this.screens.popModal();
           if (start === null) return;
           if (start === 'pass') {
-            passThrough(this.state, nodeId);
+            travel(this.state, nodeId);
+            this.startBattle(nodeId, 0, true);
             return;
           }
           const res = travel(this.state, nodeId);
@@ -355,8 +399,8 @@ export class App {
     this.travelTo(this.state.homeTown);
   }
 
-  startBattle(nodeId: string, startWave = 0): void {
-    this.battle = createBattle(this.state, nodeId, startWave);
+  startBattle(nodeId: string, startWave = 0, transit = false): void {
+    this.battle = createBattle(this.state, nodeId, startWave, transit);
     this.loop.paused = false;
     this.screens.go('combat');
   }
@@ -371,6 +415,11 @@ export class App {
     this.loop.paused = false;
     // The last life is gone: the story ends right now (closing the game will not undo it).
     if (!this.lastSummary.won && this.state.lives <= 0) this.endHero(false);
+    if (!this.lastSummary.won) this.route = [];
+    if (this.lastSummary.won && this.lastSummary.transit) {
+      this.screens.go('map');
+      return;
+    }
     if (!this.lastSummary.won) this.screens.go('death');
     else if (this.lastSummary.runCompleted) this.screens.go('victory');
     else this.screens.go('reward');

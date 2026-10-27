@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { PROGRESSION, WORLD } from '../src/data/balance';
 import { BIOME_ORDER } from '../src/data/biomes';
-import { type MapNode, type World, effectiveLevel, buildWorld, getNode, markCleared, neighbours } from '../src/systems/mapgen';
-import { canPassThrough, canTravel, createGameState, passThrough, restInTown, restoreCheckpoint, travel } from '../src/systems/run';
+import { type MapNode, type World, effectiveLevel, buildWorld, findRoute, getNode, markCleared, neighbours } from '../src/systems/mapgen';
+import { canPassThrough, canTravel, completeBattle, createGameState, restInTown, restoreCheckpoint, teleport, travel } from '../src/systems/run';
+import { createBattle, killAll, stepBattle } from '../src/systems/battle';
 import { BOSSES } from '../src/data/bosses';
 import { ENEMIES } from '../src/data/enemies';
 import { CAPITAL_ID, WORLD_MAP, WORLD_NODES } from '../src/data/world';
@@ -105,8 +106,51 @@ describe('travel in the fixed world', () => {
     // Death brings the hero back to the town of the last rest.
     restoreCheckpoint(s);
     expect(s.currentNodeId).toBe('forestTown');
-    expect(passThrough(s, 'quietGrove')).toBe(true);
+    expect(canPassThrough(s, 'quietGrove')).toBe(true);
     expect(canTravel(s, 'forestTown')).toBe(true);
+  });
+
+  it('autopath: the shortest way over towns and cleared locations only', () => {
+    const s = createGameState(7);
+    // Nothing cleared: only the neighbours.
+    expect(findRoute(s.world, CAPITAL_ID, 'darkThicket')).toBeNull();
+    expect(findRoute(s.world, CAPITAL_ID, 'quietGrove')).toEqual(['quietGrove']);
+    markCleared(getNode(s.world, 'quietGrove'));
+    const way = findRoute(s.world, CAPITAL_ID, 'forestTown')!;
+    expect(way[way.length - 1]).toBe('forestTown');
+    for (const id of way.slice(0, -1)) {
+      const n = getNode(s.world, id);
+      expect(n.isTown || (n.timesCleared > 0 && !n.isBoss), id).toBe(true);
+    }
+    // Every step is a road.
+    let at = CAPITAL_ID;
+    for (const id of way) {
+      expect(neighbours(s.world, at)).toContain(id);
+      at = id;
+    }
+  });
+
+  it('a crossing is one wave: it ends when the wave is cleared, costs a day and does not count as a clear', () => {
+    const s = createGameState(7);
+    const grove = getNode(s.world, 'quietGrove');
+    markCleared(grove, 3);
+    teleport(s, 'quietGrove');
+    const b = createBattle(s, 'quietGrove', 0, true);
+    expect(b.transit).toBe(true);
+    let guard = 0;
+    while (!b.finished && guard++ < 60 * 120) {
+      killAll(b);
+      stepBattle(b, 1 / 60);
+    }
+    expect(b.outcome).toBe('won');
+    expect(b.waves!.cleared).toBe(1);
+    expect(b.portal).toBeNull();
+    const day = s.day;
+    const sum = completeBattle(s, b);
+    expect(sum.transit).toBe(true);
+    expect(s.day).toBe(day + 1);
+    expect(grove.timesCleared).toBe(1);
+    expect(grove.lastWave).toBe(3);
   });
 
   it('a cleared location keeps its level', () => {

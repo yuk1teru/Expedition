@@ -103,6 +103,8 @@ export interface Battle {
   /** Weather of the running event wave. */
   weather: WeatherState | null;
   waves: WaveState | null;
+  /** Crossing a cleared location (autopath, ROADMAP 10.4): one wave, won when it is cleared; not a clear of the location. */
+  transit: boolean;
   /** Exit portal (opens after the mandatory waves). */
   portal: Portal | null;
   boss: Enemy | null;
@@ -123,8 +125,11 @@ export interface Battle {
   finished: boolean;
 }
 
-/** `startWave`: waves already cleared on earlier visits (continue from the next one). */
-export function createBattle(state: GameState, nodeId: string, startWave = 0): Battle {
+/**
+ * `startWave`: waves already cleared on earlier visits (continue from the next one).
+ * `transit`: a crossing — one wave from the start, see Battle.transit.
+ */
+export function createBattle(state: GameState, nodeId: string, startWave = 0, transit = false): Battle {
   const node = getNode(state.world, nodeId);
   if (!node.biome) throw new Error(`Node ${nodeId} has no biome`);
   state.battleCount += 1;
@@ -155,7 +160,8 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0): B
     pickups: [],
     traps: [],
     weather: null,
-    waves: node.isBoss ? null : createWaves(startWave),
+    waves: node.isBoss ? null : createWaves(transit ? 0 : startWave),
+    transit: transit && !node.isBoss,
     portal: null,
     boss: null,
     stats: { kills: 0, xp: 0, gold: 0, damageDealt: 0, damageTaken: 0, heals: 0, loot: [] },
@@ -394,6 +400,8 @@ function checkOutcome(b: Battle): void {
     onBossDefeated(b);
     finish(b, 'won', FLOW.bossWinDelay);
   } else if (b.portal?.entered) {
+    finish(b, 'won', FLOW.portalDelay);
+  } else if (b.transit && b.waves && b.waves.cleared >= 1) {
     finish(b, 'won', FLOW.portalDelay);
   }
 }

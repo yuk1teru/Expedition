@@ -149,6 +149,7 @@ export function composeWave(rng: Rng, enemies: readonly string[], tier: number, 
 export function updateWaves(b: Battle, dt: number): void {
   const w = b.waves;
   if (!w) return;
+  if (b.transit && w.cleared >= 1) return;
   if (!w.started) {
     w.pause -= dt;
     if (w.pause > 0) return;
@@ -179,7 +180,8 @@ export function updateWaves(b: Battle, dt: number): void {
     return;
   }
   // Inside a block of waves the next one comes to help early; a block ends with a full clear.
-  if (!isPortalBreak(w.index + 1)) {
+  // A crossing is a single wave: it ends with a clear field (no portal).
+  if (!b.transit && !isPortalBreak(w.index + 1)) {
     if (!helpArrives(b, w)) return;
     w.cleared = w.index + 1;
     w.index += 1;
@@ -195,6 +197,7 @@ export function updateWaves(b: Battle, dt: number): void {
   w.index += 1;
   w.started = false;
   endWeather(b);
+  if (b.transit) return;
   // Only a block of waves ends with a clear field: the portal break.
   w.portalBreak = true;
   openPortal(b);
