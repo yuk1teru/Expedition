@@ -134,6 +134,11 @@ export const SKILL_TAGS: Record<string, SkillTag[]> = {
   hunterMark: ['single'],
   net: ['control'],
   meteor: ['fire', 'area'],
+  judgement: ['area'],
+  firestorm: ['fire', 'area'],
+  iceSpire: ['ice', 'area', 'control'],
+  burstArrow: ['area'],
+  bloodFlurry: ['area'],
   blizzard: ['ice', 'area', 'control'],
   aimedShot: ['single'],
 };

@@ -8,13 +8,29 @@ import { RANKS } from '../data/balance';
 import type { Element } from '../data/elements';
 import { getSkill, getPassive } from '../data/skills';
 import { TALENTS, TALENT_TREES } from '../data/talents';
+import { getPromotion } from '../data/promotions';
 import type { Hero, HeroSkill } from './entities';
 import { recomputeHeroStats } from './hero';
 
+/** A tree node; `row` 1–3 for the class tree, BRANCH_ROW for the specialization. */
 export type TalentNode =
   | { kind: 'skill'; id: string; row: number }
   | { kind: 'passive'; id: string; row: number }
   | { kind: 'arrow'; id: Element; row: number };
+
+/** The specialization's "row": open from the promotion on, its skills come with levels 12 and 22. */
+export const BRANCH_ROW = 4;
+
+/** The branch's nodes: its two skills and two passives (empty before the promotion). */
+export function branchNodes(hero: Hero): TalentNode[] {
+  if (!hero.promotion) return [];
+  const p = getPromotion(hero.promotion);
+  return [
+    { kind: 'skill', id: p.signature, row: BRANCH_ROW },
+    { kind: 'skill', id: p.signature2, row: BRANCH_ROW },
+    ...p.passives.map((id): TalentNode => ({ kind: 'passive', id, row: BRANCH_ROW })),
+  ];
+}
 
 /** All nodes of a class tree, row by row (1-based rows). */
 export function treeNodes(classId: string): TalentNode[] {
@@ -64,6 +80,7 @@ export function treeCost(classId: string): number {
 }
 
 export function rowOpen(hero: Hero, row: number): boolean {
+  if (row === BRANCH_ROW) return !!hero.promotion;
   return pointsSpent(hero) >= (TALENTS.rowUnlock[row - 1] ?? Infinity);
 }
 
@@ -71,6 +88,8 @@ export function rowOpen(hero: Hero, row: number): boolean {
 export function nextCost(hero: Hero, n: TalentNode): number | null {
   if (n.kind === 'skill') {
     const s = hero.skills.find((x) => x.id === n.id);
+    // Branch skills are not bought: they come with levels 12 and 22.
+    if (!s && n.row === BRANCH_ROW) return null;
     const rank = s?.rank ?? 0;
     return rank >= RANKS.max ? null : (TALENTS.rankCost[rank] ?? null);
   }

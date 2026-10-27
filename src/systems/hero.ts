@@ -53,6 +53,7 @@ export function createHero(id: number): Hero {
     arrows: [],
     freeSkills: [],
     gifts: [],
+    promotion2: false,
     castMult: 1,
   };
   recomputeHeroStats(hero);
@@ -191,6 +192,18 @@ export function recomputeHeroStats(hero: Hero): void {
   s.moveSpeed *= 1 + giftStat(hero, 'moveSpeedPct');
   s.cooldownMult *= 1 - giftStat(hero, 'cooldownPct');
   s.skillDamageMult *= 1 + giftStat(hero, 'skillDamagePct');
+  // The second stage of the branch: its stat bonus.
+  if (hero.promotion && hero.promotion2) {
+    const b2 = getPromotion(hero.promotion).bonus2;
+    if (b2.stat === 'attackSpeedPct') s.attackSpeed *= 1 + b2.value;
+    else if (b2.stat === 'hpPct') hpPct += b2.value;
+    else if (b2.stat === 'critChance') s.critChance += b2.value;
+    else if (b2.stat === 'armor') s.armor += b2.value;
+    else if (b2.stat === 'skillDamagePct') s.skillDamageMult *= 1 + b2.value;
+    else if (b2.stat === 'lifesteal') s.lifesteal += b2.value;
+    else if (b2.stat === 'moveSpeedPct') s.moveSpeed *= 1 + b2.value;
+    else if (b2.stat === 'cooldownPct') s.cooldownMult *= 1 - b2.value;
+  }
   if (hero.promotion) {
     const fx = getPromotion(hero.promotion).effect;
     if (fx.kind === 'marksman') {

@@ -15,6 +15,8 @@ export interface AllySpec {
   life: number;
   stunOnHit: number;
   companion: boolean;
+  /** Default: a wolf. The bear is bigger and heavier (Beastmaster, level 22). */
+  kind?: 'wolf' | 'bear';
 }
 
 export function spawnAlly(b: Battle, spec: AllySpec): Ally {
@@ -22,18 +24,18 @@ export function spawnAlly(b: Battle, spec: AllySpec): Ally {
     id: b.nextId++,
     pos: { ...spec.pos },
     vel: { x: 0, y: 0 },
-    radius: ALLY_WOLF.radius,
+    radius: spec.kind === 'bear' ? ALLY_WOLF.bearRadius : ALLY_WOLF.radius,
     hp: spec.hp,
     maxHp: spec.hp,
     team: 'hero',
     statuses: {},
     knockback: { x: 0, y: 0 },
     facing: 0,
-    mass: ALLY_WOLF.mass,
+    mass: spec.kind === 'bear' ? ALLY_WOLF.mass * 4 : ALLY_WOLF.mass,
     hitAt: -Infinity,
     spawnedAt: b.time,
     dead: false,
-    kind: 'wolf',
+    kind: spec.kind ?? 'wolf',
     damageMult: spec.damageMult,
     attackTimer: ALLY_WOLF.attackInterval * 0.5,
     life: spec.life,

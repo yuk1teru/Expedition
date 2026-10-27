@@ -13,11 +13,11 @@ import type { Battle } from './battle';
 import type { Item } from './items';
 import { TOWN_ID, areAdjacent, buildWorld, getNode, markCleared } from './mapgen';
 import { clearBonusGold } from './scaling';
-import { LIVES } from '../data/balance';
+import { LIVES, PROGRESSION } from '../data/balance';
 
 /** Name of a hero the player did not name. */
 export const DEFAULT_HERO_NAME = 'Мандрівник';
-import { promote } from './promotion';
+import { promote, promote2 } from './promotion';
 import { applyDeath, recoverLostLoot } from './death';
 import { visitTown } from './coach';
 import { markVisited } from './fog';
@@ -271,9 +271,16 @@ export function chooseClass(state: GameState, classId: string, picks?: string[])
   assignClass(state.hero, classId, picks);
 }
 
-/** Level-13 branch choice. */
+/** Level-12 branch choice. */
 export function choosePromotion(state: GameState, branchId: string): void {
   promote(state.hero, branchId);
+  // Promoted late (past level 22): the second stage comes at once.
+  if (state.hero.level >= PROGRESSION.promotion2Level) promote2(state.hero);
+}
+
+/** Level 22: the second stage of the branch. */
+export function completePromotion(state: GameState): void {
+  promote2(state.hero);
 }
 
 /** The gift window's offer (its own random stream). */

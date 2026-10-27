@@ -363,6 +363,7 @@ export function drawShieldBubble(ctx: CanvasRenderingContext2D, h: Hero, t: numb
 /** The hero's wolves: a lean wolf shape in the branch colour, HP bar when hurt, fading at the end. */
 export function drawAlly(ctx: CanvasRenderingContext2D, a: Ally, color: string, t: number, now: number): void {
   const r = a.radius;
+  if (a.kind === 'bear') return drawBear(ctx, a, t, now);
   ctx.save();
   ctx.translate(a.pos.x, a.pos.y);
   if (a.life < 1) ctx.globalAlpha = Math.max(0.2, a.life);
@@ -431,6 +432,64 @@ export function drawBranchZone(ctx: CanvasRenderingContext2D, z: Zone, t: number
     ctx.restore();
     return true;
   }
+  if (z.kind === 'judgement') {
+    // A pillar of light gathering until it strikes.
+    const k = Math.min(1, z.time / Math.max(z.duration, 1e-6));
+    ctx.save();
+    ctx.translate(z.pos.x, z.pos.y);
+    ctx.globalAlpha = 0.2 + 0.3 * k;
+    ctx.fillStyle = '#fff1b8';
+    ctx.beginPath();
+    ctx.arc(0, 0, z.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.35 + 0.5 * k;
+    const g = ctx.createLinearGradient(0, -220, 0, 0);
+    g.addColorStop(0, 'rgba(255, 244, 194, 0)');
+    g.addColorStop(1, 'rgba(255, 236, 160, 0.9)');
+    ctx.fillStyle = g;
+    ctx.fillRect(-z.radius * 0.35 * k, -220, z.radius * 0.7 * k, 220);
+    ctx.strokeStyle = '#f2d16b';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, z.radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    return true;
+  }
+  if (z.kind === 'iceSpire') {
+    ctx.save();
+    ctx.translate(z.pos.x, z.pos.y);
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = '#bfe6ff';
+    ctx.beginPath();
+    ctx.arc(0, 0, z.radius * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return true;
+  }
+  if (z.kind === 'bloodFlurry') {
+    const life = 1 - z.time / Math.max(z.duration, 1e-6);
+    ctx.save();
+    ctx.translate(z.pos.x, z.pos.y);
+    ctx.globalAlpha = 0.18 + 0.12 * life;
+    ctx.fillStyle = '#e04a2f';
+    ctx.beginPath();
+    ctx.arc(0, 0, z.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = '#ff8a6a';
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 5; i++) {
+      const a = t * 18 + (i * Math.PI * 2) / 5;
+      const r = z.radius * (0.4 + 0.12 * i);
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+      ctx.lineTo(Math.cos(a + 0.5) * (r + 14), Math.sin(a + 0.5) * (r + 14));
+      ctx.stroke();
+    }
+    ctx.restore();
+    return true;
+  }
   if (z.kind === 'blizzard') {
     ctx.save();
     ctx.translate(z.pos.x, z.pos.y);
@@ -454,6 +513,40 @@ export function drawBranchZone(ctx: CanvasRenderingContext2D, z: Zone, t: number
 
 export function drawBranchProjectile(ctx: CanvasRenderingContext2D, p: Projectile): boolean {
   const kind = p.kind.replace(/Crit$/, '');
+  if (kind === 'firestorm') {
+    // A spinning fire tornado.
+    ctx.save();
+    ctx.translate(p.pos.x, p.pos.y);
+    const t = p.life * 9;
+    for (let i = 0; i < 4; i++) {
+      ctx.globalAlpha = 0.5 - i * 0.08;
+      ctx.strokeStyle = i % 2 ? '#ffd23f' : '#ff7a2f';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(0, -i * 6, p.radius * (1 - i * 0.18), t + i, t + i + 4);
+      ctx.stroke();
+    }
+    ctx.restore();
+    return true;
+  }
+  if (kind === 'burstArrow') {
+    const a = Math.atan2(p.vel.y, p.vel.x);
+    ctx.save();
+    ctx.translate(p.pos.x, p.pos.y);
+    ctx.rotate(a);
+    ctx.strokeStyle = '#e8d2a0';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-14, 0);
+    ctx.lineTo(8, 0);
+    ctx.stroke();
+    ctx.fillStyle = '#ff5a3a';
+    ctx.beginPath();
+    ctx.arc(9, 0, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return true;
+  }
   if (kind !== 'shard' && kind !== 'aimedShot') return false;
   const a = Math.atan2(p.vel.y, p.vel.x);
   ctx.save();
@@ -499,4 +592,44 @@ export function drawAimLine(ctx: CanvasRenderingContext2D, from: { x: number; y:
   ctx.lineTo(from.x + Math.cos(a) * 1200, from.y + Math.sin(a) * 1200);
   ctx.stroke();
   ctx.restore();
+}
+
+/** The Beastmaster's bear: a big brown body with a head and ears, an HP bar above. */
+function drawBear(ctx: CanvasRenderingContext2D, a: Ally, t: number, now: number): void {
+  const r = a.radius;
+  ctx.save();
+  ctx.translate(a.pos.x, a.pos.y);
+  if (a.life < 1) ctx.globalAlpha = Math.max(0.2, a.life);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(0, r * 0.7, r * 1.2, r * 0.45, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.rotate(a.facing);
+  const flash = now - a.hitAt < 0.08;
+  const bob = Math.sin(t * 8 + a.id) * 1;
+  ctx.fillStyle = flash ? '#ffffff' : '#6a4a2a';
+  ctx.strokeStyle = '#f4f1e8';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(-r * 0.2, bob, r * 1.1, r * 0.85, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = flash ? '#ffffff' : '#7a5a3a';
+  ctx.beginPath();
+  ctx.arc(r * 0.85, bob, r * 0.55, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(r * 0.7, bob - r * 0.5, r * 0.2, 0, Math.PI * 2);
+  ctx.arc(r * 0.7, bob + r * 0.5, r * 0.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#1b1e27';
+  ctx.beginPath();
+  ctx.arc(r * 1.25, bob, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  const w = 34;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(a.pos.x - w / 2 - 1, a.pos.y - r - 12, w + 2, 5);
+  ctx.fillStyle = '#7fbf5a';
+  ctx.fillRect(a.pos.x - w / 2, a.pos.y - r - 11, w * Math.max(0, a.hp / a.maxHp), 3);
 }

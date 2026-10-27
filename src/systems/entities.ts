@@ -200,13 +200,15 @@ export interface Hero extends Body {
   freeSkills: string[];
   /** Gifts taken (ROADMAP 12.8). */
   gifts: string[];
+  /** The second stage of the specialization reached (level 22, ROADMAP 12.6). */
+  promotion2: boolean;
   /** While a skill is being cast: its damage multiplier from the tag gifts (1 otherwise). */
   castMult: number;
 }
 
 /** A body on the hero's side (wolves of the Beastmaster): chases and bites enemies. */
 export interface Ally extends Body {
-  kind: 'wolf';
+  kind: 'wolf' | 'bear';
   /** Bite damage = hero attack × this (× pet bonus). */
   damageMult: number;
   attackTimer: number;

@@ -1,4 +1,4 @@
-// Class promotion (level 13): branch choice, the signature skill and the branch
+// Class promotion (levels 12 and 22): branch choice, the branch skills and the branch
 // effects that run during battle (Paladin barrier, Pyromancer burn, Beastmaster wolf).
 
 import { PROGRESSION } from '../data/balance';
@@ -29,6 +29,15 @@ export function promote(hero: Hero, branchId: string): void {
   hero.skills.push({ id: p.signature, rank: 1, cooldown: 0, slot: PROGRESSION.signatureSlot });
   hero.promoTimer = 0;
   hero.companionTimer = 0;
+  recomputeHeroStats(hero);
+}
+
+/** Level 22: the second branch skill on F and the branch's stat bonus. */
+export function promote2(hero: Hero): void {
+  const p = heroPromotion(hero);
+  if (!p || hero.promotion2) return;
+  hero.promotion2 = true;
+  if (!hero.skills.some((s) => s.id === p.signature2)) hero.skills.push({ id: p.signature2, rank: 1, cooldown: 0, slot: PROGRESSION.branchSlot2 });
   recomputeHeroStats(hero);
 }
 

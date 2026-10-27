@@ -134,6 +134,7 @@ export function fromSave(data: SaveData): GameState {
   hero.arrows ??= [];
   hero.arrowElement ??= 'neutral';
   hero.gifts ??= [];
+  hero.promotion2 ??= false;
   hero.castMult = 1;
   // Balance edits since the save apply to the stats; the fight state starts clean.
   hero.dash = null;

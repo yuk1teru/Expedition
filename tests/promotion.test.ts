@@ -8,7 +8,7 @@ import { damageHero, killEnemy } from '../src/systems/combat';
 import { type Enemy } from '../src/systems/entities';
 import { assignClass, heroAttack, heroShield, moveSkill, skillInSlot } from '../src/systems/hero';
 import { gainXp, isMaxLevel } from '../src/systems/leveling';
-import { promote } from '../src/systems/promotion';
+import { promote, promote2 } from '../src/systems/promotion';
 import { createGameState, teleport } from '../src/systems/run';
 import { xpToNext } from '../src/systems/scaling';
 import { SKILL_IMPLS, useSkill } from '../src/systems/skills';
@@ -152,6 +152,25 @@ describe('signature skills', () => {
       const e = tough(b, 'wolf', 120);
       b.input.aim = { ...e.pos };
       expect(useSkill(b, R), branch).toBe('cast');
+    }
+  });
+
+  it('level 22: the second branch skill goes on F, the branch bonus applies; every one of them casts and hurts', () => {
+    for (const branch of Object.keys(PROMOTIONS)) {
+      const b = promoted(branch);
+      const p = PROMOTIONS[branch]!;
+      const before = { ...b.hero.stats, maxHp: b.hero.maxHp };
+      promote2(b.hero);
+      expect(skillInSlot(b.hero, PROGRESSION.branchSlot2)?.id, branch).toBe(p.signature2);
+      expect(SKILLS[p.signature2]!.branch, branch).toBe(branch);
+      const after = { ...b.hero.stats, maxHp: b.hero.maxHp };
+      expect(JSON.stringify(after), `${branch}: the bonus changes a stat`).not.toBe(JSON.stringify(before));
+      const e = tough(b, 'wolf', 60);
+      b.input.aim = { ...e.pos };
+      expect(useSkill(b, PROGRESSION.branchSlot2), branch).toBe('cast');
+      run(b, 3);
+      const hurt = e.hp < e.maxHp || b.allies.some((x) => !x.dead);
+      expect(hurt, `${branch}: ${p.signature2} does something`).toBe(true);
     }
   });
 

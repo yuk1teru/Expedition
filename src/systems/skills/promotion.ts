@@ -1,5 +1,6 @@
-// Signature skills of the six promotion branches (slot R): Rage, Holy Shield,
-// Meteor, Blizzard, Aimed Shot, Call of the Pack.
+// Skills of the six promotion branches: the first ones (slot R) — Rage, Holy Shield, Meteor,
+// Blizzard, Aimed Shot, Call of the Pack; the second ones (slot F, level 22) — Blood Flurry,
+// Judgement, Firestorm, Ice Spire, Burst Arrow, Bear.
 
 import { ALLY_WOLF } from '../../data/promotions';
 import { spawnProjectile } from '../ai';
@@ -150,6 +151,125 @@ const callOfPack: SkillImpl = ({ b, hero, p, def, rank }) => {
   return true;
 };
 
+/** Berserker (level 22): a flurry of blows around the hero, every hit heals. */
+const bloodFlurry: SkillImpl = ({ b, hero, p, def, rank }) => {
+  if (!nearestEnemy(b.enemies, hero.pos, p.castRange!)) return false;
+  addBuff(hero, { id: def.id, time: p.duration!, attackSpeedMult: 1, damageTakenMult: 1 - p.guard!, lifesteal: p.lifesteal! });
+  addZone(b, {
+    kind: def.id,
+    pos: hero.pos,
+    followHero: true,
+    radius: p.radius!,
+    duration: p.duration!,
+    tickInterval: p.tick!,
+    damage: skillAmount(hero, p.damage!),
+    tickNow: true,
+  });
+  b.events.emit({ type: 'skillCast', skillId: def.id, rank, pos: { ...hero.pos }, target: null });
+  return true;
+};
+
+/** Paladin (level 22): a pillar of light falls on the point (holy: the dead take far more). */
+const judgement: SkillImpl = ({ b, hero, p, def, rank, aim }) => {
+  const point = areaPoint(b, hero, aim, p.range!, p.radius!);
+  if (!point) return false;
+  const drop = (at: { x: number; y: number }, radius: number, mult: number, delay: number): void => {
+    const finale: Blast = { kind: 'judgementBlast', radius, damage: skillAmount(hero, p.damage! * mult), stun: p.stun! > 0 ? p.stun : undefined };
+    addZone(b, { kind: 'judgement', pos: at, radius, duration: delay, tickInterval: delay * 10, damage: 0, finale });
+  };
+  drop(point, p.radius!, 1, p.delay!);
+  for (let i = 0; i < p.extra!; i++) {
+    const a = (i / Math.max(1, p.extra!)) * Math.PI * 2 + 0.4;
+    const at = clampToArenaPoint({ x: point.x + Math.cos(a) * p.radius! * 1.1, y: point.y + Math.sin(a) * p.radius! * 1.1 }, 0);
+    drop(at, p.radius! * 0.7, 0.6, p.delay! + 0.25 * (i + 1));
+  }
+  b.events.emit({ type: 'skillCast', skillId: def.id, rank, pos: { ...hero.pos }, target: point });
+  return true;
+};
+
+/** Pyromancer (level 22): a slow fire tornado crawls towards the cursor, setting everyone it touches on fire. */
+const firestorm: SkillImpl = ({ b, hero, p, def, rank, aim }) => {
+  const angle = aimAngle(b, hero, aim);
+  if (angle === null) return false;
+  const step = (p.spreadDeg! * Math.PI) / 180;
+  for (let i = 0; i < p.count!; i++) {
+    const a = angle + (i - (p.count! - 1) / 2) * step;
+    spawnProjectile(b, {
+      pos: { ...hero.pos },
+      vel: { x: Math.cos(a) * p.speed!, y: Math.sin(a) * p.speed! },
+      radius: p.radius!,
+      damage: skillAmount(hero, p.damage!),
+      team: 'hero',
+      life: p.range! / p.speed!,
+      pierce: 999,
+      ricochet: 0,
+      kind: 'firestorm',
+      melee: false,
+      source: 'skill',
+      onHit: { id: 'burn', time: p.burnTime!, value: skillAmount(hero, p.burn!) },
+    });
+  }
+  b.events.emit({ type: 'skillCast', skillId: def.id, rank, pos: { ...hero.pos }, target: aim });
+  return true;
+};
+
+/** Cryomancer (level 22): a row of ice spikes towards the cursor, each freezes. */
+const iceSpire: SkillImpl = ({ b, hero, p, def, rank, aim }) => {
+  const angle = aimAngle(b, hero, aim);
+  if (angle === null) return false;
+  const dir = { x: Math.cos(angle), y: Math.sin(angle) };
+  for (let i = 0; i < p.count!; i++) {
+    const d = hero.radius + p.radius! * 0.6 + i * p.spacing!;
+    const at = clampToArenaPoint({ x: hero.pos.x + dir.x * d, y: hero.pos.y + dir.y * d }, 0);
+    const finale: Blast = { kind: 'iceSpireBlast', radius: p.radius!, damage: skillAmount(hero, p.damage!), freeze: p.freeze! };
+    addZone(b, { kind: 'iceSpire', pos: at, radius: p.radius!, duration: 0.05 + i * p.step!, tickInterval: 99, damage: 0, finale });
+  }
+  b.events.emit({ type: 'skillCast', skillId: def.id, rank, pos: { ...hero.pos }, target: aim });
+  return true;
+};
+
+/** Sniper (level 22): an arrow that bursts where it hits (the arrows' element). */
+const burstArrow: SkillImpl = ({ b, hero, p, def, rank, aim }) => {
+  const angle = aimAngle(b, hero, aim);
+  if (angle === null) return false;
+  const step = (p.spreadDeg! * Math.PI) / 180;
+  for (let i = 0; i < p.count!; i++) {
+    const a = angle + (i - (p.count! - 1) / 2) * step;
+    spawnProjectile(b, {
+      pos: { ...hero.pos },
+      vel: { x: Math.cos(a) * p.speed!, y: Math.sin(a) * p.speed! },
+      radius: 8,
+      damage: 0,
+      team: 'hero',
+      life: p.range! / p.speed!,
+      pierce: 0,
+      ricochet: 0,
+      kind: 'burstArrow',
+      melee: false,
+      source: 'skill',
+      explode: { kind: 'burstArrowBlast', radius: p.radius!, damage: skillAmount(hero, p.damage!), knockback: 160 },
+    });
+  }
+  b.events.emit({ type: 'skillCast', skillId: def.id, rank, pos: { ...hero.pos }, target: aim });
+  return true;
+};
+
+/** Beastmaster (level 22): a bear joins the fight — big, tough, the enemies around turn on it. */
+const bear: SkillImpl = ({ b, hero, p, def, rank }) => {
+  if (!nearestEnemy(b.enemies, hero.pos)) return false;
+  spawnAlly(b, {
+    pos: clampToArenaPoint({ x: hero.pos.x + 40, y: hero.pos.y }, ALLY_WOLF.bearRadius),
+    hp: hero.maxHp * p.hpFrac!,
+    damageMult: p.damage!,
+    life: p.duration!,
+    stunOnHit: p.stun!,
+    companion: false,
+    kind: 'bear',
+  });
+  b.events.emit({ type: 'skillCast', skillId: def.id, rank, pos: { ...hero.pos }, target: null });
+  return true;
+};
+
 export const PROMOTION_SKILLS: Record<string, SkillImpl> = {
   rage,
   holyShield,
@@ -157,4 +277,10 @@ export const PROMOTION_SKILLS: Record<string, SkillImpl> = {
   blizzard,
   aimedShot,
   callOfPack,
+  bloodFlurry,
+  judgement,
+  firestorm,
+  iceSpire,
+  burstArrow,
+  bear,
 };

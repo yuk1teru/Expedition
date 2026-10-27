@@ -1,13 +1,13 @@
 // Headless bot used by the balance simulation.
 
 import { TALENTS } from '../src/data/talents';
-import { canLearn, learn, treeNodes } from '../src/systems/talents';
+import { branchNodes, canLearn, learn, treeNodes } from '../src/systems/talents';
 import type { Rng } from '../src/core/rng';
 import type { GameState } from '../src/core/state';
 import { LOOP, SIM } from '../src/data/balance';
 import { CLASS_ORDER, getClass } from '../src/data/classes';
 import { type Battle, createBattle, stepBattle } from '../src/systems/battle';
-import { chooseClass, chooseGift, choosePromotion, completeBattle, type BattleSummary, nextGiftOffer } from '../src/systems/run';
+import { chooseClass, chooseGift, choosePromotion, completePromotion, completeBattle, type BattleSummary, nextGiftOffer } from '../src/systems/run';
 import { promotionChoices } from '../src/systems/promotion';
 import { useSkill } from '../src/systems/skills';
 import { botIdentifyAndEquip } from '../src/systems/items';
@@ -35,7 +35,7 @@ export interface BotOptions {
 export function botSpendTalents(state: GameState, rng: Rng): void {
   const hero = state.hero;
   if (!hero.classId) return;
-  const nodes = treeNodes(hero.classId);
+  const nodes = [...treeNodes(hero.classId), ...branchNodes(hero)];
   for (let guard = 0; guard < 100 && state.talentPoints > 0; guard++) {
     const ok = nodes.filter((n) => canLearn(state, n) === 'ok');
     const onPanel = hero.skills.filter((s) => s.slot >= 0 && s.slot < TALENTS.classSlots).length;
@@ -60,6 +60,8 @@ export function resolveModals(state: GameState, rng: Rng, classId?: string): voi
     } else if (req.kind === 'promotion') {
       const branches = promotionChoices(state.hero);
       if (branches.length > 0) choosePromotion(state, rng.pick(branches).id);
+    } else if (req.kind === 'promotion2') {
+      completePromotion(state);
     } else if (req.kind === 'gift' && state.hero.classId) {
       const offer = nextGiftOffer(state, req.rarity);
       if (offer.length > 0) chooseGift(state, rng.pick(offer));

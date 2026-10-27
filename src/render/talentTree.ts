@@ -3,11 +3,12 @@
 // the panel 1–5 or takes it off. Out of battle only.
 
 import type { Modal } from '../core/screens';
-import { RANKS } from '../data/balance';
+import { PROGRESSION, RANKS } from '../data/balance';
+import { getPromotion } from '../data/promotions';
 import { ELEMENTS } from '../data/elements';
 import { describePassive, getPassive, getSkill } from '../data/skills';
 import { TALENTS, TALENT_TREES } from '../data/talents';
-import { type TalentNode, canLearn, learn, nextCost, nextFork, pointsSpent, rowOpen, setPanelSlot, treeNodes, firstFreeClassSlot } from '../systems/talents';
+import { BRANCH_ROW, type TalentNode, branchNodes, canLearn, learn, nextCost, nextFork, pointsSpent, rowOpen, setPanelSlot, treeNodes, firstFreeClassSlot } from '../systems/talents';
 import type { App } from './app';
 import { drawPassiveIcon, drawSkillIcon } from './icons';
 import { skillTooltip } from './skillText';
@@ -44,6 +45,9 @@ export function createTalentTreeModal(app: App, onClose: () => void): Modal<Canv
     const inRow = nodes.filter((n) => n.row === row);
     inRow.forEach((n, i) => rects.set(n, { x: panel.x + 120 + i * (NODE_W + GAP), y: panel.y + 64 + (row - 1) * ROW_H, w: NODE_W, h: NODE_H }));
   }
+  // The specialization: a column on the right (from level 12 on).
+  const branchX = panel.x + panel.w - NODE_W - 24;
+  branchNodes(hero).forEach((n, i) => rects.set(n, { x: branchX, y: panel.y + 64 + i * (NODE_H + 10), w: NODE_W, h: NODE_H }));
   /** The pin of a learned skill: on / off the panel. */
   const pinRect = (r: Rect): Rect => ({ x: r.x + r.w - 26, y: r.y + r.h - 22, w: 22, h: 18 });
 
@@ -72,7 +76,10 @@ export function createTalentTreeModal(app: App, onClose: () => void): Modal<Canv
   const click = (n: TalentNode): void => {
     const check = canLearn(state, n);
     if (check === 'rowLocked') return say(`Ряд ${n.row} відкриється після ${TALENTS.rowUnlock[n.row - 1]} очок у дереві`);
-    if (check === 'maxed') return say('Уже на максимумі');
+    if (check === 'maxed') {
+      if (n.kind === 'skill' && n.row === BRANCH_ROW && !hero.skills.some((x) => x.id === n.id)) return say(`Другий скіл гілки прийде на ${PROGRESSION.promotion2Level} рівні`);
+      return say('Уже на максимумі');
+    }
     if (check === 'noPoints') return say('Бракує очок таланту: вони приходять з рівнями й квестами');
     if (check !== 'ok') return;
     if (n.kind === 'skill') {
@@ -103,7 +110,7 @@ export function createTalentTreeModal(app: App, onClose: () => void): Modal<Canv
         for (const [n, r] of rects) {
           if (!inRect(r, e.x, e.y)) continue;
           const s = n.kind === 'skill' ? hero.skills.find((x) => x.id === n.id) : undefined;
-          if (s && inRect(pinRect(r), e.x, e.y)) {
+          if (s && n.row !== BRANCH_ROW && inRect(pinRect(r), e.x, e.y)) {
             if (s.slot >= 0) setPanelSlot(hero, n.id, -1);
             else {
               const free = firstFreeClassSlot(hero);
@@ -124,6 +131,8 @@ export function createTalentTreeModal(app: App, onClose: () => void): Modal<Canv
       drawText(ctx, 'Дерево талантів', panel.x + 20, panel.y + 26, { size: 22, bold: true });
       drawText(ctx, `Очок: ${state.talentPoints}`, panel.x + 260, panel.y + 26, { size: 18, bold: true, color: state.talentPoints > 0 ? THEME.accent : THEME.textDim });
       drawText(ctx, `У дереві: ${pointsSpent(hero)} · ряд 2 — від ${TALENTS.rowUnlock[1]}, ряд 3 — від ${TALENTS.rowUnlock[2]}`, panel.x + 400, panel.y + 26, { size: 13, color: THEME.textDim });
+      if (hero.promotion) drawText(ctx, `Гілка: ${getPromotion(hero.promotion).name}`, branchX, panel.y + 52, { size: 13, bold: true, color: THEME.accent });
+      else drawText(ctx, `Гілка — з ${PROGRESSION.promotionLevel} рівня`, branchX, panel.y + 80, { size: 13, color: THEME.textMuted });
       for (let row = 1; row <= rowsCount; row++) {
         const open = rowOpen(hero, row);
         const y = panel.y + 64 + (row - 1) * ROW_H;
@@ -170,7 +179,10 @@ export function createTalentTreeModal(app: App, onClose: () => void): Modal<Canv
         drawText(ctx, name, r.x + 38, r.y + 16, { size: fitFontSize(ctx, name, r.w - 44, 13, true, 9), bold: true, color: open ? THEME.text : THEME.textMuted });
         drawText(ctx, level, r.x + 38, r.y + 34, { size: 12, color: learned ? THEME.good : THEME.textDim });
         drawText(ctx, cost === null ? 'макс.' : `+${cost} очк.`, r.x + 8, r.y + r.h - 12, { size: 11, bold: true, color: can ? THEME.accent : THEME.textMuted });
-        if (n.kind === 'skill' && learned) {
+        if (n.kind === 'skill' && learned && n.row === BRANCH_ROW) {
+          const s = hero.skills.find((x) => x.id === n.id)!;
+          drawText(ctx, s.slot === PROGRESSION.branchSlot2 ? 'F' : 'R', r.x + r.w - 15, r.y + r.h - 12, { size: 12, bold: true, color: THEME.accent, align: 'center' });
+        } else if (n.kind === 'skill' && learned) {
           const s = hero.skills.find((x) => x.id === n.id)!;
           const p = pinRect(r);
           roundRect(ctx, p.x, p.y, p.w, p.h, 4);

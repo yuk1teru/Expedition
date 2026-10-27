@@ -135,6 +135,19 @@ export function skillFx(fx: Fx, e: GameEvent): void {
         fx.shake(FX.shake.groundSlam);
         fx.stop(FX.hitStop.skill);
         break;
+      case 'judgementBlast':
+        fx.ring(e.pos, e.radius, '#f2d16b', 0.5, 8);
+        fx.ringBurst(e.pos, e.radius * 0.8, P.spark, '#fff4c2');
+        fx.shake(FX.shake.groundSlam);
+        break;
+      case 'iceSpireBlast':
+        fx.ring(e.pos, e.radius, C.frost, 0.35, 5);
+        fx.burst(e.pos, P.frost, C.frost);
+        break;
+      case 'burstArrowBlast':
+        fx.ring(e.pos, e.radius, '#ff9a5e', 0.4, 6);
+        fx.burst(e.pos, P.spark, '#ff9a5e');
+        break;
       case 'holyBurst':
         fx.ring(e.pos, e.radius, '#f2d16b', 0.45, 6);
         fx.ringBurst(e.pos, e.radius * 0.8, P.spark, '#fff4c2');

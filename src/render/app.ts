@@ -17,6 +17,7 @@ import {
   chooseGift,
   chooseClass,
   choosePromotion,
+  completePromotion,
   completeBattle,
   createGameState,
   nextGiftOffer,
@@ -58,6 +59,7 @@ import { HINT_SECONDS, drawHint } from './hint';
 import { setNpcTownLookup } from '../systems/quests';
 import { npcPlace } from '../data/towns';
 import { getNpc } from '../data/npcs';
+import { getPromotion } from '../data/promotions';
 import { type GameSettings, readSettings } from '../core/settings';
 import { visitTown } from '../systems/coach';
 import { markVisited } from '../systems/fog';
@@ -517,6 +519,16 @@ export class App {
           choosePromotion(this.state, branchId);
           this.screens.popModal();
         }),
+      );
+      return;
+    }
+    if (req.kind === 'promotion2') {
+      if (!this.state.hero.promotion) return;
+      completePromotion(this.state);
+      const p = getPromotion(this.state.hero.promotion);
+      const skill = getSkill(p.signature2);
+      this.screens.pushModal(
+        createNoticeModal(this, `${p.name}: другий етап`, `Новий скіл гілки на клавіші F — «${skill.name}». ${p.bonus2.text}. Ранги скілів гілки й пасивки гілки — у дереві талантів (T).`, () => this.screens.popModal(), THEME.accent),
       );
       return;
     }
