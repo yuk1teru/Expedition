@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { resolveName, fillNames } from '../src/data/names';
 import { NPCS } from '../src/data/npcs';
-import { TOWNS, type TownLayout, getTownLayout } from '../src/data/towns';
+import { INTERIORS, TOWNS, type TownLayout, allTownNpcs, getTownLayout } from '../src/data/towns';
 import { WORLD_NODES } from '../src/data/world';
-import { atGate, chooseOption, createWalker, currentNode, isWalkable, moveWalker, npcInReach, startConversation, stepWalker } from '../src/systems/town';
+import { atGate, chooseOption, createWalker, currentNode, doorAt, doorStep, isWalkable, moveWalker, npcInReach, startConversation, stepWalker } from '../src/systems/town';
 
 /** Grid flood fill from the spawn over walkable points (4 px steps). */
 function reachable(layout: TownLayout): { x: number; y: number }[] {
@@ -54,6 +54,45 @@ describe('town layouts', () => {
   });
 });
 
+describe('rooms (interiors)', () => {
+  it('every door leads to an existing room, and the door can be reached from the gate', () => {
+    for (const layout of Object.values(TOWNS)) {
+      const area = reachable(layout);
+      for (const b of layout.buildings.filter((x) => x.interior)) {
+        expect(INTERIORS[b.interior!], `${layout.id}: ${b.interior}`).toBeDefined();
+        expect(isWalkable(layout, doorStep(b).x, doorStep(b).y), `${layout.id}: step of ${b.interior}`).toBe(true);
+        expect(doorAt(layout, doorStep(b)), `${layout.id}: the step is not inside the door`).toBeNull();
+        expect(area.some((p) => doorAt(layout, p) === b), `${layout.id}: door of ${b.interior}`).toBe(true);
+      }
+    }
+  });
+
+  it('in every room the way out and every NPC can be reached', () => {
+    for (const room of Object.values(INTERIORS)) {
+      expect(isWalkable(room, room.spawn.x, room.spawn.y), room.id).toBe(true);
+      expect(atGate(room, room.spawn), `${room.id}: spawn in the way out`).toBe(false);
+      const area = reachable(room);
+      expect(area.some((p) => atGate(room, p)), `${room.id}: way out`).toBe(true);
+      for (const npc of room.npcs) {
+        expect(NPCS[npc.id], `${room.id}: ${npc.id}`).toBeDefined();
+        expect(area.some((p) => npcInReach(room, p) === npc.id), `${room.id}: ${npc.id}`).toBe(true);
+      }
+    }
+  });
+
+  it('every NPC stands in one place only (outside or at home)', () => {
+    const all = allTownNpcs();
+    expect(new Set(all).size).toBe(all.length);
+    for (const layout of Object.values(TOWNS)) for (const n of layout.npcs) if (n.home) expect(INTERIORS[n.home], `${n.id}: home`).toBeDefined();
+  });
+
+  it('the market sellers each sell their own goods', () => {
+    const sellers = TOWNS.capital!.npcs.map((n) => NPCS[n.id]!).filter((n) => n.shop);
+    expect(sellers.length).toBeGreaterThanOrEqual(4);
+    for (const s of sellers) expect((s.shop!.goods?.length ?? 0) + (s.shop!.slots?.length ?? 0), s.id).toBeGreaterThan(0);
+  });
+});
+
 describe('town walking', () => {
   it('the prologue arrival point is walkable and next to the first quest giver', () => {
     const port = TOWNS.port!;
@@ -78,12 +117,12 @@ describe('town walking', () => {
 
   it('a clicked NPC is talked to once the hero gets there', () => {
     const w = createWalker(layout);
-    const npc = layout.npcs.find((n) => n.id === 'capitalMerchant')!;
+    const npc = layout.npcs.find((n) => n.id === 'capitalCoach')!;
     w.talkTo = npc.id;
-    w.target = { x: npc.x + 30, y: npc.y + 10 };
+    w.target = { x: npc.x - 30, y: npc.y };
     let met: string | null = null;
     for (let i = 0; i < 60 * 10 && !met; i++) met = stepWalker(layout, w, { x: 0, y: 0 }, 1 / 60);
-    expect(met).toBe('capitalMerchant');
+    expect(met).toBe('capitalCoach');
   });
 
   it('WASD cancels the click target', () => {

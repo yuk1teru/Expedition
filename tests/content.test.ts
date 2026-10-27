@@ -6,7 +6,7 @@ import { LORE } from '../src/data/lore';
 import { LORE_NAMES, brokenPlaceholders, fillNames, resolveName } from '../src/data/names';
 import { NPCS } from '../src/data/npcs';
 import { QUESTS } from '../src/data/quests';
-import { TOWNS } from '../src/data/towns';
+import { INTERIORS, TOWNS, allTownNpcs } from '../src/data/towns';
 import { ARTIFACT_ORDERS, TROPHIES } from '../src/data/trophies';
 import { WORLD_MAP, WORLD_NODES } from '../src/data/world';
 
@@ -30,6 +30,7 @@ function allTexts(): [string, string][] {
   for (const t of Object.values(TROPHIES)) out.push([`trophy ${t.id}.name`, t.name], [`trophy ${t.id}`, t.description]);
   for (const o of ARTIFACT_ORDERS) out.push([`order ${o.id}`, o.text]);
   for (const town of Object.values(TOWNS)) for (const b of town.buildings) if (b.label) out.push([`town ${town.id} label`, b.label]);
+  for (const room of Object.values(INTERIORS)) out.push([`room ${room.id}`, room.name]);
   for (const [id, n] of Object.entries(LORE_NAMES)) out.push([`name ${id}`, n.name], ...Object.values(n.forms ?? {}).map((f): [string, string] => [`name ${id} form`, f]));
   return out;
 }
@@ -61,7 +62,7 @@ describe('names in texts', () => {
 
 describe('quests', () => {
   const nodeIds = new Set(WORLD_NODES.map((n) => n.id));
-  const townNpcs = new Set(Object.values(TOWNS).flatMap((t) => t.npcs.map((n) => n.id)));
+  const townNpcs = new Set(allTownNpcs());
 
   it('givers live in towns; targets, chains and classes exist', () => {
     for (const q of Object.values(QUESTS)) {

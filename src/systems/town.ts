@@ -4,7 +4,7 @@
 
 import { TOWN_SCENE } from '../data/balance';
 import { type DialogueAction, type DialogueNode, type NpcDef, getNpc } from '../data/npcs';
-import type { TownLayout, TownRect } from '../data/towns';
+import type { TownBuilding, TownLayout, TownRect } from '../data/towns';
 import type { Vec } from './entities';
 
 export interface TownWalker {
@@ -73,6 +73,22 @@ export function npcInReach(layout: TownLayout, pos: Vec): string | null {
 export function npcAt(layout: TownLayout, x: number, y: number): string | null {
   const r = TOWN_SCENE.npcRadius + 8;
   for (const npc of layout.npcs) if ((x - npc.x) ** 2 + (y - npc.y) ** 2 <= r * r) return npc.id;
+  return null;
+}
+
+/** The door zone of a building with a room: the middle of its lower wall. */
+export function doorRect(b: TownBuilding): TownRect {
+  return { x: b.x + b.w / 2 - 16, y: b.y + b.h - 2, w: 32, h: 10 };
+}
+
+/** Where the hero stands when coming out of a building's door. */
+export function doorStep(b: TownBuilding): Vec {
+  return { x: b.x + b.w / 2, y: b.y + b.h + TOWN_SCENE.heroRadius + 14 };
+}
+
+/** The building whose door the hero walks into (only ones with a room), or null. */
+export function doorAt(layout: TownLayout, pos: Vec): TownBuilding | null {
+  for (const b of layout.buildings) if (b.interior && circleHitsRect(pos.x, pos.y, TOWN_SCENE.heroRadius, doorRect(b))) return b;
   return null;
 }
 

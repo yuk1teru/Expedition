@@ -5,6 +5,7 @@ import type { InputEvent } from '../core/input';
 import type { Modal } from '../core/screens';
 import { CONSUMABLES, type ConsumableId, describeConsumable } from '../data/consumables';
 import { ITEM_SLOTS, MERCHANT_ITEMS, RARITIES } from '../data/items';
+import type { ShopDef } from '../data/npcs';
 import { buyConsumable, buyItem, canBuy, displayName, equipFromBag, identifyItem, merchantItemLevels, sellItem, sellPrice } from '../systems/items';
 import type { App } from './app';
 import { drawConsumableIcon } from './icons';
@@ -14,7 +15,8 @@ import { THEME } from './theme';
 import { Button, ButtonGroup, type Rect, drawPanel, drawText, inRect, roundRect } from './ui';
 
 const PANEL: Rect = { x: 70, y: 40, w: 820, h: 460 };
-const GOODS: ConsumableId[] = ['magnifier', 'potionSmall', 'potionMedium', 'potionLarge'];
+/** The general store's goods (a seller without its own list). */
+const DEFAULT_GOODS: ConsumableId[] = ['magnifier', 'potionSmall', 'potionMedium', 'potionLarge'];
 const GOODS_Y = 90;
 const GOODS_ROW = 64;
 const CELL = 58;
@@ -27,7 +29,9 @@ function sellCell(i: number): Rect {
   return { x: SELL_X + (i % COLS) * CELL, y: SELL_Y + Math.floor(i / COLS) * CELL, w: CELL - 6, h: CELL - 6 };
 }
 
-export function createMerchantModal(app: App, onClose: () => void): Modal<CanvasRenderingContext2D> {
+export function createMerchantModal(app: App, onClose: () => void, shop: ShopDef = {}, title = 'Торговець'): Modal<CanvasRenderingContext2D> {
+  const GOODS = shop.goods ?? DEFAULT_GOODS;
+  const SLOTS = shop.slots ? ITEM_SLOTS.filter((s) => shop.slots!.includes(s.id)) : ITEM_SLOTS;
   /** Bag item whose dropdown is open (-1: none). */
   let selected = -1;
   let menu: { x: number; y: number; options: MenuOption[] } | null = null;
@@ -86,7 +90,7 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
     };
   };
   const ITEM_Y = SELL_Y + ROWS * CELL + 30;
-  const itemButtons = ITEM_SLOTS.map(
+  const itemButtons = SLOTS.map(
     (slot, i) =>
       new Button({
         label: slot.name,
@@ -158,10 +162,10 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
       ctx.fillStyle = 'rgba(5, 6, 10, 0.78)';
       ctx.fillRect(0, 0, app.view.width, app.view.height);
       drawPanel(ctx, PANEL, 'rgba(24, 20, 18, 0.98)', '#8a6a44');
-      drawText(ctx, 'Торговець', PANEL.x + PANEL.w / 2, PANEL.y + 26, { size: 24, bold: true, align: 'center' });
+      drawText(ctx, title, PANEL.x + PANEL.w / 2, PANEL.y + 26, { size: 24, bold: true, align: 'center' });
       drawText(ctx, `Золото: ${st.gold}`, PANEL.x + PANEL.w - 20, PANEL.y + 26, { size: 16, bold: true, align: 'right', color: THEME.accent });
 
-      drawText(ctx, 'Купити', PANEL.x + 30, PANEL.y + 70, { size: 16, bold: true, color: THEME.accent });
+      if (GOODS.length > 0) drawText(ctx, 'Купити', PANEL.x + 30, PANEL.y + 70, { size: 16, bold: true, color: THEME.accent });
       GOODS.forEach((id, i) => {
         const def = CONSUMABLES[id];
         const y = PANEL.y + GOODS_Y + i * GOODS_ROW;
@@ -173,7 +177,7 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
         drawText(ctx, describeConsumable(id), PANEL.x + 94, y + 34, { size: 11, color: THEME.textDim });
         drawText(ctx, `у вас: ${st.hero.consumables[id]} / ${def.max}`, PANEL.x + 94, y + 50, { size: 11, color: THEME.textMuted });
       });
-      drawText(ctx, 'Трава росте на арені; трава й зілля — на Z / X / C.', PANEL.x + 30, PANEL.y + GOODS_Y + GOODS.length * GOODS_ROW + 6, {
+      if (GOODS.length > 0) drawText(ctx, 'Трава росте на арені; трава й зілля — на Z / X / C.', PANEL.x + 30, PANEL.y + GOODS_Y + GOODS.length * GOODS_ROW + 6, {
         size: 11,
         color: THEME.textDim,
       });
@@ -197,7 +201,7 @@ export function createMerchantModal(app: App, onClose: () => void): Modal<Canvas
         drawText(ctx, `…ще ${st.hero.bag.length - COLS * ROWS} у сумці (Tab)`, SELL_X + COLS * CELL - 6, SELL_Y - 22, { size: 11, align: 'right', color: THEME.textDim });
       }
       const [lo, hi] = merchantItemLevels(st);
-      drawText(ctx, `Купити річ — ${MERCHANT_ITEMS.price} зол. (зелена, синя або епічна; рівень ${lo}–${hi})`, SELL_X, ITEM_Y - 14, {
+      if (SLOTS.length > 0) drawText(ctx, `Купити річ — ${MERCHANT_ITEMS.price} зол. (зелена, синя або епічна; рівень ${lo}–${hi})`, SELL_X, ITEM_Y - 14, {
         size: 12,
         bold: true,
         color: THEME.accent,

@@ -12,7 +12,8 @@ import { BOOT_DASH, ITEM_BASES, ITEM_LEVEL, ITEM_SLOTS, LOOT, MERCHANT_ITEMS, RA
 import { NPCS } from '../data/npcs';
 import { ALLY_WOLF, PROMOTIONS } from '../data/promotions';
 import { PARAM_INFO, PASSIVES, SKILLS, describePassive, describeSkill } from '../data/skills';
-import { TOWNS } from '../data/towns';
+import { INTERIORS, TOWNS, npcPlace } from '../data/towns';
+import { fillNames } from '../data/names';
 import { WEATHER } from '../data/weather';
 import { WORLD_MAP, WORLD_NODES, WORLD_ROADS } from '../data/world';
 import type { LiteralPath } from './literal';
@@ -332,10 +333,25 @@ function coachTable(): string {
 ${table(['Куди', 'Ціна'], rows)}`;
 }
 
-function townNpcs(townId: string): string {
+/** NPCs of a town: outside and at home in its rooms. */
+function townNpcIds(townId: string): string[] {
   const layout = TOWNS[townId];
-  if (!layout) return '—';
-  return layout.npcs.map((n) => `${link('npc', n.id, NPCS[n.id]?.name ?? n.id)} <span class="dim">(${esc(NPCS[n.id]?.title ?? '')})</span>`).join(', ');
+  if (!layout) return [];
+  return [...layout.npcs.map((n) => n.id), ...layout.buildings.flatMap((b) => (b.interior ? (INTERIORS[b.interior]?.npcs.map((n) => n.id) ?? []) : []))];
+}
+
+function townNpcs(townId: string): string {
+  const ids = townNpcIds(townId);
+  if (ids.length === 0) return '—';
+  return ids.map((id) => `${link('npc', id, NPCS[id]?.name ?? id)} <span class="dim">(${esc(NPCS[id]?.title ?? '')})</span>`).join(', ');
+}
+
+/** Where the NPC is: at home in a room, near it, or in the street. */
+function npcWhere(townId: string, id: string): string {
+  const place = npcPlace(id);
+  if (place?.interior) return `вдома: ${esc(fillNames(INTERIORS[place.interior]!.name))}`;
+  const home = TOWNS[townId]?.npcs.find((n) => n.id === id)?.home;
+  return home ? `біля дому (${esc(fillNames(INTERIORS[home]?.name ?? home))})` : 'на вулиці';
 }
 
 function townsSection(): Section {
@@ -343,9 +359,9 @@ function townsSection(): Section {
     .map((town) => {
       const ni = WORLD_NODES.findIndex((n) => n.id === town.id);
       const node = NODES[ni];
-      const npcs = town.npcs
-        .map((n) => {
-          const npc = NPCS[n.id]!;
+      const npcs = townNpcIds(town.id)
+        .map((nid) => {
+          const npc = NPCS[nid]!;
           const nodes = Object.entries(npc.nodes)
             .map(
               ([nid, node]) =>
@@ -359,7 +375,7 @@ function townsSection(): Section {
             )
             .join('');
           const quests = questsGivenBy(npc.id);
-          return `<div class="npc" id="${anchor('npc', npc.id)}"><b>${t(npc.name, ['NPCS', npc.id, 'name'])}</b> — ${t(npc.title, [['NPCS', npc.id, 'title'], ...sharedLine(npc.title)])}${formsLine(npc.forms, ['NPCS', npc.id, 'forms'])}${
+          return `<div class="npc" id="${anchor('npc', npc.id)}"><b>${t(npc.name, ['NPCS', npc.id, 'name'])}</b> — ${t(npc.title, [['NPCS', npc.id, 'title'], ...sharedLine(npc.title)])} <span class="dim small">· ${npcWhere(town.id, npc.id)}</span>${formsLine(npc.forms, ['NPCS', npc.id, 'forms'])}${
             quests ? `<div class="small">Квести: ${quests}</div>` : ''
           }<ul class="dialogue">${nodes}</ul></div>`;
         })
@@ -371,7 +387,7 @@ function townsSection(): Section {
       );
     })
     .join('');
-  return { id: 'towns', title: 'Міста й жителі', html: `<p>У місті герой відпочиває (повне HP, збереження). Розмова з NPC — клавіша E або клік; торгівля — з розмови з торговцем.</p>${html}` };
+  return { id: 'towns', title: 'Міста й жителі', html: `<p>У місті герой відпочиває (повне HP, збереження). Розмова з NPC — клавіша E або клік; торгівля — з розмови з торговцем. У будинки з килимком перед дверима можна зайти: дехто з жителів удома, дехто — біля дому.</p>${html}` };
 }
 
 function itemsSection(): Section {

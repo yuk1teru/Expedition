@@ -6,6 +6,8 @@
 // references ({town:capital}, {npc:capitalGuard}, {boss:enat}… — src/data/names.ts), so a
 // rename changes them everywhere; `forms` hold the case forms used by such references.
 
+import type { ConsumableId } from './consumables';
+import type { ItemSlot } from './items';
 import type { NameForms } from './names';
 
 /** What an option can do besides moving to another node. */
@@ -27,9 +29,18 @@ export interface DialogueNode {
 
 export type NpcLookHat = 'none' | 'hood' | 'cap' | 'turban' | 'fur' | 'helm' | 'board';
 
+/** What a merchant sells (default: the general store — magnifiers, potions, any item). */
+export interface ShopDef {
+  goods?: ConsumableId[];
+  /** Item slots sold (an empty list — no items). */
+  slots?: ItemSlot[];
+}
+
 export interface NpcDef {
   id: string;
   name: string;
+  /** A merchant's goods (ROADMAP 11.7: the market's sellers each sell their own). */
+  shop?: ShopDef;
   /** Case forms of the name for references in texts ({npc:id:with} → «з Тимофієм»). */
   forms?: NameForms;
   /** Role shown under the name (Торговець, Варта…). */
@@ -57,12 +68,13 @@ export const NPC_LINES = {
 const BYE: DialogueOption = { text: NPC_LINES.bye, action: 'close' };
 
 /** A merchant: greeting (`hello`), the shop, one line about the place (`about`). */
-function merchant(o: { id: string; name: string; forms?: NameForms; look: NpcDef['look']; greeting: string; about: string }): NpcDef {
+function merchant(o: { id: string; name: string; forms?: NameForms; title?: string; look: NpcDef['look']; greeting: string; about: string; shop?: ShopDef }): NpcDef {
   return {
     id: o.id,
     name: o.name,
     forms: o.forms,
-    title: NPC_LINES.merchantTitle,
+    shop: o.shop,
+    title: o.title ?? NPC_LINES.merchantTitle,
     look: o.look,
     start: 'hello',
     nodes: {
@@ -161,8 +173,94 @@ export const NPCS: Record<string, NpcDef> = {
     name: 'Мирослава',
     forms: { to: 'Мирославі', with: 'Мирославою', of: 'Мирослави' },
     look: { body: '#7a4a8a', accent: '#f2c14e', hat: 'cap' },
-    greeting: 'Вітаю в столиці, мандрівнику! {town:capital} гостей любить. Лупи, зілля, а якщо гаманець важкий — і річ під твій слот.',
+    title: 'Лавка дрібниць',
+    shop: { goods: ['magnifier', 'potionSmall'], slots: [] },
+    greeting: 'Вітаю в столиці, мандрівнику! {town:capital} гостей любить. Лупи для нерозпізнаних речей і мале зілля в дорогу — у мене. Зброя й броня — у сусідніх рядах.',
     about: 'Зі столиці дороги ведуть у всі краї: на південь — Ліс, на захід — {town:port}, на північ — гори й Крига.',
+  }),
+  capitalSmith: merchant({
+    id: 'capitalSmith',
+    name: 'Дмитро',
+    forms: { to: 'Дмитрові', with: 'Дмитром', of: 'Дмитра' },
+    title: 'Зброяр',
+    shop: { goods: [], slots: ['weapon'] },
+    look: { body: '#4a3a32', accent: '#c0c6d0', hat: 'none' },
+    greeting: 'Мечі, луки, палиці — що в руку ляже. Гостре, бо сам точу.',
+    about: 'Звірі тепер товстошкірі, як ніколи. Звичайна сокира вже не бере — бери кращу.',
+  }),
+  capitalArmorer: merchant({
+    id: 'capitalArmorer',
+    name: 'Гліб',
+    forms: { to: 'Глібові', with: 'Глібом', of: 'Гліба' },
+    title: 'Бронник',
+    shop: { goods: [], slots: ['hat', 'armor', 'boots'] },
+    look: { body: '#5a5a62', accent: '#a8a8b0', hat: 'helm' },
+    greeting: 'Шолом, обладунок, чоботи. Голова, тулуб і ноги — решту бережи сам.',
+    about: 'Варта бере в мене кольчуги дюжинами. Кажуть, на перевалі вже й сталь мерзне.',
+  }),
+  capitalHerbalist: merchant({
+    id: 'capitalHerbalist',
+    name: 'Олеся',
+    forms: { to: 'Олесі', with: 'Олесею', of: 'Олесі' },
+    title: 'Травниця',
+    shop: { goods: ['potionSmall', 'potionMedium', 'potionLarge'], slots: [] },
+    look: { body: '#4a6a3a', accent: '#e05a5a', hat: 'hood' },
+    greeting: 'Зілля на всі рани, крім розбитого серця. Від нього — тільки час.',
+    about: 'Трави в полі ще ростуть, але збирати їх стало небезпечно. Тому й ціни такі.',
+  }),
+  capitalBaker: local({
+    id: 'capitalBaker',
+    name: 'Явдоха',
+    forms: { to: 'Явдосі', with: 'Явдохою', of: 'Явдохи' },
+    title: 'Пекарка',
+    look: { body: '#c8b898', accent: '#f2c14e', hat: 'cap' },
+    greeting: 'Свіжий хліб! Борошно тепер возять тільки з охороною — тож і хліб дорожчає.',
+    news: 'Мельник із Королівських полів каже: вночі вовки ходять колом навколо млина. Не нападають — наче чекають наказу.',
+  }),
+  capitalFish: local({
+    id: 'capitalFish',
+    name: 'Федір',
+    forms: { to: 'Федорові', with: 'Федором', of: 'Федора' },
+    title: 'Рибна лавка',
+    look: { body: '#3a5a6a', accent: '#c0c6d0', hat: 'cap' },
+    greeting: 'Риба з {town:port:of}, свіжа — вчорашня. Сьогоднішньої немає: море не пускає.',
+    news: 'Рибалки бачили чорні вітрила на обрії. Ніхто не знає, чиї. Але риба від них тікає — це я тобі точно скажу.',
+  }),
+  capitalBarman: local({
+    id: 'capitalBarman',
+    name: 'Захар',
+    forms: { to: 'Захарові', with: 'Захаром', of: 'Захара' },
+    title: 'Бармен',
+    look: { body: '#6a4a2a', accent: '#e8e4dc', hat: 'none' },
+    greeting: 'Наливати? Кімнати нагорі завжди готові — відпочинеш, як у себе вдома. А чутки — безкоштовно, якщо слухаєш уважно.',
+    news: 'Вартові п’ють тут після зміни. Кажуть, мертві з-під собору не сплять — шкребуться. А ще кажуть, {npc:artifactBuyer} купує уламки печатки. Навіщо торговцю печатка, га?',
+  }),
+  capitalOrysia: local({
+    id: 'capitalOrysia',
+    name: 'Орися',
+    forms: { to: 'Орисі', with: 'Орисею', of: 'Орисі' },
+    title: 'Містянка',
+    look: { body: '#8a5a7a', accent: '#f4e4c0', hat: 'hood' },
+    greeting: 'Ой, гість! Вибач за безлад — чоловік у варті, днями не буває вдома.',
+    news: 'Мій Остап каже, що на мурах тепер чергують і вночі. Раніше такого не було навіть за війни.',
+  }),
+  capitalMatvii: local({
+    id: 'capitalMatvii',
+    name: 'Матвій',
+    forms: { to: 'Матвієві', with: 'Матвієм', of: 'Матвія' },
+    title: 'Старий коваль',
+    look: { body: '#5a4a3a', accent: '#a8a8b0', hat: 'none' },
+    greeting: 'Сорок років кував для варти. Тепер сиджу під хатою й дивлюся, як кують інші — гірше.',
+    news: 'Коли я був малим, {boss:enat} приходив до краю лісу, і діти носили йому яблука. А тепер — вовки й коріння. Щось його отруїло, кажу тобі.',
+  }),
+  capitalKid: local({
+    id: 'capitalKid',
+    name: 'Тарасик',
+    forms: { to: 'Тарасикові', with: 'Тарасиком', of: 'Тарасика' },
+    title: 'Хлопчик',
+    look: { body: '#6a8aa8', accent: '#f2c14e', hat: 'cap' },
+    greeting: 'Ти справжній мандрівник? З мечем і все? Я теж буду, коли виросту!',
+    news: 'Я бачив, як біля фонтана кіт перебіг дорогу капітанові варти. Капітан плюнув через плече. Тричі!',
   }),
   capitalGuard: local({
     id: 'capitalGuard',

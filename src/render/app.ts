@@ -55,7 +55,8 @@ import { createJournalModal } from './journal';
 import { HINTS, type HintId } from '../data/hints';
 import { HINT_SECONDS, drawHint } from './hint';
 import { setNpcTownLookup } from '../systems/quests';
-import { TOWNS } from '../data/towns';
+import { npcPlace } from '../data/towns';
+import { getNpc } from '../data/npcs';
 import { type GameSettings, readSettings } from '../core/settings';
 import { visitTown } from '../systems/coach';
 import { markVisited } from '../systems/fog';
@@ -124,7 +125,7 @@ export class App {
     this.reducedMotion = opts.reducedMotion;
     this.firstSeed = seed;
     // Quests find the town of an NPC by the town layouts.
-    setNpcTownLookup((npcId) => Object.values(TOWNS).find((t) => t.npcs.some((n) => n.id === npcId))?.id ?? null);
+    setNpcTownLookup((npcId) => npcPlace(npcId)?.town ?? null);
     this.settings = readSettings(opts.settings?.load() ?? null);
     this.saves = opts.saves ?? null;
     this.files = opts.files ?? null;
@@ -203,9 +204,10 @@ export class App {
   }
 
   /** Town merchant window. */
-  openMerchant(): void {
+  openMerchant(npcId?: string): void {
     if (this.screens.topModal) return;
-    this.screens.pushModal(createMerchantModal(this, () => this.screens.popModal()));
+    const npc = npcId ? getNpc(npcId) : null;
+    this.screens.pushModal(createMerchantModal(this, () => this.screens.popModal(), npc?.shop, npc ? `${npc.name} — ${npc.title}` : undefined));
   }
 
   /** "Як грати" window (before the game starts). */

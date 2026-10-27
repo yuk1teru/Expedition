@@ -7,7 +7,7 @@ import { BOSSES } from '../data/bosses';
 import { ENEMIES } from '../data/enemies';
 import { fillNames } from '../data/names';
 import { NPCS, NPC_LINES } from '../data/npcs';
-import { TOWNS } from '../data/towns';
+import { TOWNS, npcPlace } from '../data/towns';
 import { TROPHIES } from '../data/trophies';
 import { WORLD_MAP, WORLD_NODES } from '../data/world';
 import { nodeFromDef } from '../systems/mapgen';
@@ -106,8 +106,7 @@ export function trophyLink(id: string): string {
 
 /** The town an NPC lives in (by the town layouts), or null. */
 export function npcTown(id: string): string | null {
-  for (const town of Object.values(TOWNS)) if (town.npcs.some((n) => n.id === id)) return town.id;
-  return null;
+  return npcPlace(id)?.town ?? null;
 }
 
 export function regionName(id: string): string {
