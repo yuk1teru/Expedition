@@ -13,7 +13,7 @@ import { type BossDef, BOSSES, HAZARDS } from '../data/bosses';
 import { CLASSES, CLASS_ORDER } from '../data/classes';
 import { CONSUMABLES, PICKUPS, PICKUP_SPAWN } from '../data/consumables';
 import { ENEMIES, type EnemyDef } from '../data/enemies';
-import { BOOT_DASH, ITEM_BASES, ITEM_LEVEL, ITEM_SLOTS, LOOT, MERCHANT_ITEMS, RARITIES, RARITY_ORDER, STAT_LABELS } from '../data/items';
+import { BOOT_DASH, ITEM_BASES, ITEM_LEVEL, ITEM_SLOTS, LOOT, MERCHANT_ITEMS, RARITIES, RARITY_ORDER, STASH, STAT_LABELS } from '../data/items';
 import { NPCS } from '../data/npcs';
 import { ALLY_WOLF, PROMOTIONS } from '../data/promotions';
 import { PARAM_INFO, PASSIVES, SKILLS, describePassive, describeSkill } from '../data/skills';
@@ -453,7 +453,8 @@ ${table(['Рідкість', 'Сила', 'Дод. характеристик', '
 ${table(['Рівень монстрів', 'Мін. рівень речі', 'Макс. рівень речі'], ilvl)}
 <h3 class="group">Характеристики за слотом</h3><p>Діапазони — для звичайної речі рівня ${ITEM_LEVEL.reference}; множаться на силу рідкості.</p>
 ${table(['Слот', 'Головна', 'Додаткові'], bases)}
-<h3 class="group">Ривок черевиків (Shift)</h3>${table(['Рідкість', 'Відстань', 'Перезарядка'], dash)}`;
+<h3 class="group">Ривок черевиків (Shift)</h3>${table(['Рідкість', 'Відстань', 'Перезарядка'], dash)}
+<h3 class="group">Сховище</h3><p>Одне на всі міста (кнопка «Сховище», клавіша B у місті): до ${v(STASH.size, ['STASH', 'size'])} речей. Сховище — частина контрольної точки, як і сумка: після смерті воно таке, як було при останньому відпочинку чи виході з міста.</p>`;
   return { id: 'items', title: 'Речі й лут', html };
 }
 

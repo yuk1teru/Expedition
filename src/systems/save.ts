@@ -3,6 +3,7 @@
 // the run bookkeeping; the world itself is rebuilt from the data, so renames and balance
 // edits reach old saves too. Storage (localStorage, a file) is the caller's business.
 
+import type { Item } from './items';
 import { EventBus } from '../core/events';
 import { Rng } from '../core/rng';
 import type { GameState, LastDeath, ModalRequest, RunStats } from '../core/state';
@@ -56,6 +57,8 @@ export interface SaveData {
   runeStones?: number;
   ordersDone?: string[];
   soulSeen?: boolean;
+  /** The stash (ROADMAP 14.7). */
+  stash?: Item[];
 }
 
 /**
@@ -118,6 +121,7 @@ export function toSave(state: GameState, now = Date.now()): SaveData {
     runeStones: state.runeStones,
     ordersDone: state.ordersDone,
     soulSeen: state.soulSeen,
+    stash: cp.stash ?? [],
   });
 }
 
@@ -185,6 +189,7 @@ export function fromSave(data: SaveData): GameState {
     runeStones: data.runeStones ?? 0,
     ordersDone: [...(data.ordersDone ?? [])],
     soulSeen: data.soulSeen ?? false,
+    stash: structuredClone(data.stash ?? []),
   };
   return { ...state, checkpoint: snapshot(state) };
 }

@@ -1,5 +1,6 @@
 // Run state: everything that describes one expedition.
 
+import type { Item } from '../systems/items';
 import type { EventBus } from './events';
 import type { Rng } from './rng';
 import type { GameEvent } from '../systems/gameEvents';
@@ -71,6 +72,8 @@ export interface GameState {
   ordersDone: string[];
   /** A beast's soul has been seen (ROADMAP 14.3): the wanderer tells about the stones. */
   soulSeen: boolean;
+  /** Items in the stash, shared by all towns (ROADMAP 14.7); part of the checkpoint like the bag. */
+  stash: Item[];
   /** Map nodes the hero has been to (fog of war, ROADMAP 10.6). */
   nodesVisited: string[];
   /** Secret places revealed (a hint, a quest). */
@@ -113,6 +116,7 @@ export interface Checkpoint {
   bossesDefeated: string[];
   homeTown: string;
   lastDeath: LastDeath | null;
+  stash: Item[];
 }
 
 export function createRunStats(): RunStats {

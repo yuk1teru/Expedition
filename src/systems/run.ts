@@ -58,6 +58,7 @@ export function createGameState(seed: number, heroName = DEFAULT_HERO_NAME): Gam
     runeStones: 0,
     ordersDone: [],
     soulSeen: false,
+    stash: [],
   };
   return { ...state, checkpoint: snapshot(state) };
 }
@@ -91,6 +92,7 @@ export function snapshot(state: Omit<GameState, 'checkpoint'>): Checkpoint {
     bossesDefeated: state.bossesDefeated,
     homeTown: state.homeTown,
     lastDeath: state.lastDeath,
+    stash: state.stash,
   });
 }
 
@@ -114,6 +116,7 @@ export function restoreCheckpoint(state: GameState): void {
   state.bossesDefeated = cp.bossesDefeated;
   state.homeTown = cp.homeTown;
   state.lastDeath = cp.lastDeath;
+  state.stash = cp.stash ?? [];
   state.currentNodeId = cp.homeTown;
   state.modalQueue = [];
   state.hero.dead = false;

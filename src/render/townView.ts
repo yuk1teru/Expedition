@@ -60,6 +60,8 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
   };
   const buttons = new ButtonGroup([
     new Button({ label: 'Карта світу (M)', rect: { x: W - 176, y: 52, w: 164, h: 32 }, fontSize: 14, hotkey: 'KeyM', onClick: () => app.goMap() }),
+    // The stash, one for all towns (ROADMAP 14.7).
+    new Button({ label: 'Сховище (B)', rect: { x: W - 176, y: 90, w: 164, h: 32 }, fontSize: 14, hotkey: 'KeyB', onClick: () => app.openStash() }),
   ]);
 
   const runAction = (action: DialogueAction | null): void => {
@@ -261,7 +263,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
       buttons.draw(ctx);
       ctx.fillStyle = 'rgba(10, 12, 18, 0.6)';
       ctx.fillRect(0, H - 20, W, 20);
-      drawText(ctx, 'WASD / клік — ходити · E / клік по NPC — говорити · двері — увійти · Tab — спорядження · J — журнал · брама або M — карта', W / 2, H - 10, {
+      drawText(ctx, 'WASD / клік — ходити · E / клік по NPC — говорити · двері — увійти · Tab — спорядження · B — сховище · J — журнал · брама або M — карта', W / 2, H - 10, {
         size: 11,
         align: 'center',
         color: THEME.textDim,

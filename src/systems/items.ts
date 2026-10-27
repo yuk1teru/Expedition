@@ -21,6 +21,7 @@ import {
   STAT_LABELS,
   UNIDENTIFIED_SELL_MULT,
   BLIND_BUYER,
+  STASH,
 } from '../data/items';
 import type { Hero } from './entities';
 import { effectiveLevel } from './mapgen';
@@ -345,4 +346,22 @@ export function equippedStat(hero: Hero, stat: ItemStat): number {
     for (const s of item.stats) if (s.stat === stat) sum += s.value;
   }
   return sum;
+}
+
+/** A bag item goes to the stash (false: the stash is full). */
+export function toStash(state: GameState, bagIndex: number): boolean {
+  const item = state.hero.bag[bagIndex];
+  if (!item || state.stash.length >= STASH.size) return false;
+  state.hero.bag.splice(bagIndex, 1);
+  state.stash.push(item);
+  return true;
+}
+
+/** A stash item comes back to the bag. */
+export function fromStash(state: GameState, index: number): boolean {
+  const item = state.stash[index];
+  if (!item) return false;
+  state.stash.splice(index, 1);
+  state.hero.bag.push(item);
+  return true;
 }

@@ -1,5 +1,6 @@
 // Application shell: owns the view, input, loop, screens and the run state.
 
+import { createStashModal } from './stash';
 import { blindPrice, sellBlind } from '../systems/items';
 import { createSmithModal } from './smith';
 import { SOULS } from '../data/souls';
@@ -274,6 +275,12 @@ export class App {
         },
       ),
     );
+  }
+
+  /** The stash, one for all towns (ROADMAP 14.7). */
+  openStash(): void {
+    if (this.screens.topModal) return;
+    this.screens.pushModal(createStashModal(this, () => this.screens.popModal()));
   }
 
   /** The smith's forge (ROADMAP 14.4). */

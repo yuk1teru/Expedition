@@ -76,6 +76,9 @@ export const UNIDENTIFIED_SELL_MULT = 0.5;
  */
 export const BLIND_BUYER = { at: ['artifactBuyer'], mult: 0.8 };
 
+/** The stash (ROADMAP 14.7): one for all towns, this many items. */
+export const STASH = { size: 40 };
+
 /** Item kinds: each has its own icon shape (see src/render/icons.ts). */
 export const ITEM_KINDS: Record<ItemSlot, { id: string; name: string }[]> = {
   weapon: [

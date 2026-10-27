@@ -12,6 +12,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.39.0',
+    date: '2026-10-27',
+    title: 'Сховище',
+    items: [
+      'У кожному місті є сховище — одне на всі міста (кнопка «Сховище» або B)',
+      'Поклав у столиці — забрав у Гавані; до 40 речей',
+    ],
+  },
+  {
     version: '0.38.0',
     date: '2026-10-27',
     title: 'Лупа як ставка',
