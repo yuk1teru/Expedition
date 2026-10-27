@@ -39,6 +39,11 @@ export type GameEvent =
   /** A jumping effect (Chain Lightning): the hero and every target in order. */
   | { type: 'chain'; skillId: string; points: Vec[] }
   | { type: 'allyDeath'; pos: Vec }
+  /** Archer dodged a melee hit. */
+  | { type: 'heroDodged'; pos: Vec }
+  /** Mage mana took a hit; `empty` when it ran out. */
+  | { type: 'manaShield'; pos: Vec; amount: number; empty: boolean }
+  | { type: 'manaPickup'; pos: Vec; amount: number }
   /** A barrier absorbed a hit. */
   | { type: 'shieldHit'; pos: Vec; amount: number; broken: boolean }
   /** A skill could not be used: no target, or the hero is rooted. */

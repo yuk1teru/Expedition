@@ -78,6 +78,8 @@ describe('healing', () => {
     const { s, b } = warriorBattle(SLICE_GROVE_ID);
     s.hero.stats.lifesteal = 0.5;
     s.hero.stats.hpRegen = 0;
+    // Only the base regen here (the Warrior's in-fight regen is tested with the class traits).
+    s.hero.stats.combatRegenPct = 0;
     s.hero.hp = 50;
     const h = s.hero.pos;
     const e = spawnEnemy(b, 'stump', { x: h.x - 100, y: h.y });

@@ -69,6 +69,7 @@ export function restoreCheckpoint(state: GameState): void {
   state.modalQueue = [];
   state.hero.dead = false;
   state.hero.hp = state.hero.maxHp;
+  state.hero.mana = state.hero.stats.manaMax;
   state.stats.deaths += 1;
 }
 

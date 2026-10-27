@@ -8,6 +8,7 @@ import { normalize } from './entities';
 import type { HitSource } from './gameEvents';
 import { getBoss } from '../data/bosses';
 import { ENEMIES } from '../data/enemies';
+import { getClass } from '../data/classes';
 import { LOOT } from '../data/items';
 import { displayName, dropItemLevel, itemLevelRange, rollItem, rollRarity, stashLoot } from './items';
 import { heroAttack, heroLifesteal, heroRegen } from './hero';
@@ -91,8 +92,18 @@ export function killEnemy(b: Battle, e: Enemy): void {
   }
   if (e.boss) dropLoot(b, e);
   if (hasStatus(e, 'freeze')) shatter(b, e);
+  manaFromKill(b, e);
   const split = ENEMIES[e.defId]?.split;
   if (split && !e.boss) onSplit(b, e, split.into, split.count);
+}
+
+/** Mage: every kill gives a little mana; sometimes the enemy leaves a mana orb. */
+function manaFromKill(b: Battle, e: Enemy): void {
+  const hero = b.hero;
+  const mana = hero.classId ? getClass(hero.classId).traits.mana : undefined;
+  if (!mana || hero.dead) return;
+  hero.mana = Math.min(hero.stats.manaMax, hero.mana + mana.perKill);
+  if (b.rng.chance(mana.orbChance)) b.manaOrbs.push({ id: b.nextId++, pos: { ...e.pos }, amount: mana.orbMana, time: 0, life: mana.orbLife });
 }
 
 /** Splitting enemies (scarab, slime): set by waves.ts, which owns spawning. */
@@ -164,6 +175,11 @@ export interface HeroHitOptions {
 export function damageHero(b: Battle, rawAmount: number, opts: HeroHitOptions): number {
   const hero = b.hero;
   if (hero.dead || hero.invulnerable > 0) return 0;
+  // Archer: sometimes steps aside from a melee blow.
+  if (opts.melee && hero.stats.dodgeMelee > 0 && b.rng.chance(hero.stats.dodgeMelee)) {
+    b.events.emit({ type: 'heroDodged', pos: { ...hero.pos } });
+    return 0;
+  }
   let amount = applyArmor(rawAmount, hero.stats.armor);
   for (const buff of hero.buffs) amount *= buff.damageTakenMult;
   hero.hitAt = b.time;
@@ -171,6 +187,7 @@ export function damageHero(b: Battle, rawAmount: number, opts: HeroHitOptions): 
     damageEnemy(b, opts.attacker, { amount: rawAmount * hero.stats.thorns, crit: false }, { source: 'thorns' });
   }
   amount = absorbWithShields(b, amount, opts);
+  amount = absorbWithMana(b, amount);
   if (amount <= 0) return 0;
   if (hero.immortal) amount = Math.min(amount, Math.max(0, hero.hp - 1));
   hero.hp -= amount;
@@ -208,6 +225,16 @@ function absorbWithShields(b: Battle, amount: number, opts: HeroHitOptions): num
   return amount;
 }
 
+/** Mage: mana takes what the barriers left, `manaAbsorb` HP per mana point. */
+function absorbWithMana(b: Battle, amount: number): number {
+  const hero = b.hero;
+  if (amount <= 0 || hero.mana <= 0 || hero.stats.manaAbsorb <= 0) return amount;
+  const absorbed = Math.min(amount, hero.mana * hero.stats.manaAbsorb);
+  hero.mana -= absorbed / hero.stats.manaAbsorb;
+  b.events.emit({ type: 'manaShield', pos: { ...hero.pos }, amount: absorbed, empty: hero.mana <= 1e-6 });
+  return amount - absorbed;
+}
+
 /** Hook for barrier bursts (set by effects.ts to avoid an import cycle at load time). */
 let blastAround: (b: Battle, pos: Vec, spec: Blast) => void = () => {};
 export function setBlastHandler(fn: (b: Battle, pos: Vec, spec: Blast) => void): void {
@@ -242,7 +269,9 @@ export function healHero(b: Battle, amount: number, mode: 'show' | 'aggregate' |
 export function updateHeroHealing(b: Battle, dt: number): void {
   // Base regen pauses while the hero is being hit; buff regen (skipped card) always works.
   const base = b.time - b.hero.hitAt >= HERO.regenDelay ? b.hero.stats.hpRegen : 0;
-  healHero(b, (heroRegen(b.hero) - b.hero.stats.hpRegen + base) * dt, 'silent');
+  // Warrior: a share of max HP per second that works in the thick of a fight too.
+  const always = b.hero.maxHp * b.hero.stats.combatRegenPct;
+  healHero(b, (heroRegen(b.hero) - b.hero.stats.hpRegen + base + always) * dt, 'silent');
   b.healTimer -= dt;
   if (b.healTimer > 0) return;
   b.healTimer = HERO.healPopupInterval;

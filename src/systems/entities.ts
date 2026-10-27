@@ -131,6 +131,13 @@ export interface HeroStats {
   pierce: number;
   /** Damage multiplier of the hero's wolves (Beastmaster). */
   petDamageMult: number;
+  /** Class traits: HP/s as a share of max HP that works in a fight too (Warrior)… */
+  combatRegenPct: number;
+  /** …chance to dodge a melee hit (Archer)… */
+  dodgeMelee: number;
+  /** …mana pool and HP absorbed per mana point (Mage). */
+  manaMax: number;
+  manaAbsorb: number;
 }
 
 export interface Dash {
@@ -178,6 +185,8 @@ export interface Hero extends Body {
   promoTimer: number;
   /** Seconds until the Beastmaster's wolf comes back. */
   companionTimer: number;
+  /** Mage mana (the mana shield); 0 for other classes. */
+  mana: number;
 }
 
 /** A body on the hero's side (wolves of the Beastmaster): chases and bites enemies. */

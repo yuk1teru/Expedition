@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { CLASSES, CLASS_ORDER } from '../src/data/classes';
 import { PASSIVES, SKILLS } from '../src/data/skills';
 import { type Battle, createBattle, stepBattle } from '../src/systems/battle';
-import { damageHero } from '../src/systems/combat';
+import { damageHero, killEnemy } from '../src/systems/combat';
 import { type Enemy, dist } from '../src/systems/entities';
-import { assignClass, heroShield, recomputeHeroStats } from '../src/systems/hero';
+import { assignClass, healFull, heroShield, recomputeHeroStats } from '../src/systems/hero';
 import { SLICE_GROVE_ID } from '../src/systems/mapgen';
 import { createGameState, teleport } from '../src/systems/run';
 import { SKILL_IMPLS, useSkill } from '../src/systems/skills';
@@ -265,5 +265,50 @@ describe('bot targeting without a cursor', () => {
         expect(useSkill(b, 0), skill).toBe('cast');
       }
     }
+  });
+});
+
+describe('class traits', () => {
+  it('Warrior regenerates even while being hit', () => {
+    const b = battle('warrior', CLASSES.warrior!.defaultPicks);
+    b.hero.hp = 50;
+    b.hero.stats.hpRegen = 0;
+    b.hero.hitAt = b.time;
+    run(b, 1);
+    expect(b.hero.hp).toBeCloseTo(50 + b.hero.maxHp * CLASSES.warrior!.traits.combatRegenPct!, 0);
+  });
+
+  it('Archer is quicker and sometimes dodges melee hits (never projectiles)', () => {
+    const w = battle('warrior', CLASSES.warrior!.defaultPicks).hero;
+    const a = battle('archer', CLASSES.archer!.defaultPicks);
+    expect(a.hero.stats.moveSpeed).toBeGreaterThan(w.stats.moveSpeed);
+    a.hero.immortal = false;
+    let dodged = 0;
+    for (let i = 0; i < 200; i++) if (damageHero(a, 0.01, { melee: true }) === 0) dodged++;
+    expect(dodged / 200).toBeGreaterThan(0.35);
+    expect(dodged / 200).toBeLessThan(0.65);
+    let missed = 0;
+    for (let i = 0; i < 50; i++) if (damageHero(a, 0.01, { melee: false }) === 0) missed++;
+    expect(missed).toBe(0);
+  });
+
+  it('Mage: mana takes hits before HP, kills and mana orbs refill it, town fills it up', () => {
+    const b = battle('mage', CLASSES.mage!.defaultPicks);
+    const hero = b.hero;
+    hero.immortal = false;
+    const m = CLASSES.mage!.traits.mana!;
+    expect(hero.mana).toBe(hero.stats.manaMax);
+    const hp = hero.hp;
+    damageHero(b, 20, { melee: false });
+    expect(hero.hp).toBe(hp);
+    expect(hero.stats.manaMax - hero.mana).toBeGreaterThan(0);
+    hero.mana = 0;
+    killEnemy(b, spawnEnemy(b, 'wolf', { x: 100, y: 100 }));
+    expect(hero.mana).toBe(m.perKill);
+    b.manaOrbs.push({ id: 999, pos: { ...hero.pos }, amount: m.orbMana, time: 0, life: 5 });
+    run(b, 0.05);
+    expect(hero.mana).toBe(m.perKill + m.orbMana);
+    healFull(hero);
+    expect(hero.mana).toBe(hero.stats.manaMax);
   });
 });

@@ -169,7 +169,7 @@ function drawClassCard(ctx: CanvasRenderingContext2D, classId: string, r: Rect, 
   drawClassIcon(ctx, c.icon, cx, r.y + 46, 46, c.color);
   drawText(ctx, c.name, cx, r.y + 96, { size: 22, bold: true, align: 'center' });
   drawText(ctx, c.role, cx, r.y + 120, { size: 13, bold: true, align: 'center', color: c.color });
-  drawText(ctx, c.description, cx, r.y + 142, { size: 13, align: 'center', color: THEME.textDim });
+  drawText(ctx, c.traitText, cx, r.y + 142, { size: 12, bold: true, align: 'center', color: '#9fdf7a' });
   ctx.font = font(12);
   wrapLines(ctx, `Автоатака: ${c.basicAttack.description}`, r.w - 28)
     .slice(0, 2)

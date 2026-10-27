@@ -31,6 +31,25 @@ export const NOVICE_ATTACK: BasicAttackDef = {
   description: 'Одиночний удар вузькою дугою: б’є одного найближчого ворога прямо перед собою.',
 };
 
+/**
+ * What makes a class itself besides skills: the Warrior regenerates even in a fight,
+ * the Archer is quick and dodges melee hits, the Mage hides behind a mana shield.
+ */
+export interface ClassTraits {
+  /** HP per second as a fraction of max HP, always (also while being hit). */
+  combatRegenPct?: number;
+  /** Chance to dodge a melee hit completely. */
+  dodgeMelee?: number;
+  /** Move speed multiplier. */
+  moveSpeedMult?: number;
+  /**
+   * Mana: `base` + `perLevel` × (level − 1). Mana takes hits before HP: one mana point
+   * absorbs `absorb` HP. Every kill gives `perKill`; with chance `orbChance` a killed
+   * enemy leaves an orb worth `orbMana` (step on it). Full again in town.
+   */
+  mana?: { base: number; perLevel: number; absorb: number; perKill: number; orbChance: number; orbMana: number; orbLife: number; orbRadius: number };
+}
+
 export interface ClassDef {
   id: string;
   name: string;
@@ -54,16 +73,19 @@ export interface ClassDef {
   /** Outline colour of the hero and class accents. */
   color: string;
   icon: ClassIcon;
+  traits: ClassTraits;
+  /** One line about the traits for the class choice. */
+  traitText: string;
 }
 
 export const CLASSES: Record<string, ClassDef> = {
   warrior: {
     id: 'warrior',
     name: 'Воїн',
-    role: 'Ближній бій, багато HP',
+    role: 'Ближній бій, живучий',
     description: 'Врізається в натовп і тримає удар.',
     locked: false,
-    hpMult: 1.05,
+    hpMult: 1,
     attackSpeedMult: 1,
     skillDamageMult: 1,
     ranged: false,
@@ -79,14 +101,16 @@ export const CLASSES: Record<string, ClassDef> = {
     },
     color: '#c0392b',
     icon: 'shield',
+    traits: { combatRegenPct: 0.002 },
+    traitText: 'Реген 0.2% HP/с навіть у бою',
   },
   mage: {
     id: 'mage',
     name: 'Маг',
-    role: 'Дальній бій, мало HP',
+    role: 'Дальній бій, щит мани',
     description: 'Вогонь, лід і блискавки здалеку.',
     locked: false,
-    hpMult: 1.3,
+    hpMult: 0.8,
     attackSpeedMult: 1,
     skillDamageMult: 1.25,
     ranged: true,
@@ -107,11 +131,13 @@ export const CLASSES: Record<string, ClassDef> = {
     },
     color: '#3b7dd8',
     icon: 'orb',
+    traits: { mana: { base: 100, perLevel: 12, absorb: 2, perKill: 3, orbChance: 0.35, orbMana: 10, orbLife: 10, orbRadius: 16 } },
+    traitText: 'Щит мани поглинає удари',
   },
   archer: {
     id: 'archer',
     name: 'Лучник',
-    role: 'Дальній бій, швидкі атаки',
+    role: 'Дальній бій, прудкий',
     description: 'Злива стріл і пастки.',
     locked: false,
     hpMult: 1.3,
@@ -135,6 +161,8 @@ export const CLASSES: Record<string, ClassDef> = {
     },
     color: '#3fa34d',
     icon: 'bow',
+    traits: { dodgeMelee: 0.5, moveSpeedMult: 1.2 },
+    traitText: '+20% руху, 50% ухилення впритул',
   },
 };
 

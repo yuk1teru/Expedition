@@ -2,6 +2,7 @@
 
 import { ARENA, FLOW, PROJECTILES } from '../data/balance';
 import { type BiomeDef, getBiome } from '../data/biomes';
+import { getClass } from '../data/classes';
 import type { EventBus } from '../core/events';
 import type { Rng } from '../core/rng';
 import type { GameState } from '../core/state';
@@ -36,6 +37,16 @@ export interface BattleStats {
 }
 
 export type BattleOutcome = 'running' | 'won' | 'lost';
+
+/** A mana orb on the ground: the Mage picks it up by stepping on it. */
+export interface ManaOrb {
+  id: number;
+  pos: Vec;
+  amount: number;
+  time: number;
+  /** Seconds before it fades. */
+  life: number;
+}
 
 export interface Portal {
   pos: Vec;
@@ -74,6 +85,8 @@ export interface Battle {
   charges: HeroCharge[];
   /** Boss puddles and expanding rings. */
   hazards: Hazard[];
+  /** Mana orbs left by enemies for the Mage. */
+  manaOrbs: ManaOrb[];
   projectiles: Projectile[];
   zones: Zone[];
   telegraphs: Telegraph[];
@@ -125,6 +138,7 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0): B
     allies: [],
     charges: [],
     hazards: [],
+    manaOrbs: [],
     projectiles: [],
     zones: [],
     telegraphs: [],
@@ -211,6 +225,7 @@ export function stepBattle(b: Battle, dt: number): void {
   updateZones(b, dt);
   updateTelegraphs(b, dt);
   updateHazards(b, dt);
+  updateManaOrbs(b, dt);
   updatePickups(b, dt);
   updateTraps(b);
   updateWeather(b, dt);
@@ -326,6 +341,20 @@ function ricochet(b: Battle, p: Projectile): boolean {
   if (p.homingId !== undefined) p.homingId = next.id;
   p.life = Math.max(p.life, PROJECTILES.ricochetRange / Math.max(speed, 1));
   return true;
+}
+
+function updateManaOrbs(b: Battle, dt: number): void {
+  if (b.manaOrbs.length === 0) return;
+  const hero = b.hero;
+  const mana = hero.classId ? getClass(hero.classId).traits.mana : undefined;
+  for (const o of b.manaOrbs) {
+    o.time += dt;
+    if (!mana || hero.dead || dist(o.pos, hero.pos) > hero.radius + mana.orbRadius) continue;
+    hero.mana = Math.min(hero.stats.manaMax, hero.mana + o.amount);
+    o.time = o.life;
+    b.events.emit({ type: 'manaPickup', pos: { ...o.pos }, amount: o.amount });
+  }
+  b.manaOrbs = b.manaOrbs.filter((o) => o.time < o.life);
 }
 
 /** Channelled hero skills fire when their time is up (cancelled if the hero dies). */

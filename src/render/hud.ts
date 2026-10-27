@@ -161,7 +161,8 @@ export function createHud(app: App, _fx: Fx): Hud {
       ctx.fillRect(0, ARENA.y + ARENA.h, W, app.view.height - ARENA.y - ARENA.h);
 
       drawText(ctx, className(hero.classId, hero.promotion), 16, 19, { size: 15, bold: true, color: hero.classId ? THEME.text : THEME.textDim });
-      drawText(ctx, `Атака ${Math.round(hero.stats.attack)} · ${heroAttackSpeed(hero).toFixed(2)}/с · Броня ${Math.round(hero.stats.armor)}`, 16, 39, {
+      const mana = hero.stats.manaMax > 0 ? ` · Мана ${Math.floor(hero.mana)}/${Math.round(hero.stats.manaMax)}` : '';
+      drawText(ctx, `Атака ${Math.round(hero.stats.attack)} · ${heroAttackSpeed(hero).toFixed(2)}/с · Броня ${Math.round(hero.stats.armor)}${mana}`, 16, 39, {
         size: 12,
         color: THEME.textDim,
       });

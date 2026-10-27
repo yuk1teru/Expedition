@@ -16,7 +16,7 @@ import { RARITIES } from '../data/items';
 import { heroAttackSpeed, meleeReach, nextShotIsVolley } from '../systems/ai';
 import { type Trap, trapArmed } from '../systems/traps';
 import { basicAttackOf } from '../systems/hero';
-import { type Battle, stepBattle } from '../systems/battle';
+import { type Battle, stepBattle, type ManaOrb } from '../systems/battle';
 import { type Pickup, pickupReady, useQuickSlot } from '../systems/pickups';
 import { portalActive, portalInReach, requestPortalEntry } from '../systems/waves';
 import { CONSUMABLES, type ConsumableId, PICKUPS, PICKUP_SPAWN, QUICK_SLOTS } from '../data/consumables';
@@ -167,6 +167,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       for (const h of b.hazards) drawHazard(ctx, h, app.time);
       if (b.portal) drawPortal(ctx, b.portal.pos, b.portal.radius, app.time, portalActive(b));
       for (const p of b.pickups) drawPickup(ctx, p, b, app.time);
+      for (const o of b.manaOrbs) drawManaOrb(ctx, o, app.time);
       for (const tr of b.traps) drawTrap(ctx, tr, b);
       for (const p of b.projectiles) drawProjectile(ctx, p, app.time);
       for (const e of b.enemies) {
@@ -355,6 +356,17 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
       fx.ring(b.hero.pos, FX.levelUpRing.radius, THEME.accent, FX.levelUpRing.life, 6);
       fx.burst(b.hero.pos, P.levelUp, THEME.accent);
       fx.text({ x: b.hero.pos.x, y: b.hero.pos.y - 40 }, `Рівень ${e.level}!  +${e.hp} HP, +${e.attack} атаки`, THEME.accent, 16, 1.6);
+      break;
+    case 'heroDodged':
+      fx.text({ x: e.pos.x - T.heroSideOffset, y: e.pos.y - 22 }, 'Ухилення!', '#9fdf7a', 14, 0.8);
+      break;
+    case 'manaShield':
+      fx.ring(e.pos, 26, '#4aa3ff', 0.25, 3);
+      if (e.empty) fx.text({ x: e.pos.x, y: e.pos.y - 44 }, 'Мана скінчилась', '#4aa3ff', 14, 1.2);
+      break;
+    case 'manaPickup':
+      fx.text({ x: e.pos.x, y: e.pos.y - 20 }, `+${Math.round(e.amount)} мани`, '#7fc4ff', 14, 1);
+      fx.burst(e.pos, P.spark, '#4aa3ff');
       break;
     case 'allyDeath':
       fx.burst(e.pos, P.death, '#b08a5a');
@@ -843,6 +855,28 @@ function drawZone(ctx: CanvasRenderingContext2D, z: Zone, b: Battle, t: number):
   ctx.restore();
 }
 
+/** A mana orb for the Mage: a pulsing blue drop that fades before it disappears. */
+function drawManaOrb(ctx: CanvasRenderingContext2D, o: ManaOrb, t: number): void {
+  const fade = Math.min(1, (o.life - o.time) / 1.5);
+  const r = 7 + Math.sin(t * 6 + o.id) * 1.2;
+  ctx.save();
+  ctx.globalAlpha = 0.35 * fade;
+  ctx.fillStyle = '#4aa3ff';
+  ctx.beginPath();
+  ctx.arc(o.pos.x, o.pos.y, r * 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = fade;
+  ctx.fillStyle = '#7fc4ff';
+  ctx.beginPath();
+  ctx.arc(o.pos.x, o.pos.y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#e8f4ff';
+  ctx.beginPath();
+  ctx.arc(o.pos.x - 2, o.pos.y - 2, r * 0.35, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 /** A plant growing out of the ground; pulses when it can be picked up. */
 function drawPickup(ctx: CanvasRenderingContext2D, p: Pickup, b: Battle, t: number): void {
   const def = PICKUPS[p.kind];
@@ -944,6 +978,13 @@ function drawHeroBar(ctx: CanvasRenderingContext2D, h: Hero): void {
   if (shield > 0) {
     ctx.fillStyle = 'rgba(200, 235, 255, 0.85)';
     ctx.fillRect(x, y, B.width * Math.min(1, shield / h.maxHp), B.height / 2);
+  }
+  // Mage: the mana shield as a blue bar right under the HP bar.
+  if (h.stats.manaMax > 0) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(x - 1, y + B.height + 1, B.width + 2, 4);
+    ctx.fillStyle = '#4aa3ff';
+    ctx.fillRect(x, y + B.height + 2, B.width * Math.max(0, h.mana / h.stats.manaMax), 2);
   }
   drawText(ctx, `${Math.ceil(h.hp)}/${h.maxHp}${shield > 0 ? ` +${Math.ceil(shield)}` : ''}`, h.pos.x, y + B.height + 8, { size: 10, bold: true, align: 'center', color: frac <= B.low ? '#ff6b5e' : THEME.text });
 }

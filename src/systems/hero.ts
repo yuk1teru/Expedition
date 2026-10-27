@@ -44,6 +44,7 @@ export function createHero(id: number): Hero {
     promotion: null,
     promoTimer: 0,
     companionTimer: 0,
+    mana: 0,
   };
   recomputeHeroStats(hero);
   hero.hp = hero.maxHp;
@@ -69,6 +70,10 @@ function baseStats(level: number): HeroStats {
     killCdr: 0,
     pierce: 0,
     petDamageMult: 1,
+    combatRegenPct: 0,
+    dodgeMelee: 0,
+    manaMax: 0,
+    manaAbsorb: 0,
   };
 }
 
@@ -104,6 +109,14 @@ export function recomputeHeroStats(hero: Hero): void {
     s.skillDamageMult *= c.skillDamageMult;
     s.ranged = c.ranged;
     s.range = c.range;
+    const t = c.traits;
+    s.combatRegenPct = t.combatRegenPct ?? 0;
+    s.dodgeMelee = t.dodgeMelee ?? 0;
+    s.moveSpeed *= t.moveSpeedMult ?? 1;
+    if (t.mana) {
+      s.manaMax = t.mana.base + t.mana.perLevel * (hero.level - 1);
+      s.manaAbsorb = t.mana.absorb;
+    }
   }
   let hpPct = 0;
   for (const [id, stacks] of Object.entries(hero.passives)) {
@@ -160,7 +173,11 @@ export function recomputeHeroStats(hero: Hero): void {
   s.moveSpeed *= 1 + equippedStat(hero, 'moveSpeedPct');
   hpPct += equippedStat(hero, 'hpPct');
   s.maxHp *= 1 + hpPct;
+  const prevMana = hero.stats?.manaMax ?? 0;
   hero.stats = s;
+  // Like max HP: a bigger pool fills up by the difference (the class choice fills it).
+  if (s.manaMax > prevMana) hero.mana += s.manaMax - prevMana;
+  hero.mana = Math.min(hero.mana, s.manaMax);
   hero.maxHp = Math.round(s.maxHp);
   if (hero.maxHp > prevMax) hero.hp += hero.maxHp - prevMax;
   hero.hp = Math.min(hero.hp, hero.maxHp);
@@ -207,6 +224,7 @@ export function heroRegen(hero: Hero): number {
 
 export function healFull(hero: Hero): void {
   hero.hp = hero.maxHp;
+  hero.mana = hero.stats.manaMax;
 }
 
 /** Skill in a skill-bar slot (0-based), if any. */
