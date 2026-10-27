@@ -12,6 +12,12 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.17.1',
+    date: '2026-10-27',
+    title: 'Плавна камера',
+    items: ['Камера в місті більше не трясеться, коли герой ходить'],
+  },
+  {
     version: '0.17.0',
     date: '2026-10-27',
     title: 'Більші міста',

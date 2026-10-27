@@ -35,10 +35,17 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
   const cam = { x: 0, y: 0 };
   const viewTop = TOWN_SCENE.viewTop;
   const viewH = H - viewTop;
-  const follow = (): void => {
-    const fit = (pos: number, view: number, size: number): number => (size <= view ? (size - view) / 2 : Math.max(0, Math.min(size - view, pos - view / 2)));
-    cam.x = fit(walker.pos.x, W, layout.width);
-    cam.y = fit(walker.pos.y, viewH, layout.height);
+  /** The hero's position before the last logic step: frames draw between it and the current one. */
+  let prevPos = { ...walker.pos };
+  /** Where the hero is drawn this frame (interpolated between logic steps, so the camera does not judder). */
+  const drawnPos = (): { x: number; y: number } => {
+    const a = app.loop.alpha;
+    return { x: prevPos.x + (walker.pos.x - prevPos.x) * a, y: prevPos.y + (walker.pos.y - prevPos.y) * a };
+  };
+  const follow = (pos = walker.pos): void => {
+    const fit = (p: number, view: number, size: number): number => (size <= view ? (size - view) / 2 : Math.max(0, Math.min(size - view, p - view / 2)));
+    cam.x = fit(pos.x, W, layout.width);
+    cam.y = fit(pos.y, viewH, layout.height);
   };
   const buttons = new ButtonGroup([
     new Button({ label: 'Карта світу (M)', rect: { x: W - 176, y: 52, w: 164, h: 32 }, fontSize: 14, hotkey: 'KeyM', onClick: () => app.goMap() }),
@@ -66,6 +73,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
       restedFlash = TOWN_REST_FLASH;
       layout = getTownLayout(app.state.currentNodeId);
       walker = createWalker(layout);
+      prevPos = { ...walker.pos };
       leaving = false;
       follow();
     },
@@ -74,9 +82,9 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
     },
     update(dt) {
       restedFlash = Math.max(0, restedFlash - dt);
+      prevPos = { ...walker.pos };
       if (leaving) return;
       const reached = stepWalker(layout, walker, app.input.moveVector(), dt);
-      follow();
       if (reached) talk(reached);
       if (atGate(layout, walker.pos)) {
         leaving = true;
@@ -112,7 +120,10 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
       ctx.beginPath();
       ctx.rect(0, viewTop, W, viewH);
       ctx.clip();
-      ctx.translate(-Math.round(cam.x), viewTop - Math.round(cam.y));
+      const hero = drawnPos();
+      follow(hero);
+      // Camera and hero move together (no rounding): the hero stays still on screen while the town scrolls smoothly.
+      ctx.translate(-cam.x, viewTop - cam.y);
       ctx.drawImage(townBackground(layout), 0, 0);
       drawWater(ctx, layout, app.time);
       drawGate(ctx, layout, app.time);
@@ -126,7 +137,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
           nameplate(ctx, n.x, n.y - TOWN_SCENE.npcRadius * 2 - 10, npc.name, npc.title, npc.id === near);
         },
       }));
-      figures.push({ y: walker.pos.y, draw: () => drawWalker(ctx, walker, heroColor(state.hero.classId, state.hero.promotion)) });
+      figures.push({ y: hero.y, draw: () => drawWalker(ctx, walker, hero, heroColor(state.hero.classId, state.hero.promotion)) });
       figures.sort((a, b) => a.y - b.y);
       for (const f of figures) f.draw();
       if (near && !app.screens.topModal) {
@@ -191,10 +202,10 @@ function prompt(ctx: CanvasRenderingContext2D, x: number, y: number, text: strin
   drawText(ctx, text, x, y, { size: 12, bold: true, align: 'center', color: THEME.accent });
 }
 
-function drawWalker(ctx: CanvasRenderingContext2D, w: TownWalker, outline: string | null): void {
+function drawWalker(ctx: CanvasRenderingContext2D, w: TownWalker, pos: { x: number; y: number }, outline: string | null): void {
   const r = TOWN_SCENE.heroRadius;
   ctx.save();
-  ctx.translate(w.pos.x, w.pos.y);
+  ctx.translate(pos.x, pos.y);
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
   ctx.beginPath();
   ctx.ellipse(0, r * 0.7, r, r * 0.45, 0, 0, Math.PI * 2);

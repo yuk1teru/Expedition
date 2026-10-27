@@ -42,6 +42,14 @@ export class GameLoop {
     this.running = false;
   }
 
+  /**
+   * How far the time is between the last fixed step and the next one (0..1): smooth
+   * movement draws positions interpolated by it when frames and steps run at different rates.
+   */
+  get alpha(): number {
+    return Math.min(1, this.acc / this.opts.step);
+  }
+
   toggleSpeed(): void {
     this.speed = this.speed === 1 ? 2 : 1;
   }
