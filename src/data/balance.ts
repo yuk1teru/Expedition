@@ -307,3 +307,14 @@ export const SIM = {
   maxBattles: 160,
   maxDays: 200,
 } as const;
+
+/** Town scenes (PLAN.md 8.4): walking around and talking to NPCs. */
+export const TOWN_SCENE = {
+  heroSpeed: 180,
+  heroRadius: 13,
+  npcRadius: 14,
+  /** Distance (between edges) at which E / a click starts a conversation. */
+  talkRange: 36,
+  /** Bounds of the walkable area (logical px; below the top bar). */
+  bounds: { x: 0, y: 44, w: 960, h: 496 },
+} as const;
