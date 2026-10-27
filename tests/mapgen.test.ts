@@ -8,6 +8,7 @@ import {
   SLICE_LAIR_ID,
   TOWN_ID,
   type World,
+  effectiveTier,
   generateSliceWorld,
   generateWorld,
   getNode,
@@ -195,5 +196,19 @@ describe('slice world', () => {
     expect(travel(s, SLICE_LAIR_ID)).toEqual({ kind: 'blocked' });
     expect(travel(s, TOWN_ID)).toEqual({ kind: 'town' });
     expect(travel(s, SLICE_LAIR_ID)).toEqual({ kind: 'battle', nodeId: SLICE_LAIR_ID });
+  });
+});
+
+describe('boss threat', () => {
+  it('every defeated boss makes the locations and bosses left harder (full world only)', () => {
+    const s = createGameState(8);
+    const d1 = s.world.nodes.find((n) => n.depth === 1)!;
+    const boss = s.world.nodes.find((n) => n.isBoss)!;
+    expect(effectiveTier(s.world, d1, 0)).toBe(d1.tier);
+    expect(effectiveTier(s.world, d1, 2)).toBeCloseTo(d1.tier + 2 * WORLD.bossThreat.locationTier);
+    expect(effectiveTier(s.world, boss, 1)).toBeCloseTo(boss.tier + WORLD.bossThreat.bossTier);
+    const slice = createGameState(8, 'slice');
+    const grove = getNode(slice.world, SLICE_GROVE_ID);
+    expect(effectiveTier(slice.world, grove, 3)).toBe(grove.tier);
   });
 });

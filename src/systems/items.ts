@@ -20,6 +20,7 @@ import {
   UNIDENTIFIED_SELL_MULT,
 } from '../data/items';
 import type { Hero } from './entities';
+import { effectiveTier } from './mapgen';
 import { recomputeHeroStats } from './hero';
 
 export interface ItemStatValue {
@@ -123,7 +124,8 @@ export function merchantItemLevels(state: GameState): [number, number] {
   const locations = state.world.nodes.filter((n) => !n.isTown);
   const cleared = locations.filter((n) => n.timesCleared > 0);
   // Nothing cleared yet: the easiest location.
-  const tier = cleared.length > 0 ? Math.max(...cleared.map((n) => n.tier)) : Math.min(...locations.map((n) => n.tier));
+  const tierOf = (n: (typeof locations)[number]): number => effectiveTier(state.world, n, state.bossesDefeated.length);
+  const tier = cleared.length > 0 ? Math.max(...cleared.map(tierOf)) : Math.min(...locations.map(tierOf));
   const [min, max] = itemLevelRange(tier);
   const [lo, hi] = ITEM_LEVEL.merchant;
   return [Math.round(min + (max - min) * lo), Math.round(min + (max - min) * hi)];

@@ -3,9 +3,9 @@
 import type { InputEvent } from '../core/input';
 import type { Screen } from '../core/screens';
 import { getBiome } from '../data/biomes';
-import { type MapNode, recommendedLevel } from '../systems/mapgen';
+import { type MapNode, effectiveTier, recommendedLevel } from '../systems/mapgen';
 import { canTravel } from '../systems/run';
-import { PROGRESSION } from '../data/balance';
+import { PROGRESSION, WORLD } from '../data/balance';
 import { dayMultiplier, daysToNextThreat, xpPenalized } from '../systems/scaling';
 import type { App } from './app';
 import { THEME, font } from './theme';
@@ -57,6 +57,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
     render(ctx) {
       const state = app.state;
       const { world } = state;
+      const tierOf = (n: MapNode): number => effectiveTier(world, n, state.bossesDefeated.length);
       const t = app.time;
       ctx.fillStyle = THEME.bg;
       ctx.fillRect(0, 0, app.view.width, app.view.height);
@@ -110,12 +111,12 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
       for (const n of [...world.nodes].sort((a, b) => priority(a) - priority(b))) {
         const reachable = canTravel(state, n.id);
         const named = priority(n) < 4;
-        const level = n.isTown ? null : recommendedLevel(n.tier);
+        const level = n.isTown ? null : recommendedLevel(tierOf(n));
         drawNodeLabels(ctx, n, named, reachable, level === null ? null : { text: `рів. ${level}`, color: levelColor(state.hero.level, level) }, app.view.width, taken);
       }
 
       drawTopBar(ctx, state, app.view.width, app.totalBosses(), app.time);
-      if (state.world.kind === 'full') drawThreat(ctx, state.day);
+      if (state.world.kind === 'full') drawThreat(ctx, state.day, state.bossesDefeated.length);
       buttons.draw(ctx);
       drawText(ctx, 'Клік по сусідній локації — вирушити', app.view.width - 14, app.view.height - 14, {
         size: 12,
@@ -125,7 +126,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
 
       if (hovered) {
         const n = world.nodes.find((x) => x.id === hovered);
-        if (n) drawTooltip(ctx, tooltipLines(n, state.currentNodeId, state.hero.level), app.input.mouse.x, app.input.mouse.y, app.view.width, app.view.height);
+        if (n) drawTooltip(ctx, tooltipLines(n, state.currentNodeId, state.hero.level, tierOf(n)), app.input.mouse.x, app.input.mouse.y, app.view.width, app.view.height);
       }
     },
   };
@@ -171,23 +172,24 @@ function drawNodeLabels(
 }
 
 /** "День 7 · Загроза +10% · Через 3 дні вороги посиляться" under the top bar. */
-function drawThreat(ctx: CanvasRenderingContext2D, day: number): void {
+function drawThreat(ctx: CanvasRenderingContext2D, day: number, bosses: number): void {
   const pct = Math.round((dayMultiplier(day) - 1) * 100);
   const left = daysToNextThreat(day);
   const soon = left <= 2;
-  const text = `День ${day} · Загроза +${pct}% · Через ${left} ${left === 1 ? 'день' : left < 5 ? 'дні' : 'днів'} вороги посиляться`;
+  const bossPart = bosses > 0 ? ` · Боси: локації +${bosses * WORLD.bossThreat.locationTier} до складності` : '';
+  const text = `День ${day} · Загроза +${pct}% · Через ${left} ${left === 1 ? 'день' : left < 5 ? 'дні' : 'днів'} вороги посиляться${bossPart}`;
   drawText(ctx, text, 16, TOP_BAR_H + 16, { size: 13, bold: soon, color: soon ? THEME.bad : THEME.textDim });
 }
 
-function tooltipLines(n: MapNode, current: string, heroLevel: number): string[] {
+function tooltipLines(n: MapNode, current: string, heroLevel: number, tier: number): string[] {
   if (n.isTown) return [n.name, 'Відпочинок і збереження при кожному візиті', 'Клік — повернутися в місто'];
   const biome = n.biome ? getBiome(n.biome).name : '—';
   const lines = [
     n.name,
     `Біом: ${biome}`,
-    `Складність: ${n.tier.toFixed(1)}${n.isBoss ? ' (бос)' : ''}`,
-    `Рекомендований рівень: ${recommendedLevel(n.tier)}`,
-    ...(xpPenalized(n.tier, heroLevel) ? [`Досвід: ${Math.round(PROGRESSION.xpPenalty.mult * 100)}% (ви набагато сильніші)`] : []),
+    `Складність: ${tier.toFixed(1)}${n.isBoss ? ' (бос)' : ''}${tier > n.tier ? ` (загроза босів +${(tier - n.tier).toFixed(1)})` : ''}`,
+    `Рекомендований рівень: ${recommendedLevel(tier)}`,
+    ...(xpPenalized(tier, heroLevel) ? [`Досвід: ${Math.round(PROGRESSION.xpPenalty.mult * 100)}% (ви набагато сильніші)`] : []),
     `Пройдено разів: ${n.timesCleared}`,
   ];
   if (n.lastWave > 0) lines.push(`Минулого разу: ${n.lastWave} хвиль (можна продовжити)`);

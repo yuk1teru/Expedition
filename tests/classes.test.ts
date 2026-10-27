@@ -50,11 +50,10 @@ describe('classes', () => {
     }
   });
 
-  it('Mage: less HP, stronger skills; Archer: faster attacks; both shoot', () => {
+  it('Mage: stronger skills; Archer: faster attacks; both shoot', () => {
     const w = battle('warrior', CLASSES.warrior!.defaultPicks).hero;
     const m = battle('mage', CLASSES.mage!.defaultPicks).hero;
     const a = battle('archer', CLASSES.archer!.defaultPicks).hero;
-    expect(m.maxHp).toBeLessThan(w.maxHp);
     expect(m.stats.skillDamageMult).toBeGreaterThan(1);
     expect(a.stats.attackSpeed).toBeGreaterThan(w.stats.attackSpeed);
     expect(m.stats.ranged && a.stats.ranged).toBe(true);

@@ -43,6 +43,8 @@ export const HERO = {
     retreatBelow: 100,
     /** Speed fraction when drifting back into the band. */
     backpedalMult: 0.6,
+    /** Within this distance of the arena edge the bot slides along the wall instead of backing into it, px. */
+    wallSlide: 50,
     shootRange: 300,
     projectileSpeed: 520,
     projectileRadius: 5,
@@ -234,6 +236,12 @@ export const WORLD = {
   /** Chance that a node gets a second child at the next depth (when one is nearby). */
   secondChildChance: 0.5,
   /**
+   * Boss threat: every defeated boss adds this much tier to the locations and bosses left,
+   * so the first locations of the next biome are not a walk (HP, damage, XP, gold and item
+   * level follow the tier). Full world only.
+   */
+  bossThreat: { locationTier: 1, bossTier: 0.9 },
+  /**
    * Radial layout, logical px. The view is wide and short, so the "circle" is an ellipse
    * with its own radius per depth on each axis; the nodes of a depth spread over `arcDeg`
    * of their sector (narrow near the town, where the sectors are close to each other);
@@ -306,4 +314,11 @@ export const SIM = {
   maxBattleTime: 400,
   /** The bot uses its strongest healing item below this HP fraction. */
   botHerbBelow: 0.4,
+  /** Full-run bot: goes back to town (rest, shop) below this HP fraction after a battle. */
+  botTownBelow: 0.4,
+  /** Full runs: deaths return to the checkpoint like for the player; one more than this ends the run. */
+  maxDeaths: 2,
+  /** Full-run safety caps: a run past them counts as stuck. */
+  maxBattles: 160,
+  maxDays: 200,
 } as const;

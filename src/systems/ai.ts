@@ -1,9 +1,9 @@
 // Hero auto-combat AI (melee and ranged) and enemy archetype AI.
 
-import { ENEMY_COMMON, HERO } from '../data/balance';
+import { ARENA, ENEMY_COMMON, HERO } from '../data/balance';
 import { ENEMIES, type EnemyDef, getEnemyDef } from '../data/enemies';
 import type { Battle } from './battle';
-import { addTelegraph } from './boss';
+import { addTelegraph, telegraphContains } from './boss';
 import { addStatus, damageEnemy, damageHero, debuffHero, hasStatus, heroDamage, isDisabled, speedMult } from './combat';
 import type { Ally, Enemy, Hero, Projectile, Vec } from './entities';
 import { damageAlly } from './allies';
@@ -51,6 +51,20 @@ export function updateHeroAI(b: Battle, dt: number): void {
   if (!target) return;
   if (hero.stats.ranged) rangedHero(b, hero, target);
   else meleeHero(b, hero, target);
+  avoidPuddles(b, hero);
+}
+
+/** Bot: does not walk into boss puddles (stepping out of one is the dodge's job). */
+function avoidPuddles(b: Battle, hero: Hero): void {
+  if (b.hazards.length === 0 || (hero.vel.x === 0 && hero.vel.y === 0)) return;
+  const ahead = { x: hero.pos.x + hero.vel.x * 0.2, y: hero.pos.y + hero.vel.y * 0.2 };
+  const blocked = b.hazards.some(
+    (h) => !h.ring && dist(ahead, h.pos) <= h.radius + hero.radius && dist(hero.pos, h.pos) > h.radius + hero.radius,
+  );
+  if (blocked) {
+    hero.vel.x = 0;
+    hero.vel.y = 0;
+  }
 }
 
 /**
@@ -139,7 +153,31 @@ function rangedHero(b: Battle, hero: Hero, target: Enemy): void {
   } else if (d < r.keepMin) {
     moveAway(hero, target.pos, speed * r.backpedalMult);
   }
+  slideAlongWalls(hero);
   tryShoot(b, hero, target);
+}
+
+/**
+ * Backing off into a wall corners the bot: near the arena edge the push into the wall
+ * turns into a slide along it (towards the arena centre side), so it keeps kiting.
+ */
+function slideAlongWalls(hero: Hero): void {
+  const m = HERO.ranged.wallSlide;
+  const v = hero.vel;
+  if (v.x === 0 && v.y === 0) return;
+  const cx = ARENA.x + ARENA.w / 2;
+  const cy = ARENA.y + ARENA.h / 2;
+  const nearX = hero.pos.x < ARENA.x + m || hero.pos.x > ARENA.x + ARENA.w - m;
+  const nearY = hero.pos.y < ARENA.y + m || hero.pos.y > ARENA.y + ARENA.h - m;
+  const speed = Math.hypot(v.x, v.y);
+  if (nearX && Math.sign(v.x) === Math.sign(hero.pos.x - cx)) {
+    v.x = 0;
+    v.y = (Math.sign(v.y) || Math.sign(cy - hero.pos.y) || 1) * speed;
+  }
+  if (nearY && Math.sign(v.y) === Math.sign(hero.pos.y - cy)) {
+    v.y = 0;
+    v.x = (Math.sign(v.x) || Math.sign(cx - hero.pos.x) || 1) * speed;
+  }
 }
 
 function tryShoot(b: Battle, hero: Hero, target: Enemy): void {
@@ -296,7 +334,13 @@ function startStomp(b: Battle, e: Enemy, def: EnemyDef): void {
   const st = def.stomp!;
   e.attackTimer = def.attackInterval;
   e.windup = st.delay;
-  const t = addTelegraph(b, 'stomp', e.pos, e.radius + st.reach, e.damage * st.damage, st.delay);
+  // A crippling tank (Bogman) also slows the hero its stomp catches.
+  const cripple = def.cripple;
+  const t = addTelegraph(b, 'stomp', e.pos, e.radius + st.reach, e.damage * st.damage, st.delay, cripple
+    ? () => {
+        if (telegraphContains(t, b.hero.pos, b.hero.radius * 0.5)) debuffHero(b, 'slow', cripple.time, cripple.slow);
+      }
+    : undefined);
   t.ownerId = e.id;
 }
 

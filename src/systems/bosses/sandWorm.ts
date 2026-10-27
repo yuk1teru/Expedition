@@ -52,4 +52,8 @@ registerBoss('sandWorm', {
       b.events.emit({ type: 'bossShout', text: 'Піщана буря!', pos: { ...boss.pos } });
     },
   },
+  canUse: {
+    // Up close the globs would all hit at once: spits only at range.
+    acid: (b, boss, p) => dist(b.hero.pos, boss.pos) >= p.minRange!,
+  },
 });

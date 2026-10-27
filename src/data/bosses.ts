@@ -55,7 +55,7 @@ export const BOSSES: Record<string, BossDef> = {
     id: 'enat',
     name: 'Старий Енат',
     biome: 'forest',
-    hp: 3000,
+    hp: 3450,
     damage: 32,
     armor: 15,
     speed: 34,
@@ -216,7 +216,7 @@ export const BOSSES: Record<string, BossDef> = {
     id: 'sandWorm',
     name: 'Піщаний Хробак',
     biome: 'desert',
-    hp: 3000,
+    hp: 3450,
     damage: 30,
     armor: 10,
     speed: 40,
@@ -228,6 +228,7 @@ export const BOSSES: Record<string, BossDef> = {
     telegraphDelay: 0.8,
     minPause: 1.2,
     phase2: { hpFraction: 0.5, speedMult: 1.25 },
+    melee: { damage: 0.12, interval: 1.4, reach: 8 },
     attacks: [
       {
         id: 'burrow',
@@ -237,8 +238,8 @@ export const BOSSES: Record<string, BossDef> = {
         initialCooldown: 3,
         // Hides for `hideTime` s (untouchable), a circle of `radius` under the hero, then bursts out of it.
         params: [
-          { hideTime: 1.5, radius: 90, damage: 1.4 },
-          { hideTime: 1.2, radius: 90, damage: 1.4 },
+          { hideTime: 1.5, radius: 80, damage: 1.2 },
+          { hideTime: 1.2, radius: 80, damage: 1.2 },
         ],
       },
       {
@@ -247,10 +248,10 @@ export const BOSSES: Record<string, BossDef> = {
         phases: [1, 2],
         cooldown: [4, 3.5],
         initialCooldown: 1.5,
-        // `count` globs in a fan; each leaves an acid puddle where it lands (and where it hits the hero).
+        // `count` globs in a fan (only at range ≥ `minRange`); each leaves an acid puddle where it lands (and where it hits the hero).
         params: [
-          { count: 3, spreadDeg: 22, speed: 300, range: 420, damage: 0.6, puddleRadius: 45, puddleTime: 3, puddleDps: 0.25 },
-          { count: 3, spreadDeg: 22, speed: 320, range: 420, damage: 0.6, puddleRadius: 45, puddleTime: 3, puddleDps: 0.25 },
+          { count: 3, spreadDeg: 22, speed: 300, range: 420, minRange: 150, damage: 0.45, puddleRadius: 45, puddleTime: 3, puddleDps: 0.1 },
+          { count: 3, spreadDeg: 22, speed: 320, range: 420, minRange: 150, damage: 0.45, puddleRadius: 45, puddleTime: 3, puddleDps: 0.1 },
         ],
       },
       {
@@ -271,9 +272,9 @@ export const BOSSES: Record<string, BossDef> = {
     name: 'Королівський скорпіон',
     biome: 'desert',
     miniboss: true,
-    hp: 200,
+    hp: 190,
     damage: 3.5,
-    armor: 8,
+    armor: 6,
     speed: 75,
     radius: 20,
     mass: 6,
@@ -303,8 +304,8 @@ export const BOSSES: Record<string, BossDef> = {
         cooldown: [6, 6],
         initialCooldown: 3,
         params: [
-          { radius: 95, trigger: 80, damage: 3 },
-          { radius: 95, trigger: 80, damage: 3 },
+          { radius: 95, trigger: 80, damage: 2.5 },
+          { radius: 95, trigger: 80, damage: 2.5 },
         ],
       },
       {
@@ -327,7 +328,7 @@ export const BOSSES: Record<string, BossDef> = {
     id: 'poisonMother',
     name: 'Отруйна Мати',
     biome: 'swamp',
-    hp: 3200,
+    hp: 3700,
     damage: 28,
     armor: 8,
     speed: 32,
@@ -339,6 +340,7 @@ export const BOSSES: Record<string, BossDef> = {
     telegraphDelay: 0.8,
     minPause: 1.2,
     phase2: { hpFraction: 0.5, speedMult: 1.3 },
+    melee: { damage: 0.12, interval: 1.5, reach: 8 },
     attacks: [
       {
         id: 'puddles',
@@ -348,8 +350,8 @@ export const BOSSES: Record<string, BossDef> = {
         initialCooldown: 2,
         // `count` globs along an arc of `arcDeg` around the hero; poison puddles for `puddleTime` s.
         params: [
-          { count: 4, arcDeg: 70, speed: 260, range: 360, damage: 0.5, puddleRadius: 55, puddleTime: 6, puddleDps: 0.3 },
-          { count: 5, arcDeg: 90, speed: 280, range: 380, damage: 0.5, puddleRadius: 55, puddleTime: 6, puddleDps: 0.3 },
+          { count: 4, arcDeg: 70, speed: 260, range: 360, minRange: 130, damage: 0.4, puddleRadius: 55, puddleTime: 6, puddleDps: 0.12 },
+          { count: 5, arcDeg: 90, speed: 280, range: 380, minRange: 130, damage: 0.4, puddleRadius: 55, puddleTime: 6, puddleDps: 0.12 },
         ],
       },
       {
@@ -373,8 +375,8 @@ export const BOSSES: Record<string, BossDef> = {
         initialCooldown: 0,
         // A ring growing from the boss: walking away is too slow — dodge with a skill (dash, teleport) or invulnerability.
         params: [
-          { speed: 230, width: 26, damage: 1.5, maxRadius: 760 },
-          { speed: 230, width: 26, damage: 1.5, maxRadius: 760 },
+          { speed: 230, width: 26, damage: 0.7, maxRadius: 760 },
+          { speed: 230, width: 26, damage: 0.7, maxRadius: 760 },
         ],
       },
     ],
@@ -384,7 +386,7 @@ export const BOSSES: Record<string, BossDef> = {
     name: 'Стара Жаба',
     biome: 'swamp',
     miniboss: true,
-    hp: 210,
+    hp: 190,
     damage: 3.5,
     armor: 4,
     speed: 70,
@@ -416,8 +418,8 @@ export const BOSSES: Record<string, BossDef> = {
         initialCooldown: 3,
         // Line telegraph towards the hero; a hit pulls the hero `pull` px towards the toad.
         params: [
-          { length: 300, width: 30, damage: 2.5, pull: 140, minRange: 60 },
-          { length: 300, width: 30, damage: 2.5, pull: 140, minRange: 60 },
+          { length: 300, width: 30, damage: 2, pull: 140, minRange: 60 },
+          { length: 300, width: 30, damage: 2, pull: 140, minRange: 60 },
         ],
       },
       {
@@ -442,7 +444,7 @@ export const BOSSES: Record<string, BossDef> = {
     biome: 'ice',
     hp: 3100,
     damage: 32,
-    armor: 20,
+    armor: 14,
     speed: 45,
     radius: 32,
     mass: 30,
@@ -452,7 +454,7 @@ export const BOSSES: Record<string, BossDef> = {
     telegraphDelay: 1,
     minPause: 1.2,
     phase2: { hpFraction: 0.5, speedMult: 1.2 },
-    melee: { damage: 1, interval: 1.5, reach: 8 },
+    melee: { damage: 0.12, interval: 1.5, reach: 8 },
     /** Phase 2: everything around the knight slows the hero. */
     coldAura: { radius: 200, slow: 0.25, phase: 2 },
     attacks: [
@@ -477,8 +479,8 @@ export const BOSSES: Record<string, BossDef> = {
         initialCooldown: 4,
         // A ring of ice spikes grows from the knight with `gaps` openings of `gapDeg` — step into a gap.
         params: [
-          { speed: 180, width: 22, damage: 1.2, gaps: 2, gapDeg: 34, maxRadius: 760 },
-          { speed: 200, width: 22, damage: 1.2, gaps: 2, gapDeg: 30, maxRadius: 760 },
+          { speed: 180, width: 22, damage: 0.6, gaps: 2, gapDeg: 34, maxRadius: 760 },
+          { speed: 200, width: 22, damage: 0.6, gaps: 2, gapDeg: 30, maxRadius: 760 },
         ],
       },
     ],
@@ -488,9 +490,9 @@ export const BOSSES: Record<string, BossDef> = {
     name: 'Морозний вартовий',
     biome: 'ice',
     miniboss: true,
-    hp: 220,
+    hp: 200,
     damage: 3.5,
-    armor: 15,
+    armor: 8,
     speed: 60,
     radius: 22,
     mass: 7,
@@ -508,30 +510,30 @@ export const BOSSES: Record<string, BossDef> = {
         cooldown: [5, 5],
         initialCooldown: 2,
         params: [
-          { count: 3, radius: 44, spreadMin: 60, spread: 120, damage: 2.5 },
-          { count: 3, radius: 44, spreadMin: 60, spread: 120, damage: 2.5 },
+          { count: 3, radius: 44, spreadMin: 60, spread: 120, damage: 2 },
+          { count: 3, radius: 44, spreadMin: 60, spread: 120, damage: 2 },
         ],
       },
       {
         id: 'shardVolley',
         weight: 2,
         phases: [1],
-        cooldown: [4, 4],
+        cooldown: [5, 5],
         initialCooldown: 3,
         params: [
-          { count: 5, spreadDeg: 14, speed: 330, range: 460, damage: 0.8, slow: 0.3, slowTime: 1.5 },
-          { count: 5, spreadDeg: 14, speed: 330, range: 460, damage: 0.8, slow: 0.3, slowTime: 1.5 },
+          { count: 3, spreadDeg: 16, speed: 330, range: 460, damage: 0.6, slow: 0.2, slowTime: 1.2 },
+          { count: 3, spreadDeg: 16, speed: 330, range: 460, damage: 0.6, slow: 0.2, slowTime: 1.2 },
         ],
       },
       {
         id: 'frostNova',
         weight: 2,
         phases: [1],
-        cooldown: [7, 7],
+        cooldown: [8, 8],
         initialCooldown: 4,
         params: [
-          { radius: 110, trigger: 90, damage: 2.5 },
-          { radius: 110, trigger: 90, damage: 2.5 },
+          { radius: 110, trigger: 90, damage: 2 },
+          { radius: 110, trigger: 90, damage: 2 },
         ],
       },
     ],

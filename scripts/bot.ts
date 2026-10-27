@@ -13,7 +13,7 @@ import { useHealItem } from '../src/systems/pickups';
 import { HEAL_ORDER } from '../src/data/consumables';
 import { enterPortal } from '../src/systems/waves';
 import { telegraphContains } from '../src/systems/boss';
-import { normalize } from '../src/systems/entities';
+import { dist, normalize } from '../src/systems/entities';
 
 export interface BotOptions {
   useSkills: boolean;
@@ -51,14 +51,31 @@ export function useReadySkills(b: Battle): void {
   for (const s of b.hero.skills) if (s.cooldown <= 0) useSkill(b, s.slot);
 }
 
-/** Steps out of red telegraph circles (away from their centres); otherwise lets the AI walk. */
+/** Steps out of red telegraph circles and boss puddles (away from their centres); otherwise lets the AI walk. */
 export function dodgeTelegraphs(b: Battle): void {
   const hero = b.hero;
   let x = 0;
   let y = 0;
   for (const t of b.telegraphs) {
     if (t.dead || !telegraphContains(t, hero.pos, hero.radius)) continue;
+    if (t.shape.kind === 'line') {
+      // Out of a line sideways, to the side the hero is already on.
+      const ax = t.shape.to.x - t.pos.x;
+      const ay = t.shape.to.y - t.pos.y;
+      const side = Math.sign(ax * (hero.pos.y - t.pos.y) - ay * (hero.pos.x - t.pos.x)) || 1;
+      const n = normalize({ x: -ay * side, y: ax * side });
+      x += n.x;
+      y += n.y;
+      continue;
+    }
     const d = normalize({ x: hero.pos.x - t.pos.x, y: hero.pos.y - t.pos.y });
+    x += d.x || 1;
+    y += d.y;
+  }
+  // Puddles too: a player walks out of acid and poison.
+  for (const h of b.hazards) {
+    if (h.dead || h.ring || dist(hero.pos, h.pos) > h.radius + hero.radius) continue;
+    const d = normalize({ x: hero.pos.x - h.pos.x, y: hero.pos.y - h.pos.y });
     x += d.x || 1;
     y += d.y;
   }

@@ -252,13 +252,12 @@ export function updateHeroHealing(b: Battle, dt: number): void {
   b.poisonAcc = 0;
 }
 
-/** Poison on the hero: silent HP loss, summed into a popup; it counts as being hit (pauses regen). */
+/** Poison on the hero: silent HP loss, summed into a popup (it does not pause regen like a hit). */
 function poisonHero(b: Battle, amount: number): void {
   const hero = b.hero;
   if (hero.dead || hero.invulnerable > 0 || amount <= 0) return;
   if (hero.immortal) amount = Math.min(amount, Math.max(0, hero.hp - 1));
   hero.hp -= amount;
-  hero.hitAt = b.time;
   b.stats.damageTaken += amount;
   b.poisonAcc += amount;
   if (hero.hp <= 0) {

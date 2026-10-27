@@ -20,7 +20,7 @@ import { nearestEnemy } from './targeting';
 import { blast, updateBuffs, updateDash, updateZones } from './effects';
 import type { Item } from './items';
 import type { GameEvent } from './gameEvents';
-import { type MapNode, getNode } from './mapgen';
+import { type MapNode, effectiveTier, getNode } from './mapgen';
 import { type Trap, updateTraps } from './traps';
 import { type WaveState, createWaves, updateWaves } from './waves';
 import { type WeatherState, updateWeather } from './weather';
@@ -112,7 +112,7 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0): B
   const b: Battle = {
     state,
     node,
-    tier: node.tier,
+    tier: effectiveTier(state.world, node, state.bossesDefeated.length),
     biome: getBiome(node.biome),
     kind: node.isBoss ? 'boss' : 'waves',
     rng: state.rng.fork(`battle-${state.battleCount}`),

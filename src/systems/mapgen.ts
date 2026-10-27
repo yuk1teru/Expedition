@@ -285,6 +285,16 @@ export function resetClears(node: MapNode): void {
   if (node.growsOnClear) node.tier = sliceGroveTier(0);
 }
 
+/**
+ * Tier a location fights at: its own tier plus the boss threat (every boss defeated in
+ * the full world makes what is left harder).
+ */
+export function effectiveTier(world: World, node: MapNode, bossesDefeated: number): number {
+  if (world.kind !== 'full' || node.isTown) return node.tier;
+  const t = WORLD.bossThreat;
+  return node.tier + bossesDefeated * (node.isBoss ? t.bossTier : t.locationTier);
+}
+
 export function recommendedLevel(tier: number): number {
   return Math.round(tier * SCALING.recommendedLevelPerTier);
 }

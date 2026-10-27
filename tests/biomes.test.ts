@@ -83,9 +83,14 @@ describe('enemy traits', () => {
   it('Snowman snowballs slow; Ice Golem has +20 armor over the Stump', () => {
     const b = battleIn('ice');
     const sm = spawnEnemy(b, 'snowman', { x: b.hero.pos.x + 150, y: b.hero.pos.y });
+    sm.hp = sm.maxHp = 1e6;
     sm.attackTimer = 0;
-    run(b, 1.2);
-    expect(b.hero.statuses.slow?.time ?? 0).toBeGreaterThan(0);
+    let slowed = 0;
+    for (let t = 0; t < 1.5; t += LOOP.step) {
+      stepBattle(b, LOOP.step);
+      slowed = Math.max(slowed, b.hero.statuses.slow?.value ?? 0);
+    }
+    expect(slowed).toBeGreaterThan(0);
     expect(ENEMIES.iceGolem!.armor - ENEMIES.stump!.armor).toBe(20);
   });
 });

@@ -43,4 +43,8 @@ registerBoss('poisonMother', {
       b.events.emit({ type: 'bossShout', text: 'Токсична хвиля!', pos: { ...boss.pos } });
     },
   },
+  canUse: {
+    // Up close the globs would all hit at once: spits only at range.
+    puddles: (b, boss, p) => dist(b.hero.pos, boss.pos) >= p.minRange!,
+  },
 });
