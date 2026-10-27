@@ -27,6 +27,8 @@ export const GAME_KEYS = [
   'Digit2',
   'Digit3',
   'Digit4',
+  'Digit5',
+  'KeyF',
   'Space',
   'Escape',
   'Backquote',

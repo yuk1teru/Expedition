@@ -162,8 +162,9 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
         app.loop.paused = !app.loop.paused;
         confirmUntil = 0;
       }
-      else if (/^Digit[1-4]$/.test(e.code) && battle && !app.loop.paused) hud.useSlot(Number(e.code.slice(5)) - 1);
+      else if (/^Digit[1-5]$/.test(e.code) && battle && !app.loop.paused) hud.useSlot(Number(e.code.slice(5)) - 1);
       else if (e.code === 'KeyR' && battle && !app.loop.paused) hud.useSlot(PROGRESSION.signatureSlot);
+      else if (e.code === 'KeyF' && battle && !app.loop.paused) hud.useSlot(PROGRESSION.branchSlot2);
     },
 
     render(ctx) {

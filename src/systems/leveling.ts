@@ -4,6 +4,7 @@ import { HERO, PROGRESSION } from '../data/balance';
 import type { GameState } from '../core/state';
 import { recomputeHeroStats } from './hero';
 import { xpToNext } from './scaling';
+import { levelPoints } from './talents';
 
 export function isMaxLevel(level: number): boolean {
   return level >= PROGRESSION.maxLevel;
@@ -39,14 +40,10 @@ export function levelUp(state: GameState): void {
     hp: HERO.perLevel.hp,
     attack: HERO.perLevel.attack,
   });
-  if (hero.level === PROGRESSION.classChoiceLevel) {
-    state.modalQueue.push({ kind: 'classChoice' });
-  } else if (hero.level === PROGRESSION.promotionLevel) {
-    // The promotion replaces this level's card.
-    state.modalQueue.push({ kind: 'promotion' });
-  } else if (hero.level > PROGRESSION.classChoiceLevel && (hero.level - PROGRESSION.classChoiceLevel) % PROGRESSION.cardEvery === 0) {
-    state.modalQueue.push({ kind: 'cardChoice', level: hero.level });
-  }
+  // Talent points (ROADMAP 12.1): the tree is where they go.
+  state.talentPoints += levelPoints(hero.level);
+  if (hero.level === PROGRESSION.classChoiceLevel) state.modalQueue.push({ kind: 'classChoice' });
+  else if (hero.level === PROGRESSION.promotionLevel) state.modalQueue.push({ kind: 'promotion' });
 }
 
 /** Debug: exactly one level up (keeps XP progress). */

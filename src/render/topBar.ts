@@ -44,5 +44,13 @@ export function drawTopBar(ctx: CanvasRenderingContext2D, state: GameState, widt
     x += lw + 6 + ctx.measureText(value).width + 26;
   }
   drawText(ctx, `v${GAME_VERSION}`, width - 16, y, { size: 13, color: THEME.textMuted, align: 'right' });
+  // Unspent talent points: the tree is one key away.
+  if (state.talentPoints > 0 && state.hero.classId) {
+    const blink = 0.6 + 0.4 * Math.sin(time * 4);
+    ctx.save();
+    ctx.globalAlpha = blink;
+    drawText(ctx, `Очки таланту: ${state.talentPoints} (T)`, width - 90, y, { size: 13, bold: true, color: THEME.accent, align: 'right' });
+    ctx.restore();
+  }
   if (hasNewItems(state.hero)) drawNewItemHint(ctx, width - 150, y, time, 'right');
 }

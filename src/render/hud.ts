@@ -60,7 +60,7 @@ const SIGNATURE_GAP = 8;
 
 /** Key shown on a skill-bar slot. */
 function slotKey(i: number): string {
-  return i === PROGRESSION.signatureSlot ? 'R' : String(i + 1);
+  return i === PROGRESSION.signatureSlot ? 'R' : i === PROGRESSION.branchSlot2 ? 'F' : String(i + 1);
 }
 
 export function createHud(app: App, _fx: Fx): Hud {
@@ -87,8 +87,8 @@ export function createHud(app: App, _fx: Fx): Hud {
   });
   const skipGroup = new ButtonGroup([skipBtn]);
   const slots: Rect[] = [];
-  // Class slots 1–4, then (a little apart) the promotion signature slot R.
-  const n = PROGRESSION.signatureSlot + 1;
+  // Class slots 1–5, then (a little apart) the branch slots R and F.
+  const n = PROGRESSION.branchSlot2 + 1;
   const total = n * SLOT + (n - 1) * SLOT_GAP + SIGNATURE_GAP;
   const barY = ARENA.y + ARENA.h + XP_BAR.top + XP_BAR.h + 6;
   for (let i = 0; i < n; i++) {
@@ -383,9 +383,9 @@ function drawSkillBar(ctx: CanvasRenderingContext2D, b: Battle, slots: Rect[], n
   slots.forEach((r, i) => {
     const s = skillInSlot(hero, i);
     // The signature slot appears only after the promotion.
-    if (!s && i === PROGRESSION.signatureSlot) return;
+    if (!s && i >= PROGRESSION.signatureSlot) return;
     roundRect(ctx, r.x, r.y, r.w, r.h, 10);
-    ctx.fillStyle = s ? (i === PROGRESSION.signatureSlot ? '#3a2f22' : '#232a3b') : 'rgba(35, 42, 59, 0.4)';
+    ctx.fillStyle = s ? (i >= PROGRESSION.signatureSlot ? '#3a2f22' : '#232a3b') : 'rgba(35, 42, 59, 0.4)';
     ctx.fill();
     if (!s) {
       ctx.setLineDash([4, 4]);
@@ -425,7 +425,7 @@ function drawSkillBar(ctx: CanvasRenderingContext2D, b: Battle, slots: Rect[], n
     ctx.strokeStyle = nt > 0 ? THEME.bad : ready ? THEME.accent : THEME.panelBorder;
     ctx.stroke();
     // Key and rank dots.
-    drawText(ctx, slotKey(i), r.x + 8, r.y + 10, { size: 11, bold: true, color: i === PROGRESSION.signatureSlot ? THEME.accent : THEME.textDim });
+    drawText(ctx, slotKey(i), r.x + 8, r.y + 10, { size: 11, bold: true, color: i >= PROGRESSION.signatureSlot ? THEME.accent : THEME.textDim });
     drawRankDots(ctx, r.x + r.w / 2, r.y + r.h - 6, s.rank, 7, 2.5);
     if (nt > 0) {
       ctx.globalAlpha = Math.min(1, nt / (FX.noTargetFlash * 0.5));

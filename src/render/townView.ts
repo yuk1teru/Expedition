@@ -263,6 +263,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
       });
       drawTopBar(ctx, state, W, app.totalBosses(), app.time);
       if (hasNewItems(state.hero)) app.hint('loot');
+      if (state.talentPoints > 0 && state.hero.classId) app.hint('tree');
     },
   };
 }

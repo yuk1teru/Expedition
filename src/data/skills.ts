@@ -55,6 +55,14 @@ export interface SkillUpgrade {
   text?: string;
 }
 
+/** One of the two variants of a fork rank (ROADMAP 12.3): its own parameters and maybe an element. */
+export interface SkillFork {
+  name: string;
+  text: string;
+  set: SkillParams;
+  element?: Element;
+}
+
 export interface SkillDef {
   id: string;
   name: string;
@@ -72,6 +80,11 @@ export interface SkillDef {
   description: string;
   /** Upgrades for ranks 2..RANKS.max. */
   upgrades: SkillUpgrade[];
+  /**
+   * Forks: at these ranks the player picks one of two variants instead of the plain upgrade
+   * (the first variant is the plain one, maybe with an element).
+   */
+  forks?: { rank: 3 | 5; options: [SkillFork, SkillFork] }[];
   /** Params per rank: index 0 → rank 1. */
   ranks: SkillParams[];
 }
@@ -93,6 +106,15 @@ export const SKILLS: Record<string, SkillDef> = {
     icon: 'whirl',
     description: 'Герой крутиться {duration} с і кожні {tick} с б’є всіх ворогів у радіусі {radius} px на {damage%} своєї атаки.',
     base: { cooldown: 8, duration: 1.5, tick: 0.25, damage: 0.6, radius: 90, castRange: 150, pull: 0, guard: 0 },
+    forks: [
+      {
+        rank: 3,
+        options: [
+          { name: 'Вихор бурі', text: 'Стає Вітром і притягує ворогів до центру.', set: { pull: 240 }, element: 'wind' },
+          { name: 'Сталевий вихор', text: 'Без притягування, зате б’є сильніше.', set: { damage: 0.95 } },
+        ],
+      },
+    ],
     upgrades: [
       { set: { damage: 0.72 } },
       { set: { pull: 240 }, text: 'Притягує ворогів до центру.' },
@@ -177,6 +199,15 @@ export const SKILLS: Record<string, SkillDef> = {
     icon: 'axe',
     description: 'Сокира летить до курсора на {range} px: {damage%} атаки героя кожному, кого зачепить; пролітає крізь {pierce} ворогів.',
     base: { cooldown: 6, damage: 1.8, range: 420, speed: 520, radius: 10, pierce: 2, count: 1, spreadDeg: 18 },
+    forks: [
+      {
+        rank: 3,
+        options: [
+          { name: 'Крижана сокира', text: 'Сокира з льоду: Вода, пробиває всіх на шляху.', set: { pierce: 99 }, element: 'water' },
+          { name: 'Дві сокири', text: 'Дві сокири віялом.', set: { count: 2 } },
+        ],
+      },
+    ],
     upgrades: [
       { set: { damage: 2.2 } },
       { set: { pierce: 99 }, text: 'Пробиває всіх ворогів на шляху.' },
@@ -208,6 +239,15 @@ export const SKILLS: Record<string, SkillDef> = {
     icon: 'quake',
     description: '{pulses} поштовхи раз на 1 с навколо героя (радіус {radius} px): {damage%} атаки героя й сповільнення ворогів на {slow%}.',
     base: { cooldown: 12, radius: 110, castRange: 130, pulses: 3, interval: 1, damage: 0.6, slow: 0.25, slowTime: 0.8, stun: 0 },
+    forks: [
+      {
+        rank: 5,
+        options: [
+          { name: 'Вогняний розлам', text: 'Земля розколюється вогнем: Вогонь, поштовхи оглушують на 0.3 с.', set: { stun: 0.3 }, element: 'fire' },
+          { name: 'Глибокий розлам', text: 'Земля, поштовхи оглушують на 0.6 с.', set: { stun: 0.6 } },
+        ],
+      },
+    ],
     upgrades: [
       { set: { damage: 0.75 } },
       { set: { pulses: 4 } },
@@ -277,6 +317,15 @@ export const SKILLS: Record<string, SkillDef> = {
     icon: 'chain',
     description: 'Блискавка б’є ворога біля курсора (до {range} px від героя) і перескакує між {jumps} ворогами: {damage%} атаки героя, −15% за кожен стрибок.',
     base: { cooldown: 6, range: 340, jumps: 4, jumpRange: 160, damage: 1.2, falloff: 0.15, stun: 0 },
+    forks: [
+      {
+        rank: 5,
+        options: [
+          { name: 'Розряд', text: 'Кожне влучання оглушує на 0.4 с.', set: { stun: 0.4 } },
+          { name: 'Буря', text: 'Ланцюг із 10 ворогів.', set: { jumps: 10 } },
+        ],
+      },
+    ],
     upgrades: [
       { set: { damage: 1.45 } },
       { set: { jumps: 7 }, text: 'Ланцюг із 7 ворогів.' },
@@ -310,6 +359,15 @@ export const SKILLS: Record<string, SkillDef> = {
     icon: 'missiles',
     description: '{count} магічні стріли летять у ворогів, найближчих до курсора: по {damage%} атаки героя.',
     base: { cooldown: 4, count: 3, damage: 0.8, speed: 620, range: 420, ricochet: 0 },
+    forks: [
+      {
+        rank: 3,
+        options: [
+          { name: 'Вогняні стріли', text: 'П’ять стріл Вогню.', set: { count: 5 }, element: 'fire' },
+          { name: 'Крижані стріли', text: 'П’ять стріл Води.', set: { count: 5 }, element: 'water' },
+        ],
+      },
+    ],
     upgrades: [
       { set: { damage: 1 } },
       { set: { count: 5 }, text: 'П’ять стріл.' },
@@ -770,15 +828,29 @@ export function getPassive(id: string): PassiveDef {
 }
 
 /** Params for a rank (1..RANKS.max). */
-export function skillParams(id: string, rank: number): SkillParams {
+/** Params of a skill at a rank; `forks`: the variant chosen at each fork rank (default — the first). */
+export function skillParams(id: string, rank: number, forks?: Record<number, number>): SkillParams {
   const def = getSkill(id);
-  const idx = Math.max(1, Math.min(RANKS.max, rank)) - 1;
-  return def.ranks[idx] as SkillParams;
+  const top = Math.max(1, Math.min(RANKS.max, rank));
+  if (!def.forks || !forks) return def.ranks[top - 1] as SkillParams;
+  let p: SkillParams = { ...def.ranks[0] };
+  for (let r = 2; r <= top; r++) {
+    const fork = def.forks.find((f) => f.rank === r);
+    p = { ...p, ...(fork ? fork.options[forks[r] ?? 0]!.set : def.upgrades[r - 2]!.set) };
+  }
+  return p;
+}
+
+/** The fork variant chosen at a rank, if the skill forks there and the hero has reached it. */
+export function chosenFork(id: string, rank: number, forks: Record<number, number> | undefined, at: 3 | 5): SkillFork | null {
+  const fork = getSkill(id).forks?.find((f) => f.rank === at);
+  if (!fork || rank < at) return null;
+  return fork.options[forks?.[at] ?? 0]!;
 }
 
 /** Fills {param} and {param%} placeholders. */
-export function describeSkill(id: string, rank: number): string {
-  const p = skillParams(id, rank);
+export function describeSkill(id: string, rank: number, forks?: Record<number, number>): string {
+  const p = skillParams(id, rank, forks);
   return getSkill(id).description.replace(/\{(\w+)(%?)\}/g, (_m, key: string, pct: string) => {
     const v = p[key];
     if (v === undefined) return key;

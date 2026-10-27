@@ -1,11 +1,12 @@
 // Hero creation and derived stats.
 
+import { TALENT_TREES } from '../data/talents';
 import type { SkillDef } from '../data/skills';
 import type { Element } from '../data/elements';
 import { HERO, PROGRESSION } from '../data/balance';
 import { type BasicAttackDef, NOVICE_ATTACK, getClass } from '../data/classes';
 import { getPromotion } from '../data/promotions';
-import { getPassive } from '../data/skills';
+import { getPassive, chosenFork } from '../data/skills';
 import type { Hero, HeroSkill, HeroStats } from './entities';
 import { equippedStat } from './items';
 
@@ -48,6 +49,8 @@ export function createHero(id: number): Hero {
     companionTimer: 0,
     mana: 0,
     arrowElement: 'neutral',
+    arrows: [],
+    freeSkills: [],
   };
   recomputeHeroStats(hero);
   hero.hp = hero.maxHp;
@@ -86,9 +89,11 @@ export function basicElement(hero: Hero): Element {
   return hero.classId === 'archer' ? hero.arrowElement : 'neutral';
 }
 
-/** Element of a skill's damage for this hero ('arrows' — the arrows in use). */
+/** Element of a skill's damage for this hero ('arrows' — the arrows in use; a fork may change it). */
 export function skillElement(hero: Hero, def: SkillDef): Element {
-  const e = def.element ?? 'neutral';
+  const s = hero.skills.find((x) => x.id === def.id);
+  const fork = s ? (chosenFork(def.id, s.rank, s.forks, 5)?.element ?? chosenFork(def.id, s.rank, s.forks, 3)?.element) : undefined;
+  const e = fork ?? def.element ?? 'neutral';
   return e === 'arrows' ? hero.arrowElement : e;
 }
 
@@ -96,16 +101,18 @@ export function basicAttackOf(hero: Hero): BasicAttackDef {
   return hero.classId ? getClass(hero.classId).basicAttack : NOVICE_ATTACK;
 }
 
-/** Level-3 class choice: sets the class and grants the picked skills (slots in pick order). */
+/** The class choice (level 3): the class and its free starting skills — from the first row of its tree. */
 export function assignClass(hero: Hero, classId: string, picks?: string[]): void {
   const c = getClass(classId);
   if (c.locked) throw new Error(`Class ${classId} is locked`);
+  const row1 = TALENT_TREES[classId]?.[0]?.skills ?? [];
   const chosen = picks ?? c.defaultPicks;
-  if (chosen.length !== PROGRESSION.startingSkillPicks || new Set(chosen).size !== chosen.length || !chosen.every((id) => c.skills.includes(id))) {
-    throw new Error(`Pick ${PROGRESSION.startingSkillPicks} different ${classId} skills`);
+  if (chosen.length !== PROGRESSION.startingSkillPicks || new Set(chosen).size !== chosen.length || !chosen.every((id) => row1.includes(id))) {
+    throw new Error(`Pick ${PROGRESSION.startingSkillPicks} different ${classId} skills of the first row`);
   }
   hero.classId = c.id;
   hero.skills = chosen.map((id, slot) => ({ id, rank: 1, cooldown: 0, slot }));
+  hero.freeSkills = [...chosen];
   recomputeHeroStats(hero);
 }
 

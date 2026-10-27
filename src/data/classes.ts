@@ -90,7 +90,7 @@ export const CLASSES: Record<string, ClassDef> = {
     skillDamageMult: 1,
     ranged: false,
     range: 40,
-    defaultPicks: ['whirlwind', 'charge', 'groundSlam'],
+    defaultPicks: ['whirlwind', 'charge'],
     skills: ['whirlwind', 'charge', 'battleCry', 'groundSlam', 'axeThrow', 'ironSkin', 'earthquake', 'hook'],
     passives: ['armor', 'vampirism', 'fervor'],
     basicAttack: {
@@ -115,7 +115,7 @@ export const CLASSES: Record<string, ClassDef> = {
     skillDamageMult: 1.25,
     ranged: true,
     range: 260,
-    defaultPicks: ['fireball', 'frostRing', 'iceBarrier'],
+    defaultPicks: ['fireball', 'frostRing'],
     skills: ['fireball', 'frostRing', 'chainLightning', 'teleport', 'magicMissiles', 'iceBarrier', 'flameWall', 'vortex'],
     passives: ['spellPower', 'focus', 'arcaneBarrier'],
     basicAttack: {
@@ -145,7 +145,7 @@ export const CLASSES: Record<string, ClassDef> = {
     skillDamageMult: 1,
     ranged: true,
     range: 300,
-    defaultPicks: ['multishot', 'arrowRain', 'piercingShot'],
+    defaultPicks: ['multishot', 'arrowRain'],
     skills: ['multishot', 'hunterTrap', 'arrowRain', 'vault', 'piercingShot', 'hunterMark', 'net', 'barrage'],
     passives: ['precision', 'agility', 'piercing'],
     basicAttack: {

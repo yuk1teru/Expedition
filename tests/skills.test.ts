@@ -1,3 +1,4 @@
+import { withSkills } from './helpers';
 import { describe, expect, it } from 'vitest';
 import { RANKS } from '../src/data/balance';
 import { PASSIVES, SKILLS, rankChanges, skillParams } from '../src/data/skills';
@@ -5,7 +6,7 @@ import { killEnemy } from '../src/systems/combat';
 import { dist } from '../src/systems/entities';
 import { createBattle, stepBattle } from '../src/systems/battle';
 import { createBossEnemy } from '../src/systems/boss';
-import { assignClass, recomputeHeroStats } from '../src/systems/hero';
+import { recomputeHeroStats } from '../src/systems/hero';
 import { createGameState, teleport } from '../src/systems/run';
 import { useBootDash, useSkill } from '../src/systems/skills';
 import { BOOT_DASH } from '../src/data/items';
@@ -17,7 +18,7 @@ function battle(skills: string[]) {
   const s = createGameState(3);
   s.hero.immortal = true;
   s.hero.level = 3;
-  assignClass(s.hero, 'warrior', skills);
+  withSkills(s.hero, 'warrior', skills);
   teleport(s, 'quietGrove');
   const b = createBattle(s, 'quietGrove');
   b.waves = null;

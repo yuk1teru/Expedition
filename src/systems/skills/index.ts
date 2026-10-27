@@ -36,7 +36,7 @@ export function useSkill(b: Battle, slot: number): SkillUseResult {
   if (s.cooldown > 0) return 'cooldown';
   const impl = SKILL_IMPLS[s.id];
   if (!impl) throw new Error(`No implementation for skill ${s.id}`);
-  const p = skillParams(s.id, s.rank);
+  const p = skillParams(s.id, s.rank, s.forks);
   const def = getSkill(s.id);
   if (def.moves && hasStatus(hero, 'root')) {
     b.events.emit({ type: 'noTarget', slot, reason: 'rooted' });
@@ -84,5 +84,5 @@ export function useBootDash(b: Battle): 'cast' | 'cooldown' | 'busy' | 'none' {
 export function slotCooldown(b: Battle, slot: number): number {
   const s = skillInSlot(b.hero, slot);
   if (!s) return 0;
-  return (skillParams(s.id, s.rank).cooldown ?? 0) * b.hero.stats.cooldownMult;
+  return (skillParams(s.id, s.rank, s.forks).cooldown ?? 0) * b.hero.stats.cooldownMult;
 }

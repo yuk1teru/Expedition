@@ -1,5 +1,6 @@
 import { HERO, LEVELS } from '../src/data/balance';
 import { INVASION } from '../src/data/invasion';
+import { pointsUpTo } from '../src/systems/talents';
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../src/core/rng';
 import { GOLD, PROGRESSION, SCALING } from '../src/data/balance';
@@ -102,11 +103,11 @@ describe('xp', () => {
   it('gainXp levels up several times, queues choices and respects the cap', () => {
     const s = createGameState(3);
     const to = (lv: number): number => Array.from({ length: lv - 1 }, (_, i) => xpToNext(i + 1)).reduce((a, x) => a + x, 0);
-    const card = PROGRESSION.classChoiceLevel + PROGRESSION.cardEvery;
-    gainXp(s, to(card));
-    expect(s.hero.level).toBe(card);
-    // Only the class choice and then a card every `cardEvery` levels.
-    expect(s.modalQueue).toEqual([{ kind: 'classChoice' }, { kind: 'cardChoice', level: card }]);
+    gainXp(s, to(10));
+    expect(s.hero.level).toBe(10);
+    // The class choice; the rest of the levels give talent points (no cards any more).
+    expect(s.modalQueue).toEqual([{ kind: 'classChoice' }]);
+    expect(s.talentPoints).toBe(pointsUpTo(10));
     gainXp(s, 1e9);
     expect(s.hero.level).toBe(PROGRESSION.maxLevel);
     expect(s.hero.xp).toBe(0);

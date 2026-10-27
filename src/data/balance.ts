@@ -65,12 +65,14 @@ export const HERO = {
 
 export const PROGRESSION = {
   /** Levels at which only automatic stat growth happens. */
-  autoLevelsUpTo: 4,
-  classChoiceLevel: 5,
-  /** Skills chosen from the class pool at the class choice (the rest come from cards). */
-  startingSkillPicks: 3,
+  autoLevelsUpTo: 2,
+  classChoiceLevel: 3,
+  /** Free starting skills picked at the class choice from the first row of the tree. */
+  startingSkillPicks: 2,
   /** Level of the class promotion (two branches; a signature skill on its own slot). */
-  promotionLevel: 25,
+  promotionLevel: 12,
+  /** The second stage of the specialization: the second branch skill and the full boost (ROADMAP 12.6). */
+  promotion2Level: 22,
   maxLevel: 30,
   /** A level-up card every `cardEvery` levels after the class choice (other levels: stats only). Talent points replace them (ROADMAP 12). */
   cardEvery: 2,
@@ -78,9 +80,11 @@ export const PROGRESSION = {
   xpCurve: { base: 3.3, offset: 0.5, exponent: 1.6 },
   /** XP drops to `mult` when heroLevel − location level > `levelGap`. */
   xpPenalty: { levelGap: 6, mult: 0.25 },
-  skillSlots: 4,
-  /** Skill-bar index of the promotion signature skill (key R), after the class slots. */
-  signatureSlot: 4,
+  skillSlots: 5,
+  /** Skill-bar index of the first branch skill (key R), after the class slots 1–5. */
+  signatureSlot: 5,
+  /** Skill-bar index of the second branch skill (key F). */
+  branchSlot2: 6,
   /** Branch cards (signature upgrades, branch passives) are this many times likelier after the promotion. */
   branchCardWeight: 2,
 } as const;

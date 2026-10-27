@@ -73,10 +73,9 @@ describe('promotion flow', () => {
     gainXp(s, xpToNext(P - 1));
     expect(s.modalQueue).toEqual([{ kind: 'promotion' }]);
     s.modalQueue = [];
-    let next = P + 1;
-    while ((next - PROGRESSION.classChoiceLevel) % PROGRESSION.cardEvery !== 0) next++;
-    for (let lv = P; lv < next; lv++) gainXp(s, xpToNext(lv));
-    expect(s.modalQueue).toEqual([{ kind: 'cardChoice', level: next }]);
+    // Further levels give talent points, not cards.
+    gainXp(s, xpToNext(P));
+    expect(s.modalQueue).toEqual([]);
     for (let i = 0; i < 20; i++) gainXp(s, 1e6);
     expect(s.hero.level).toBe(PROGRESSION.maxLevel);
     expect(PROGRESSION.maxLevel).toBe(30);

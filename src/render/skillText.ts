@@ -28,7 +28,7 @@ const WRAP = 62;
  * Tooltip for a skill at `rank` (0 = not learned yet): current effect, cooldown,
  * then every rank — taken (✓), next (▸) and later ones (dimmed).
  */
-export function skillTooltip(id: string, rank: number, extra: string[] = [], cooldownMult = 1): TooltipText {
+export function skillTooltip(id: string, rank: number, extra: string[] = [], cooldownMult = 1, forks?: Record<number, number>): TooltipText {
   const def = getSkill(id);
   const shown = Math.max(1, rank);
   const lines: string[] = [];
@@ -40,12 +40,22 @@ export function skillTooltip(id: string, rank: number, extra: string[] = [], coo
     }
   };
   add(rank > 0 ? `${def.name} — ранг ${rank}/${RANKS.max}` : def.name, THEME.accent);
-  add(describeSkill(id, shown));
-  add(`Перезарядка: ${((skillParams(id, shown).cooldown ?? 0) * cooldownMult).toFixed(1)} с`, THEME.textDim);
+  add(describeSkill(id, shown, forks));
+  add(`Перезарядка: ${((skillParams(id, shown, forks).cooldown ?? 0) * cooldownMult).toFixed(1)} с`, THEME.textDim);
   for (let r = 2; r <= RANKS.max; r++) {
     const taken = r <= rank;
     const next = r === rank + 1;
     const mark = taken ? '✓' : next ? '▸' : '·';
+    // A fork: the two variants (the chosen one marked).
+    const fork = def.forks?.find((f) => f.rank === r);
+    if (fork) {
+      add(`${mark} Ранг ${r} — на вибір:`, taken ? THEME.good : next ? '#e8c48a' : '#a8916a');
+      fork.options.forEach((o, i) => {
+        const chosen = taken && (forks?.[r] ?? 0) === i;
+        add(`   ${chosen ? '●' : '○'} «${o.name}»: ${o.text}`, chosen ? THEME.good : taken ? THEME.textMuted : THEME.textDim);
+      });
+      continue;
+    }
     const color = taken ? THEME.good : next ? (isSpecialRank(id, r) ? '#e8c48a' : THEME.text) : isSpecialRank(id, r) ? '#a8916a' : THEME.textMuted;
     add(`${mark} Ранг ${r}: ${rankChanges(id, r)}`, color);
   }

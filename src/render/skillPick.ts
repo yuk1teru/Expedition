@@ -1,9 +1,10 @@
-// After the class choice: pick the starting skills from the class pool (3 of 8).
+// After the class choice: pick the free starting skills from the first row of the tree (2 of 3).
 
 import type { InputEvent } from '../core/input';
 import type { Modal } from '../core/screens';
 import { PROGRESSION, RANKS } from '../data/balance';
 import { getClass } from '../data/classes';
+import { startingSkills } from '../systems/talents';
 import { describeSkillFull, getSkill } from '../data/skills';
 import type { App } from './app';
 import { drawSkillIcon } from './icons';
@@ -11,7 +12,7 @@ import { THEME, font } from './theme';
 import { skillTooltip } from './skillText';
 import { Button, ButtonGroup, type Rect, drawText, drawTooltip, fitFontSize, inRect, roundRect, wrapLines } from './ui';
 
-const COLS = 4;
+const COLS = 3;
 const CARD_W = 210;
 const CARD_H = 160;
 const GAP = 14;
@@ -24,7 +25,7 @@ function cardRect(i: number, viewW: number): Rect {
 }
 
 export function createSkillPickModal(app: App, classId: string, onDone: (picks: string[]) => void): Modal<CanvasRenderingContext2D> {
-  const c = getClass(classId);
+  const c = { ...getClass(classId), skills: startingSkills(classId) };
   const need = PROGRESSION.startingSkillPicks;
   const picks: string[] = [];
   let hovered = -1;
@@ -37,7 +38,7 @@ export function createSkillPickModal(app: App, classId: string, onDone: (picks: 
   };
   const confirm = new Button({
     label: '',
-    rect: { x: app.view.width / 2 - 150, y: TOP + 2 * (CARD_H + GAP) + 14, w: 300, h: 44 },
+    rect: { x: app.view.width / 2 - 150, y: TOP + CARD_H + GAP + 40, w: 300, h: 44 },
     hotkey: 'Enter',
     onClick: () => {
       if (picks.length === need) onDone([...picks]);
@@ -59,7 +60,7 @@ export function createSkillPickModal(app: App, classId: string, onDone: (picks: 
           toggle(i);
           return;
         }
-      } else if (e.type === 'key' && /^Digit[1-8]$/.test(e.code)) {
+      } else if (e.type === 'key' && /^Digit[1-3]$/.test(e.code)) {
         toggle(Number(e.code.slice(5)) - 1);
         return;
       }
@@ -71,7 +72,7 @@ export function createSkillPickModal(app: App, classId: string, onDone: (picks: 
       ctx.fillStyle = 'rgba(5, 6, 10, 0.82)';
       ctx.fillRect(0, 0, W, app.view.height);
       drawText(ctx, `${c.name}: оберіть ${need} скіли з ${c.skills.length}`, W / 2, 40, { size: 26, bold: true, align: 'center' });
-      drawText(ctx, `4-й скіл прийде з карток на нових рівнях · клік або 1–${c.skills.length} · обрано ${picks.length}/${need}`, W / 2, 70, {
+      drawText(ctx, `Безкоштовно. Решту скілів відкриєш у дереві талантів (T) за очки рівнів · клік або 1–${c.skills.length} · обрано ${picks.length}/${need}`, W / 2, 70, {
         size: 14,
         align: 'center',
         color: THEME.textDim,

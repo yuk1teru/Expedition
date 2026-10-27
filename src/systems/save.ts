@@ -17,7 +17,7 @@ import { type QuestLog, emptyQuestLog } from './quests';
 import { snapshot } from './run';
 
 /** Version of the save format; bump it and add a migration when the format changes. */
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export interface SaveData {
   version: number;
@@ -68,6 +68,13 @@ const MIGRATIONS: Record<number, (data: Record<string, unknown>) => Record<strin
     const level = Math.max(1, 2 * hero.level - 1);
     const queue = (d.modalQueue as { kind: string; level?: number }[]).map((m) => (m.level ? { ...m, level: 2 * m.level - 1 } : m));
     return { ...d, hero: { ...hero, level, xp: 0 }, modalQueue: queue };
+  },
+  // 3: the talent tree (ROADMAP 12.3): the branch skill moves from slot 4 to R (5); no more cards.
+  2: (d) => {
+    const hero = d.hero as { skills: { id: string; slot: number }[]; promotion: string | null };
+    const skills = hero.skills.map((s) => (s.slot === 4 && hero.promotion ? { ...s, slot: 5 } : s));
+    const queue = (d.modalQueue as { kind: string }[]).filter((m) => m.kind !== 'cardChoice');
+    return { ...d, hero: { ...hero, skills, freeSkills: [], arrows: [] }, modalQueue: queue };
   },
 };
 
@@ -125,6 +132,9 @@ export function fromSave(data: SaveData): GameState {
     n.lostLoot = p.lostLoot ?? null;
   }
   const hero = structuredClone(data.hero);
+  hero.freeSkills ??= [];
+  hero.arrows ??= [];
+  hero.arrowElement ??= 'neutral';
   // Balance edits since the save apply to the stats; the fight state starts clean.
   hero.dash = null;
   hero.buffs = [];

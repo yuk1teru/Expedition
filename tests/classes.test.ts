@@ -1,10 +1,11 @@
+import { withSkills } from './helpers';
 import { describe, expect, it } from 'vitest';
 import { CLASSES, CLASS_ORDER } from '../src/data/classes';
 import { PASSIVES, SKILLS } from '../src/data/skills';
 import { type Battle, createBattle, stepBattle } from '../src/systems/battle';
 import { damageHero, killEnemy } from '../src/systems/combat';
 import { type Enemy, dist } from '../src/systems/entities';
-import { assignClass, healFull, heroShield, recomputeHeroStats } from '../src/systems/hero';
+import { healFull, heroShield, recomputeHeroStats } from '../src/systems/hero';
 import { createGameState, teleport } from '../src/systems/run';
 import { SKILL_IMPLS, useSkill } from '../src/systems/skills';
 import { spawnEnemy } from '../src/systems/waves';
@@ -13,7 +14,7 @@ function battle(classId: string, skills: string[]): Battle {
   const s = createGameState(5);
   s.hero.immortal = true;
   s.hero.level = 3;
-  assignClass(s.hero, classId, skills);
+  withSkills(s.hero, classId, skills);
   teleport(s, 'quietGrove');
   const b = createBattle(s, 'quietGrove');
   b.waves = null;

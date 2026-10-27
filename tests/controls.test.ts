@@ -1,3 +1,4 @@
+import { withSkills } from './helpers';
 import { describe, expect, it } from 'vitest';
 import { LOOP } from '../src/data/balance';
 import { createBattle, stepBattle } from '../src/systems/battle';
@@ -10,7 +11,7 @@ import { spawnEnemy } from '../src/systems/waves';
 function warriorBattle(nodeId = 'enatLair') {
   const s = createGameState(11);
   s.hero.level = 3;
-  assignClass(s.hero, 'warrior', ['whirlwind', 'charge', 'groundSlam']);
+  withSkills(s.hero, 'warrior', ['whirlwind', 'charge', 'groundSlam']);
   teleport(s, nodeId);
   return { s, b: createBattle(s, nodeId) };
 }
@@ -161,13 +162,15 @@ describe('aimed skills', () => {
 });
 
 describe('class skill picks', () => {
-  it('the class choice grants exactly the 3 picked skills from the 8-skill pool', () => {
+  it('the class choice grants exactly 2 picked skills of the first tree row, for free', () => {
     const s = createGameState(5);
     s.hero.level = 3;
-    assignClass(s.hero, 'warrior', ['hook', 'earthquake', 'axeThrow']);
-    expect([0, 1, 2].map((i) => skillInSlot(s.hero, i)?.id)).toEqual(['hook', 'earthquake', 'axeThrow']);
-    expect(() => assignClass(s.hero, 'warrior', ['hook', 'hook', 'axeThrow'])).toThrow();
-    expect(() => assignClass(s.hero, 'warrior', ['hook', 'earthquake'])).toThrow();
+    assignClass(s.hero, 'warrior', ['groundSlam', 'charge']);
+    expect([0, 1].map((i) => skillInSlot(s.hero, i)?.id)).toEqual(['groundSlam', 'charge']);
+    expect(s.hero.freeSkills).toEqual(['groundSlam', 'charge']);
+    expect(() => assignClass(s.hero, 'warrior', ['charge', 'charge'])).toThrow();
+    expect(() => assignClass(s.hero, 'warrior', ['hook', 'charge'])).toThrow();
+    expect(() => assignClass(s.hero, 'warrior', ['whirlwind', 'charge', 'groundSlam'])).toThrow();
   });
 
   it('every new warrior skill casts', () => {

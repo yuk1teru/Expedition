@@ -52,6 +52,7 @@ import { createCoachModal } from './coach';
 import { createSettingsModal } from './settingsModal';
 import { createNoticeModal } from './notice';
 import { createJournalModal } from './journal';
+import { createTalentTreeModal } from './talentTree';
 import { HINTS, type HintId } from '../data/hints';
 import { HINT_SECONDS, drawHint } from './hint';
 import { setNpcTownLookup } from '../systems/quests';
@@ -576,6 +577,14 @@ export class App {
       const screen = this.screens.current;
       if (screen === 'map' || screen === 'town' || screen === 'combat') {
         this.toggleInventory();
+        return;
+      }
+    }
+    // T: the talent tree — out of battle (ROADMAP 12.7).
+    if (e.type === 'key' && e.code === 'KeyT' && !this.screens.topModal) {
+      const screen = this.screens.current;
+      if ((screen === 'map' || screen === 'town') && this.state.hero.classId) {
+        this.screens.pushModal(createTalentTreeModal(this, () => this.screens.popModal()));
         return;
       }
     }

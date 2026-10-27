@@ -165,7 +165,7 @@ describe('bosses of Desert, Swamp and Ice', () => {
 });
 
 describe('end of the boss fight', () => {
-  it('a boss victory gives an extra card choice and counts towards the 4 bosses', () => {
+  it('a boss victory counts towards the 4 bosses', () => {
     const b = battleIn('swamp', true);
     const s = b.state;
     s.hero.level = 6;
@@ -176,7 +176,6 @@ describe('end of the boss fight', () => {
     expect(b.outcome).toBe('won');
     const summary = completeBattle(s, b);
     expect(summary.isBoss).toBe(true);
-    expect(s.modalQueue).toContainEqual({ kind: 'cardChoice', level: s.hero.level, bossReward: true });
     expect(s.bossesDefeated).toHaveLength(1);
     expect(summary.runCompleted).toBe(false);
   });

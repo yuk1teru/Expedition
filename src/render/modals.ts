@@ -178,7 +178,7 @@ function drawClassCard(ctx: CanvasRenderingContext2D, classId: string, r: Rect, 
   const lines = classLines(classId, r);
   const skillHeader =
     c.skills.length > 0
-      ? `Скіли: оберете ${PROGRESSION.startingSkillPicks} з ${c.skills.length} · ранги 1–${RANKS.max}`
+      ? `Скіли: ${PROGRESSION.startingSkillPicks} стартові, решта — у дереві`
       : `Скіли · ${RANKS.max} рангів (${RANKS.max - 1} покращення)`;
   drawText(ctx, skillHeader, r.x + 16, r.y + 196, {
     size: 12,
@@ -229,7 +229,7 @@ function drawClassCard(ctx: CanvasRenderingContext2D, classId: string, r: Rect, 
 
 function passiveTooltip(passiveId: string): string[] {
   const p = getPassive(passiveId);
-  return [p.name, ...wrapPlain(`За стак: ${describePassive(passiveId)}`, 56), `До ×${p.maxStacks} стаків, кожна картка пасивки дає +1`];
+  return [p.name, ...wrapPlain(`За стак: ${describePassive(passiveId)}`, 56), `До ×${p.maxStacks} стаків, кожне очко таланту — +1`];
 }
 
 export function createClassChoiceModal(app: App, onChosen: (classId: string) => void): Modal<CanvasRenderingContext2D> {
@@ -256,7 +256,7 @@ export function createClassChoiceModal(app: App, onChosen: (classId: string) => 
     render(ctx) {
       dim(ctx, app.view.width, app.view.height);
       drawText(ctx, 'Рівень 3 — оберіть клас', app.view.width / 2, 34, { size: 26, bold: true, align: 'center' });
-      drawText(ctx, 'Клас дає автоатаку; далі ви оберете 3 скіли з 8, решту дадуть картки на нових рівнях', app.view.width / 2, 58, {
+      drawText(ctx, 'Клас дає автоатаку й 2 стартові скіли; решту відкриєш у дереві талантів (T) за очки рівнів', app.view.width / 2, 58, {
         size: 14,
         align: 'center',
         color: THEME.textDim,

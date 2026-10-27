@@ -1,5 +1,7 @@
 // Headless bot used by the balance simulation.
 
+import { TALENTS } from '../src/data/talents';
+import { canLearn, learn, treeNodes } from '../src/systems/talents';
 import type { Rng } from '../src/core/rng';
 import type { GameState } from '../src/core/state';
 import { LOOP, SIM } from '../src/data/balance';
@@ -26,7 +28,29 @@ export interface BotOptions {
   transit?: boolean;
 }
 
-/** Resolves pending level-up choices: the given (or first unlocked) class, random cards. */
+/**
+ * The bot's talents: first fill the panel with skills (row order), then raise the panel
+ * skills from the lowest rank (forks — a random variant), then passives.
+ */
+export function botSpendTalents(state: GameState, rng: Rng): void {
+  const hero = state.hero;
+  if (!hero.classId) return;
+  const nodes = treeNodes(hero.classId);
+  for (let guard = 0; guard < 100 && state.talentPoints > 0; guard++) {
+    const ok = nodes.filter((n) => canLearn(state, n) === 'ok');
+    const onPanel = hero.skills.filter((s) => s.slot >= 0 && s.slot < TALENTS.classSlots).length;
+    const fresh = ok.find((n) => n.kind === 'skill' && !hero.skills.some((s) => s.id === n.id));
+    const raise = ok
+      .filter((n) => n.kind === 'skill' && hero.skills.some((s) => s.id === n.id && s.slot >= 0))
+      .sort((a, b) => hero.skills.find((s) => s.id === a.id)!.rank - hero.skills.find((s) => s.id === b.id)!.rank)[0];
+    const other = ok.find((n) => n.kind !== 'skill');
+    const pick = (onPanel < TALENTS.classSlots ? fresh : undefined) ?? raise ?? other ?? fresh;
+    if (!pick) break;
+    learn(state, pick, rng.chance(0.5) ? 1 : 0);
+  }
+}
+
+/** Resolves pending level-up choices: the given (or first unlocked) class, random cards; spends talent points. */
 export function resolveModals(state: GameState, rng: Rng, classId?: string): void {
   while (state.modalQueue.length > 0) {
     const req = state.modalQueue.shift()!;
@@ -41,6 +65,7 @@ export function resolveModals(state: GameState, rng: Rng, classId?: string): voi
       if (offer.length > 0) chooseCard(state, rng.pick(offer));
     }
   }
+  if (state.talentPoints > 0) botSpendTalents(state, rng);
 }
 
 /** Eats / drinks the strongest healing item it carries. */

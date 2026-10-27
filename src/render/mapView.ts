@@ -115,6 +115,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
       cam.scale = ZOOM.start;
       focusHero();
       app.hint('map');
+      if (app.state.talentPoints > 0 && app.state.hero.classId) app.hint('tree');
       // New invasion thresholds are announced when the hero looks at the map.
       for (const t of newInvasionThresholds(app.state)) app.screens.pushModal(createNoticeModal(app, t.title, t.text, () => app.screens.popModal()));
     },

@@ -52,8 +52,10 @@ export type Archetype = 'chaser' | 'shooter' | 'tank' | 'fast';
 export interface HeroSkill {
   id: string;
   rank: number;
-  /** Skill bar slot, 0-based (slots may have gaps). */
+  /** Skill bar slot, 0-based (slots may have gaps); -1 — learned but not on the panel. */
   slot: number;
+  /** Fork rank → the variant chosen there (ROADMAP 12.3). */
+  forks?: Record<number, number>;
   /** Seconds until ready. */
   cooldown: number;
 }
@@ -192,6 +194,10 @@ export interface Hero extends Body {
   mana: number;
   /** Archer: the element of the arrows in use (ROADMAP 12.5). */
   arrowElement: Element;
+  /** Archer: arrow types learned in the tree. */
+  arrows: Element[];
+  /** The starting skills picked at the class choice (their opening was free). */
+  freeSkills: string[];
 }
 
 /** A body on the hero's side (wolves of the Beastmaster): chases and bites enemies. */
