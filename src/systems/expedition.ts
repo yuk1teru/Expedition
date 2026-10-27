@@ -4,6 +4,7 @@
 
 import type { GameState } from '../core/state';
 import { EXPEDITION, type ArenaStepKind } from '../data/expedition';
+import { OBJECTIVES, type ObjectiveKind } from '../data/objectives';
 import { LOOT } from '../data/items';
 import { type Battle, createBattle } from './battle';
 import { displayName, dropItemLevel, itemLevelRange, rollItem, rollRarity, stashLoot } from './items';
@@ -14,6 +15,8 @@ import { clearBonusGold } from './scaling';
 
 export interface ArenaStep {
   kind: ArenaStepKind;
+  /** An objective arena: its goal. */
+  goal?: ObjectiveKind;
 }
 
 export interface Expedition {
@@ -37,7 +40,8 @@ export function planFor(state: GameState, nodeId: string): (ArenaStep | [ArenaSt
   if (node.isBoss) return [{ kind: 'antechamber' }, { kind: 'boss' }];
   if (EXPEDITION.shortRegions.includes(node.region)) return [{ kind: 'entrance' }, { kind: 'lair' }];
   const kinds = state.cardRng.shuffle(EXPEDITION.forkKinds);
-  const fork: [ArenaStep, ArenaStep] = [{ kind: kinds[0] ?? 'altar' }, { kind: kinds[1] ?? kinds[0] ?? 'treasure' }];
+  const step = (kind: ArenaStepKind): ArenaStep => (kind === 'objective' ? { kind, goal: state.cardRng.pick(EXPEDITION.objectiveKinds) } : { kind });
+  const fork: [ArenaStep, ArenaStep] = [step(kinds[0] ?? 'altar'), step(kinds[1] ?? kinds[0] ?? 'treasure')];
   return [{ kind: 'entrance' }, fork, { kind: 'lair' }];
 }
 
@@ -55,7 +59,7 @@ export function stepBattle(state: GameState): Battle {
   const exp = state.expedition!;
   const k = exp.current.kind;
   if (k === 'boss') return createBattle(state, exp.nodeId);
-  const b = createBattle(state, exp.nodeId, exp.wavesDone, false, { waves: EXPEDITION.waves[k], miniboss: k === 'lair', boss: false });
+  const b = createBattle(state, exp.nodeId, exp.wavesDone, false, { waves: EXPEDITION.waves[k], miniboss: k === 'lair', boss: false, objective: exp.current.goal });
   if (k === 'treasure' && b.waves) b.waves.sizeMult = EXPEDITION.treasureWaveMult;
   b.step = k;
   return b;
@@ -133,8 +137,9 @@ function arenaReward(state: GameState, b: Battle, kind: ArenaStepKind): string[]
       out.push('вівтар дає дар');
     } else out.push('вівтар уже порожній');
   }
-  if (kind === 'treasure' || kind === 'lair') {
-    const gold = Math.round(clearBonusGold(b.tier) * (kind === 'treasure' ? EXPEDITION.treasureGold : EXPEDITION.lairGold));
+  if (kind === 'treasure' || kind === 'lair' || kind === 'objective') {
+    const share = kind === 'treasure' ? EXPEDITION.treasureGold : kind === 'lair' ? EXPEDITION.lairGold : OBJECTIVES.gold;
+    const gold = Math.round(clearBonusGold(b.tier) * share);
     state.gold += gold;
     out.push(`${gold} зол.`);
     if (kind === 'treasure') {

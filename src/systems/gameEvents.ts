@@ -31,6 +31,8 @@ export type GameEvent =
   /** Boot dash (Shift). */
   | { type: 'heroDodge'; from: Vec; to: Vec }
   | { type: 'miniboss'; name: string; pos: Vec }
+  /** An arena objective is reached (ROADMAP 13.3). */
+  | { type: 'objective'; text: string; pos: Vec }
   | { type: 'pickupSpawn'; kind: PickupKind; pos: Vec }
   | { type: 'pickup'; kind: PickupKind; pos: Vec }
   /** A healing item from a quick slot: `total` HP over `duration` s. */

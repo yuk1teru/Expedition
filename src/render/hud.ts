@@ -12,6 +12,8 @@ import { isMaxLevel, xpFraction } from '../systems/leveling';
 import { xpToNext } from '../systems/scaling';
 import { inBreak, nextWaveIn, skipBreak } from '../systems/waves';
 import { STEP_INFO } from '../data/expedition';
+import { OBJECTIVE_INFO } from '../data/objectives';
+import { objectiveStatus } from '../systems/objectives';
 import { moveSkill, skillInSlot } from '../systems/hero';
 import { bootDash, hasNewItems } from '../systems/items';
 import { CONSUMABLES, QUICK_SLOTS, describeConsumable } from '../data/consumables';
@@ -175,6 +177,16 @@ export function createHud(app: App, _fx: Fx): Hud {
         const top = b.waves ? `${waveTitle(b)} · ${b.node.name}` : 'Бій з босом';
         drawText(ctx, top, CENTER_X, 11, { size: 12, bold: true, align: 'center', color: b.waves ? THEME.textDim : THEME.bad });
         drawBossBar(ctx, bossLike, { x: CENTER_X - CENTER_W / 2, y: 21, w: CENTER_W, h: 24 });
+      } else if (b.objective) {
+        // An objective arena: its goal and how far along it is.
+        const st = objectiveStatus(b)!;
+        drawText(ctx, `${OBJECTIVE_INFO[b.objective.kind].name} · ${OBJECTIVE_INFO[b.objective.kind].goal}`, CENTER_X, 18, { size: 16, bold: true, align: 'center' });
+        const bar = { x: CENTER_X - 140, y: 32, w: 280, h: 8 };
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(bar.x, bar.y, bar.w, bar.h);
+        ctx.fillStyle = THEME.good;
+        ctx.fillRect(bar.x, bar.y, bar.w * Math.min(1, st.progress), bar.h);
+        drawText(ctx, st.line, CENTER_X, 50, { size: 11, align: 'center', color: THEME.textDim });
       } else if (b.waves) {
         const w = b.waves;
         const breakNow = !w.started && w.cleared > 0;

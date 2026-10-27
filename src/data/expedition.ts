@@ -3,13 +3,17 @@
 // miniboss and a chest. Transition zones and the prologue road are shorter (entrance and
 // lair); a boss lair is an antechamber and the boss. HP does not come back between arenas.
 
+import { OBJECTIVE_INFO, type ObjectiveKind } from './objectives';
+
 export type ArenaStepKind = 'entrance' | 'altar' | 'treasure' | 'objective' | 'lair' | 'antechamber' | 'boss';
 
 export const EXPEDITION = {
   /** Waves of each kind of arena. */
   waves: { entrance: 2, altar: 1, treasure: 1, objective: 1, lair: 1, antechamber: 1, boss: 0 } as Record<ArenaStepKind, number>,
   /** The fork offers two of these. */
-  forkKinds: ['altar', 'treasure'] as ArenaStepKind[],
+  forkKinds: ['altar', 'objective', 'treasure'] as ArenaStepKind[],
+  /** An objective arena has one of these goals (ROADMAP 13.3, `objectives.ts`). */
+  objectiveKinds: ['nests', 'rescue'] as ObjectiveKind[],
   /** Regions whose locations are short (entrance and lair only). */
   shortRegions: ['coast', 'swampEdge', 'scrub', 'mountain'],
   /** The treasure chest: × the location's clear bonus in gold, and an item. */
@@ -20,12 +24,21 @@ export const EXPEDITION = {
   lairGold: 0.5,
 };
 
+/** The name and line of an arena step (an objective one: of its goal). */
+export function stepName(step: { kind: ArenaStepKind; goal?: ObjectiveKind }): string {
+  return step.kind === 'objective' && step.goal ? OBJECTIVE_INFO[step.goal].name : STEP_INFO[step.kind].name;
+}
+
+export function stepText(step: { kind: ArenaStepKind; goal?: ObjectiveKind }): string {
+  return step.kind === 'objective' && step.goal ? OBJECTIVE_INFO[step.goal].text : STEP_INFO[step.kind].text;
+}
+
 /** Names and lines of the arenas (the "way on" window, the wiki). */
 export const STEP_INFO: Record<ArenaStepKind, { name: string; text: string }> = {
   entrance: { name: 'Вхід', text: 'Перші хвилі на підступах.' },
   altar: { name: 'Вівтар дару', text: 'Старий вівтар. Відбийся — і він дасть дар (раз на локацію).' },
   treasure: { name: 'Скарб і засідка', text: 'Скриня з добром — але її стережуть: більша хвиля.' },
-  objective: { name: 'Завдання', text: 'Особлива арена зі своєю ціллю.' },
+  objective: { name: 'Завдання', text: 'Арена зі своєю ціллю: гнізда чи порятунок.' },
   lair: { name: 'Лігво', text: 'Остання хвиля з мінібосом і скриня.' },
   antechamber: { name: 'Передпокій', text: 'Варта перед лігвом боса.' },
   boss: { name: 'Бос', text: 'Господар цього краю.' },

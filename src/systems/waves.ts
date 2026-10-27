@@ -229,7 +229,7 @@ export function nextWaveIn(w: WaveState): number | null {
 
 /** Multipliers of the running wave (boss battles: none). */
 export function currentWaveMult(b: Battle): WaveMult {
-  return b.waves ? b.waves.mult : BASE_WAVE_MULT;
+  return b.waves ? b.waves.mult : b.objective ? b.objective.mult : BASE_WAVE_MULT;
 }
 
 function spawnMiniboss(b: Battle, defId: string): void {

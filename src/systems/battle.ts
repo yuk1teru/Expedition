@@ -1,5 +1,7 @@
 // One combat encounter. Pure simulation: no render, no DOM.
 
+import type { ObjectiveKind } from '../data/objectives';
+import { type ObjectiveState, setupObjective, updateObjective } from './objectives';
 import { ARENA, FLOW, PROJECTILES, WAVES } from '../data/balance';
 import { type BiomeDef, getBiome } from '../data/biomes';
 import { getClass } from '../data/classes';
@@ -104,6 +106,8 @@ export interface Battle {
   /** Weather of the running event wave. */
   weather: WeatherState | null;
   waves: WaveState | null;
+  /** The goal of an objective arena (no waves then). */
+  objective: ObjectiveState | null;
   /** Crossing a cleared location (autopath, ROADMAP 10.4): one wave, won when it is cleared; not a clear of the location. */
   transit: boolean;
   /** The kind of arena in a location trip (ROADMAP 13.2); undefined — a plain battle. */
@@ -137,6 +141,8 @@ export interface ArenaPlan {
   waves: number;
   miniboss: boolean;
   boss?: boolean;
+  /** An objective arena (ROADMAP 13.3): no waves, its own goal. */
+  objective?: ObjectiveKind;
 }
 
 /**
@@ -178,7 +184,13 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0, tr
     pickups: [],
     traps: [],
     weather: null,
-    waves: node.isBoss && plan?.boss !== false && !transit ? null : transit ? createWaves(0, 1, false) : createWaves(startWave, plan?.waves ?? WAVES.count, plan?.miniboss ?? true),
+    waves:
+      (node.isBoss && plan?.boss !== false && !transit) || (plan?.objective && !transit)
+        ? null
+        : transit
+          ? createWaves(0, 1, false)
+          : createWaves(startWave, plan?.waves ?? WAVES.count, plan?.miniboss ?? true),
+    objective: null,
     transit: transit && !node.isBoss,
     boss: null,
     stats: { kills: 0, xp: 0, gold: 0, damageDealt: 0, damageTaken: 0, heals: 0, killsById: {}, minibossKills: 0, loot: [] },
@@ -195,6 +207,7 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0, tr
     finished: false,
   };
   if (b.kind === 'boss') setupBossBattle(b);
+  else if (plan?.objective && !transit) setupObjective(b, plan.objective, startWave);
   startPromotionEffects(b);
   return b;
 }
@@ -241,6 +254,7 @@ export function stepBattle(b: Battle, dt: number): void {
 
   // Spawning and boss logic.
   updateWaves(b, dt);
+  updateObjective(b, dt);
   updateBoss(b, dt);
 
   // Enemies.
@@ -254,7 +268,7 @@ export function stepBattle(b: Battle, dt: number): void {
   integrate(hero, dt, hero.dash !== null);
   for (const e of b.enemies) {
     if (e.dead) continue;
-    if (e.yank) yankStep(e, dt);
+    if (e.yank && !e.nest) yankStep(e, dt);
     else integrate(e, dt, false);
   }
   for (const a of b.allies) if (!a.dead) integrate(a, dt, false);
@@ -429,7 +443,7 @@ function checkOutcome(b: Battle): void {
   if (b.kind === 'boss' && isBossDefeated(b)) {
     onBossDefeated(b);
     finish(b, 'won', FLOW.bossWinDelay);
-  } else if (b.waves?.done) {
+  } else if (b.waves?.done || b.objective?.done) {
     finish(b, 'won', FLOW.clearDelay);
   }
 }

@@ -54,8 +54,10 @@ describe('location trips', () => {
     expect(res.summary).toBeNull();
     expect(node.timesCleared).toBe(0);
     // Fork: two options.
-    expect(nextChoice(s.expedition!)).toHaveLength(2);
-    chooseNext(s, 0);
+    const options = nextChoice(s.expedition!);
+    expect(options).toHaveLength(2);
+    // A wave arena (an objective one has no waves).
+    chooseNext(s, options.findIndex((o) => o.kind !== 'objective'));
     b = stepBattle(s);
     expect(s.hero.hp).toBe(50);
     expect(b.waves!.start).toBe(EXPEDITION.waves.entrance);

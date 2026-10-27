@@ -276,6 +276,8 @@ export interface Enemy extends Body {
   summoned: boolean;
   /** 0-based wave index that brought this enemy (summons and splits: none). */
   wave?: number;
+  /** A nest of an objective arena (ROADMAP 13.3): stands still, hatches monsters. */
+  nest?: { timer: number };
 }
 
 export interface Projectile {

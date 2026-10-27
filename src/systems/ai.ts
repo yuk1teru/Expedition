@@ -1,5 +1,6 @@
 // Hero auto-combat AI (melee and ranged) and enemy archetype AI.
 
+import { OBJECTIVES } from '../data/objectives';
 import { heroHidden } from './arena';
 import { ARENA, ENEMY_COMMON, HERO } from '../data/balance';
 import { ENEMIES, type EnemyDef, getEnemyDef } from '../data/enemies';
@@ -43,6 +44,20 @@ export function updateHeroAI(b: Battle, dt: number): void {
     hero.vel.x = move.x * speed;
     hero.vel.y = move.y * speed;
     hero.facing = angleOf(move);
+    if (target) {
+      if (hero.stats.ranged) tryShoot(b, hero, target);
+      else tryMeleeHit(b, hero, target);
+    }
+    return;
+  }
+  // Rescue: the bot keeps by the captive, hitting what comes in reach.
+  const spot = b.objective?.kind === 'rescue' && !b.objective.done ? b.objective.spot : null;
+  if (spot && dist(hero.pos, spot) > OBJECTIVES.rescue.radius * 0.5) {
+    const d = normalize({ x: spot.x - hero.pos.x, y: spot.y - hero.pos.y });
+    const speed = heroWalkSpeed(hero);
+    hero.vel.x = d.x * speed;
+    hero.vel.y = d.y * speed;
+    hero.facing = angleOf(d);
     if (target) {
       if (hero.stats.ranged) tryShoot(b, hero, target);
       else tryMeleeHit(b, hero, target);
@@ -221,8 +236,8 @@ function shootAlong(b: Battle, hero: Hero, angle: number): void {
 }
 
 export function updateEnemyAI(b: Battle, e: Enemy, dt: number): void {
-  // Bosses and minibosses are driven entirely by boss.ts (movement included).
-  if (e.boss) return;
+  // Bosses and minibosses are driven entirely by boss.ts (movement included); nests stand.
+  if (e.boss || e.nest) return;
   e.attackTimer = Math.max(0, e.attackTimer - dt);
   e.abilityTimer = Math.max(0, e.abilityTimer - dt);
   e.vel.x = 0;

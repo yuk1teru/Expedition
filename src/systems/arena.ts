@@ -35,7 +35,7 @@ export function arenaCentre(): Vec {
 }
 
 /** Pushes a body out of every obstacle it overlaps. */
-export function pushOutOfObstacles(a: ArenaState, body: Body): void {
+export function pushOutOfObstacles(a: ArenaState, body: Pick<Body, 'pos' | 'radius'>): void {
   for (const o of a.obstacles) {
     const dx = body.pos.x - o.x;
     const dy = body.pos.y - o.y;

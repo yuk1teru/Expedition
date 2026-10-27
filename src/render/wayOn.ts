@@ -2,7 +2,7 @@
 // heals only in town), and the way on — the next arena, or a fork of two; or back to the map.
 
 import type { Modal } from '../core/screens';
-import { STEP_INFO } from '../data/expedition';
+import { stepName, stepText } from '../data/expedition';
 import type { ArenaStep } from '../systems/expedition';
 import type { App } from './app';
 import { THEME } from './theme';
@@ -17,7 +17,7 @@ export function createWayOnModal(app: App, options: ArenaStep[], rewards: string
     ...options.map(
       (o, i) =>
         new Button({
-          label: `${STEP_INFO[o.kind].name} [${i + 1}]`,
+          label: `${stepName(o)} [${i + 1}]`,
           rect: { x: fork ? W / 2 - 270 + i * 280 : W / 2 - 200, y: panel.y + 180, w: bw, h: 44 },
           hotkey: `Digit${i + 1}`,
           fontSize: 16,
@@ -38,7 +38,7 @@ export function createWayOnModal(app: App, options: ArenaStep[], rewards: string
       ctx.fillStyle = 'rgba(5, 6, 10, 0.72)';
       ctx.fillRect(0, 0, W, app.view.height);
       drawPanel(ctx, panel);
-      drawText(ctx, `${STEP_INFO[exp?.current.kind ?? 'entrance'].name}: пройдено`, W / 2, panel.y + 30, { size: 22, bold: true, align: 'center', color: THEME.good });
+      drawText(ctx, `${stepName(exp?.current ?? { kind: 'entrance' })}: пройдено`, W / 2, panel.y + 30, { size: 22, bold: true, align: 'center', color: THEME.good });
       if (rewards.length > 0) drawText(ctx, `Нагорода: ${rewards.join(' · ')}`, W / 2, panel.y + 60, { size: 14, align: 'center', color: THEME.accent });
       const low = hero.hp < hero.maxHp * 0.4;
       drawText(ctx, `HP ${Math.ceil(hero.hp)}/${hero.maxHp} — лікуватися можна лише зіллям чи в місті`, W / 2, panel.y + 86, { size: 13, align: 'center', color: low ? THEME.bad : THEME.textDim });
@@ -46,7 +46,7 @@ export function createWayOnModal(app: App, options: ArenaStep[], rewards: string
       options.forEach((o, i) => {
         const x = fork ? W / 2 - 140 + i * 280 : W / 2;
         ctx.font = `12px ${THEME.font}`;
-        wrapLines(ctx, STEP_INFO[o.kind].text, bw - 10).forEach((l, k) => drawText(ctx, l, x, panel.y + 240 + k * 16, { size: 12, align: 'center', color: THEME.textDim }));
+        wrapLines(ctx, stepText(o), bw - 10).forEach((l, k) => drawText(ctx, l, x, panel.y + 240 + k * 16, { size: 12, align: 'center', color: THEME.textDim }));
       });
       buttons.draw(ctx);
     },

@@ -1,5 +1,6 @@
 // Combat screen: arena, entities, effects, HUD; drives the battle simulation.
 
+import { OBJECTIVES } from '../data/objectives';
 import { drawArenaTerrain, drawObstacles } from './arenaView';
 import { cycleArrows } from '../systems/hero';
 import { ELEMENTS } from '../data/elements';
@@ -25,6 +26,7 @@ import { CONSUMABLES, type ConsumableId, PICKUPS, PICKUP_SPAWN, QUICK_SLOTS } fr
 import { drawConsumableIcon } from './icons';
 import { useBootDash } from '../systems/skills';
 import type { Enemy, Hero, Projectile, Telegraph, Zone } from '../systems/entities';
+import { dist } from '../systems/entities';
 import type { GameEvent } from '../systems/gameEvents';
 import type { App } from './app';
 import { syncBattleInput } from './battleInput';
@@ -195,6 +197,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       drawArenaTerrain(ctx, b, app.time);
       for (const z of b.zones) drawZone(ctx, z, b, app.time);
       drawObstacles(ctx, b);
+      if (b.objective?.kind === 'rescue') drawCaptive(ctx, b, app.time);
       for (const h of b.hazards) drawHazard(ctx, h, app.time);
       for (const p of b.pickups) drawPickup(ctx, p, b, app.time);
       for (const o of b.manaOrbs) drawManaOrb(ctx, o, app.time);
@@ -202,6 +205,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       for (const p of b.projectiles) drawProjectile(ctx, p, app.time);
       for (const e of b.enemies) {
         if (e.boss) drawBoss(ctx, e, b, app.time);
+        else if (e.nest) drawNest(ctx, e, b, app.time);
         else drawEnemy(ctx, e, b, app.time);
       }
       const allyColor = heroColor(b.hero.classId, b.hero.promotion) ?? '#b08a5a';
@@ -340,6 +344,10 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
       break;
     case 'bossCombo':
       fx.text({ x: e.pos.x, y: e.pos.y - 48 }, 'Комбо!', THEME.bad, 17, 1);
+      break;
+    case 'objective':
+      fx.showBanner(e.text, THEME.good);
+      fx.ring(e.pos, OBJECTIVES.rescue.radius, THEME.good, 0.8, 6);
       break;
     case 'miniboss':
       fx.showBanner(`Мінібос: ${e.name}`, THEME.bad);
@@ -675,8 +683,79 @@ export function drawStatusMarks(ctx: CanvasRenderingContext2D, e: Enemy, t: numb
   }
 }
 
+/** A nest of an objective arena: a mound with holes that swells before it hatches. */
+function drawNest(ctx: CanvasRenderingContext2D, e: Enemy, b: Battle, t: number): void {
+  const swell = e.nest && e.nest.timer < 1 ? 1 + 0.08 * Math.sin(t * 18) : 1;
+  const r = e.radius * spawnScale(b, e.spawnedAt) * swell;
+  ctx.save();
+  ctx.translate(e.pos.x, e.pos.y);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(0, r * 0.6, r * 1.1, r * 0.45, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = isFlashing(b, e.hitAt) ? '#ffffff' : '#6b4a2e';
+  ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, r, r * 0.8, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#20140b';
+  for (const [x, y, k] of [[-0.4, -0.15, 0.22], [0.35, -0.25, 0.18], [0.05, 0.3, 0.2]] as const) {
+    ctx.beginPath();
+    ctx.ellipse(x * r, y * r, k * r, k * r * 0.7, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+  drawStatusMarks(ctx, e, t);
+}
+
+/** Rescue: the captive at the post and the circle to stand in, filling as they are freed. */
+function drawCaptive(ctx: CanvasRenderingContext2D, b: Battle, t: number): void {
+  const o = b.objective!;
+  const R = OBJECTIVES.rescue.radius;
+  const p = o.held / OBJECTIVES.rescue.time;
+  const inside = dist(b.hero.pos, o.spot) <= R;
+  ctx.save();
+  ctx.translate(o.spot.x, o.spot.y);
+  ctx.fillStyle = inside ? 'rgba(120, 220, 140, 0.16)' : 'rgba(255, 255, 255, 0.07)';
+  ctx.beginPath();
+  ctx.arc(0, 0, R, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.setLineDash([8, 6]);
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = THEME.good;
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(0, 0, R, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2);
+  ctx.stroke();
+  // The post and the captive tied to it.
+  ctx.fillStyle = '#5a4030';
+  ctx.fillRect(-3, -26, 6, 30);
+  const bob = o.done ? 0 : Math.sin(t * 3) * 1.5;
+  ctx.fillStyle = '#d8c39a';
+  ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, -4 + bob, 10, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  if (!o.done) {
+    ctx.strokeStyle = '#a07a4a';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-10, -2 + bob);
+    ctx.lineTo(10, -2 + bob);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawEnemyBar(ctx: CanvasRenderingContext2D, e: Enemy): void {
-  if (e.boss || e.hp >= e.maxHp || e.dead) return;
+  if (e.boss || (e.hp >= e.maxHp && !e.nest) || e.dead) return;
   const w = Math.max(22, e.radius * 2.2);
   const x = e.pos.x - w / 2;
   const y = e.pos.y - e.radius - 9;
