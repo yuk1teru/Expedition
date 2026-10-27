@@ -2,7 +2,11 @@
 // has the NPC's line and the player's options; an option leads to another node and/or
 // runs an action (open the shop, the update list…). New quests and story talks are
 // added here: new nodes, options and actions (actions are run in src/render/townView.ts).
-// Names and lines are editable in the wiki (`npm run dev`).
+// Names and lines are editable in the wiki (`npm run dev`). Names inside lines are
+// references ({town:capital}, {npc:capitalGuard}, {boss:enat}… — src/data/names.ts), so a
+// rename changes them everywhere; `forms` hold the case forms used by such references.
+
+import type { NameForms } from './names';
 
 /** What an option can do besides moving to another node. */
 export type DialogueAction = 'openShop' | 'openChangelog' | 'openInventory' | 'close';
@@ -24,6 +28,8 @@ export type NpcLookHat = 'none' | 'hood' | 'cap' | 'turban' | 'fur' | 'helm' | '
 export interface NpcDef {
   id: string;
   name: string;
+  /** Case forms of the name for references in texts ({npc:id:with} → «з Тимофієм»). */
+  forms?: NameForms;
   /** Role shown under the name (Торговець, Варта…). */
   title: string;
   look: { body: string; accent: string; hat: NpcLookHat };
@@ -46,10 +52,11 @@ export const NPC_LINES = {
 const BYE: DialogueOption = { text: NPC_LINES.bye, action: 'close' };
 
 /** A merchant: greeting (`hello`), the shop, one line about the place (`about`). */
-function merchant(o: { id: string; name: string; look: NpcDef['look']; greeting: string; about: string }): NpcDef {
+function merchant(o: { id: string; name: string; forms?: NameForms; look: NpcDef['look']; greeting: string; about: string }): NpcDef {
   return {
     id: o.id,
     name: o.name,
+    forms: o.forms,
     title: NPC_LINES.merchantTitle,
     look: o.look,
     start: 'hello',
@@ -68,10 +75,11 @@ function merchant(o: { id: string; name: string; look: NpcDef['look']; greeting:
 }
 
 /** A local with a greeting (`hello`) and a few lines of news (`news`); a place for future quests. */
-function local(o: { id: string; name: string; title: string; look: NpcDef['look']; greeting: string; news: string }): NpcDef {
+function local(o: { id: string; name: string; forms?: NameForms; title: string; look: NpcDef['look']; greeting: string; news: string }): NpcDef {
   return {
     id: o.id,
     name: o.name,
+    forms: o.forms,
     title: o.title,
     look: o.look,
     start: 'hello',
@@ -84,21 +92,95 @@ function local(o: { id: string; name: string; title: string; look: NpcDef['look'
 }
 
 export const NPCS: Record<string, NpcDef> = {
-  // Златоград
+  // ---- Столиця ----
   capitalMerchant: merchant({
     id: 'capitalMerchant',
     name: 'Мирослава',
+    forms: { to: 'Мирославі', with: 'Мирославою', of: 'Мирослави' },
     look: { body: '#7a4a8a', accent: '#f2c14e', hat: 'cap' },
-    greeting: 'Вітаю в Златограді, мандрівнику! Лупи, зілля, а якщо гаманець важкий — і річ під твій слот.',
-    about: 'Зі столиці дороги ведуть у всі краї: на південь — Ліс, на захід — порт, на північ — гори й Крига.',
+    greeting: 'Вітаю в столиці, мандрівнику! {town:capital} гостей любить. Лупи, зілля, а якщо гаманець важкий — і річ під твій слот.',
+    about: 'Зі столиці дороги ведуть у всі краї: на південь — Ліс, на захід — {town:port}, на північ — гори й Крига.',
   }),
   capitalGuard: local({
     id: 'capitalGuard',
-    name: 'Остап',
+    name: 'Тимофій',
+    forms: { to: 'Тимофію', with: 'Тимофієм', of: 'Тимофія' },
     title: 'Капітан варти',
     look: { body: '#5b6b8a', accent: '#c0c6d0', hat: 'helm' },
     greeting: 'Тримай меч напоготові: за брамою неспокійно.',
-    news: 'Старий Енат прокинувся в лісі, а через гірський перевал знову лізе холод. Кажуть, у Кризі хтось командує морозом.',
+    news: '{boss:enat} прокинувся в лісі, а через гірський перевал знову лізе холод. Кажуть, у Кризі хтось командує морозом.',
+  }),
+  capitalAdvisor: local({
+    id: 'capitalAdvisor',
+    name: 'Велемир',
+    forms: { to: 'Велемирові', with: 'Велемиром', of: 'Велемира' },
+    title: 'Королівський радник',
+    look: { body: '#3a3a6a', accent: '#f2c14e', hat: 'cap' },
+    greeting: 'Король хворий, тож говори зі мною. Ти з тієї експедиції, що розбилася біля берега?',
+    news: 'Звірі змінилися минулої осені — усі разом, ніби хтось їх покликав. Отець {npc:capitalPriest} знає про це більше, ніж хоче казати.',
+  }),
+  capitalPriest: local({
+    id: 'capitalPriest',
+    name: 'Мирон',
+    forms: { to: 'Миронові', with: 'Мироном', of: 'Мирона' },
+    title: 'Настоятель собору',
+    look: { body: '#e8e4d8', accent: '#f2c14e', hat: 'hood' },
+    greeting: 'Мир тобі. {name:church} відчинений для всіх — і для живих, і для тих, хто вже ні.',
+    news: 'Під собором лежить печатка {name:goddess:of}, що замикає {name:dead}. Вона тріснула. Крізь тріщину сочиться аура {name:lord:of} — і звірі шаленіють.',
+  }),
+  artifactBuyer: local({
+    id: 'artifactBuyer',
+    name: 'Ізидор',
+    forms: { to: 'Ізидорові', with: 'Ізидором', of: 'Ізидора' },
+    title: 'Скупник артефактів',
+    look: { body: '#5a3a6a', accent: '#d4a5ff', hat: 'turban' },
+    greeting: 'Трофеї? Реліквії? Торговець дасть тобі мідяки. Я плачу за рідкісне — і скажу, де його шукати.',
+    news: 'Шукаю уламки старої печатки з рунами. Не питай навіщо. Плачу більше за всіх у {name:kingdom:in}.',
+  }),
+  tavernWanderer: local({
+    id: 'tavernWanderer',
+    name: 'Гордій',
+    forms: { to: 'Гордієві', with: 'Гордієм', of: 'Гордія' },
+    title: 'Мандрівник',
+    look: { body: '#6a5a4a', accent: '#c9a36b', hat: 'hood' },
+    greeting: 'Сідай, наливай. Я обійшов увесь {name:kingdom} — і бачив речі, яких ти не побачиш.',
+    news: 'Відколи печатка тріснула, душі звірів не йдуть у {name:dead}. Блукають біля тіл. Хто має рунічний камінь, той може їх зловити.',
+  }),
+  capitalDoctor: local({
+    id: 'capitalDoctor',
+    name: 'Злата',
+    forms: { to: 'Златі', with: 'Златою', of: 'Злати' },
+    title: 'Лікарка',
+    look: { body: '#e8ecf4', accent: '#d64545', hat: 'cap' },
+    greeting: 'Поранений? Сідай. Якщо колись тебе принесуть сюди без тями — не дивуйся, я вже бачила й не таке.',
+    news: 'Кажуть, з частин звірів можна зварити еліксир, що повертає з-за межі. Я шукаю рецепт.',
+  }),
+  warriorTeacher: local({
+    id: 'warriorTeacher',
+    name: 'Святослав',
+    forms: { to: 'Святославові', with: 'Святославом', of: 'Святослава' },
+    title: 'Вчитель воїнів',
+    look: { body: '#8a3a2a', accent: '#c0c6d0', hat: 'helm' },
+    greeting: 'Меч — це не сила. Меч — це звичка. Приходь, коли захочеш звикнути краще.',
+    news: 'На перевалі стоїть {boss:frostWarden}. Колись він був одним із нас.',
+  }),
+  mageTeacher: local({
+    id: 'mageTeacher',
+    name: 'Веда',
+    forms: { to: 'Веді', with: 'Ведою', of: 'Веди' },
+    title: 'Вчителька чарівників',
+    look: { body: '#3a4a8a', accent: '#bfe6ff', hat: 'hood' },
+    greeting: 'Вогонь, вода, вітер, земля — чотири мови. Більшість магів знає одну. Ти скільки?',
+    news: 'Вітер б’є лід, вода гасить вогонь. Звірі Болота не бояться отрути, а пустельні — вогню. Пам’ятай про це.',
+  }),
+  archerTeacher: local({
+    id: 'archerTeacher',
+    name: 'Ружа',
+    forms: { to: 'Ружі', with: 'Ружею', of: 'Ружі' },
+    title: 'Вчителька лучників',
+    look: { body: '#3a6a3a', accent: '#9fdf7a', hat: 'hood' },
+    greeting: 'Тятиву тягнуть не руки, а спина. Покажи, як стоїш.',
+    news: 'Стріли з вогнем, кригою, вітром чи отрутою — кожна для свого звіра. Одна стріла на все — це для ледачих.',
   }),
   noticeBoard: {
     id: 'noticeBoard',
@@ -113,10 +195,11 @@ export const NPCS: Record<string, NpcDef> = {
       },
     },
   },
-  // Чайкова Гавань
+  // ---- Порт ----
   portMerchant: merchant({
     id: 'portMerchant',
     name: 'Корній',
+    forms: { to: 'Корнієві', with: 'Корнієм', of: 'Корнія' },
     look: { body: '#3b6a8a', accent: '#e8ecf4', hat: 'cap' },
     greeting: 'Свіжий вітер і свіжий товар! Бери, поки кораблі не розібрали.',
     about: 'Кораблі зараз стоять: море неспокійне. Колись звідси попливемо далеко — побачиш.',
@@ -124,74 +207,128 @@ export const NPCS: Record<string, NpcDef> = {
   portFisher: local({
     id: 'portFisher',
     name: 'Мартин',
+    forms: { to: 'Мартинові', with: 'Мартином', of: 'Мартина' },
     title: 'Рибалка',
     look: { body: '#4a6a5a', accent: '#c9b98a', hat: 'hood' },
-    greeting: 'Клює погано, зате чайки жеруть усе підряд.',
+    greeting: 'Живий? Ми тебе з води витягли — думали, вже по тобі.',
     news: 'На прибережній дорозі чайки-розбійниці й краби. Краби — тверді, не лізь до них голіруч.',
   }),
-  // Смерекове
+  portKeeper: local({
+    id: 'portKeeper',
+    name: 'Северин',
+    forms: { to: 'Северинові', with: 'Северином', of: 'Северина' },
+    title: 'Доглядач маяка',
+    look: { body: '#5a5a6a', accent: '#f2c14e', hat: 'cap' },
+    greeting: 'Маяк горить щоночі. Хоч кораблів і нема, а світло мусить бути.',
+    news: 'Минулого тижня бачив корабель без жодного вогника. Ні весел, ні людей — тільки чорні вітрила.',
+  }),
+  // ---- Ліс ----
   forestMerchant: merchant({
     id: 'forestMerchant',
     name: 'Ялина',
+    forms: { to: 'Ялині', with: 'Ялиною', of: 'Ялини' },
     look: { body: '#3a6a3a', accent: '#9fdf7a', hat: 'hood' },
     greeting: 'Мисливці з лісу носять мені що попало. Може, й тобі щось згодиться?',
-    about: 'Далі на південь — Сухе узлісся і Пустеля, на схід — Мокролісся і Болото. А в Темній гущавині спить Енат.',
+    about: 'Далі на південь — Сухе узлісся і Пустеля, на схід — Мокролісся і Болото. А в Темній гущавині спить {boss:enat}.',
   }),
   forestHunter: local({
     id: 'forestHunter',
     name: 'Богдан',
+    forms: { to: 'Богданові', with: 'Богданом', of: 'Богдана' },
     title: 'Мисливець',
     look: { body: '#5a4a2a', accent: '#c9a36b', hat: 'fur' },
     greeting: 'Тихо. Вовки чують навіть думки.',
-    news: 'Енат кличе вовків, коли злий. Як побачиш коріння під ногами — тікай з кола.',
+    news: '{boss:enat} кличе вовків, коли злий. Як побачиш коріння під ногами — тікай з кола.',
   }),
-  // Очеретянка
+  forestElder: local({
+    id: 'forestElder',
+    name: 'Микола',
+    forms: { to: 'Миколі', with: 'Миколою', of: 'Миколи' },
+    title: 'Староста',
+    look: { body: '#6a5a3a', accent: '#e8d5a3', hat: 'none' },
+    greeting: '{town:forestTown} — село мисливців і лісорубів. Чужих не любимо, але й не женемо.',
+    news: 'Мій дід бачив, як {boss:enat} лікував пораненого оленя. А тепер він кидає на нас вовків. Щось його отруїло.',
+  }),
+  // ---- Болото ----
   swampMerchant: merchant({
     id: 'swampMerchant',
     name: 'Оксана',
+    forms: { to: 'Оксані', with: 'Оксаною', of: 'Оксани' },
     look: { body: '#4a6a4a', accent: '#8fd16a', hat: 'hood' },
     greeting: 'Травниця на палях вітає тебе. Зілля в мене пахне болотом, але лікує.',
-    about: 'Слизні діляться навпіл, а Отруйна Мати плює отрутою. Калюж обходь.',
+    about: 'Слизні діляться навпіл, а {boss:poisonMother} плює отрутою. Калюж обходь.',
   }),
   swampBoatman: local({
     id: 'swampBoatman',
     name: 'Гнат',
+    forms: { to: 'Гнатові', with: 'Гнатом', of: 'Гната' },
     title: 'Човняр',
     look: { body: '#3a4a3a', accent: '#a7e08a', hat: 'cap' },
     greeting: 'Без човна тут і кроку не ступиш.',
     news: 'Токсична хвиля Матері йде колом — пішки не втечеш. Стрибай крізь неї.',
   }),
-  // Барханськ
+  swampWitch: local({
+    id: 'swampWitch',
+    name: 'Мотря',
+    forms: { to: 'Мотрі', with: 'Мотрею', of: 'Мотрі' },
+    title: 'Знахарка',
+    look: { body: '#4a3a5a', accent: '#a7e08a', hat: 'hood' },
+    greeting: 'Не бійся, я не кусаюсь. На відміну від жаб.',
+    news: '{boss:poisonMother} колись чистила воду своєю отрутою — отрута проти отрути. Тепер вона забула, для чого жила.',
+  }),
+  // ---- Пустеля ----
   desertMerchant: merchant({
     id: 'desertMerchant',
     name: 'Карім',
+    forms: { to: 'Карімові', with: 'Карімом', of: 'Каріма' },
     look: { body: '#a0703a', accent: '#f2d16b', hat: 'turban' },
     greeting: 'Мир тобі, мандрівнику. Вода дорога, а товар — ще дорожчий.',
-    about: 'Хробак ховається під пісок. Коли земля під тобою червоніє — біжи.',
+    about: '{boss:sandWorm} ховається під пісок. Коли земля під тобою червоніє — біжи.',
   }),
   desertCaravan: local({
     id: 'desertCaravan',
     name: 'Сабіна',
+    forms: { to: 'Сабіні', with: 'Сабіною', of: 'Сабіни' },
     title: 'Караванниця',
     look: { body: '#8a5a3a', accent: '#e8c48a', hat: 'turban' },
     greeting: 'Каравани ходять рідко: скорпіони обнагліли.',
     news: 'Кактуси стріляють колючками віялом, а скарабеї розпадаються на малих. Не стій на місці.',
   }),
-  // Сніжногір'я
+  desertWater: local({
+    id: 'desertWater',
+    name: 'Тарас',
+    forms: { to: 'Тарасові', with: 'Тарасом', of: 'Тараса' },
+    title: 'Водонос',
+    look: { body: '#8a6a4a', accent: '#7ec8e3', hat: 'turban' },
+    greeting: 'Води? Ковток — мідяк. Ціла бочка — ціле життя.',
+    news: 'Оаза міліє. {boss:sandWorm} стеріг підземні річки, а тепер, кажуть, п’є їх сам.',
+  }),
+  // ---- Крига ----
   iceMerchant: merchant({
     id: 'iceMerchant',
     name: 'Сніжан',
+    forms: { to: 'Сніжанові', with: 'Сніжаном', of: 'Сніжана' },
     look: { body: '#5a7a9a', accent: '#d8f0ff', hat: 'fur' },
     greeting: 'Заходь, грійся. Товар у мене морожений, але справний.',
-    about: 'Крижаний Лицар таранить до самої стіни, а кільце шипів має проходи — шукай їх.',
+    about: '{boss:iceKnight} таранить до самої стіни, а кільце шипів має проходи — шукай їх.',
   }),
   iceSeeker: local({
     id: 'iceSeeker',
     name: 'Ярема',
+    forms: { to: 'Яремі', with: 'Яремою', of: 'Яреми' },
     title: 'Шукач',
     look: { body: '#4a5a6a', accent: '#bfe6ff', hat: 'fur' },
     greeting: 'Перевал пройшов? Значить, не з полохливих.',
     news: 'Цитадель стоїть на краю світу. Кажуть, лицар колись був людиною.',
+  }),
+  iceSmith: local({
+    id: 'iceSmith',
+    name: 'Ганна',
+    forms: { to: 'Ганні', with: 'Ганною', of: 'Ганни' },
+    title: 'Ковалиха',
+    look: { body: '#6a4a3a', accent: '#e07a5f', hat: 'fur' },
+    greeting: 'Тут навіть ковадло мерзне. Але залізо слухається — якщо знати як.',
+    news: 'Крижані кристали горять у горні синім полум’ям. Принесеш — скую щось добре. Колись.',
   }),
 };
 

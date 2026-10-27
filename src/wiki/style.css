@@ -96,3 +96,10 @@ summary { cursor: pointer; }
 .t.edit:hover { background: rgba(242, 193, 78, 0.12); }
 .text-edit { max-width: 100%; padding: 2px 6px; background: var(--bg); color: var(--text); border: 1px solid var(--accent); border-radius: 4px; font: inherit; }
 textarea.text-edit { width: 100%; resize: vertical; }
+.lore .t, .lore { white-space: pre-line; }
+.quote { font-style: italic; }
+.forms { margin-top: 2px; }
+.npc { margin: 10px 0; }
+ol.objectives { margin: 0; padding-left: 18px; }
+table.quest td:first-child { color: var(--dim); white-space: nowrap; width: 1%; }
+table.quest thead { display: none; }

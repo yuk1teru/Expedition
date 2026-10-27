@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { resolveName, fillNames } from '../src/data/names';
 import { NPCS } from '../src/data/npcs';
 import { TOWNS, type TownLayout, getTownLayout } from '../src/data/towns';
 import { WORLD_NODES } from '../src/data/world';
@@ -57,7 +58,7 @@ describe('town walking', () => {
   const layout = getTownLayout('capital');
 
   it('buildings block the hero, who slides along the wall', () => {
-    const b = layout.buildings[4]!;
+    const b = layout.buildings[13]!;
     const w = createWalker(layout);
     w.pos = { x: b.x + b.w / 2, y: b.y + b.h + 20 };
     for (let i = 0; i < 60; i++) moveWalker(layout, w, { x: 0, y: -1 }, 1 / 60);
@@ -104,7 +105,7 @@ describe('dialogues', () => {
 
   it('the merchant greets, can talk and opens the shop', () => {
     const c = startConversation('capitalMerchant');
-    expect(currentNode(c).text).toContain('Златоград');
+    expect(fillNames(currentNode(c).text)).toContain(resolveName('town', 'capital')!);
     const about = currentNode(c).options.findIndex((o) => o.next === 'about');
     expect(chooseOption(c, about)).toEqual({ action: null, ended: false });
     expect(c.nodeId).toBe('about');

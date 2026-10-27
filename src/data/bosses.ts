@@ -1,5 +1,7 @@
 // Bosses: stats and attack tables. Behaviour functions live in src/systems/bosses/.
 
+import type { NameForms } from './names';
+
 export type BossParams = Record<string, number>;
 
 export interface BossAttackDef {
@@ -25,6 +27,8 @@ export interface BossAttackDef {
 export interface BossDef {
   id: string;
   name: string;
+  /** Case forms of the name for references in texts ({boss:enat:acc} → «Старого Ената»). */
+  forms?: NameForms;
   biome: string;
   hp: number;
   damage: number;
@@ -54,6 +58,7 @@ export const BOSSES: Record<string, BossDef> = {
   enat: {
     id: 'enat',
     name: 'Старий Енат',
+    forms: { of: 'Старого Ената', acc: 'Старого Ената', with: 'Старим Енатом' },
     biome: 'forest',
     hp: 3450,
     damage: 32,
@@ -110,6 +115,7 @@ export const BOSSES: Record<string, BossDef> = {
   alpha: {
     id: 'alpha',
     name: 'Ватажок зграї',
+    forms: { of: 'Ватажка зграї', acc: 'Ватажка зграї' },
     biome: 'forest',
     miniboss: true,
     hp: 190,
@@ -169,6 +175,7 @@ export const BOSSES: Record<string, BossDef> = {
   galeSpirit: {
     id: 'galeSpirit',
     name: 'Дух бурі',
+    forms: { of: 'Духа бурі', acc: 'Духа бурі' },
     biome: 'forest',
     miniboss: true,
     // Fragile sniper: dies quickly once reached; its bolts only slow.
@@ -215,6 +222,7 @@ export const BOSSES: Record<string, BossDef> = {
   sandWorm: {
     id: 'sandWorm',
     name: 'Піщаний Хробак',
+    forms: { of: 'Піщаного Хробака', acc: 'Піщаного Хробака', with: 'Піщаним Хробаком' },
     biome: 'desert',
     hp: 3450,
     damage: 30,
@@ -270,6 +278,7 @@ export const BOSSES: Record<string, BossDef> = {
   scorpionKing: {
     id: 'scorpionKing',
     name: 'Королівський скорпіон',
+    forms: { of: 'Королівського скорпіона', acc: 'Королівського скорпіона' },
     biome: 'desert',
     miniboss: true,
     hp: 190,
@@ -327,6 +336,7 @@ export const BOSSES: Record<string, BossDef> = {
   poisonMother: {
     id: 'poisonMother',
     name: 'Отруйна Мати',
+    forms: { of: 'Отруйної Матері', acc: 'Отруйну Матір', with: 'Отруйною Матір’ю' },
     biome: 'swamp',
     hp: 3700,
     damage: 28,
@@ -384,6 +394,7 @@ export const BOSSES: Record<string, BossDef> = {
   bigToad: {
     id: 'bigToad',
     name: 'Стара Жаба',
+    forms: { of: 'Старої Жаби', acc: 'Стару Жабу' },
     biome: 'swamp',
     miniboss: true,
     hp: 190,
@@ -441,6 +452,7 @@ export const BOSSES: Record<string, BossDef> = {
   iceKnight: {
     id: 'iceKnight',
     name: 'Крижаний Лицар',
+    forms: { of: 'Крижаного Лицаря', acc: 'Крижаного Лицаря', with: 'Крижаним Лицарем' },
     biome: 'ice',
     hp: 3100,
     damage: 32,
@@ -488,6 +500,7 @@ export const BOSSES: Record<string, BossDef> = {
   frostWarden: {
     id: 'frostWarden',
     name: 'Морозний вартовий',
+    forms: { of: 'Морозного вартового', acc: 'Морозного вартового' },
     biome: 'ice',
     miniboss: true,
     hp: 200,

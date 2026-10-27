@@ -2,6 +2,7 @@
 // Options move through the NPC's dialogue graph or run an action (src/data/npcs.ts).
 
 import type { Modal } from '../core/screens';
+import { fillNames } from '../data/names';
 import type { DialogueAction } from '../data/npcs';
 import { type Conversation, chooseOption, currentNode, startConversation } from '../systems/town';
 import type { App } from './app';
@@ -24,7 +25,7 @@ export function createDialogueModal(app: App, npcId: string, onAction: (action: 
     const n = currentNode(conv).options.length;
     return { x: PANEL.x + 130, y: PANEL.y + PANEL.h - 14 - (n - i) * (OPTION_H + 4), w: PANEL.w - 150, h: OPTION_H };
   };
-  const fullText = (): string => currentNode(conv).text;
+  const fullText = (): string => fillNames(currentNode(conv).text);
   const typing = (): boolean => shown < fullText().length;
 
   const pick = (i: number): void => {
@@ -89,7 +90,7 @@ export function createDialogueModal(app: App, npcId: string, onAction: (action: 
       ctx.fillStyle = THEME.text;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-      const lines = wrapLines(ctx, node.text, textRect.w);
+      const lines = wrapLines(ctx, fullText(), textRect.w);
       let left = Math.floor(shown);
       lines.forEach((line, i) => {
         if (left <= 0) return;
@@ -105,7 +106,7 @@ export function createDialogueModal(app: App, npcId: string, onAction: (action: 
             roundRect(ctx, r.x - 6, r.y, r.w, r.h, 6);
             ctx.fill();
           }
-          drawText(ctx, `${i + 1}. ${opt.text}`, r.x, r.y + r.h / 2 + 1, { size: 15, bold: i === hovered, color: opt.action === 'close' ? THEME.textDim : THEME.text });
+          drawText(ctx, `${i + 1}. ${fillNames(opt.text)}`, r.x, r.y + r.h / 2 + 1, { size: 15, bold: i === hovered, color: opt.action === 'close' ? THEME.textDim : THEME.text });
         });
       } else {
         drawText(ctx, 'клік / пробіл — показати все', PANEL.x + PANEL.w - 16, PANEL.y + PANEL.h - 16, { size: 11, align: 'right', color: THEME.textMuted });

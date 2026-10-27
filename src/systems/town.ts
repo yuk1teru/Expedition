@@ -26,11 +26,10 @@ function circleHitsRect(x: number, y: number, r: number, b: TownRect): boolean {
   return (x - cx) ** 2 + (y - cy) ** 2 < r * r;
 }
 
-/** Whether the hero can stand at (x, y): inside the bounds, off buildings, water and NPCs. */
+/** Whether the hero can stand at (x, y): inside the town map, off buildings, water and NPCs. */
 export function isWalkable(layout: TownLayout, x: number, y: number): boolean {
   const r = TOWN_SCENE.heroRadius;
-  const B = TOWN_SCENE.bounds;
-  if (x < B.x + r || x > B.x + B.w - r || y < B.y + r || y > B.y + B.h - r) {
+  if (x < r || x > layout.width - r || y < r || y > layout.height - r) {
     // The gate may touch the edge.
     if (!circleHitsRect(x, y, r, layout.gate)) return false;
   }

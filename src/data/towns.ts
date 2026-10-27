@@ -1,6 +1,7 @@
-// Town scenes: one screen per town (960×540 minus the top bar) with buildings, water,
-// props, NPCs (src/data/npcs.ts) and the gate to the world map. Buildings and water block
-// the hero; props are decoration. Coordinates are logical screen pixels.
+// Town scenes: a map per town (bigger than the screen — the camera follows the hero) with
+// buildings, water, props, NPCs (src/data/npcs.ts) and the gate to the world map. Buildings
+// and water block the hero; props are decoration. Coordinates are town-map pixels from the
+// top-left corner. Building labels may hold name references ({name:church}).
 
 export interface TownRect {
   x: number;
@@ -11,7 +12,25 @@ export interface TownRect {
 
 export type TownStyle = 'capital' | 'port' | 'forest' | 'swamp' | 'desert' | 'ice';
 
-export type TownPropKind = 'tree' | 'pine' | 'snowPine' | 'palm' | 'reed' | 'well' | 'barrel' | 'crate' | 'lamp' | 'boat' | 'cactus' | 'rock' | 'tent' | 'fountain' | 'stall';
+export type TownPropKind =
+  | 'tree'
+  | 'pine'
+  | 'snowPine'
+  | 'palm'
+  | 'reed'
+  | 'well'
+  | 'barrel'
+  | 'crate'
+  | 'lamp'
+  | 'boat'
+  | 'cactus'
+  | 'rock'
+  | 'tent'
+  | 'fountain'
+  | 'stall'
+  | 'grave'
+  | 'dummy'
+  | 'target';
 
 export interface TownBuilding extends TownRect {
   wall: string;
@@ -23,6 +42,9 @@ export interface TownBuilding extends TownRect {
 export interface TownLayout {
   id: string;
   style: TownStyle;
+  /** Size of the town map, px. */
+  width: number;
+  height: number;
   ground: string;
   /** Paths drawn over the ground (no collision). */
   paths: TownRect[];
@@ -39,230 +61,253 @@ export interface TownLayout {
   spawn: { x: number; y: number };
 }
 
-const TOP = 44;
+const P = (kind: TownPropKind, x: number, y: number): { kind: TownPropKind; x: number; y: number } => ({ kind, x, y });
 
 export const TOWNS: Record<string, TownLayout> = {
   capital: {
     id: 'capital',
     style: 'capital',
+    width: 1920,
+    height: 1280,
     ground: '#4f6b3a',
     pathColor: '#a89a7a',
     paths: [
-      { x: 430, y: TOP, w: 100, h: 496 },
-      { x: 80, y: 260, w: 800, h: 70 },
-      { x: 380, y: 210, w: 200, h: 170 },
+      { x: 900, y: 280, w: 120, h: 1000 },
+      { x: 120, y: 600, w: 1680, h: 80 },
+      { x: 200, y: 1000, w: 1520, h: 70 },
+      { x: 760, y: 500, w: 400, h: 280 },
+      { x: 380, y: 380, w: 60, h: 220 },
+      { x: 1480, y: 330, w: 60, h: 270 },
     ],
     water: [],
     waterColor: '#3b6a9a',
     buildings: [
-      { x: 360, y: TOP + 10, w: 240, h: 120, wall: '#c9c0aa', roof: '#7a2e2e', label: 'Палац' },
-      { x: 90, y: 110, w: 170, h: 110, wall: '#b8a27a', roof: '#8a4a2a', label: 'Крамниця' },
-      { x: 680, y: 110, w: 180, h: 110, wall: '#a8a8b0', roof: '#4a5a7a', label: 'Казарма' },
-      { x: 90, y: 380, w: 150, h: 100, wall: '#b8a27a', roof: '#6a3a2a', label: 'Таверна' },
-      { x: 700, y: 380, w: 170, h: 100, wall: '#c0b090', roof: '#5a4a6a' },
+      { x: 720, y: 40, w: 480, h: 240, wall: '#d4ccb4', roof: '#7a2e2e', label: 'Палац' },
+      { x: 260, y: 100, w: 300, h: 280, wall: '#e0dccf', roof: '#3a4a6a', label: '{name:church}' },
+      { x: 1360, y: 110, w: 300, h: 220, wall: '#a8a8b0', roof: '#4a5a7a', label: 'Казарма' },
+      { x: 520, y: 400, w: 200, h: 150, wall: '#b8a27a', roof: '#8a4a2a', label: 'Крамниця' },
+      { x: 1200, y: 400, w: 200, h: 150, wall: '#9a8aa8', roof: '#4a2a5a', label: 'Лавка дивин' },
+      { x: 480, y: 760, w: 260, h: 160, wall: '#b8a27a', roof: '#6a3a2a', label: 'Таверна «Під дубом»' },
+      { x: 1180, y: 760, w: 240, h: 160, wall: '#e8e4dc', roof: '#a83a3a', label: 'Лічниця' },
+      { x: 1500, y: 720, w: 260, h: 200, wall: '#8a9ab8', roof: '#3a3a7a', label: 'Академія' },
+      { x: 140, y: 720, w: 220, h: 160, wall: '#a89a74', roof: '#4a6a3a', label: 'Стрільбище' },
+      { x: 120, y: 1110, w: 180, h: 130, wall: '#c0b090', roof: '#5a4a6a' },
+      { x: 420, y: 1110, w: 200, h: 130, wall: '#b8a27a', roof: '#7a4a2a' },
+      { x: 1300, y: 1110, w: 200, h: 130, wall: '#c0b090', roof: '#6a3a2a' },
+      { x: 1620, y: 1110, w: 180, h: 130, wall: '#b8a27a', roof: '#5a4a6a' },
+      { x: 1700, y: 420, w: 160, h: 130, wall: '#c0b090', roof: '#7a2e2e' },
     ],
     props: [
-      { kind: 'fountain', x: 480, y: 295 },
-      { kind: 'lamp', x: 400, y: 230 },
-      { kind: 'lamp', x: 560, y: 230 },
-      { kind: 'tree', x: 300, y: 420 },
-      { kind: 'tree', x: 640, y: 440 },
-      { kind: 'tree', x: 40, y: 330 },
-      { kind: 'tree', x: 920, y: 330 },
-      { kind: 'stall', x: 290, y: 240 },
-      { kind: 'barrel', x: 250, y: 470 },
-      { kind: 'crate', x: 660, y: 240 },
+      P('fountain', 960, 640),
+      P('lamp', 880, 400), P('lamp', 1040, 400), P('lamp', 880, 860), P('lamp', 1040, 860),
+      P('tree', 70, 560), P('tree', 1860, 640), P('tree', 760, 1180), P('tree', 1180, 1190), P('tree', 640, 300), P('tree', 1280, 300),
+      P('stall', 830, 470), P('stall', 1090, 470),
+      P('grave', 60, 150), P('grave', 115, 150), P('grave', 170, 150),
+      P('grave', 60, 230), P('grave', 115, 230), P('grave', 170, 230),
+      P('grave', 60, 310), P('grave', 115, 310), P('grave', 170, 310), P('grave', 220, 400),
+      P('dummy', 1720, 210), P('dummy', 1800, 260), P('dummy', 1870, 210),
+      P('target', 60, 780), P('target', 60, 860),
+      P('barrel', 760, 900), P('crate', 1450, 960), P('well', 1700, 1000),
     ],
     npcs: [
-      { id: 'capitalMerchant', x: 175, y: 240 },
-      { id: 'capitalGuard', x: 770, y: 240 },
-      { id: 'noticeBoard', x: 600, y: 350 },
+      { id: 'capitalMerchant', x: 620, y: 582 },
+      { id: 'capitalGuard', x: 1510, y: 372 },
+      { id: 'warriorTeacher', x: 1760, y: 360 },
+      { id: 'capitalAdvisor', x: 960, y: 320 },
+      { id: 'capitalPriest', x: 410, y: 420 },
+      { id: 'artifactBuyer', x: 1300, y: 582 },
+      { id: 'noticeBoard', x: 1100, y: 740 },
+      { id: 'tavernWanderer', x: 610, y: 955 },
+      { id: 'capitalDoctor', x: 1300, y: 955 },
+      { id: 'mageTeacher', x: 1630, y: 955 },
+      { id: 'archerTeacher', x: 250, y: 918 },
     ],
-    gate: { x: 430, y: 505, w: 100, h: 35 },
-    spawn: { x: 480, y: 470 },
+    gate: { x: 900, y: 1250, w: 120, h: 30 },
+    spawn: { x: 960, y: 1200 },
   },
   port: {
     id: 'port',
     style: 'port',
+    width: 1600,
+    height: 960,
     ground: '#8a7d5a',
     pathColor: '#6e5a3a',
     paths: [
-      { x: 330, y: 250, w: 630, h: 60 },
-      { x: 200, y: 140, w: 140, h: 40 },
-      { x: 200, y: 380, w: 140, h: 40 },
+      { x: 120, y: 200, w: 180, h: 60 },
+      { x: 120, y: 560, w: 180, h: 60 },
+      { x: 300, y: 440, w: 1300, h: 80 },
+      { x: 700, y: 120, w: 70, h: 320 },
     ],
     water: [
-      { x: 0, y: TOP, w: 200, h: 496 },
-      { x: 200, y: TOP, w: 130, h: 90 },
-      { x: 200, y: 450, w: 130, h: 90 },
+      { x: 0, y: 0, w: 120, h: 960 },
+      { x: 120, y: 0, w: 180, h: 200 },
+      { x: 120, y: 260, w: 180, h: 300 },
+      { x: 120, y: 620, w: 180, h: 340 },
     ],
     waterColor: '#2f5a85',
     buildings: [
-      { x: 400, y: 90, w: 170, h: 110, wall: '#a88a64', roof: '#2f4a6a', label: 'Крамниця' },
-      { x: 640, y: 80, w: 200, h: 120, wall: '#9a8a74', roof: '#6a3a2a', label: 'Таверна «Якір»' },
-      { x: 420, y: 370, w: 200, h: 110, wall: '#8a7a64', roof: '#4a4a5a', label: 'Склад' },
-      { x: 700, y: 370, w: 150, h: 100, wall: '#a89a7a', roof: '#3a5a6a' },
+      { x: 330, y: 40, w: 120, h: 180, wall: '#e8e4dc', roof: '#a83a3a', label: 'Маяк' },
+      { x: 480, y: 250, w: 200, h: 150, wall: '#a88a64', roof: '#2f4a6a', label: 'Крамниця' },
+      { x: 820, y: 220, w: 260, h: 170, wall: '#9a8a74', roof: '#6a3a2a', label: 'Таверна «Якір»' },
+      { x: 1180, y: 230, w: 220, h: 150, wall: '#a89a7a', roof: '#3a5a6a', label: 'Портова контора' },
+      { x: 480, y: 600, w: 280, h: 160, wall: '#8a7a64', roof: '#4a4a5a', label: 'Склад' },
+      { x: 880, y: 600, w: 200, h: 140, wall: '#a89a7a', roof: '#3a5a6a' },
+      { x: 1180, y: 600, w: 200, h: 140, wall: '#9a8a74', roof: '#6a4a3a' },
+      { x: 1180, y: 790, w: 200, h: 130, wall: '#a88a64', roof: '#2f4a6a' },
     ],
     props: [
-      { kind: 'boat', x: 110, y: 160 },
-      { kind: 'boat', x: 100, y: 400 },
-      { kind: 'barrel', x: 360, y: 220 },
-      { kind: 'barrel', x: 380, y: 340 },
-      { kind: 'crate', x: 640, y: 340 },
-      { kind: 'crate', x: 660, y: 330 },
-      { kind: 'lamp', x: 320, y: 240 },
-      { kind: 'rock', x: 900, y: 500 },
+      P('boat', 60, 150), P('boat', 60, 420), P('boat', 60, 760), P('boat', 210, 720),
+      P('barrel', 330, 480), P('barrel', 460, 560), P('crate', 790, 560), P('crate', 810, 585),
+      P('lamp', 300, 430), P('lamp', 1000, 430), P('lamp', 1420, 430),
+      P('rock', 1550, 900), P('rock', 1520, 120),
     ],
     npcs: [
-      { id: 'portMerchant', x: 485, y: 225 },
-      { id: 'portFisher', x: 260, y: 160 },
+      { id: 'portFisher', x: 210, y: 230 },
+      { id: 'portMerchant', x: 580, y: 428 },
+      { id: 'portKeeper', x: 390, y: 250 },
     ],
-    gate: { x: 925, y: 250, w: 35, h: 60 },
-    spawn: { x: 880, y: 280 },
+    gate: { x: 1570, y: 440, w: 30, h: 80 },
+    spawn: { x: 1520, y: 480 },
   },
   forestTown: {
     id: 'forestTown',
     style: 'forest',
+    width: 1600,
+    height: 960,
     ground: '#2f4f2a',
     pathColor: '#6a5a3a',
     paths: [
-      { x: 430, y: TOP, w: 90, h: 496 },
-      { x: 150, y: 260, w: 660, h: 60 },
+      { x: 740, y: 0, w: 120, h: 960 },
+      { x: 160, y: 440, w: 1280, h: 80 },
     ],
-    water: [{ x: 720, y: 400, w: 150, h: 90 }],
+    water: [{ x: 1380, y: 800, w: 180, h: 120 }],
     waterColor: '#2f5a5a',
     buildings: [
-      { x: 160, y: 120, w: 160, h: 100, wall: '#7a5a3a', roof: '#3a5a2a', label: 'Крамниця' },
-      { x: 600, y: 110, w: 170, h: 110, wall: '#6a4a2a', roof: '#4a3a2a', label: 'Мисливська хата' },
-      { x: 170, y: 370, w: 150, h: 100, wall: '#7a5a3a', roof: '#2f4a2a' },
+      { x: 300, y: 230, w: 220, h: 160, wall: '#7a5a3a', roof: '#3a5a2a', label: 'Крамниця' },
+      { x: 1060, y: 210, w: 260, h: 180, wall: '#6a4a2a', roof: '#4a3a2a', label: 'Мисливська хата' },
+      { x: 280, y: 640, w: 240, h: 160, wall: '#7a5a3a', roof: '#2f4a2a', label: 'Хата старости' },
+      { x: 1100, y: 640, w: 240, h: 150, wall: '#8a6a44', roof: '#4a3a2a', label: 'Лісопилка' },
+      { x: 900, y: 820, w: 160, h: 110, wall: '#7a5a3a', roof: '#3a5a2a' },
     ],
     props: [
-      { kind: 'pine', x: 60, y: 90 },
-      { kind: 'pine', x: 380, y: 100 },
-      { kind: 'pine', x: 560, y: 380 },
-      { kind: 'pine', x: 900, y: 120 },
-      { kind: 'pine', x: 60, y: 460 },
-      { kind: 'pine', x: 380, y: 470 },
-      { kind: 'pine', x: 900, y: 300 },
-      { kind: 'tree', x: 820, y: 230 },
-      { kind: 'well', x: 560, y: 290 },
-      { kind: 'crate', x: 340, y: 240 },
+      P('pine', 80, 100), P('pine', 260, 110), P('pine', 580, 120), P('pine', 980, 110), P('pine', 1420, 110),
+      P('pine', 1520, 320), P('pine', 80, 330), P('pine', 620, 640), P('pine', 80, 860), P('pine', 620, 880), P('pine', 1260, 900),
+      P('tree', 1540, 560), P('tree', 980, 600),
+      P('well', 900, 580), P('crate', 560, 420), P('barrel', 1000, 420),
     ],
     npcs: [
-      { id: 'forestMerchant', x: 240, y: 240 },
-      { id: 'forestHunter', x: 685, y: 240 },
+      { id: 'forestMerchant', x: 410, y: 420 },
+      { id: 'forestHunter', x: 1190, y: 420 },
+      { id: 'forestElder', x: 400, y: 830 },
     ],
-    gate: { x: 430, y: TOP, w: 90, h: 30 },
-    spawn: { x: 475, y: 105 },
+    gate: { x: 740, y: 0, w: 120, h: 30 },
+    spawn: { x: 800, y: 70 },
   },
   swampTown: {
     id: 'swampTown',
     style: 'swamp',
+    width: 1600,
+    height: 960,
     ground: '#3a4a34',
     pathColor: '#6a5a40',
     paths: [
-      { x: 60, y: 270, w: 840, h: 44 },
-      { x: 456, y: 120, w: 44, h: 300 },
+      { x: 0, y: 450, w: 1500, h: 60 },
+      { x: 760, y: 120, w: 60, h: 720 },
     ],
     water: [
-      { x: 0, y: TOP, w: 960, h: 50 },
-      { x: 0, y: 480, w: 960, h: 60 },
-      { x: 560, y: 120, w: 160, h: 120 },
-      { x: 220, y: 340, w: 160, h: 110 },
+      { x: 0, y: 0, w: 1600, h: 90 },
+      { x: 0, y: 870, w: 1600, h: 90 },
+      { x: 900, y: 150, w: 260, h: 200 },
+      { x: 300, y: 600, w: 260, h: 200 },
+      { x: 1260, y: 620, w: 240, h: 160 },
     ],
     waterColor: '#2a4a3e',
     buildings: [
-      { x: 160, y: 130, w: 150, h: 100, wall: '#5a4a3a', roof: '#6a7a3a', label: 'Травниця' },
-      { x: 600, y: 350, w: 160, h: 100, wall: '#5a4a3a', roof: '#4a5a3a', label: 'Човнярня' },
-      { x: 780, y: 120, w: 130, h: 100, wall: '#5a4a3a', roof: '#5a6a3a' },
+      { x: 260, y: 200, w: 240, h: 160, wall: '#5a4a3a', roof: '#6a7a3a', label: 'Травниця' },
+      { x: 980, y: 600, w: 240, h: 150, wall: '#5a4a3a', roof: '#4a5a3a', label: 'Човнярня' },
+      { x: 1250, y: 170, w: 200, h: 150, wall: '#4a3a3a', roof: '#3a4a3a', label: 'Хата знахарки' },
+      { x: 560, y: 180, w: 160, h: 120, wall: '#5a4a3a', roof: '#5a6a3a' },
+      { x: 40, y: 640, w: 180, h: 140, wall: '#5a4a3a', roof: '#6a7a3a' },
     ],
     props: [
-      { kind: 'reed', x: 550, y: 250 },
-      { kind: 'reed', x: 730, y: 130 },
-      { kind: 'reed', x: 390, y: 360 },
-      { kind: 'reed', x: 210, y: 440 },
-      { kind: 'reed', x: 100, y: 470 },
-      { kind: 'reed', x: 870, y: 470 },
-      { kind: 'boat', x: 640, y: 180 },
-      { kind: 'lamp', x: 440, y: 250 },
-      { kind: 'barrel', x: 330, y: 250 },
+      P('reed', 890, 370), P('reed', 1170, 160), P('reed', 570, 620), P('reed', 290, 820), P('reed', 100, 850),
+      P('reed', 1500, 850), P('reed', 1250, 800), P('reed', 1540, 140),
+      P('boat', 1030, 250), P('boat', 430, 700), P('boat', 1380, 700),
+      P('lamp', 740, 430), P('lamp', 1480, 430), P('barrel', 600, 480),
     ],
     npcs: [
-      { id: 'swampMerchant', x: 235, y: 250 },
-      { id: 'swampBoatman', x: 680, y: 330 },
+      { id: 'swampMerchant', x: 380, y: 400 },
+      { id: 'swampBoatman', x: 1100, y: 560 },
+      { id: 'swampWitch', x: 1350, y: 380 },
     ],
-    gate: { x: 0, y: 270, w: 30, h: 44 },
-    spawn: { x: 60, y: 292 },
+    gate: { x: 0, y: 440, w: 30, h: 80 },
+    spawn: { x: 70, y: 480 },
   },
   desertTown: {
     id: 'desertTown',
     style: 'desert',
+    width: 1600,
+    height: 960,
     ground: '#c9a86a',
     pathColor: '#b08a52',
     paths: [
-      { x: 430, y: TOP, w: 100, h: 496 },
-      { x: 120, y: 270, w: 720, h: 60 },
+      { x: 740, y: 0, w: 120, h: 960 },
+      { x: 160, y: 440, w: 1280, h: 80 },
     ],
-    water: [{ x: 410, y: 200, w: 140, h: 50 }],
+    water: [{ x: 1000, y: 220, w: 280, h: 140 }],
     waterColor: '#3a8aa0',
     buildings: [
-      { x: 120, y: 110, w: 170, h: 110, wall: '#d8b88a', roof: '#a86a3a', label: 'Базар' },
-      { x: 660, y: 110, w: 170, h: 110, wall: '#d0b080', roof: '#8a5a3a', label: 'Караван-сарай' },
-      { x: 130, y: 380, w: 150, h: 100, wall: '#d8c09a', roof: '#a87a4a' },
-      { x: 680, y: 380, w: 150, h: 100, wall: '#d0b088', roof: '#9a6a3a' },
+      { x: 260, y: 220, w: 280, h: 170, wall: '#d8b88a', roof: '#a86a3a', label: 'Базар' },
+      { x: 1080, y: 620, w: 320, h: 180, wall: '#d0b080', roof: '#8a5a3a', label: 'Караван-сарай' },
+      { x: 260, y: 640, w: 220, h: 150, wall: '#d8c09a', roof: '#a87a4a' },
+      { x: 540, y: 720, w: 160, h: 130, wall: '#d0b088', roof: '#9a6a3a' },
+      { x: 1320, y: 140, w: 180, h: 130, wall: '#d8c09a', roof: '#a86a3a' },
     ],
     props: [
-      { kind: 'palm', x: 400, y: 190 },
-      { kind: 'palm', x: 565, y: 190 },
-      { kind: 'palm', x: 380, y: 260 },
-      { kind: 'tent', x: 340, y: 400 },
-      { kind: 'cactus', x: 60, y: 200 },
-      { kind: 'cactus', x: 900, y: 460 },
-      { kind: 'rock', x: 900, y: 220 },
-      { kind: 'stall', x: 590, y: 400 },
-      { kind: 'crate', x: 320, y: 250 },
+      P('palm', 980, 200), P('palm', 1300, 390), P('palm', 960, 380), P('palm', 1290, 210),
+      P('tent', 620, 320), P('tent', 140, 860), P('cactus', 80, 200), P('cactus', 1520, 880), P('cactus', 960, 880),
+      P('rock', 1520, 520), P('stall', 580, 560), P('crate', 560, 420), P('barrel', 1060, 420),
     ],
     npcs: [
-      { id: 'desertMerchant', x: 205, y: 250 },
-      { id: 'desertCaravan', x: 745, y: 250 },
+      { id: 'desertMerchant', x: 400, y: 420 },
+      { id: 'desertCaravan', x: 1240, y: 580 },
+      { id: 'desertWater', x: 1140, y: 400 },
     ],
-    gate: { x: 430, y: TOP, w: 100, h: 30 },
-    spawn: { x: 480, y: 100 },
+    gate: { x: 740, y: 0, w: 120, h: 30 },
+    spawn: { x: 800, y: 70 },
   },
   iceTown: {
     id: 'iceTown',
     style: 'ice',
+    width: 1600,
+    height: 960,
     ground: '#d8e4ee',
     pathColor: '#a8b8c8',
     paths: [
-      { x: 430, y: 200, w: 100, h: 340 },
-      { x: 140, y: 260, w: 680, h: 60 },
+      { x: 740, y: 260, w: 120, h: 700 },
+      { x: 160, y: 420, w: 1280, h: 80 },
     ],
-    water: [{ x: 700, y: 410, w: 180, h: 80 }],
+    water: [{ x: 1320, y: 700, w: 220, h: 150 }],
     waterColor: '#9ac4e0',
     buildings: [
-      { x: 140, y: 110, w: 170, h: 110, wall: '#6a5a4a', roof: '#e8f0f8', label: 'Крамниця' },
-      { x: 380, y: 70, w: 200, h: 110, wall: '#5a4a3a', roof: '#f4f8ff', label: 'Корчма' },
-      { x: 650, y: 110, w: 170, h: 110, wall: '#6a5a4a', roof: '#e8f0f8' },
-      { x: 150, y: 380, w: 150, h: 100, wall: '#5a4a3a', roof: '#f0f4fa' },
+      { x: 660, y: 40, w: 280, h: 180, wall: '#5a4a3a', roof: '#f4f8ff', label: 'Корчма' },
+      { x: 260, y: 200, w: 240, h: 160, wall: '#6a5a4a', roof: '#e8f0f8', label: 'Крамниця' },
+      { x: 1060, y: 200, w: 240, h: 160, wall: '#6a5a4a', roof: '#e8f0f8', label: 'Хата шукача' },
+      { x: 300, y: 600, w: 240, h: 150, wall: '#4a3a3a', roof: '#f0f4fa', label: 'Кузня' },
+      { x: 1060, y: 600, w: 220, h: 150, wall: '#5a4a3a', roof: '#f0f4fa' },
     ],
     props: [
-      { kind: 'snowPine', x: 40, y: 200 },
-      { kind: 'snowPine', x: 900, y: 100 },
-      { kind: 'snowPine', x: 60, y: 300 },
-      { kind: 'snowPine', x: 900, y: 300 },
-      { kind: 'snowPine', x: 360, y: 460 },
-      { kind: 'snowPine', x: 620, y: 470 },
-      { kind: 'rock', x: 610, y: 380 },
-      { kind: 'lamp', x: 410, y: 240 },
-      { kind: 'barrel', x: 330, y: 240 },
+      P('snowPine', 80, 100), P('snowPine', 1500, 100), P('snowPine', 80, 330), P('snowPine', 1520, 330),
+      P('snowPine', 360, 860), P('snowPine', 620, 880), P('snowPine', 1000, 880), P('snowPine', 560, 120),
+      P('rock', 960, 560), P('lamp', 720, 400), P('barrel', 580, 460), P('crate', 1000, 460),
     ],
     npcs: [
-      { id: 'iceMerchant', x: 225, y: 240 },
-      { id: 'iceSeeker', x: 735, y: 240 },
+      { id: 'iceMerchant', x: 380, y: 390 },
+      { id: 'iceSeeker', x: 1180, y: 390 },
+      { id: 'iceSmith', x: 420, y: 570 },
     ],
-    gate: { x: 430, y: 505, w: 100, h: 35 },
-    spawn: { x: 480, y: 470 },
+    gate: { x: 740, y: 930, w: 120, h: 30 },
+    spawn: { x: 800, y: 880 },
   },
 };
 

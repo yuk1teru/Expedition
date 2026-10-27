@@ -315,6 +315,6 @@ export const TOWN_SCENE = {
   npcRadius: 14,
   /** Distance (between edges) at which E / a click starts a conversation. */
   talkRange: 36,
-  /** Bounds of the walkable area (logical px; below the top bar). */
-  bounds: { x: 0, y: 44, w: 960, h: 496 },
+  /** The town view starts below the top bar (screen y, px); the town map scrolls under it. */
+  viewTop: 44,
 } as const;

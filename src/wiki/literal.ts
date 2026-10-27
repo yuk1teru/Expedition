@@ -130,8 +130,10 @@ export function unescapeString(raw: string): string {
 
 /** `value` as a string literal with the given quote. */
 export function quoteString(value: string, quote: string): string {
-  let body = value.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/\r/g, '\\r').split(quote).join(`\\${quote}`);
+  let body = value.replace(/\\/g, '\\\\').split(quote).join(`\\${quote}`);
+  // Template literals keep real line breaks (multi-line lore); other quotes need \n.
   if (quote === '`') body = body.replace(/\$\{/g, '\\${');
+  else body = body.replace(/\n/g, '\\n').replace(/\r/g, '\\r');
   return `${quote}${body}${quote}`;
 }
 

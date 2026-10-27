@@ -9,106 +9,45 @@ import { CLASSES, CLASS_ORDER } from '../data/classes';
 import { CONSUMABLES, PICKUPS, PICKUP_SPAWN } from '../data/consumables';
 import { ENEMIES, type EnemyDef } from '../data/enemies';
 import { BOOT_DASH, ITEM_BASES, ITEM_LEVEL, ITEM_SLOTS, LOOT, MERCHANT_ITEMS, RARITIES, RARITY_ORDER, STAT_LABELS } from '../data/items';
-import { NPCS, NPC_LINES } from '../data/npcs';
+import { NPCS } from '../data/npcs';
 import { ALLY_WOLF, PROMOTIONS } from '../data/promotions';
 import { PARAM_INFO, PASSIVES, SKILLS, describePassive, describeSkill } from '../data/skills';
 import { TOWNS } from '../data/towns';
 import { WEATHER } from '../data/weather';
 import { WORLD_MAP, WORLD_NODES, WORLD_ROADS } from '../data/world';
-import { nodeFromDef, recommendedLevel } from '../systems/mapgen';
+import { recommendedLevel } from '../systems/mapgen';
 import type { LiteralPath } from './literal';
+import {
+  type Fmt,
+  type Ref,
+  type Section,
+  NODES,
+  anchor,
+  card,
+  esc,
+  formatValue,
+  formsLine,
+  link,
+  monsterLink,
+  round,
+  sharedLine,
+  t,
+  table,
+  v,
+  whereFound,
+} from './html';
+import { loreSection, questsGivenBy, questsSection, trophiesSection } from './story';
+
+export { esc, formatValue, type Fmt, type Ref, type Section } from './html';
 import { BOSS_ATTACK_NAMES, BOSS_PARAM_LABELS } from '../data/wikiLabels';
-
-export type Fmt = 'n' | 'pct' | 's' | 'px' | 'deg' | 'x';
-export type Ref = [string, ...LiteralPath];
-
-export interface Section {
-  id: string;
-  title: string;
-  html: string;
-}
-
-export function esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function round(x: number, d = 2): number {
-  const m = 10 ** d;
-  return Math.round(x * m) / m;
-}
-
-export function formatValue(value: number, fmt: Fmt): string {
-  switch (fmt) {
-    case 'pct':
-      return `${round(value * 100, 1)}%`;
-    case 's':
-      return `${round(value)} с`;
-    case 'deg':
-      return `${round(value)}°`;
-    case 'x':
-      return `×${round(value)}`;
-    default:
-      return String(round(value));
-  }
-}
-
-/** A number with its data reference (editable in dev). */
-export function v(value: number | undefined, ref: Ref | null = null, fmt: Fmt = 'n'): string {
-  if (value === undefined) return '—';
-  const attrs = ref ? ` data-refs="${esc(JSON.stringify([ref]))}" data-raw="${value}" data-fmt="${fmt}"` : '';
-  return `<span class="v"${attrs}>${formatValue(value, fmt)}</span>`;
-}
-
-/**
- * A text with its data reference (editable in dev). Several refs: the first one that is a
- * plain string in the data is edited (NPC lines come from helper arguments). `raw` — the
- * stored text when the shown one is filled in (skill descriptions with {param}).
- */
-export function t(text: string, refs: Ref | Ref[] | null = null, raw: string = text): string {
-  if (!refs) return esc(text);
-  const list = (Array.isArray(refs[0]) ? refs : [refs]) as Ref[];
-  return `<span class="t" data-refs="${esc(JSON.stringify(list))}" data-raw="${esc(raw)}">${esc(text)}</span>`;
-}
-
-function table(head: string[], rows: string[][], cls = ''): string {
-  return `<div class="tw"><table class="${cls}"><thead><tr>${head.map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows
-    .map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`)
-    .join('')}</tbody></table></div>`;
-}
-
-function card(id: string, title: string, body: string, sub = ''): string {
-  return `<div class="card" id="${id}"><h3>${title}${sub ? ` <small>${sub}</small>` : ''}</h3>${body}</div>`;
-}
-
-const anchor = (kind: string, id: string): string => `${kind}-${id}`;
-const link = (kind: string, id: string, text: string): string => `<a href="#${anchor(kind, id)}">${esc(text)}</a>`;
-
-function monsterLink(id: string): string {
-  if (ENEMIES[id]) return link('enemy', id, ENEMIES[id].name);
-  if (BOSSES[id]) return link('boss', id, BOSSES[id].name);
-  return esc(id);
-}
-
-const NODES = WORLD_NODES.map(nodeFromDef);
-
-/** Ref of a shared NPC line (`NPC_LINES`) with this text, if any. */
-function sharedLine(text: string): Ref[] {
-  const key = Object.entries(NPC_LINES).find(([, line]) => line === text)?.[0];
-  return key ? [['NPC_LINES', key]] : [];
-}
-
-/** Locations where a monster appears (waves, miniboss or boss). */
-function whereFound(id: string): string {
-  const at = NODES.filter((n) => !n.isTown && (n.enemies.includes(id) || n.miniboss === id || n.boss === id));
-  return at.length ? at.map((n) => link('loc', n.id, n.name)).join(', ') : '—';
-}
 
 // ---- Sections ----
 
 function intro(): Section {
   const html = `
-<p>Уся інформація про гру: класи, скіли, вороги, боси, локації, міста, речі й формули. Сторінка будується прямо з даних гри,
+<p>Уся інформація про гру: історія світу, класи, скіли, вороги, боси, локації, міста, квести, трофеї, речі й формули. Сторінка будується прямо з даних гри,
 тож числа тут завжди ті самі, що в грі.</p>
+<p class="dim">Імена в текстах — посилання: перейменуй місто, NPC чи боса, і нова назва з’явиться в усіх репліках, квестах і лорі. Для речень, де ім’я стоїть не в називному відмінку, поруч із назвою є відмінки — їх теж можна правити.</p>
 <p class="dim">Рівень складності локації (tier) визначає силу ворогів і рекомендований рівень героя (tier × ${v(
     BALANCE.SCALING.recommendedLevelPerTier,
     ['SCALING', 'recommendedLevelPerTier'],
@@ -323,7 +262,7 @@ function bossCard(b: BossDef): string {
     `<span class="small">${bossParams(b, i, 1)}</span>`,
   ]);
   const body = `${table(['Параметр', 'Значення'], stats, 'kv')}<h4>Атаки</h4>${table(['Атака', 'Фази', 'Вага', 'Перезарядка ф1 / ф2', 'Фаза 1', 'Фаза 2'], attacks, 'wide')}<p class="small">Де: ${whereFound(b.id)}</p>`;
-  return card(anchor('boss', b.id), t(b.name, R('name')), body, b.miniboss ? 'мінібос' : 'бос');
+  return card(anchor('boss', b.id), t(b.name, R('name')), formsLine(b.forms, R('forms')) + body, b.miniboss ? 'мінібос' : 'бос');
 }
 
 function bossesSection(): Section {
@@ -360,7 +299,7 @@ function worldSection(): Section {
           .map((id) => link('loc', id, NODES.find((x) => x.id === id)?.name ?? id))
           .join(', ');
         return [
-          `<b id="${anchor('loc', n.id)}">${t(n.name, ['WORLD_NODES', i, 'name'])}</b><div class="dim small">${t(n.description, ['WORLD_NODES', i, 'description'])}</div>`,
+          `<b id="${anchor('loc', n.id)}">${t(n.name, ['WORLD_NODES', i, 'name'])}</b><div class="dim small">${t(n.description, ['WORLD_NODES', i, 'description'])}</div>${formsLine(WORLD_NODES[i]?.forms, ['WORLD_NODES', i, 'forms'])}`,
           kind,
           n.isTown ? '—' : v(n.tier, ['WORLD_NODES', i, 'tier']),
           n.isTown ? '—' : String(recommendedLevel(n.tier)),
@@ -411,13 +350,16 @@ function townsSection(): Section {
                   .join(' · ')}</span></li>`,
             )
             .join('');
-          return `<div id="${anchor('npc', npc.id)}"><b>${t(npc.name, ['NPCS', npc.id, 'name'])}</b> — ${t(npc.title, [['NPCS', npc.id, 'title'], ...sharedLine(npc.title)])}<ul class="dialogue">${nodes}</ul></div>`;
+          const quests = questsGivenBy(npc.id);
+          return `<div class="npc" id="${anchor('npc', npc.id)}"><b>${t(npc.name, ['NPCS', npc.id, 'name'])}</b> — ${t(npc.title, [['NPCS', npc.id, 'title'], ...sharedLine(npc.title)])}${formsLine(npc.forms, ['NPCS', npc.id, 'forms'])}${
+            quests ? `<div class="small">Квести: ${quests}</div>` : ''
+          }<ul class="dialogue">${nodes}</ul></div>`;
         })
         .join('');
       return card(
         anchor('town', town.id),
         node ? t(node.name, ['WORLD_NODES', ni, 'name']) : esc(town.id),
-        `<p class="dim">${node ? t(node.description, ['WORLD_NODES', ni, 'description']) : ''}</p>${npcs}`,
+        `<p class="dim">${node ? t(node.description, ['WORLD_NODES', ni, 'description']) : ''}</p>${formsLine(WORLD_NODES[ni]?.forms, ['WORLD_NODES', ni, 'forms'])}${npcs}`,
       );
     })
     .join('');
@@ -582,6 +524,7 @@ function balanceSection(comment: (root: string, path: LiteralPath) => string | u
 export function buildSections(comment: (root: string, path: LiteralPath) => string | undefined): Section[] {
   return [
     intro(),
+    loreSection(),
     classesSection(),
     skillsSection(),
     passivesSection(),
@@ -590,6 +533,8 @@ export function buildSections(comment: (root: string, path: LiteralPath) => stri
     bossesSection(),
     worldSection(),
     townsSection(),
+    questsSection(),
+    trophiesSection(),
     itemsSection(),
     consumablesSection(),
     wavesSection(),

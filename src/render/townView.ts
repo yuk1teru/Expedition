@@ -1,9 +1,11 @@
 // Town scene (PLAN.md 8.4): arriving rests the hero (full heal + checkpoint), then the hero
 // walks around the town (WASD or click), talks to NPCs (E / click) and leaves through the
-// gate to the world map. The merchant's shop opens from the conversation.
+// gate to the world map. The merchant's shop opens from the conversation. The town map is
+// bigger than the screen: the camera follows the hero.
 
 import type { Screen } from '../core/screens';
 import { TOWN_SCENE } from '../data/balance';
+import { fillNames } from '../data/names';
 import type { DialogueAction } from '../data/npcs';
 import { getNpc } from '../data/npcs';
 import { type TownBuilding, type TownLayout, type TownPropKind, getTownLayout } from '../data/towns';
@@ -29,6 +31,15 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
   let walker: TownWalker = createWalker(layout);
   let restedFlash = 0;
   let leaving = false;
+  /** Camera: the town-map point at the top-left corner of the view. */
+  const cam = { x: 0, y: 0 };
+  const viewTop = TOWN_SCENE.viewTop;
+  const viewH = H - viewTop;
+  const follow = (): void => {
+    const fit = (pos: number, view: number, size: number): number => (size <= view ? (size - view) / 2 : Math.max(0, Math.min(size - view, pos - view / 2)));
+    cam.x = fit(walker.pos.x, W, layout.width);
+    cam.y = fit(walker.pos.y, viewH, layout.height);
+  };
   const buttons = new ButtonGroup([
     new Button({ label: 'Карта світу (M)', rect: { x: W - 176, y: 52, w: 164, h: 32 }, fontSize: 14, hotkey: 'KeyM', onClick: () => app.goMap() }),
   ]);
@@ -56,6 +67,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
       layout = getTownLayout(app.state.currentNodeId);
       walker = createWalker(layout);
       leaving = false;
+      follow();
     },
     exit() {
       leaveTown(app.state);
@@ -64,6 +76,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
       restedFlash = Math.max(0, restedFlash - dt);
       if (leaving) return;
       const reached = stepWalker(layout, walker, app.input.moveVector(), dt);
+      follow();
       if (reached) talk(reached);
       if (atGate(layout, walker.pos)) {
         leaving = true;
@@ -77,18 +90,29 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
         if (id) talk(id);
         return;
       }
-      if (e.type === 'mousedown' && e.button === 0 && e.y > 44) {
-        const id = npcAt(layout, e.x, e.y);
+      if (e.type === 'mousedown' && e.button === 0 && e.y > viewTop) {
+        // Screen → town map.
+        const x = e.x + cam.x;
+        const y = e.y - viewTop + cam.y;
+        const id = npcAt(layout, x, y);
         if (id && npcInReach(layout, walker.pos) === id) {
           talk(id);
           return;
         }
         walker.talkTo = id;
-        walker.target = id ? npcApproach(layout, id, walker) : { x: e.x, y: e.y };
+        walker.target = id ? npcApproach(layout, id, walker) : { x, y };
       }
     },
     render(ctx) {
       const state = app.state;
+      ctx.fillStyle = '#0b0d12';
+      ctx.fillRect(0, viewTop, W, viewH);
+      // The town map, scrolled by the camera and clipped to the view.
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, viewTop, W, viewH);
+      ctx.clip();
+      ctx.translate(-Math.round(cam.x), viewTop - Math.round(cam.y));
       ctx.drawImage(townBackground(layout), 0, 0);
       drawWater(ctx, layout, app.time);
       drawGate(ctx, layout, app.time);
@@ -109,6 +133,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
         const npc = layout.npcs.find((n) => n.id === near)!;
         prompt(ctx, npc.x, npc.y + TOWN_SCENE.npcRadius + 16, 'E — говорити');
       }
+      ctx.restore();
       // Header: town name and the rest note.
       const name = getNode(state.world, state.currentNodeId).name;
       ctx.save();
@@ -201,16 +226,17 @@ function townBackground(layout: TownLayout): HTMLCanvasElement {
   const cached = backgrounds.get(layout.id);
   if (cached) return cached;
   const c = document.createElement('canvas');
-  c.width = TOWN_SCENE.bounds.w;
-  c.height = TOWN_SCENE.bounds.y + TOWN_SCENE.bounds.h;
+  c.width = layout.width;
+  c.height = layout.height;
   const ctx = c.getContext('2d')!;
   const rng = new Rng(layout.id.length * 977 + layout.id.charCodeAt(0));
   ctx.fillStyle = layout.ground;
   ctx.fillRect(0, 0, c.width, c.height);
   // Ground speckles.
-  for (let i = 0; i < 500; i++) {
+  const speckles = Math.round((c.width * c.height) / 1000);
+  for (let i = 0; i < speckles; i++) {
     ctx.fillStyle = rng.next() < 0.5 ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)';
-    ctx.fillRect(rng.float(0, c.width), rng.float(44, c.height), rng.float(2, 5), rng.float(2, 4));
+    ctx.fillRect(rng.float(0, c.width), rng.float(0, c.height), rng.float(2, 5), rng.float(2, 4));
   }
   ctx.fillStyle = layout.pathColor;
   for (const p of layout.paths) {
@@ -263,12 +289,13 @@ function drawBuilding(ctx: CanvasRenderingContext2D, b: TownBuilding, layout: To
   ctx.fillRect(b.x + 16, b.y + b.h - 34, 16, 14);
   ctx.fillRect(b.x + b.w - 32, b.y + b.h - 34, 16, 14);
   if (b.label) {
+    const label = fillNames(b.label);
     ctx.font = font(12, 'bold');
-    const w = ctx.measureText(b.label).width + 14;
+    const w = ctx.measureText(label).width + 14;
     ctx.fillStyle = '#4a3622';
     roundRect(ctx, b.x + b.w / 2 - w / 2, b.y + roofH - 4, w, 18, 4);
     ctx.fill();
-    drawText(ctx, b.label, b.x + b.w / 2, b.y + roofH + 5, { size: 12, bold: true, align: 'center', color: '#f4e4c0' });
+    drawText(ctx, label, b.x + b.w / 2, b.y + roofH + 5, { size: 12, bold: true, align: 'center', color: '#f4e4c0' });
   }
 }
 
@@ -463,6 +490,43 @@ function drawProp(ctx: CanvasRenderingContext2D, kind: TownPropKind, x: number, 
       ctx.closePath();
       ctx.fill();
       break;
+    case 'grave':
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fillRect(x - 11, y + 4, 24, 6);
+      ctx.fillStyle = '#8a8f99';
+      roundRect(ctx, x - 10, y - 22, 20, 26, 8);
+      ctx.fill();
+      ctx.strokeStyle = '#5a5f66';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x, y - 16);
+      ctx.lineTo(x, y - 4);
+      ctx.moveTo(x - 5, y - 11);
+      ctx.lineTo(x + 5, y - 11);
+      ctx.stroke();
+      break;
+    case 'dummy':
+      ctx.fillStyle = '#5a3a22';
+      ctx.fillRect(x - 2, y - 30, 4, 34);
+      ctx.fillRect(x - 14, y - 22, 28, 4);
+      ctx.fillStyle = '#c9a36b';
+      ctx.beginPath();
+      ctx.ellipse(x, y - 16, 9, 12, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x, y - 34, 6, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case 'target':
+      for (const [r, c] of [[14, '#e8e4dc'], [10, '#c0392b'], [6, '#e8e4dc'], [3, '#c0392b']] as [number, string][]) {
+        ctx.fillStyle = c;
+        ctx.beginPath();
+        ctx.arc(x, y - 14, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#5a3a22';
+      ctx.fillRect(x - 2, y, 4, 6);
+      break;
     case 'stall':
       ctx.fillStyle = '#7a5a3a';
       ctx.fillRect(x - 22, y - 6, 44, 14);
@@ -502,7 +566,7 @@ function drawGate(ctx: CanvasRenderingContext2D, layout: TownLayout, t: number):
   ctx.fillRect(g.x, g.y, g.w, g.h);
   // Top / bottom gates: the sign to the right; side gates: above, towards the town.
   const label = 'Брама → карта світу';
-  if (g.w > g.h) drawText(ctx, label, g.x + g.w + 8, Math.min(g.y + g.h / 2, TOWN_SCENE.bounds.y + TOWN_SCENE.bounds.h - 32), { size: 12, bold: true, color: '#fff4d0' });
+  if (g.w > g.h) drawText(ctx, label, g.x + g.w + 8, Math.min(g.y + g.h / 2, layout.height - 32), { size: 12, bold: true, color: '#fff4d0' });
   else if (g.x < 100) drawText(ctx, label, g.x + 4, g.y - 12, { size: 12, bold: true, color: '#fff4d0' });
   else drawText(ctx, label, g.x + g.w - 4, g.y - 12, { size: 12, bold: true, align: 'right', color: '#fff4d0' });
 }
