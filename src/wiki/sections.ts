@@ -2,6 +2,7 @@
 // always what the game uses. Numbers (`v()`) and texts (`t()`) carry a reference to their
 // place in the data (`[ROOT, ...path]`); in `npm run dev` they become editable.
 
+import { soundsSection } from './sounds';
 import * as BALANCE from '../data/balance';
 import { BIOMES } from '../data/biomes';
 import { type BossDef, BOSSES, HAZARDS } from '../data/bosses';
@@ -582,6 +583,7 @@ export function buildSections(comment: (root: string, path: LiteralPath) => stri
     talentsSection(),
     giftsSection(),
     formulasSection(),
+    soundsSection(),
     // All the numbers of balance.ts — for the developer only.
     ...(import.meta.env.DEV ? [balanceSection(comment)] : []),
   ];

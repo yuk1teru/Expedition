@@ -1,7 +1,7 @@
 // Player settings (ROADMAP 10.7): kept between visits, outside the hero's save.
 
 export interface GameSettings {
-  /** Sound volume 0..1 (sound comes in stage 13). */
+  /** Sound volume 0..1 (0 — silent). */
   volume: number;
   /** Screen shake on big hits and boss moves. */
   shake: boolean;

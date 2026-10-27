@@ -1,5 +1,6 @@
 // Application shell: owns the view, input, loop, screens and the run state.
 
+import { SoundPlayer, eventSound } from './sound';
 import type { InputEvent } from '../core/input';
 import { Input } from '../core/input';
 import { GameLoop } from '../core/loop';
@@ -110,6 +111,8 @@ export class App {
   private readonly settingsStore: SettingsStore | null;
   /** The player's settings (ROADMAP 10.7). */
   settings: GameSettings;
+  /** Procedural sound; starts on the first key or click (`unlockSound`). */
+  readonly sound = new SoundPlayer(() => this.settings.volume);
   private readonly saves: SaveStore | null;
   private readonly metaStore: SaveStore | null;
   /** What outlives heroes: the graves (the cemetery, records). */
@@ -341,6 +344,11 @@ export class App {
 
   private setState(state: GameState): void {
     this.state = state;
+    // Sounds of the game (ROADMAP 13.5).
+    state.events.onAny((e) => {
+      const id = eventSound(e);
+      if (id) this.sound.play(id);
+    });
     // A handed-in quest: what it gave.
     state.events.on('questDone', (e) => {
       this.screens.pushModal(createNoticeModal(this, `Квест виконано: ${e.name}`, e.reward.length ? `Нагорода: ${e.reward.join(' · ')}` : '', () => this.screens.popModal(), THEME.good));

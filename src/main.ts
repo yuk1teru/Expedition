@@ -2,6 +2,7 @@ import { Input, bindInput } from './core/input';
 import { resolveSeed } from './core/seed';
 import { App, type SaveFiles, type SaveStore, type SettingsStore, type VersionStore } from './render/app';
 import { createView, toLogical } from './render/canvas';
+import { setButtonSound } from './render/ui';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const view = createView(canvas);
@@ -133,6 +134,11 @@ const files: SaveFiles = {
 };
 const url = window.location.href;
 const app = new App(view, input, resolveSeed(url), { dev: import.meta.env.DEV, reducedMotion, versions, settings, saves, meta, files });
+// Browsers allow sound only after a key or a click.
+const unlockSound = (): void => app.sound.unlock();
+window.addEventListener('keydown', unlockSound);
+window.addEventListener('pointerdown', unlockSound);
+setButtonSound(() => app.sound.play('ui'));
 app.start();
 canvas.focus();
 

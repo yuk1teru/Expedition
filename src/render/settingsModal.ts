@@ -48,7 +48,7 @@ export function createSettingsModal(app: App, onClose: () => void): Modal<Canvas
       drawText(ctx, 'Налаштування', W / 2, panel.y + 30, { size: 22, bold: true, align: 'center' });
       shakeBtn.label = s().shake ? 'Увімкнено' : 'Вимкнено';
       numbersBtn.label = s().damageNumbers ? 'Увімкнено' : 'Вимкнено';
-      const rows = ['Гучність (звук — згодом)', 'Тряска екрана', 'Цифри шкоди й лікування'];
+      const rows = ['Гучність', 'Тряска екрана', 'Цифри шкоди й лікування'];
       rows.forEach((r, i) => drawText(ctx, r, panel.x + 40, rowY(i), { size: 16 }));
       drawText(ctx, `${Math.round(s().volume * 100)}%`, panel.x + panel.w - 125, rowY(0), { size: 16, bold: true, align: 'center' });
       buttons.draw(ctx);

@@ -234,6 +234,7 @@ export function addShapedTelegraph(
     ownerId: null,
   };
   b.telegraphs.push(t);
+  b.events.emit({ type: 'telegraph', kind, pos: { ...t.pos } });
   return t;
 }
 

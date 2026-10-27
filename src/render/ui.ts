@@ -60,6 +60,18 @@ export class Button {
   }
 }
 
+let buttonSound: () => void = () => {};
+
+/** What a pressed button sounds like (the app sets it). */
+export function setButtonSound(fn: () => void): void {
+  buttonSound = fn;
+}
+
+function press(b: Button): void {
+  buttonSound();
+  b.onClick();
+}
+
 /** A set of buttons with mouse hover/click and Tab/Enter keyboard focus. */
 export class ButtonGroup {
   buttons: Button[] = [];
@@ -89,7 +101,7 @@ export class ButtonGroup {
       if (e.button !== 0) return false;
       for (const b of this.buttons) {
         if (b.enabled && inRect(b.rect, e.x, e.y)) {
-          b.onClick();
+          press(b);
           return true;
         }
       }
@@ -111,13 +123,13 @@ export class ButtonGroup {
     if (e.code === 'Enter') {
       const b = this.buttons[this.focus];
       if (b?.enabled) {
-        b.onClick();
+        press(b);
         return true;
       }
     }
     for (const b of this.buttons) {
       if (b.enabled && b.hotkey === e.code) {
-        b.onClick();
+        press(b);
         return true;
       }
     }

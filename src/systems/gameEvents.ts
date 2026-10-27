@@ -56,6 +56,8 @@ export type GameEvent =
   | { type: 'noTarget'; slot: number; reason?: 'rooted' }
   | { type: 'bossPhase'; phase: number; pos: Vec }
   | { type: 'telegraphFire'; kind: string; pos: Vec; radius: number }
+  /** A telegraphed strike appears (its warning sound). */
+  | { type: 'telegraph'; kind: string; pos: Vec }
   | { type: 'enemyShot'; pos: Vec }
   | { type: 'battleEnd'; won: boolean };
 
