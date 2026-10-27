@@ -1,5 +1,6 @@
 // Run-level flow: new expedition, travel on the map, town actions.
 
+import { claimSecret } from './amulet';
 import { driveOffRaid, invasionTick } from './invasion';
 import { elixirArenaDone } from './alchemy';
 import { EventBus } from '../core/events';
@@ -61,6 +62,8 @@ export function createGameState(seed: number, heroName = DEFAULT_HERO_NAME): Gam
     soulSeen: false,
     stash: [],
     townGrowth: {},
+    amulet: null,
+    amuletHinted: false,
     raids: {},
     lastRaidDay: 0,
     capturedRegion: null,
@@ -102,6 +105,7 @@ export function snapshot(state: Omit<GameState, 'checkpoint'>): Checkpoint {
     lastDeath: state.lastDeath,
     stash: state.stash,
     townGrowth: state.townGrowth,
+    amulet: state.amulet,
   });
 }
 
@@ -127,6 +131,7 @@ export function restoreCheckpoint(state: GameState): void {
   state.lastDeath = cp.lastDeath;
   state.stash = cp.stash ?? [];
   state.townGrowth = cp.townGrowth ?? {};
+  state.amulet = cp.amulet ?? null;
   state.currentNodeId = cp.homeTown;
   state.modalQueue = [];
   state.hero.dead = false;
@@ -248,6 +253,7 @@ export function completeBattle(state: GameState, b: Battle, opts: { final?: bool
     invasionTick(state, b.node.id);
   } else if (won && final) {
     driveOffRaid(state, b.node, b.tier);
+    if (b.node.secret) claimSecret(state, b.node, b.tier);
     recovered = recoverLostLoot(state, b.node);
     clearBonus = clearBonusGold(b.tier);
     state.gold += clearBonus;

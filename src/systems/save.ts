@@ -60,6 +60,8 @@ export interface SaveData {
   /** The stash (ROADMAP 14.7). */
   stash?: Item[];
   townGrowth?: Record<string, number>;
+  amulet?: { nodeId: string; found: boolean } | null;
+  amuletHinted?: boolean;
   invasion?: { raids: Record<string, number>; lastRaidDay: number; capturedRegion: string | null; townAttack: string | null; done: number[] };
 }
 
@@ -125,6 +127,8 @@ export function toSave(state: GameState, now = Date.now()): SaveData {
     soulSeen: state.soulSeen,
     stash: cp.stash ?? [],
     townGrowth: cp.townGrowth ?? {},
+    amulet: cp.amulet ?? null,
+    amuletHinted: state.amuletHinted,
     invasion: { raids: state.raids, lastRaidDay: state.lastRaidDay, capturedRegion: state.capturedRegion, townAttack: state.townAttack, done: state.invasionEventsDone },
   });
 }
@@ -195,6 +199,8 @@ export function fromSave(data: SaveData): GameState {
     soulSeen: data.soulSeen ?? false,
     stash: structuredClone(data.stash ?? []),
     townGrowth: { ...(data.townGrowth ?? {}) },
+    amulet: data.amulet ? { ...data.amulet } : null,
+    amuletHinted: data.amuletHinted ?? false,
     raids: { ...(data.invasion?.raids ?? {}) },
     lastRaidDay: data.invasion?.lastRaidDay ?? 0,
     capturedRegion: data.invasion?.capturedRegion ?? null,

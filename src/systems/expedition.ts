@@ -43,6 +43,8 @@ export interface Expedition {
 export function planFor(state: GameState, nodeId: string): (ArenaStep | [ArenaStep, ArenaStep])[] {
   const node = getNode(state.world, nodeId);
   if (node.isBoss) return [{ kind: 'antechamber' }, { kind: 'boss' }];
+  // A secret place: one guarded arena (ROADMAP 16.6).
+  if (node.secret) return [{ kind: 'lair' }];
   if (EXPEDITION.shortRegions.includes(node.region)) return [{ kind: 'entrance' }, { kind: 'lair' }];
   const kinds = state.cardRng.shuffle(EXPEDITION.forkKinds);
   const step = (kind: ArenaStepKind): ArenaStep => (kind === 'objective' ? { kind, goal: state.cardRng.pick(EXPEDITION.objectiveKinds) } : { kind });

@@ -3,6 +3,7 @@
 // gate to the world map. The merchant's shop opens from the conversation. The town map is
 // bigger than the screen: the camera follows the hero.
 
+import { amuletHint } from '../systems/amulet';
 import type { Screen } from '../core/screens';
 import { TOWN_SCENE } from '../data/balance';
 import { fillNames } from '../data/names';
@@ -98,7 +99,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
   const readGrave = (g: Grave): void => {
     if (app.screens.topModal) return;
     walker.target = null;
-    app.screens.pushModal(createDialogueModal(app, graveTalk(g), () => app.screens.popModal()));
+    app.screens.pushModal(createDialogueModal(app, graveTalk(g, amuletHint(app.state)), () => app.screens.popModal()));
   };
   const talk = (npcId: string): void => {
     if (app.screens.topModal) return;

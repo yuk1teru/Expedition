@@ -31,8 +31,19 @@ export function emptyQuestLog(): QuestLog {
 /** Objective kinds the game can track now; quests with others wait (special ones — their stages). */
 const PLAYABLE = new Set(['kill', 'killMiniboss', 'killBoss', 'clear', 'reach', 'deliver', 'talk', 'bring']);
 
+/** Special objectives the game tracks (the others wait for their stages). */
+const SPECIAL = new Set(['amulet']);
+
 export function questPlayable(q: QuestDef): boolean {
-  return q.objectives.every((o) => PLAYABLE.has(o.kind));
+  return q.objectives.every((o) => PLAYABLE.has(o.kind) || (o.kind === 'special' && SPECIAL.has(o.target)));
+}
+
+/** A special objective is met (the amulet found…): quests waiting for it go on. */
+export function questsSpecial(state: GameState, target: string): void {
+  for (const qs of state.quests.active) {
+    const o = currentObjective(qs);
+    if (o?.kind === 'special' && o.target === target) advance(qs);
+  }
 }
 
 export function questState(state: GameState, id: string): QuestState | undefined {

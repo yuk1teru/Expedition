@@ -1,5 +1,6 @@
 // Application shell: owns the view, input, loop, screens and the run state.
 
+import { placeAmulet } from '../systems/amulet';
 import { chooseBranchFork } from '../systems/run';
 import { createGrowthModal } from './growth';
 import { defenseBattle, finishDefense } from '../systems/invasion';
@@ -361,6 +362,8 @@ export class App {
     this.firstSeed = null;
     this.resetScreens();
     const state = createGameState(seed, name);
+    // The Amulet of life exists only for a hero someone died before (ROADMAP 16.6).
+    placeAmulet(state, this.meta.graves.some((g) => !g.abandoned));
     startPrologue(state);
     this.setState(state);
     this.screens.go('town');

@@ -64,7 +64,7 @@ export interface QuestDef {
   turnIn?: string;
   classId?: string;
   /** `flag`: something the hero has seen (a soul — ROADMAP 14.3); `captured`: this land is captured by the invasion. */
-  requires?: { quests?: string[]; level?: number; flag?: 'soulSeen'; captured?: string; note?: string };
+  requires?: { quests?: string[]; level?: number; flag?: 'soulSeen' | 'amuletHinted'; captured?: string; note?: string };
   /** What the giver says when offering the quest. */
   offer: string;
   objectives: QuestObjective[];
@@ -816,11 +816,11 @@ export const QUESTS: Record<string, QuestDef> = {
     name: 'Оберіг життя',
     kind: 'system',
     giver: 'capitalPriest',
-    requires: { note: 'На кладовищі є надгробок попереднього героя.' },
-    offer: 'Прочитай напис на надгробку. Мертві пам’ятають, де лежить загублений оберіг.',
-    objectives: [{ kind: 'special', target: 'amulet', text: 'Знайти Оберіг життя в схованому місці, на яке вказує надгробок.' }],
-    done: 'Оберіг {name:goddess:of}… Носи його. Він поверне тебе один раз.',
-    reward: { lives: 1 },
+    requires: { flag: 'amuletHinted', note: 'Надгробок попереднього героя підказав, де лежить оберіг.' },
+    offer: 'Ти читав напис на надгробку? Мертві пам’ятають, де лежить загублений оберіг. Знайди його.',
+    objectives: [{ kind: 'special', target: 'amulet', text: 'Знайти Оберіг життя в таємному місці, на яке вказує надгробок.' }],
+    done: 'Оберіг {name:goddess:of}… Носи його. Він уже повернув тобі одне життя — бережи друге.',
+    reward: { gold: 100 },
   },
   systemBuyer: {
     id: 'systemBuyer',

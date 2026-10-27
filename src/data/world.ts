@@ -114,6 +114,11 @@ export const WORLD_NODES: WorldNodeDef[] = [
   { id: 'whiteSlope', name: 'Білий схил', kind: 'location', biome: 'ice', region: 'ice', level: 20, pos: { x: 1540, y: 230 }, description: 'Крижані вовки на засніженому схилі.', enemies: ['iceWolf', 'iceWolf', 'snowman', 'iceGolem'] },
   { id: 'iceLake', name: 'Крижане озеро', kind: 'location', biome: 'ice', region: 'ice', level: 22, pos: { x: 1880, y: 230 }, description: 'Сніговики на льоду: туман над озером.', enemies: ['snowman', 'snowman', 'iceWolf', 'iceGolem'], mechanics: { weathers: ['fog'] } },
   { id: 'glassGlacier', name: 'Скляний льодовик', kind: 'location', biome: 'ice', region: 'ice', level: 24, pos: { x: 2050, y: 150 }, description: 'Големи перед цитаделлю: капкани з 3-ї хвилі.', enemies: ['iceGolem', 'iceGolem', 'iceWolf', 'snowman'], mechanics: { trapsFrom: 3 } },
+  // ---------------- Secret places (ROADMAP 16.6): hidden by the fog until a tombstone tells of them ----------------
+  { id: 'forestHollow', name: 'Дупло Старого Дуба', kind: 'location', biome: 'forest', region: 'forest', level: 9, pos: { x: 980, y: 1180 }, description: 'Дуб, старший за королівство. У дуплі щось світиться — і щось вартує.', secret: true },
+  { id: 'swampIsle', name: 'Острів утоплеників', kind: 'location', biome: 'swamp', region: 'swamp', level: 17, pos: { x: 1990, y: 990 }, description: 'Клаптик сухої землі серед трясовини. Тут ховали тих, кого забрала вода.', secret: true },
+  { id: 'desertCrypt', name: 'Склеп під дюною', kind: 'location', biome: 'desert', region: 'desert', level: 17, pos: { x: 840, y: 1430 }, description: 'Пісок відкрив вхід до склепу давнього народу.', secret: true },
+  { id: 'iceCave', name: 'Крижана печера', kind: 'location', biome: 'ice', region: 'ice', level: 23, pos: { x: 2040, y: 330 }, description: 'Печера під озером: лід тут прозорий, як скло, і щось лежить під ним.', secret: true },
   { id: 'iceCitadel', name: 'Цитадель Крижаного Лицаря', kind: 'boss', biome: 'ice', region: 'ice', level: 26, pos: { x: 2220, y: 210 }, description: 'Крижаний Лицар: таран до стіни, кільце шипів, аура холоду.', boss: 'iceKnight' },
 ];
 
@@ -156,6 +161,11 @@ export const WORLD_ROADS: [string, string][] = [
   ['iceTown', 'iceLake'],
   ['iceLake', 'glassGlacier'],
   ['glassGlacier', 'iceCitadel'],
+  // Secret places.
+  ['darkThicket', 'forestHollow'],
+  ['blackMuck', 'swampIsle'],
+  ['boneValley', 'desertCrypt'],
+  ['iceLake', 'iceCave'],
 ];
 
 /**

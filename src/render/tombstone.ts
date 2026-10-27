@@ -26,14 +26,21 @@ export function epitaph(g: Grave): string {
 }
 
 /** A tombstone in the cemetery as a one-node "conversation". */
-export function graveTalk(g: Grave): NpcDef {
+/** `hint`: what the dead tell of the Amulet of life (ROADMAP 16.6), read under the epitaph. */
+export function graveTalk(g: Grave, hint: string | null = null): NpcDef {
   return {
     id: 'grave',
     name: g.name,
     title: GRAVE.title,
     look: { body: '#8a8f99', accent: '#5a5f66', hat: 'none' },
     start: 'read',
-    nodes: { read: { text: epitaph(g), options: [{ text: GRAVE.leave, action: 'close' }] } },
+    nodes: {
+      read: {
+        text: epitaph(g),
+        options: [...(hint ? [{ text: 'Прочитати дрібний напис унизу.', next: 'hint' }] : []), { text: GRAVE.leave, action: 'close' as const }],
+      },
+      ...(hint ? { hint: { text: hint, options: [{ text: GRAVE.leave, action: 'close' as const }] } } : {}),
+    },
   };
 }
 

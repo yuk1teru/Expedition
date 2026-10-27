@@ -30,6 +30,8 @@ export interface MapNode {
   lastWave: number;
   /** The gift altar of this location was used (it gives once, ROADMAP 13.2). */
   altarUsed?: boolean;
+  /** A secret place (ROADMAP 16.6): one guarded arena, maybe the Amulet of life. */
+  secret?: boolean;
   /** Loot left here by a death: given back when the location is cleared again. */
   lostLoot: { items: Item[]; gold: number } | null;
   pos: Vec;
@@ -85,6 +87,7 @@ export function nodeFromDef(def: WorldNodeDef): MapNode {
     lastWave: 0,
     lostLoot: null,
     pos: { ...def.pos },
+    ...(def.secret ? { secret: true } : {}),
   };
 }
 

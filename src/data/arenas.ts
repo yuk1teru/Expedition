@@ -124,6 +124,39 @@ export const ARENAS: Record<string, ArenaDef> = {
     obstacles: [S(160, 90), S(800, 90), S(120, 300), S(840, 300), S(480, 50), S(480, 370)],
     terrain: [],
   },
+  // ---- Secret places (ROADMAP 16.6) ----
+  forestHollow: {
+    id: 'forestHollow',
+    note: 'Дупло Старого Дуба: велетенський дуб посеред галявини, коло старих пнів.',
+    w: 960,
+    h: 416,
+    obstacles: [T(480, 60, 36), S(200, 110), S(760, 110), S(220, 330), S(740, 330)],
+    terrain: [],
+  },
+  swampIsle: {
+    id: 'swampIsle',
+    note: 'Острів утоплеників: сухий клаптик, з усіх боків вода.',
+    w: 960,
+    h: 416,
+    obstacles: [O('deadTree', 300, 150, 22), O('deadTree', 660, 270, 22)],
+    terrain: [{ kind: 'water', x: 0, y: 0, w: 960, h: 70 }, { kind: 'water', x: 0, y: 346, w: 960, h: 70 }, { kind: 'water', x: 0, y: 70, w: 120, h: 276 }, { kind: 'water', x: 840, y: 70, w: 120, h: 276 }],
+  },
+  desertCrypt: {
+    id: 'desertCrypt',
+    note: 'Склеп під дюною: колони й ребра — тісний зал.',
+    w: 960,
+    h: 416,
+    obstacles: [O('pillar', 220, 100, 24), O('pillar', 740, 100, 24), O('pillar', 220, 316, 24), O('pillar', 740, 316, 24), O('bone', 480, 60, 18), O('bone', 480, 356, 18)],
+    terrain: [],
+  },
+  iceCave: {
+    id: 'iceCave',
+    note: 'Крижана печера: брили з усіх боків, під ногами — тонкий лід.',
+    w: 960,
+    h: 416,
+    obstacles: [O('ice', 140, 100, 28), O('ice', 820, 100, 28), O('ice', 140, 316, 28), O('ice', 820, 316, 28), O('ice', 480, 50, 24)],
+    terrain: [{ kind: 'water', x: 300, y: 300, w: 360, h: 100 }],
+  },
   // ---- The rest of the world (ROADMAP 16) ----
   wetwood: {
     id: 'wetwood',

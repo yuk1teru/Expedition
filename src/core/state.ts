@@ -87,6 +87,12 @@ export interface GameState {
   stash: Item[];
   /** Town growth levels (ROADMAP 15.4); part of the checkpoint like the gold paid for them. */
   townGrowth: Record<string, number>;
+  /**
+   * The Amulet of life (ROADMAP 16.6): in a secret place, only for a hero someone died before;
+   * `hinted` — a tombstone has told where. Part of the checkpoint (like the life it gives).
+   */
+  amulet: { nodeId: string; found: boolean } | null;
+  amuletHinted: boolean;
   /** Map nodes the hero has been to (fog of war, ROADMAP 10.6). */
   nodesVisited: string[];
   /** Secret places revealed (a hint, a quest). */
@@ -131,6 +137,7 @@ export interface Checkpoint {
   lastDeath: LastDeath | null;
   stash: Item[];
   townGrowth: Record<string, number>;
+  amulet?: { nodeId: string; found: boolean } | null;
 }
 
 export function createRunStats(): RunStats {
