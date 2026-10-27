@@ -39,6 +39,7 @@ import {
 } from './html';
 import { elementTag, elementsSection } from './elements';
 import { giftsSection } from './gifts';
+import { talentsSection } from './talents';
 import { ENEMY_ELEMENTS } from '../data/elements';
 import { deathSection, invasionSection, loreSection, questsGivenBy, questsSection, trophiesSection } from './story';
 
@@ -576,6 +577,7 @@ export function buildSections(comment: (root: string, path: LiteralPath) => stri
     consumablesSection(),
     wavesSection(),
     elementsSection(),
+    talentsSection(),
     giftsSection(),
     formulasSection(),
     // All the numbers of balance.ts — for the developer only.
