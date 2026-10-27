@@ -71,6 +71,7 @@ export function createTownScreen(app: App): Screen<CanvasRenderingContext2D> {
     else if (action === 'resetTree') app.askResetTree(talkingTo ?? '');
     else if (action === 'openOrders') app.openOrders();
     else if (action === 'openAlchemy') app.openAlchemy(talkingTo ?? '');
+    else if (action === 'openSmith') app.openSmith(talkingTo ?? '');
   };
   /** Tombstones of fallen heroes on the cemetery plots, the newest first. */
   const graves = (): { g: Grave; x: number; y: number }[] => {

@@ -6,13 +6,14 @@
 // references ({town:capital}, {npc:capitalGuard}, {boss:enat}… — src/data/names.ts), so a
 // rename changes them everywhere; `forms` hold the case forms used by such references.
 
+import { SMITH } from './smith';
 import { RECIPES } from './alchemy';
 import type { ConsumableId } from './consumables';
 import type { ItemSlot } from './items';
 import type { NameForms } from './names';
 
 /** What an option can do besides moving to another node. */
-export type DialogueAction = 'openShop' | 'openChangelog' | 'openInventory' | 'openCoach' | 'resetTree' | 'openOrders' | 'openAlchemy' | 'close';
+export type DialogueAction = 'openShop' | 'openChangelog' | 'openInventory' | 'openCoach' | 'resetTree' | 'openOrders' | 'openAlchemy' | 'openSmith' | 'close';
 
 export interface DialogueOption {
   text: string;
@@ -56,6 +57,7 @@ export interface NpcDef {
 export const NPC_LINES = {
   showOrders: 'Покажи замовлення.',
   brew: 'Звари мені щось.',
+  forge: 'Підправ мені річ.',
   merchantTitle: 'Торговець',
   showGoods: 'Покажи товари.',
   aboutPlace: 'Що тут цікавого?',
@@ -268,7 +270,7 @@ export const NPCS: Record<string, NpcDef> = {
     forms: { to: 'Матвієві', with: 'Матвієм', of: 'Матвія' },
     title: 'Старий коваль',
     look: { body: '#5a4a3a', accent: '#a8a8b0', hat: 'none' },
-    greeting: 'Сорок років кував для варти. Тепер сиджу під хатою й дивлюся, як кують інші — гірше.',
+    greeting: 'Сорок років кував для варти. Горн за хатою ще теплий — принось, що треба підправити.',
     news: 'Коли я був малим, {boss:enat} приходив до краю лісу, і діти носили йому яблука. А тепер — вовки й коріння. Щось його отруїло, кажу тобі.',
   }),
   capitalKid: local({
@@ -510,6 +512,12 @@ export const NPCS: Record<string, NpcDef> = {
     news: 'Крижані кристали горять у горні синім полум’ям. Принесеш — скую щось добре. Колись.',
   }),
 };
+
+// Smiths (ROADMAP 14.4): the forge first in the talk.
+for (const id of SMITH.at) {
+  const npc = NPCS[id];
+  npc?.nodes[npc.start]?.options.unshift({ text: NPC_LINES.forge, action: 'openSmith' });
+}
 
 // Brewers (ROADMAP 14.2): whoever brews a recipe offers it first in the talk.
 for (const id of new Set(RECIPES.flatMap((r) => r.at))) {

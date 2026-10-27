@@ -1,5 +1,6 @@
 // Application shell: owns the view, input, loop, screens and the run state.
 
+import { createSmithModal } from './smith';
 import { SOULS } from '../data/souls';
 import { ELEMENTS } from '../data/elements';
 import { catchSoul, stoneEffectText } from '../systems/souls';
@@ -249,6 +250,13 @@ export class App {
       return;
     }
     this.screens.pushModal(createOrdersModal(this, () => this.screens.popModal()));
+  }
+
+  /** The smith's forge (ROADMAP 14.4). */
+  openSmith(npcId: string): void {
+    if (this.screens.topModal || !npcId) return;
+    const npc = getNpc(npcId);
+    this.screens.pushModal(createSmithModal(this, `${npc.name} — коваль`, () => this.screens.popModal()));
   }
 
   /** The brewer's recipes (ROADMAP 14.2). */
