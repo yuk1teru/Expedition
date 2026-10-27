@@ -167,6 +167,8 @@ export function completeBattle(state: GameState, b: Battle): BattleSummary {
     s.locationsCleared += 1;
     state.day += 1;
     if (b.node.isBoss && !state.bossesDefeated.includes(b.node.id)) state.bossesDefeated.push(b.node.id);
+    // The boss reward: one more card on top of the big XP and gold (PLAN.md 5.13).
+    if (b.node.isBoss && state.hero.classId) state.modalQueue.push({ kind: 'cardChoice', level: state.hero.level, bossReward: true });
     // A boss victory is a milestone: dying later must not roll it back.
     if (b.node.isBoss) saveCheckpoint(state);
   }

@@ -12,8 +12,8 @@ export interface Vec {
 
 export type Team = 'hero' | 'enemy';
 
-/** `root`: no movement (hero only); `vuln`: takes +value damage (enemies). */
-export type StatusId = 'stun' | 'slow' | 'freeze' | 'burn' | 'taunt' | 'root' | 'vuln';
+/** `root`: no movement (hero only); `vuln`: takes +value damage (enemies); `poison`: value HP/s (hero). */
+export type StatusId = 'stun' | 'slow' | 'freeze' | 'burn' | 'taunt' | 'root' | 'vuln' | 'poison';
 
 export interface StatusEffect {
   /** Seconds remaining. */
@@ -275,6 +275,8 @@ export interface Projectile {
   source?: HitSource;
   /** Steers towards this enemy while it lives (Magic Missiles). */
   homingId?: number;
+  /** Enemy globs: leave a puddle where they land or hit (acid, poison). */
+  puddle?: { kind: string; radius: number; duration: number; dps: number };
   dead: boolean;
 }
 

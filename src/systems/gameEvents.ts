@@ -19,6 +19,8 @@ export type GameEvent =
   | { type: 'weatherEnd' }
   | { type: 'trapSnap'; pos: Vec }
   | { type: 'bossCombo'; pos: Vec }
+  /** A boss calls out its move (Sandstorm, Toxic Wave). */
+  | { type: 'bossShout'; text: string; pos: Vec }
   /** N in a break: the skipped seconds were taken off the hero's cooldowns. */
   | { type: 'breakSkipped'; seconds: number; pos: Vec }
   /** Boot dash (Shift). */

@@ -278,7 +278,7 @@ export class App {
     const offer = nextCardOffer(this.state);
     if (offer.length === 0) return;
     this.screens.pushModal(
-      createCardChoiceModal(this, offer, req.level, {
+      createCardChoiceModal(this, offer, req.level, req.bossReward ?? false, {
         onChosen: (card) => {
           chooseCard(this.state, card);
           this.screens.popModal();

@@ -332,7 +332,7 @@ export interface CardChoiceHandlers {
   onSkip: () => void;
 }
 
-export function createCardChoiceModal(app: App, firstOffer: Card[], level: number, h: CardChoiceHandlers): Modal<CanvasRenderingContext2D> {
+export function createCardChoiceModal(app: App, firstOffer: Card[], level: number, bossReward: boolean, h: CardChoiceHandlers): Modal<CanvasRenderingContext2D> {
   let offer = firstOffer;
   let rects = cardRects(app.view.width, offer.length);
   let hovered = -1;
@@ -388,7 +388,7 @@ export function createCardChoiceModal(app: App, firstOffer: Card[], level: numbe
     },
     render(ctx) {
       dim(ctx, app.view.width, app.view.height);
-      drawText(ctx, `Новий рівень ${level}! Оберіть картку`, app.view.width / 2, 62, { size: 28, bold: true, align: 'center' });
+      drawText(ctx, bossReward ? 'Нагорода за боса! Оберіть картку' : `Новий рівень ${level}! Оберіть картку`, app.view.width / 2, 62, { size: 28, bold: true, align: 'center', color: bossReward ? THEME.accent : THEME.text });
       drawText(ctx, 'Мишею або клавішами 1–3 · гра на паузі', app.view.width / 2, 92, {
         size: 15,
         align: 'center',

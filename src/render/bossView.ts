@@ -6,13 +6,13 @@ import { bossDefOf } from '../systems/boss';
 import type { Enemy } from '../systems/entities';
 import { drawText, roundRect } from './ui';
 import { drawStatusMarks } from './combatView';
-
-type BossPainter = (ctx: CanvasRenderingContext2D, e: Enemy, b: Battle, t: number, flash: boolean) => void;
+import { BIOME_BOSS_PAINTERS, type BossPainter } from './biomeBosses';
 
 const painters: Record<string, BossPainter> = {
   enat: drawEnat,
   alpha: drawAlpha,
   galeSpirit: drawGaleSpirit,
+  ...BIOME_BOSS_PAINTERS,
 };
 
 export function drawBoss(ctx: CanvasRenderingContext2D, e: Enemy, b: Battle, t: number): void {

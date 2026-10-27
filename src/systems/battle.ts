@@ -13,6 +13,7 @@ import { clampToArena, insideArena, separateBodies } from './collision';
 import { addStatus, damageEnemy, damageHero, debuffHero, decayKnockback, killEnemy, updateHeroHealing, updateStatuses } from './combat';
 import type { Ally, Body, Enemy, Hero, HeroCharge, Projectile, Telegraph, Vec, Zone } from './entities';
 import { updateAllies } from './allies';
+import { type Hazard, addPuddle, updateHazards } from './hazards';
 import { startPromotionEffects, updatePromotion } from './promotion';
 import { dist, normalize } from './entities';
 import { nearestEnemy } from './targeting';
@@ -71,6 +72,8 @@ export interface Battle {
   allies: Ally[];
   /** Skills being channelled by the hero (Aimed Shot). */
   charges: HeroCharge[];
+  /** Boss puddles and expanding rings. */
+  hazards: Hazard[];
   projectiles: Projectile[];
   zones: Zone[];
   telegraphs: Telegraph[];
@@ -88,6 +91,8 @@ export interface Battle {
   /** Lifesteal healed since the last popup, and time to the next popup. */
   healAcc: number;
   healTimer: number;
+  /** Poison damage since the last popup (shown summed, like lifesteal). */
+  poisonAcc: number;
   /** Fractional gold not paid out yet. */
   goldFrac: number;
   outcome: BattleOutcome;
@@ -119,6 +124,7 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0): B
     enemies: [],
     allies: [],
     charges: [],
+    hazards: [],
     projectiles: [],
     zones: [],
     telegraphs: [],
@@ -131,6 +137,7 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0): B
     stats: { kills: 0, xp: 0, gold: 0, damageDealt: 0, damageTaken: 0, loot: [] },
     healAcc: 0,
     healTimer: 0,
+    poisonAcc: 0,
     goldFrac: 0,
     outcome: 'running',
     endTimer: 0,
@@ -203,6 +210,7 @@ export function stepBattle(b: Battle, dt: number): void {
 
   updateZones(b, dt);
   updateTelegraphs(b, dt);
+  updateHazards(b, dt);
   updatePickups(b, dt);
   updateTraps(b);
   updateWeather(b, dt);
@@ -251,6 +259,7 @@ function updateProjectiles(b: Battle, dt: number): void {
     p.life -= dt;
     if (p.life <= 0 || !insideArena(p.pos.x, p.pos.y, p.radius)) {
       p.dead = true;
+      if (p.puddle && b.outcome === 'running') addPuddle(b, p.puddle.kind, p.pos, p.puddle.radius, p.puddle.duration, p.puddle.dps);
       // An exploding projectile that hit nothing bursts where it stops.
       if (p.explode && b.outcome === 'running') blast(b, p.pos, p.explode, p.explode.excludeHit ? p.hit : []);
       continue;
@@ -260,6 +269,7 @@ function updateProjectiles(b: Battle, dt: number): void {
       const hero = b.hero;
       if (!hero.dead && dist(p.pos, hero.pos) <= p.radius + hero.radius) {
         p.dead = true;
+        if (p.puddle) addPuddle(b, p.puddle.kind, hero.pos, p.puddle.radius, p.puddle.duration, p.puddle.dps);
         // Some projectiles only slow (no damage, no hurt number).
         if (p.damage > 0) damageHero(b, p.damage, { melee: p.melee });
         if (p.slow) debuffHero(b, 'slow', p.slow.time, p.slow.value);
@@ -354,6 +364,7 @@ function finish(b: Battle, outcome: BattleOutcome, delay: number): void {
   b.zones = [];
   b.telegraphs = [];
   b.charges = [];
+  b.hazards = [];
   b.events.emit({ type: 'battleEnd', won: outcome === 'won' });
 }
 

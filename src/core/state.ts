@@ -18,7 +18,8 @@ export interface RunStats {
   deaths: number;
 }
 
-export type ModalRequest = { kind: 'classChoice' } | { kind: 'cardChoice'; level: number } | { kind: 'promotion' };
+/** `bossReward`: the extra card for a boss victory (not a level-up). */
+export type ModalRequest = { kind: 'classChoice' } | { kind: 'cardChoice'; level: number; bossReward?: boolean } | { kind: 'promotion' };
 
 export interface GameState {
   seed: number;

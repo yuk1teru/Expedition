@@ -7,6 +7,7 @@ import type { Blast, Body, Enemy, Hero, StatusId, Vec } from './entities';
 import { normalize } from './entities';
 import type { HitSource } from './gameEvents';
 import { getBoss } from '../data/bosses';
+import { ENEMIES } from '../data/enemies';
 import { LOOT } from '../data/items';
 import { displayName, dropItemLevel, itemLevelRange, rollItem, rollRarity, stashLoot } from './items';
 import { heroAttack, heroLifesteal, heroRegen } from './hero';
@@ -90,6 +91,14 @@ export function killEnemy(b: Battle, e: Enemy): void {
   }
   if (e.boss) dropLoot(b, e);
   if (hasStatus(e, 'freeze')) shatter(b, e);
+  const split = ENEMIES[e.defId]?.split;
+  if (split && !e.boss) onSplit(b, e, split.into, split.count);
+}
+
+/** Splitting enemies (scarab, slime): set by waves.ts, which owns spawning. */
+let onSplit: (b: Battle, e: Enemy, into: string, count: number) => void = () => {};
+export function setSplitHandler(fn: (b: Battle, e: Enemy, into: string, count: number) => void): void {
+  onSplit = fn;
 }
 
 /** Cryomancer: frozen enemies take more damage. */
@@ -239,6 +248,24 @@ export function updateHeroHealing(b: Battle, dt: number): void {
   b.healTimer = HERO.healPopupInterval;
   if (b.healAcc >= 1) b.events.emit({ type: 'heroHeal', pos: { ...b.hero.pos }, amount: b.healAcc });
   b.healAcc = 0;
+  if (b.poisonAcc >= 1) b.events.emit({ type: 'heroHurt', pos: { ...b.hero.pos }, amount: b.poisonAcc });
+  b.poisonAcc = 0;
+}
+
+/** Poison on the hero: silent HP loss, summed into a popup; it counts as being hit (pauses regen). */
+function poisonHero(b: Battle, amount: number): void {
+  const hero = b.hero;
+  if (hero.dead || hero.invulnerable > 0 || amount <= 0) return;
+  if (hero.immortal) amount = Math.min(amount, Math.max(0, hero.hp - 1));
+  hero.hp -= amount;
+  hero.hitAt = b.time;
+  b.stats.damageTaken += amount;
+  b.poisonAcc += amount;
+  if (hero.hp <= 0) {
+    hero.hp = 0;
+    hero.dead = true;
+    b.events.emit({ type: 'heroDeath', pos: { ...hero.pos } });
+  }
 }
 
 /** Adds an impulse away from `from`; heavier bodies move less. */
@@ -289,6 +316,7 @@ export function updateStatuses(b: Battle, body: Body, dt: number): void {
   for (const key of Object.keys(body.statuses) as StatusId[]) {
     const st = body.statuses[key];
     if (!st) continue;
+    if (key === 'poison' && body.team === 'hero' && st.time > 0) poisonHero(b, st.value * Math.min(dt, st.time));
     if (key === 'burn' && body.team === 'enemy' && st.time > 0) {
       const e = body as Enemy;
       if (!e.dead) {

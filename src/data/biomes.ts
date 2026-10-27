@@ -11,7 +11,7 @@ export interface BiomePalette {
   eliteAura: string;
 }
 
-export type DecorKind = 'tree' | 'bush' | 'rock';
+export type DecorKind = 'tree' | 'bush' | 'rock' | 'cactus' | 'reeds' | 'crystal';
 
 export interface BiomeDef {
   id: string;
@@ -35,7 +35,6 @@ export interface BiomeDef {
   };
 }
 
-/** Forest enemy colours; other biomes borrow forest enemies until they get their own (PLAN.md, етап 5). */
 const FOREST_ENEMY_COLORS: Record<string, string> = {
   wolf: '#a9b4c2',
   mushroom: '#c97ad8',
@@ -64,7 +63,6 @@ export const BIOMES: Record<string, BiomeDef> = {
     miniboss: 'alpha',
     decor: { count: 26, kinds: ['tree', 'tree', 'bush', 'rock'], minSize: 10, maxSize: 30, edgeBand: 44 },
   },
-  // TODO (PLAN.md, етап 5): own enemies, miniboss and boss; forest ones meanwhile.
   desert: {
     id: 'desert',
     name: 'Пустеля',
@@ -73,15 +71,15 @@ export const BIOMES: Record<string, BiomeDef> = {
       groundDark: '#3a301c',
       accent: '#e2b25a',
       decor: ['#7a6440', '#8c7a52', '#5e7a3a'],
-      enemies: { ...FOREST_ENEMY_COLORS },
+      enemies: { scorpion: '#d9894a', cactus: '#6fae4c', scarab: '#3f6f8f', scarabling: '#5f8faf', galeSpirit: '#9fe3ff', sandWorm: '#c9a36b', scorpionKing: '#e07a3a' },
       eliteAura: '#ffd34d',
     },
     locationNames: ['Сухе русло', 'Піщані дюни', 'Розпечена рівнина', 'Кам’яний каньйон', 'Оаза міражів', 'Кістяна долина', 'Вітряний перевал', 'Соляне плато'],
     bossLocation: 'Нора Піщаного Хробака',
-    enemies: ['wolf', 'mushroom', 'stump'],
-    boss: 'enat',
-    miniboss: 'alpha',
-    decor: { count: 18, kinds: ['rock', 'rock', 'bush'], minSize: 10, maxSize: 26, edgeBand: 44 },
+    enemies: ['scorpion', 'cactus', 'scarab'],
+    boss: 'sandWorm',
+    miniboss: 'scorpionKing',
+    decor: { count: 20, kinds: ['cactus', 'cactus', 'rock', 'rock'], minSize: 10, maxSize: 26, edgeBand: 44 },
   },
   swamp: {
     id: 'swamp',
@@ -91,15 +89,15 @@ export const BIOMES: Record<string, BiomeDef> = {
       groundDark: '#1a2524',
       accent: '#5fc7b0',
       decor: ['#2f4a42', '#3d5c4c', '#2e3d3a'],
-      enemies: { ...FOREST_ENEMY_COLORS },
+      enemies: { slime: '#8fd16a', slimelet: '#a7e08a', frog: '#4f9a5a', bogman: '#6a5a3a', galeSpirit: '#9fe3ff', poisonMother: '#7fbf3a', bigToad: '#5f9a4a' },
       eliteAura: '#ffd34d',
     },
     locationNames: ['Туманна трясовина', 'Гнилі мочари', 'Очеретяна заплава', 'Жаб’яче озерце', 'Чорна багнюка', 'Тиха драговина', 'Мертвий рукав', 'Комарині плавні'],
     bossLocation: 'Гніздо Отруйної Матері',
-    enemies: ['wolf', 'mushroom', 'stump'],
-    boss: 'enat',
-    miniboss: 'alpha',
-    decor: { count: 24, kinds: ['bush', 'bush', 'tree', 'rock'], minSize: 10, maxSize: 26, edgeBand: 44 },
+    enemies: ['slime', 'frog', 'bogman'],
+    boss: 'poisonMother',
+    miniboss: 'bigToad',
+    decor: { count: 26, kinds: ['reeds', 'reeds', 'bush', 'tree'], minSize: 10, maxSize: 26, edgeBand: 44 },
   },
   ice: {
     id: 'ice',
@@ -109,15 +107,15 @@ export const BIOMES: Record<string, BiomeDef> = {
       groundDark: '#212a36',
       accent: '#9fd8ff',
       decor: ['#c8dceb', '#8fb0c8', '#5f7d96'],
-      enemies: { ...FOREST_ENEMY_COLORS },
+      enemies: { iceWolf: '#cfe6f5', snowman: '#f4f7fb', iceGolem: '#7fb0d6', galeSpirit: '#9fe3ff', iceKnight: '#9fc8e8', frostWarden: '#bfe6ff' },
       eliteAura: '#ffd34d',
     },
     locationNames: ['Білий схил', 'Крижане озеро', 'Морозний перевал', 'Сніжна пустка', 'Синя ущелина', 'Скляний льодовик', 'Холодне урвище', 'Інеєвий ліс'],
     bossLocation: 'Цитадель Крижаного Лицаря',
-    enemies: ['wolf', 'mushroom', 'stump'],
-    boss: 'enat',
-    miniboss: 'alpha',
-    decor: { count: 20, kinds: ['rock', 'rock', 'tree'], minSize: 10, maxSize: 28, edgeBand: 44 },
+    enemies: ['iceWolf', 'snowman', 'iceGolem'],
+    boss: 'iceKnight',
+    miniboss: 'frostWarden',
+    decor: { count: 22, kinds: ['crystal', 'crystal', 'rock', 'tree'], minSize: 10, maxSize: 28, edgeBand: 44 },
   },
 };
 

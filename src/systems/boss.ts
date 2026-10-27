@@ -6,7 +6,7 @@ import { type BossAttackDef, type BossDef, type BossParams, getBoss } from '../d
 import { getBiome } from '../data/biomes';
 import { ARENA } from '../data/balance';
 import type { Battle } from './battle';
-import { damageHero, isDisabled, killEnemy, speedMult } from './combat';
+import { damageHero, debuffHero, isDisabled, killEnemy, speedMult } from './combat';
 import type { Enemy, Telegraph, TelegraphShape, Vec } from './entities';
 import { angleOf, dist } from './entities';
 import { dayMultiplier, enemyStats } from './scaling';
@@ -131,6 +131,9 @@ function updateOneBoss(b: Battle, boss: Enemy, dt: number): void {
   const d = dist(boss.pos, hero.pos);
   if (rt.busy <= 0 && d > def.keepDistance + boss.radius + hero.radius) {
     moveTowards(boss, hero.pos, boss.speed * speedMult(boss));
+  }
+  if (def.coldAura && rt.phase >= def.coldAura.phase && d <= def.coldAura.radius + hero.radius) {
+    debuffHero(b, 'slow', 0.3, def.coldAura.slow);
   }
   if (def.melee && rt.busy <= 0 && boss.attackTimer <= 0 && d <= boss.radius + hero.radius + def.melee.reach) {
     boss.attackTimer = def.melee.interval;

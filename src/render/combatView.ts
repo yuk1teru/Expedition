@@ -1,5 +1,6 @@
 // Combat screen: arena, entities, effects, HUD; drives the battle simulation.
 
+import { drawHazard } from './biomeBosses';
 import { heroColor } from './names';
 import { drawAimLine, drawAlly, drawBranchProjectile, drawBranchZone, drawClassProjectile, drawClassZone, drawElementalStatus, drawShieldBubble } from './classFx';
 import { heroShield } from '../systems/hero';
@@ -163,6 +164,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       ctx.translate(off.x, off.y);
       drawArena(ctx, b.biome, patches, decor);
       for (const z of b.zones) drawZone(ctx, z, b, app.time);
+      for (const h of b.hazards) drawHazard(ctx, h, app.time);
       if (b.portal) drawPortal(ctx, b.portal.pos, b.portal.radius, app.time, portalActive(b));
       for (const p of b.pickups) drawPickup(ctx, p, b, app.time);
       for (const tr of b.traps) drawTrap(ctx, tr, b);
@@ -220,6 +222,12 @@ const TELEGRAPH_FIRE_COLOR: Record<string, string> = {
   stomp: '#a07a4c',
   lightning: '#fff3a8',
   gust: '#9fe3ff',
+  burrow: '#c9a36b',
+  sting: '#e07a3a',
+  tongue: '#d86b8f',
+  ram: '#bfe6ff',
+  iceSpikes: '#d8f0ff',
+  frostNova: '#9fd8ff',
 };
 
 function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
@@ -291,6 +299,11 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
       break;
     case 'heroDodge':
       fx.lineBurst(e.from, e.to, P.chargeTrail, '#bfe8ff');
+      break;
+    case 'bossShout':
+      fx.showBanner(e.text, THEME.bad);
+      fx.text({ x: e.pos.x, y: e.pos.y - 56 }, e.text, THEME.bad, 18, 1.4);
+      fx.shake(FX.shake.telegraph);
       break;
     case 'bossCombo':
       fx.text({ x: e.pos.x, y: e.pos.y - 48 }, 'Комбо!', THEME.bad, 17, 1);
@@ -452,6 +465,46 @@ function drawDecor(ctx: CanvasRenderingContext2D, d: Decor): void {
       ctx.beginPath();
       ctx.arc((i - 1) * d.size * 0.45, Math.sin(d.rot + i) * 3, d.size * 0.45, 0, Math.PI * 2);
       ctx.fill();
+    }
+  } else if (d.kind === 'cactus') {
+    // Column with two arms.
+    const h = d.size * 1.2;
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(4, h * 0.45, d.size * 0.5, d.size * 0.25, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#5e8f3a';
+    ctx.fillRect(-d.size * 0.18, -h * 0.55, d.size * 0.36, h);
+    ctx.fillRect(-d.size * 0.55, -h * 0.15, d.size * 0.37, d.size * 0.16);
+    ctx.fillRect(-d.size * 0.55, -h * 0.45, d.size * 0.16, h * 0.32);
+    ctx.fillRect(d.size * 0.18, -h * 0.05, d.size * 0.3, d.size * 0.16);
+    ctx.fillRect(d.size * 0.32, -h * 0.35, d.size * 0.16, h * 0.32);
+  } else if (d.kind === 'reeds') {
+    ctx.strokeStyle = d.color;
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 4; i++) {
+      const x = (i - 1.5) * d.size * 0.22;
+      const h = d.size * (0.8 + 0.3 * Math.sin(d.rot + i * 1.7));
+      ctx.beginPath();
+      ctx.moveTo(x, d.size * 0.4);
+      ctx.lineTo(x + Math.sin(d.rot + i) * 3, -h);
+      ctx.stroke();
+      ctx.fillStyle = '#6a5a3a';
+      ctx.fillRect(x + Math.sin(d.rot + i) * 3 - 2, -h, 4, d.size * 0.25);
+    }
+  } else if (d.kind === 'crystal') {
+    ctx.rotate(d.rot * 0.3);
+    ctx.fillStyle = 'rgba(200, 230, 255, 0.7)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.lineWidth = 1.5;
+    for (const [dx, h, w] of [[0, 1.1, 0.3], [-0.35, 0.7, 0.22], [0.35, 0.8, 0.22]] as const) {
+      ctx.beginPath();
+      ctx.moveTo(d.size * dx - d.size * w, d.size * 0.3);
+      ctx.lineTo(d.size * dx, -d.size * h);
+      ctx.lineTo(d.size * dx + d.size * w, d.size * 0.3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
     }
   } else {
     ctx.rotate(d.rot);
@@ -655,6 +708,16 @@ function drawHero(ctx: CanvasRenderingContext2D, h: Hero, b: Battle, t: number, 
       ctx.stroke();
     }
   }
+  if ((h.statuses.poison?.time ?? 0) > 0) {
+    // Poisoned: green bubbles rising.
+    ctx.fillStyle = 'rgba(150, 230, 90, 0.85)';
+    for (let i = 0; i < 4; i++) {
+      const ph = (t * 1.5 + i * 0.25) % 1;
+      ctx.beginPath();
+      ctx.arc((i - 1.5) * 7, -r - ph * 18, 2.5 * (1 - ph) + 1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
   if ((h.statuses.slow?.time ?? 0) > 0) {
     // Slowed: icy-blue dashed ring.
     ctx.strokeStyle = 'rgba(120, 200, 255, 0.85)';
@@ -684,10 +747,13 @@ function drawHero(ctx: CanvasRenderingContext2D, h: Hero, b: Battle, t: number, 
   ctx.restore();
 }
 
+/** Enemy projectile colours by kind (spores by default). */
+const ENEMY_SHOT_COLORS: Record<string, string> = { gale: '#9fe3ff', spike: '#9fdf6a', snow: '#f4f8ff', acid: '#b6f04a', venom: '#a6e05a', iceShard: '#bfe6ff' };
+
 function drawProjectile(ctx: CanvasRenderingContext2D, p: Projectile, t: number): void {
   if (p.team === 'hero' && (drawClassProjectile(ctx, p, t) || drawBranchProjectile(ctx, p))) return;
   if (p.team === 'enemy') {
-    ctx.fillStyle = p.kind === 'gale' ? '#9fe3ff' : '#d86bf0';
+    ctx.fillStyle = ENEMY_SHOT_COLORS[p.kind] ?? '#d86bf0';
     ctx.beginPath();
     ctx.arc(p.pos.x, p.pos.y, p.radius, 0, Math.PI * 2);
     ctx.fill();

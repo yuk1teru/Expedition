@@ -1,10 +1,10 @@
 // Hero auto-combat AI (melee and ranged) and enemy archetype AI.
 
 import { ENEMY_COMMON, HERO } from '../data/balance';
-import { type EnemyDef, getEnemyDef } from '../data/enemies';
+import { ENEMIES, type EnemyDef, getEnemyDef } from '../data/enemies';
 import type { Battle } from './battle';
 import { addTelegraph } from './boss';
-import { damageEnemy, damageHero, debuffHero, hasStatus, heroDamage, isDisabled, speedMult } from './combat';
+import { addStatus, damageEnemy, damageHero, debuffHero, hasStatus, heroDamage, isDisabled, speedMult } from './combat';
 import type { Ally, Enemy, Hero, Projectile, Vec } from './entities';
 import { damageAlly } from './allies';
 import { igniteFor } from './promotion';
@@ -289,6 +289,7 @@ function tryMelee(b: Battle, e: Enemy, def: EnemyDef): void {
   e.attackTimer = def.attackInterval;
   const dealt = damageHero(b, e.damage, { attacker: e, melee: true });
   if (dealt > 0 && def.cripple) debuffHero(b, 'slow', def.cripple.time, def.cripple.slow);
+  if (dealt > 0 && def.poison) addStatus(b.hero, 'poison', def.poison.time, e.damage * def.poison.dps);
 }
 
 function startStomp(b: Battle, e: Enemy, def: EnemyDef): void {
@@ -324,6 +325,7 @@ export function nextShotIsVolley(e: Enemy): boolean {
 
 export function enemyShoot(b: Battle, e: Enemy, speed: number, at: Vec = b.hero.pos, kind = 'enemy'): void {
   const dir = normalize({ x: at.x - e.pos.x, y: at.y - e.pos.y });
+  const def = e.boss ? undefined : ENEMIES[e.defId];
   spawnProjectile(b, {
     pos: { x: e.pos.x + dir.x * e.radius, y: e.pos.y + dir.y * e.radius },
     vel: { x: dir.x * speed, y: dir.y * speed },
@@ -333,8 +335,9 @@ export function enemyShoot(b: Battle, e: Enemy, speed: number, at: Vec = b.hero.
     life: ENEMY_COMMON.projectileLife,
     pierce: 0,
     ricochet: 0,
-    kind,
+    kind: def?.shotKind ?? kind,
     melee: false,
+    slow: def?.shotSlow,
   });
   b.events.emit({ type: 'enemyShot', pos: { ...e.pos } });
 }

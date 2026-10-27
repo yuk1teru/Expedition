@@ -10,6 +10,7 @@ import { WEATHER_ORDER } from '../data/weather';
 import type { Rng } from '../core/rng';
 import type { Battle } from './battle';
 import { createBossEnemy } from './boss';
+import { setSplitHandler } from './combat';
 import { maybeSpawnPickup } from './pickups';
 import type { Archetype, Enemy, Vec } from './entities';
 import { dist } from './entities';
@@ -299,6 +300,14 @@ export function edgePoint(rng: Rng, inset: number = WAVES.spawnInset): Vec {
       return { x: x0, y: rng.float(y0, y1) };
   }
 }
+
+// Scarabs and slimes split on death into smaller ones next to where they fell.
+setSplitHandler((b, e, into, count) => {
+  for (let i = 0; i < count; i++) {
+    const a = (i / count) * Math.PI * 2 + b.rng.float(0, 1);
+    spawnEnemy(b, into, { x: e.pos.x + Math.cos(a) * e.radius, y: e.pos.y + Math.sin(a) * e.radius }, false, true);
+  }
+});
 
 /** Spawns a regular enemy scaled by tier and by the running wave (summons too). */
 export function spawnEnemy(b: Battle, defId: string, pos: Vec, elite = false, summoned = false, mult: WaveMult = currentWaveMult(b)): Enemy {
