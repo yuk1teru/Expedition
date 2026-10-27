@@ -1,5 +1,6 @@
 // Combat screen: arena, entities, effects, HUD; drives the battle simulation.
 
+import { drawArenaTerrain, drawObstacles } from './arenaView';
 import { cycleArrows } from '../systems/hero';
 import { ELEMENTS } from '../data/elements';
 import { drawHazard } from './biomeBosses';
@@ -9,7 +10,7 @@ import { heroShield } from '../systems/hero';
 import type { InputEvent } from '../core/input';
 import { Rng } from '../core/rng';
 import type { Screen } from '../core/screens';
-import { ARENA, PROGRESSION, TRAPS } from '../data/balance';
+import { ARENA, ARENA_VIEW, PROGRESSION, TRAPS } from '../data/balance';
 import { WEATHER } from '../data/weather';
 import { getEnemyDef } from '../data/enemies';
 import type { BiomeDef, DecorKind } from '../data/biomes';
@@ -64,7 +65,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
   let confirmUntil = 0;
   const W = app.view.width;
   // Compact, see-through pause panel: the arena stays visible.
-  const PAUSE_PANEL = { x: W / 2 - 270, y: ARENA.y + ARENA.h / 2 - 166, w: 540, h: 332 };
+  const PAUSE_PANEL = { x: W / 2 - 270, y: ARENA_VIEW.y + ARENA_VIEW.h / 2 - 166, w: 540, h: 332 };
   const resumeBtn = new Button({
     label: 'Продовжити (Esc)',
     rect: { x: W / 2 - 215, y: PAUSE_PANEL.y + PAUSE_PANEL.h - 50, w: 200, h: 36 },
@@ -191,10 +192,18 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       // No shake while the game is paused or a choice window is open.
       const frozen = app.loop.paused || app.screens.isPaused;
       const off = frozen ? { x: 0, y: 0 } : fx.shakeOffset();
+      // The camera follows the hero over a bigger arena (ROADMAP 13.1); a view-sized one stays put.
+      const fit = (p: number, view: number, start: number, size: number): number => (size <= view ? start : Math.max(start, Math.min(start + size - view, p - view / 2)));
+      b.cam = { x: fit(b.hero.pos.x, ARENA_VIEW.w, ARENA.x, ARENA.w), y: fit(b.hero.pos.y, ARENA_VIEW.h, ARENA.y, ARENA.h) };
       ctx.save();
-      ctx.translate(off.x, off.y);
+      ctx.beginPath();
+      ctx.rect(ARENA_VIEW.x, ARENA_VIEW.y, ARENA_VIEW.w, ARENA_VIEW.h);
+      ctx.clip();
+      ctx.translate(off.x + ARENA_VIEW.x - b.cam.x, off.y + ARENA_VIEW.y - b.cam.y);
       drawArena(ctx, b.biome, patches, decor);
+      drawArenaTerrain(ctx, b, app.time);
       for (const z of b.zones) drawZone(ctx, z, b, app.time);
+      drawObstacles(ctx, b);
       for (const h of b.hazards) drawHazard(ctx, h, app.time);
       if (b.portal) drawPortal(ctx, b.portal.pos, b.portal.radius, app.time, portalActive(b));
       for (const p of b.pickups) drawPickup(ctx, p, b, app.time);
@@ -233,10 +242,10 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       if (portalInReach(b)) drawPortalButton(ctx, portalButtonRect(b), inRect(portalButtonRect(b), app.input.mouse.x, app.input.mouse.y));
       fx.drawFlash(ctx, app.view.width, app.view.height);
       hud.draw(ctx, b);
-      fx.drawBanner(ctx, app.view.width / 2, ARENA.y + ARENA.h * 0.3);
+      fx.drawBanner(ctx, app.view.width / 2, ARENA_VIEW.y + ARENA_VIEW.h * 0.3);
       if (app.loop.paused && !app.screens.isPaused) {
         ctx.fillStyle = 'rgba(0,0,0,0.2)';
-        ctx.fillRect(0, ARENA.y, app.view.width, ARENA.h);
+        ctx.fillRect(0, ARENA_VIEW.y, app.view.width, ARENA_VIEW.h);
         drawPanel(ctx, PAUSE_PANEL, 'rgba(14, 16, 24, 0.72)');
         drawText(ctx, 'Пауза', W / 2, PAUSE_PANEL.y + 24, { size: 22, bold: true, align: 'center' });
         drawControls(ctx, W / 2 - 70, PAUSE_PANEL.y + 54, 12, 21, THEME.textDim);

@@ -5,6 +5,7 @@
 // Every 5th wave brings an event: bad weather or an elemental. Until the hero leaves,
 // waves keep coming.
 
+import { pushOutOfObstacles } from './arena';
 import { ENEMY_ELEMENTS } from '../data/elements';
 import { ARENA, ELITE, ENEMY_COMMON, WAVES, WAVE_EVENTS } from '../data/balance';
 import { getEnemyDef } from '../data/enemies';
@@ -386,6 +387,7 @@ export function spawnEnemy(b: Battle, defId: string, pos: Vec, elite = false, su
     boss: null,
     summoned,
   };
+  pushOutOfObstacles(b.arena, e);
   b.enemies.push(e);
   b.events.emit({ type: 'spawn', pos: { ...e.pos }, radius: e.radius });
   return e;

@@ -13,13 +13,25 @@ export const LOOP = {
   maxFrame: 0.25,
 } as const;
 
-/** Combat arena in logical pixels (HUD sits above and below). */
-export const ARENA = {
+/** The combat view on the screen, logical pixels (HUD sits above and below). */
+export const ARENA_VIEW = {
   x: 0,
   y: 56,
   w: 960,
   h: 416,
 } as const;
+
+/**
+ * The current battle's arena in world pixels: it starts where the view starts, its size
+ * comes from the location's arena (ROADMAP 13.1). A bigger arena scrolls under the camera.
+ */
+export const ARENA: { x: number; y: number; w: number; h: number } = { ...ARENA_VIEW };
+
+/** Sets the arena size for the next battle (the view's size by default). */
+export function setArenaSize(w: number = ARENA_VIEW.w, h: number = ARENA_VIEW.h): void {
+  ARENA.w = w;
+  ARENA.h = h;
+}
 
 export const HERO = {
   hp: 100,

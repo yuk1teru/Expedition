@@ -1,5 +1,6 @@
 // Hero auto-combat AI (melee and ranged) and enemy archetype AI.
 
+import { heroHidden } from './arena';
 import { ARENA, ENEMY_COMMON, HERO } from '../data/balance';
 import { ENEMIES, type EnemyDef, getEnemyDef } from '../data/enemies';
 import type { Battle } from './battle';
@@ -249,6 +250,11 @@ export function updateEnemyAI(b: Battle, e: Enemy, dt: number): void {
 
   if (shooter && !hasStatus(e, 'taunt')) {
     const band = ENEMY_COMMON.shooterBand;
+    // Tall grass: a shooter that does not see the hero comes closer instead of shooting.
+    if (heroHidden(b, e.pos)) {
+      moveTowards(e, hero.pos, speed);
+      return;
+    }
     if (d > shooter.keepDistance + band) moveTowards(e, hero.pos, speed);
     else if (d < shooter.keepDistance - band) moveAway(e, hero.pos, speed * shooter.retreatSpeedMult);
     if (d <= shooter.range && e.attackTimer <= 0) {

@@ -39,6 +39,7 @@ import {
 } from './html';
 import { elementTag, elementsSection } from './elements';
 import { giftsSection } from './gifts';
+import { arenasSection } from './arenas';
 import { talentsSection } from './talents';
 import { ENEMY_ELEMENTS } from '../data/elements';
 import { deathSection, invasionSection, loreSection, questsGivenBy, questsSection, trophiesSection } from './story';
@@ -569,6 +570,7 @@ export function buildSections(comment: (root: string, path: LiteralPath) => stri
     bossesSection(),
     worldSection(),
     townsSection(),
+    arenasSection(),
     deathSection(),
     invasionSection(),
     questsSection(),

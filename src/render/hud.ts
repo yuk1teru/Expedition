@@ -2,7 +2,7 @@
 
 import { ELEMENTS } from '../data/elements';
 import type { InputEvent } from '../core/input';
-import { ARENA, PROGRESSION, RANKS } from '../data/balance';
+import { ARENA_VIEW as ARENA, PROGRESSION, RANKS } from '../data/balance';
 import { FX } from '../data/fx';
 import { getSkill } from '../data/skills';
 import { WEATHER } from '../data/weather';

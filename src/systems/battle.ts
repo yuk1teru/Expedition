@@ -23,6 +23,7 @@ import type { Item } from './items';
 import type { GameEvent } from './gameEvents';
 import { type MapNode, effectiveLevel, getNode } from './mapgen';
 import { levelTier } from './scaling';
+import { type ArenaState, hitsObstacle, pushOutOfObstacles, setupArena, updateTerrain } from './arena';
 import type { Element } from '../data/elements';
 import { type Trap, updateTraps } from './traps';
 import { type WaveState, createWaves, updateWaves } from './waves';
@@ -118,6 +119,10 @@ export interface Battle {
   healAcc: number;
   /** What killed the hero (null while alive or when unknown). */
   deathCause: DeathCause | null;
+  /** Obstacles and terrain of this battle's arena (ROADMAP 13.1). */
+  arena: ArenaState;
+  /** Camera: the world point at the top-left corner of the combat view (render, mouse aim). */
+  cam: Vec;
   /** The element of the skill being cast right now: what it creates (projectiles, zones, blasts) takes it. */
   castElement: Element | null;
   healTimer: number;
@@ -141,7 +146,10 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0, tr
   if (!node.biome) throw new Error(`Node ${nodeId} has no biome`);
   state.battleCount += 1;
   const hero = state.hero;
+  // The arena first: its size decides where the hero starts.
+  const arena = setupArena(node.id);
   resetHeroForBattle(hero);
+  pushOutOfObstacles(arena, hero);
   const level = effectiveLevel(node, state.bossesDefeated.length);
   const b: Battle = {
     state,
@@ -175,6 +183,8 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0, tr
     healAcc: 0,
     deathCause: null,
     castElement: null,
+    cam: { x: ARENA.x, y: ARENA.y },
+    arena,
     healTimer: 0,
     poisonAcc: 0,
     goldFrac: 0,
@@ -260,7 +270,11 @@ export function stepBattle(b: Battle, dt: number): void {
   const bodies: Body[] = [hero, ...b.allies.filter((a) => !a.dead), ...b.enemies.filter((e) => !e.dead)];
   if (!hero.dash) separateBodies(bodies);
   else separateBodies(bodies.slice(1));
-  for (const body of bodies) clampToArena(body);
+  for (const body of bodies) {
+    clampToArena(body);
+    pushOutOfObstacles(b.arena, body);
+  }
+  updateTerrain(b, dt);
 
   cleanup(b);
   checkOutcome(b);
@@ -297,7 +311,8 @@ function updateProjectiles(b: Battle, dt: number): void {
     p.pos.x += p.vel.x * dt;
     p.pos.y += p.vel.y * dt;
     p.life -= dt;
-    if (p.life <= 0 || !insideArena(p.pos.x, p.pos.y, p.radius)) {
+    // Out of time, out of the arena or into an obstacle (trees and rocks stop shots).
+    if (p.life <= 0 || !insideArena(p.pos.x, p.pos.y, p.radius) || hitsObstacle(b.arena, p.pos.x, p.pos.y, p.radius * 0.5)) {
       p.dead = true;
       if (p.puddle && b.outcome === 'running') addPuddle(b, p.puddle.kind, p.pos, p.puddle.radius, p.puddle.duration, p.puddle.dps);
       // An exploding projectile that hit nothing bursts where it stops.
