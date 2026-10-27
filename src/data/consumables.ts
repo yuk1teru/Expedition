@@ -35,7 +35,7 @@ export const CONSUMABLES: Record<ConsumableId, ConsumableDef> = {
     name: 'Лупа',
     description: 'Розпізнає одну річ, після чого її можна вдягнути.',
     price: 25,
-    max: 9,
+    max: 10,
     color: '#d9c9a3',
   },
   herbGreen: { id: 'herbGreen', name: 'Зелена трава', price: 0, max: 3, color: '#6fd16f', heal: { pct: 0.04, flat: 8, duration: 4 } },

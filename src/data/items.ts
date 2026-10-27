@@ -31,10 +31,10 @@ export const RARITIES: Record<Rarity, RarityDef> = {
   // Stats per item: common 1, uncommon and rare 2, epic 3, legendary 4.
   // Rare has as many stats as uncommon, so it gets a clearly bigger power.
   common: { name: 'Звичайна', color: '#c9ced8', power: 1, extraStats: 0, sellPrice: 4 },
-  uncommon: { name: 'Незвичайна', color: '#5fd35f', power: 1.3, extraStats: 1, sellPrice: 8 },
-  rare: { name: 'Рідкісна', color: '#4aa3ff', power: 1.9, extraStats: 1, sellPrice: 15 },
-  epic: { name: 'Епічна', color: '#c77dff', power: 2.3, extraStats: 2, sellPrice: 30 },
-  legendary: { name: 'Легендарна', color: '#ff9f1c', power: 3, extraStats: 3, sellPrice: 60 },
+  uncommon: { name: 'Незвичайна', color: '#5fd35f', power: 1.3, extraStats: 1, sellPrice: 15 },
+  rare: { name: 'Рідкісна', color: '#4aa3ff', power: 1.9, extraStats: 2, sellPrice: 35 },
+  epic: { name: 'Епічна', color: '#c77dff', power: 2.3, extraStats: 3, sellPrice: 65 },
+  legendary: { name: 'Легендарна', color: '#ff9f1c', power: 3, extraStats: 4, sellPrice: 120 },
 };
 
 /**
@@ -183,8 +183,8 @@ export const BOOT_DASH_SPEED = 1100;
  * Minibosses never drop anything better than uncommon.
  */
 export const LOOT: Record<'miniboss' | 'boss', { count: number; weights: Partial<Record<Rarity, number>> }> = {
-  miniboss: { count: 1, weights: { common: 70, uncommon: 20 } },
-  boss: { count: 2, weights: { common: 70, uncommon: 20, rare: 14, epic: 7, legendary: 4 } },
+  miniboss: { count: 1, weights: { common: 40, uncommon: 10 } },
+  boss: { count: 2, weights: { common: 0, uncommon: 40, rare: 22, epic: 14, legendary: 7 } },
 };
 
 export const STAT_LABELS: Record<ItemStat, { label: string; percent: boolean }> = {
