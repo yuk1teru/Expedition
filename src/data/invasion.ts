@@ -52,7 +52,7 @@ export const INVASION_EVENTS = {
   captured: {
     at: 50,
     /** The lands that can be captured, in this order (the first whose boss lives): the quest that wins each back. */
-    quests: { forest: 'reclaimForest' } as Record<string, string>,
+    quests: { forest: 'reclaimForest', swamp: 'reclaimSwamp', desert: 'reclaimDesert', ice: 'reclaimIce' } as Record<string, string>,
   },
   townAttack: {
     at: 75,

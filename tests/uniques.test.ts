@@ -103,7 +103,7 @@ describe('items with effects', () => {
     let pieces = 0;
     for (let i = 0; i < 100; i++) {
       const it = rollItem(rng, 'rare', i, undefined, 20, 'warrior');
-      maybeSetPiece(rng, it, 'desert');
+      maybeSetPiece(rng, it, 'plains');
       expect(it.set).toBeUndefined();
       maybeSetPiece(rng, it, 'forest');
       if (it.set) pieces++;
@@ -126,5 +126,18 @@ describe('items with effects', () => {
     wear(s, items[2]!);
     wear(s, items[3]!);
     expect(s.hero.stats.attackSpeed).toBeGreaterThan(speed);
+  });
+});
+
+describe('the sets and boss legendaries of every land (ROADMAP 16)', () => {
+  it('each land with a boss has its set and its boss legendary; each set drops only in its land', async () => {
+    const { WORLD_NODES } = await import('../src/data/world');
+    const { BOSSES } = await import('../src/data/bosses');
+    for (const n of WORLD_NODES.filter((x) => x.kind === 'boss')) {
+      expect(Object.values(ITEM_SETS).some((s) => s.region === n.region), n.region).toBe(true);
+      const boss = n.boss ?? '';
+      expect(BOSSES[boss], n.id).toBeDefined();
+      expect(Object.values(LEGENDARIES).some((l) => l.boss === boss), boss).toBe(true);
+    }
   });
 });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { INVASION_EVENTS } from '../src/data/invasion';
+import { QUESTS } from '../src/data/quests';
 import { LOOP } from '../src/data/balance';
 import { createBattle, killAll, stepBattle } from '../src/systems/battle';
 import { defenseBattle, finishDefense, invasionTick } from '../src/systems/invasion';
@@ -88,5 +89,14 @@ describe('invasion events (ROADMAP 15.2)', () => {
     finishDefense(s, b);
     expect(s.townAttack).toBeNull();
     expect(s.gold).toBeGreaterThanOrEqual(gold + ev.townAttack.gold);
+  });
+
+  it('every land the invasion can capture has a quest that wins it back, from a town of that land', () => {
+    for (const [region, id] of Object.entries(ev.captured.quests)) {
+      const q = QUESTS[id]!;
+      expect(q, id).toBeDefined();
+      expect(q.requires?.captured).toBe(region);
+      expect(q.reward.reclaim).toBe(region);
+    }
   });
 });

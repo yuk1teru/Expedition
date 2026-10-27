@@ -100,6 +100,44 @@ LEGENDARIES.enatBark = {
   ],
 };
 
+LEGENDARIES.motherCrown = {
+  id: 'motherCrown',
+  name: 'Вінець Отруйної Матері',
+  slot: 'hat',
+  classId: null,
+  boss: 'poisonMother',
+  text: 'Вінець з болотяних лілій: +25% шкоди Отрутою і 4% вампіризму.',
+  effects: [
+    { kind: 'element', element: 'poison', value: 0.25 },
+    { kind: 'stat', stat: 'lifesteal', value: 0.04 },
+  ],
+};
+LEGENDARIES.wormFang = {
+  id: 'wormFang',
+  name: 'Ікло Піщаного Хробака',
+  slot: 'weapon',
+  classId: null,
+  boss: 'sandWorm',
+  text: 'Ікло-серп: +25% шкоди Землею і +10% швидкості атаки.',
+  effects: [
+    { kind: 'element', element: 'earth', value: 0.25 },
+    { kind: 'stat', stat: 'attackSpeedPct', value: 0.1 },
+  ],
+};
+LEGENDARIES.knightShield = {
+  id: 'knightShield',
+  name: 'Обладунок Крижаного Лицаря',
+  slot: 'armor',
+  classId: null,
+  boss: 'iceKnight',
+  text: 'Крижана броня ордену: +6 броні, +10% макс. HP, +20% шкоди Водою.',
+  effects: [
+    { kind: 'stat', stat: 'armor', value: 6 },
+    { kind: 'stat', stat: 'hpPct', value: 0.1 },
+    { kind: 'element', element: 'water', value: 0.2 },
+  ],
+};
+
 export const AFFIXES = {
   /**
    * Chance an item rolls a skill affix (a skill of the hero's class). It stays hidden until the
@@ -140,6 +178,51 @@ export const ITEM_SETS: Record<string, ItemSetDef> = {
       effects: [
         { kind: 'stat', stat: 'attackSpeedPct', value: 0.12 },
         { kind: 'element', element: 'earth', value: 0.2 },
+      ],
+    },
+  },
+  swamp: {
+    id: 'swamp',
+    name: 'Комплект Болота',
+    pieces: { hat: 'Очеретяний капелюх', armor: 'Жаб’яча шкіра', weapon: 'Багор човняра', boots: 'Болотяні чоботи' },
+    region: 'swamp',
+    chance: 0.3,
+    bonus2: { text: '3% вампіризму', effects: [{ kind: 'stat', stat: 'lifesteal', value: 0.03 }] },
+    bonus4: {
+      text: '+10% макс. HP, +20% шкоди Отрутою',
+      effects: [
+        { kind: 'stat', stat: 'hpPct', value: 0.1 },
+        { kind: 'element', element: 'poison', value: 0.2 },
+      ],
+    },
+  },
+  desert: {
+    id: 'desert',
+    name: 'Комплект Пустелі',
+    pieces: { hat: 'Тюрбан караванника', armor: 'Хітинова кіраса', weapon: 'Скорпіонів кинджал', boots: 'Піщані сандалі' },
+    region: 'desert',
+    chance: 0.3,
+    bonus2: { text: '+6% швидкості руху', effects: [{ kind: 'stat', stat: 'moveSpeedPct', value: 0.06 }] },
+    bonus4: {
+      text: '+6% шансу криту, +20% шкоди Вогнем',
+      effects: [
+        { kind: 'stat', stat: 'critChance', value: 0.06 },
+        { kind: 'element', element: 'fire', value: 0.2 },
+      ],
+    },
+  },
+  ice: {
+    id: 'ice',
+    name: 'Комплект Криги',
+    pieces: { hat: 'Хутряна шапка', armor: 'Крижаний обладунок', weapon: 'Сокира варти', boots: 'Снігоступи' },
+    region: 'ice',
+    chance: 0.3,
+    bonus2: { text: '+3 броні', effects: [{ kind: 'stat', stat: 'armor', value: 3 }] },
+    bonus4: {
+      text: '−8% перезарядки, +20% шкоди Водою',
+      effects: [
+        { kind: 'stat', stat: 'cooldownPct', value: 0.08 },
+        { kind: 'element', element: 'water', value: 0.2 },
       ],
     },
   },
