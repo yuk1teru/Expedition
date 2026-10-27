@@ -85,8 +85,11 @@ export const LEGENDARIES: Record<string, LegendaryDef> = {
 };
 
 export const AFFIXES = {
-  /** Chance a rare / epic item rolls a skill affix (a skill of the hero's class). */
-  chance: { rare: 0.35, epic: 0.6 } as Partial<Record<Rarity, number>>,
+  /**
+   * Chance an item rolls a skill affix (a skill of the hero's class). It stays hidden until the
+   * item is identified — the gamble of the magnifier (ROADMAP 14.6).
+   */
+  chance: { common: 0.05, uncommon: 0.15, rare: 0.35, epic: 0.6 } as Partial<Record<Rarity, number>>,
   /** "+1 до рангу" or "−X% перезарядки" — this share of the affixes is a rank. */
   rankShare: 0.4,
   /** Cooldown cut range. */

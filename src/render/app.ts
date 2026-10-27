@@ -1,5 +1,6 @@
 // Application shell: owns the view, input, loop, screens and the run state.
 
+import { blindPrice, sellBlind } from '../systems/items';
 import { createSmithModal } from './smith';
 import { SOULS } from '../data/souls';
 import { ELEMENTS } from '../data/elements';
@@ -250,6 +251,29 @@ export class App {
       return;
     }
     this.screens.pushModal(createOrdersModal(this, () => this.screens.popModal()));
+  }
+
+  /** The buyer of unidentified items (ROADMAP 14.6): all of them, sight unseen. */
+  askSellBlind(): void {
+    if (this.screens.topModal) return;
+    const blind = this.state.hero.bag.filter((x) => !x.identified);
+    if (blind.length === 0) return this.say('Нічого нерозпізнаного', 'Принось речі, яких ще не торкалася лупа, — куплю не дивлячись.');
+    const gold = blind.reduce((a, x) => a + blindPrice(x), 0);
+    this.screens.pushModal(
+      createConfirmModal(
+        this,
+        'Продати навмання?',
+        `${blind.length} нерозпізнан${blind.length === 1 ? 'а річ' : 'і речі'} — ${gold} зол. Що ховалося під лупою — уже не дізнаєшся: може, «+1 до рангу», а може, й легендарна сила.`,
+        ['Продати', 'Ні'],
+        (yes) => {
+          this.screens.popModal();
+          if (yes) {
+            const r = sellBlind(this.state);
+            this.say('Продано навмання', `${r.count} — за ${r.gold} зол.`);
+          }
+        },
+      ),
+    );
   }
 
   /** The smith's forge (ROADMAP 14.4). */

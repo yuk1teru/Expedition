@@ -136,6 +136,7 @@ export function itemTooltip(item: Item, extra: string[], hero?: Hero, compare = 
     }
   } else {
     add('Не розпізнано: використайте лупу');
+    add('Лупа може відкрити афікс скіла чи легендарну силу', '#8fd3ff');
     add('(ПКМ → «Розпізнати» або перетягніть лупу на річ)', THEME.textDim);
   }
   const worn = hero?.equipment[item.slot];

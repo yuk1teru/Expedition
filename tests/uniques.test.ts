@@ -53,20 +53,21 @@ describe('items with effects', () => {
     expect(giftSkillParams(s.hero, 'whirlwind', skillParams('whirlwind', 1)).radius).toBeGreaterThan(before);
   });
 
-  it('skill affixes: on rare and epic items, for the hero’s class; +1 rank (up to the max) and a cooldown cut', () => {
+  it('skill affixes: for the hero’s class, far more often on better items; +1 rank (up to the max) and a cooldown cut', () => {
     const s = warrior();
     const rng = new Rng(9);
     let affixes = 0;
-    for (let i = 0; i < 100; i++) {
-      const common = rollItem(rng, 'common', i, undefined, 20, 'warrior');
-      expect(common.affix).toBeUndefined();
+    let commons = 0;
+    for (let i = 0; i < 200; i++) {
+      if (rollItem(rng, 'common', i, undefined, 20, 'warrior').affix) commons++;
+      expect(rollItem(rng, 'epic', 5000 + i, undefined, 20, null).affix, 'no class — no affix').toBeUndefined();
       const epic = rollItem(rng, 'epic', 500 + i, undefined, 20, 'warrior');
       if (epic.affix) {
         affixes++;
         expect(CLASSES.warrior!.skills).toContain(epic.affix.skill);
       }
     }
-    expect(affixes).toBeGreaterThan(20);
+    expect(affixes).toBeGreaterThan(commons * 3);
     const hat = rollItem(rng, 'rare', 900, 'hat', 20, null);
     hat.affix = { kind: 'rank', skill: 'whirlwind', value: 1 };
     const boots = rollItem(rng, 'rare', 901, 'boots', 20, null);

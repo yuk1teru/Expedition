@@ -6,6 +6,7 @@
 // references ({town:capital}, {npc:capitalGuard}, {boss:enat}… — src/data/names.ts), so a
 // rename changes them everywhere; `forms` hold the case forms used by such references.
 
+import { BLIND_BUYER } from './items';
 import { SMITH } from './smith';
 import { RECIPES } from './alchemy';
 import type { ConsumableId } from './consumables';
@@ -13,7 +14,7 @@ import type { ItemSlot } from './items';
 import type { NameForms } from './names';
 
 /** What an option can do besides moving to another node. */
-export type DialogueAction = 'openShop' | 'openChangelog' | 'openInventory' | 'openCoach' | 'resetTree' | 'openOrders' | 'openAlchemy' | 'openSmith' | 'close';
+export type DialogueAction = 'openShop' | 'openChangelog' | 'openInventory' | 'openCoach' | 'resetTree' | 'openOrders' | 'openAlchemy' | 'openSmith' | 'sellBlind' | 'close';
 
 export interface DialogueOption {
   text: string;
@@ -58,6 +59,7 @@ export const NPC_LINES = {
   showOrders: 'Покажи замовлення.',
   brew: 'Звари мені щось.',
   forge: 'Підправ мені річ.',
+  sellBlind: 'Купиш нерозпізнане?',
   merchantTitle: 'Торговець',
   showGoods: 'Покажи товари.',
   aboutPlace: 'Що тут цікавого?',
@@ -512,6 +514,12 @@ export const NPCS: Record<string, NpcDef> = {
     news: 'Крижані кристали горять у горні синім полум’ям. Принесеш — скую щось добре. Колись.',
   }),
 };
+
+// The buyer of unidentified items (ROADMAP 14.6).
+for (const id of BLIND_BUYER.at) {
+  const npc = NPCS[id];
+  npc?.nodes[npc.start]?.options.unshift({ text: NPC_LINES.sellBlind, action: 'sellBlind' });
+}
 
 // Smiths (ROADMAP 14.4): the forge first in the talk.
 for (const id of SMITH.at) {

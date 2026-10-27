@@ -20,6 +20,7 @@ import {
   type Rarity,
   STAT_LABELS,
   UNIDENTIFIED_SELL_MULT,
+  BLIND_BUYER,
 } from '../data/items';
 import type { Hero } from './entities';
 import { effectiveLevel } from './mapgen';
@@ -206,6 +207,20 @@ export function unequip(hero: Hero, slot: ItemSlot): void {
 export function sellPrice(item: Item): number {
   const base = Math.round(RARITIES[item.rarity].sellPrice * itemLevelMult(item.ilvl, false));
   return item.identified ? base : Math.round(base * UNIDENTIFIED_SELL_MULT);
+}
+
+/** What the buyer of unidentified items pays for one. */
+export function blindPrice(item: Item): number {
+  return Math.round(RARITIES[item.rarity].sellPrice * itemLevelMult(item.ilvl, false) * BLIND_BUYER.mult);
+}
+
+/** The buyer takes every unidentified bag item: how many and for how much. */
+export function sellBlind(state: GameState): { count: number; gold: number } {
+  const blind = state.hero.bag.filter((x) => !x.identified);
+  const gold = blind.reduce((a, x) => a + blindPrice(x), 0);
+  state.hero.bag = state.hero.bag.filter((x) => x.identified);
+  state.gold += gold;
+  return { count: blind.length, gold };
 }
 
 /** Merchant buys a bag item. */

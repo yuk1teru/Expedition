@@ -70,6 +70,12 @@ export const ITEM_LEVEL = {
 /** Unidentified items sell for this fraction of the price. */
 export const UNIDENTIFIED_SELL_MULT = 0.5;
 
+/**
+ * The buyer of unidentified items (ROADMAP 14.6): he pays this fraction of the identified price
+ * sight unseen — more than a merchant, but whatever the magnifier would have shown is his.
+ */
+export const BLIND_BUYER = { at: ['artifactBuyer'], mult: 0.8 };
+
 /** Item kinds: each has its own icon shape (see src/render/icons.ts). */
 export const ITEM_KINDS: Record<ItemSlot, { id: string; name: string }[]> = {
   weapon: [
