@@ -4,13 +4,12 @@ import { getBoss } from '../src/data/bosses';
 import { createBattle, stepBattle } from '../src/systems/battle';
 import { addTelegraph, createBossEnemy } from '../src/systems/boss';
 import { damageEnemy } from '../src/systems/combat';
-import { SLICE_LAIR_ID } from '../src/systems/mapgen';
 import { createGameState, teleport } from '../src/systems/run';
 
 function bossBattle(seed = 1) {
-  const s = createGameState(seed, 'slice');
-  teleport(s, SLICE_LAIR_ID);
-  return { s, b: createBattle(s, SLICE_LAIR_ID) };
+  const s = createGameState(seed);
+  teleport(s, 'enatLair');
+  return { s, b: createBattle(s, 'enatLair') };
 }
 
 describe('boss battle', () => {

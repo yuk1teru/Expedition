@@ -5,18 +5,17 @@ import { type Battle, createBattle, stepBattle } from '../src/systems/battle';
 import { damageHero, killEnemy } from '../src/systems/combat';
 import { type Enemy, dist } from '../src/systems/entities';
 import { assignClass, healFull, heroShield, recomputeHeroStats } from '../src/systems/hero';
-import { SLICE_GROVE_ID } from '../src/systems/mapgen';
 import { createGameState, teleport } from '../src/systems/run';
 import { SKILL_IMPLS, useSkill } from '../src/systems/skills';
 import { spawnEnemy } from '../src/systems/waves';
 
 function battle(classId: string, skills: string[]): Battle {
-  const s = createGameState(5, 'slice');
+  const s = createGameState(5);
   s.hero.immortal = true;
   s.hero.level = 3;
   assignClass(s.hero, classId, skills);
-  teleport(s, SLICE_GROVE_ID);
-  const b = createBattle(s, SLICE_GROVE_ID);
+  teleport(s, 'quietGrove');
+  const b = createBattle(s, 'quietGrove');
   b.waves = null;
   b.input.control = 'player';
   return b;

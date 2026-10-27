@@ -131,7 +131,7 @@ export function createDeathScreen(app: App): Screen<CanvasRenderingContext2D> {
       onClick: () => app.respawn(),
     }),
     new Button({
-      label: 'Новий забіг',
+      label: 'Новий герой',
       rect: { x: panel.x + 150, y: panel.y + panel.h - 60, w: 200, h: 38 },
       fontSize: 14,
       onClick: () => app.newRun(),
@@ -149,7 +149,7 @@ export function createDeathScreen(app: App): Screen<CanvasRenderingContext2D> {
       ctx.fillRect(0, 0, W, app.view.height);
       drawPanel(ctx, panel);
       drawText(ctx, 'Ви загинули', W / 2, panel.y + 40, { size: 30, bold: true, align: 'center', color: THEME.bad });
-      drawText(ctx, 'Забіг триває: герой прокинеться в місті з прогресом останнього візиту туди.', W / 2, panel.y + 74, {
+      drawText(ctx, 'Пригода триває: герой прокинеться в місті з прогресом останнього візиту туди.', W / 2, panel.y + 74, {
         size: 13,
         align: 'center',
         color: THEME.textDim,
@@ -161,7 +161,7 @@ export function createDeathScreen(app: App): Screen<CanvasRenderingContext2D> {
         ['Чекпоінт: золото', String(cp.gold)],
         ['Чекпоінт: речей', String(Object.values(cp.hero.equipment).filter(Boolean).length + cp.hero.bag.length)],
         ['Загинули в', lost?.nodeName ?? '—'],
-        ['Смертей за забіг', String(st.stats.deaths + 1)],
+        ['Смертей', String(st.stats.deaths + 1)],
       ];
       rows(ctx, items, panel.x + 60, panel.y + 112, panel.w - 120);
       buttons.draw(ctx);
@@ -192,7 +192,7 @@ function createRunSummaryScreen(app: App, victory: boolean): Screen<CanvasRender
             onClick: () => app.goMap(),
           }),
           new Button({
-            label: 'Новий забіг',
+            label: 'Новий герой',
             rect: { x: panel.x + 310, y: panel.y + panel.h - 60, w: 170, h: 46 },
             fontSize: 15,
             onClick: () => app.newRun(),
@@ -200,7 +200,7 @@ function createRunSummaryScreen(app: App, victory: boolean): Screen<CanvasRender
         ]
       : [
           new Button({
-            label: 'Новий забіг',
+            label: 'Новий герой',
             rect: { x: panel.x + 130, y: panel.y + panel.h - 60, w: 260, h: 46 },
             hotkey: 'Enter',
             onClick: () => app.newRun(),
@@ -218,7 +218,7 @@ function createRunSummaryScreen(app: App, victory: boolean): Screen<CanvasRender
       ctx.fillStyle = victory ? '#14201a' : '#1d1214';
       ctx.fillRect(0, 0, W, app.view.height);
       drawPanel(ctx, panel);
-      drawText(ctx, victory ? 'Перемога!' : 'Забіг завершено', W / 2, panel.y + 36, {
+      drawText(ctx, victory ? 'Перемога!' : 'Пригоду завершено', W / 2, panel.y + 36, {
         size: 30,
         bold: true,
         align: 'center',
@@ -240,7 +240,6 @@ function createRunSummaryScreen(app: App, victory: boolean): Screen<CanvasRender
         ['Переможено босів', `${st.bossesDefeated.length}/${app.totalBosses()}`],
         ['Смертей', String(st.stats.deaths)],
         ['Час гри', formatTime(st.stats.playTime)],
-        ['Seed', String(st.seed)],
       ];
       rows(ctx, items, panel.x + 60, panel.y + 96, panel.w - 120, 26);
       let y = panel.y + 96 + items.length * 26;

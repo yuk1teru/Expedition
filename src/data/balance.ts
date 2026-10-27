@@ -88,7 +88,7 @@ export const SCALING = {
   perTier: 0.45,
   /** Recommended level = round(tier × recommendedLevelPerTier). */
   recommendedLevelPerTier: 3,
-  /** Day threat: enemies and bosses +perStep HP and damage every `everyDays` (full world only; the slice is tuned without it). */
+  /** Day threat: enemies and bosses +perStep HP and damage every `everyDays`. */
   dayThreat: { enabled: true, everyDays: 5, perStep: 0.1 },
   /** Armor formula: damage × k / (k + armor). 200: 50 armor → −20%, 100 armor → −33%. */
   armorK: 200,
@@ -235,21 +235,9 @@ export const WORLD = {
   /**
    * Boss threat: every defeated boss adds this much tier to the locations and bosses left,
    * so the locations of the next biome are not a walk (HP, damage, XP, gold and item
-   * level follow the tier). Full world only.
+   * level follow the tier).
    */
   bossThreat: { locationTier: 1, bossTier: 0.9 },
-} as const;
-
-/** Slice-only world rules. */
-export const SLICE = {
-  grove: { baseTier: 1, tierPerClear: 0.5, maxTier: 3 },
-  bossTier: 2.5,
-  /** Map layout, logical px. */
-  layout: {
-    town: { x: 480, y: 360 },
-    grove: { x: 300, y: 220 },
-    lair: { x: 660, y: 150 },
-  },
 } as const;
 
 /** Battle flow timings. */
@@ -291,7 +279,6 @@ export const PROJECTILES = {
 /** Balance simulation defaults (scripts/sim.ts). */
 export const SIM = {
   runs: 200,
-  grovePasses: 6,
   baseSeed: 1,
   /** A battle longer than this counts as lost, s. */
   maxBattleTime: 400,

@@ -82,7 +82,7 @@ export function chooseTarget(state: GameState): string | null {
     }
     return best;
   };
-  const tier = (n: (typeof world.nodes)[number]): number => effectiveTier(world, n, state.bossesDefeated.length);
+  const tier = (n: (typeof world.nodes)[number]): number => effectiveTier(n, state.bossesDefeated.length);
   const open = world.nodes.filter((n) => !n.isTown && !n.isBoss && n.timesCleared === 0 && tier(n) <= limit).map((n) => n.id);
   if (open.length > 0) return byDistance(open);
   // A boss once the hero is about its recommended level (the fixed world has early bosses).

@@ -48,6 +48,7 @@ export function createDebugPanel(app: App): DebugPanel {
       const h = 34 + actions.length * (bh + gap) + 30;
       drawPanel(ctx, { x, y, w, h }, 'rgba(8, 10, 14, 0.92)', THEME.accent);
       drawText(ctx, 'Дебаг', x + 12, y + 18, { size: 14, bold: true, color: THEME.accent });
+      drawText(ctx, `seed ${app.state.seed}`, x + w - 12, y + 18, { size: 11, color: THEME.textMuted, align: 'right' });
       const immortalBtn = buttons.buttons[3];
       if (immortalBtn) immortalBtn.label = app.state.hero.immortal ? 'Безсмертя: так' : 'Безсмертя: ні';
       const travelBtn = buttons.buttons[6];

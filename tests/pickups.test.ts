@@ -2,16 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { LOOP } from '../src/data/balance';
 import { CONSUMABLES, PICKUP_SPAWN, QUICK_SLOTS, healAmount } from '../src/data/consumables';
 import { createBattle, stepBattle } from '../src/systems/battle';
-import { SLICE_GROVE_ID } from '../src/systems/mapgen';
 import { maybeSpawnPickup, useHealItem, useQuickSlot } from '../src/systems/pickups';
 import { assignQuickSlot, buyConsumable } from '../src/systems/items';
 import { createGameState, teleport } from '../src/systems/run';
 
 function grove(seed = 41) {
-  const s = createGameState(seed, 'slice');
+  const s = createGameState(seed);
   s.hero.immortal = true;
-  teleport(s, SLICE_GROVE_ID);
-  return { s, b: createBattle(s, SLICE_GROVE_ID) };
+  teleport(s, 'quietGrove');
+  return { s, b: createBattle(s, 'quietGrove') };
 }
 
 describe('pickups', () => {
@@ -33,8 +32,8 @@ describe('pickups', () => {
     expect(s.hero.consumables.herbRed).toBe(1);
     expect(s.hero.quickSlots[0]).toBe('herbRed');
     // Next battle: the herb is still carried; Z heals pct + flat over its duration.
-    teleport(s, SLICE_GROVE_ID);
-    const b2 = createBattle(s, SLICE_GROVE_ID);
+    teleport(s, 'quietGrove');
+    const b2 = createBattle(s, 'quietGrove');
     b2.waves = null;
     s.hero.hp = s.hero.maxHp / 2;
     s.hero.hitAt = 0;

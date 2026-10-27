@@ -9,7 +9,7 @@ import type { GameState } from '../core/state';
 import { LOOP } from '../data/balance';
 import { type Battle, createBattle, killAll } from '../systems/battle';
 import { grantLevel } from '../systems/leveling';
-import { SLICE_GROVE_ID, type WorldKind, getNode, resetClears } from '../systems/mapgen';
+import { getNode, resetClears } from '../systems/mapgen';
 import { getSkill } from '../data/skills';
 import {
   type BattleSummary,
@@ -66,8 +66,6 @@ export class App {
   /** Real seconds since start (UI animation). */
   time = 0;
   reducedMotion = false;
-  /** Full world or the vertical slice (`?slice=1`); new runs keep it. */
-  readonly worldKind: WorldKind;
   private readonly settings: SettingsStore | null;
   readonly debug: DebugPanel | null;
 
@@ -75,11 +73,10 @@ export class App {
     readonly view: View,
     readonly input: Input,
     seed: number,
-    opts: { dev: boolean; reducedMotion: boolean; versions?: VersionStore; world?: WorldKind; settings?: SettingsStore },
+    opts: { dev: boolean; reducedMotion: boolean; versions?: VersionStore; settings?: SettingsStore },
   ) {
     this.reducedMotion = opts.reducedMotion;
-    this.worldKind = opts.world ?? 'full';
-    this.state = createGameState(seed, this.worldKind);
+    this.state = createGameState(seed);
     this.screens.onChange = (id) => (this.state.screen = id);
     this.screens.register('map', createMapScreen(this));
     this.screens.register('town', createTownScreen(this));
@@ -150,7 +147,7 @@ export class App {
     this.screens.clearModals();
     this.loop.paused = false;
     this.battle = null;
-    this.state = createGameState(seed, this.worldKind);
+    this.state = createGameState(seed);
     this.screens.go('town');
   }
 
@@ -181,7 +178,7 @@ export class App {
     this.screens.pushModal(createInventoryModal(this, () => this.screens.popModal()));
   }
 
-  /** Pause → "Завершити забіг": the run ends as a defeat with a summary screen. */
+  /** Pause → "Завершити пригоду": the run ends as a defeat with a summary screen. */
   abandonRun(): void {
     this.screens.clearModals();
     this.loop.paused = false;
@@ -325,11 +322,10 @@ export class App {
     if (res.kind === 'battle') this.startBattle(res.nodeId);
   }
 
-  /** Resets the completion counter of the current location (the grove when in town). */
+  /** Resets the completion counter of the current location. */
   debugResetLocation(): void {
     const here = getNode(this.state.world, this.state.currentNodeId);
-    const node = here.isTown ? this.state.world.nodes.find((n) => n.id === SLICE_GROVE_ID) : here;
-    if (node) resetClears(node);
+    if (!here.isTown) resetClears(here);
   }
 
   private frameUpdate(dt: number): void {

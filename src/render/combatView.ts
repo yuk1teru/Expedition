@@ -70,7 +70,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
     onClick: () => (app.loop.paused = false),
   });
   const abandonBtn = new Button({
-    label: 'Завершити забіг (поразка)',
+    label: 'Завершити пригоду (поразка)',
     rect: { x: W / 2 + 15, y: PAUSE_PANEL.y + PAUSE_PANEL.h - 50, w: 200, h: 36 },
     fontSize: 13,
     onClick: () => {
@@ -216,7 +216,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
         drawText(ctx, 'Пауза', W / 2, PAUSE_PANEL.y + 24, { size: 22, bold: true, align: 'center' });
         drawControls(ctx, W / 2 - 70, PAUSE_PANEL.y + 54, 12, 21, THEME.textDim);
         const confirming = app.time < confirmUntil;
-        abandonBtn.label = confirming ? 'Точно? Клацніть ще раз' : 'Завершити забіг (поразка)';
+        abandonBtn.label = confirming ? 'Точно? Клацніть ще раз' : 'Завершити пригоду (поразка)';
         pauseButtons.draw(ctx);
       }
       hud.drawOverlay(ctx, b);

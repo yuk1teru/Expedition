@@ -1,5 +1,5 @@
 import { Input, bindInput } from './core/input';
-import { resolveSeed, resolveWorldKind } from './core/seed';
+import { resolveSeed } from './core/seed';
 import { App, type SettingsStore, type VersionStore } from './render/app';
 import { createView, toLogical } from './render/canvas';
 
@@ -50,7 +50,7 @@ const settings: SettingsStore = {
   },
 };
 const url = window.location.href;
-const app = new App(view, input, resolveSeed(url), { dev: import.meta.env.DEV, reducedMotion, versions, world: resolveWorldKind(url), settings });
+const app = new App(view, input, resolveSeed(url), { dev: import.meta.env.DEV, reducedMotion, versions, settings });
 app.start();
 canvas.focus();
 

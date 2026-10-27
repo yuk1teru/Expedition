@@ -60,20 +60,18 @@ export interface WorldNodeDef {
   /** Boss of a boss location. */
   boss?: string;
   mechanics?: Partial<LocationMechanics>;
-  /** Town layout and NPCs (src/data/towns.ts). */
-  town?: string;
 }
 
 export const CAPITAL_ID = 'capital';
 
 export const WORLD_NODES: WorldNodeDef[] = [
   // ---------------- Towns ----------------
-  { id: CAPITAL_ID, name: 'Ізяслав', kind: 'town', biome: 'forest', region: 'plains', tier: 0, pos: { x: 1150, y: 620 }, forms: { of: 'Ізяслава', in: 'Ізяславі' }, description: 'Столиця королівства: звідси дороги ведуть у всі краї.', town: 'capital' },
-  { id: 'port', name: 'Чайкова Гавань', kind: 'town', biome: 'coast', region: 'coast', tier: 0, pos: { x: 430, y: 700 }, forms: { of: 'Чайкової Гавані', in: 'Чайковій Гавані' }, description: 'Портове місто на березі моря: кораблі, рибалки й чутки з-за моря.', town: 'port' },
-  { id: 'forestTown', name: 'Смерекове', kind: 'town', biome: 'forest', region: 'forest', tier: 0, pos: { x: 1160, y: 930 }, forms: { of: 'Смерекового', in: 'Смерековому' }, description: 'Лісове містечко мисливців посеред Лісу.', town: 'forestTown' },
-  { id: 'swampTown', name: 'Очеретянка', kind: 'town', biome: 'swamp', region: 'swamp', tier: 0, pos: { x: 1890, y: 780 }, forms: { of: 'Очеретянки', in: 'Очеретянці' }, description: 'Село на палях серед Болота.', town: 'swampTown' },
-  { id: 'desertTown', name: 'Барханськ', kind: 'town', biome: 'desert', region: 'desert', tier: 0, pos: { x: 1160, y: 1450 }, forms: { of: 'Барханська', in: 'Барханську' }, description: 'Піщане місто-оаза в серці Пустелі.', town: 'desertTown' },
-  { id: 'iceTown', name: 'Сніжногір’я', kind: 'town', biome: 'ice', region: 'ice', tier: 0, pos: { x: 1700, y: 160 }, forms: { of: 'Сніжногір’я', in: 'Сніжногір’ї' }, description: 'Гірське поселення серед вічних снігів.', town: 'iceTown' },
+  { id: CAPITAL_ID, name: 'Ізяслав', kind: 'town', biome: 'forest', region: 'plains', tier: 0, pos: { x: 1150, y: 620 }, forms: { of: 'Ізяслава', in: 'Ізяславі' }, description: 'Столиця королівства: звідси дороги ведуть у всі краї.' },
+  { id: 'port', name: 'Чайкова Гавань', kind: 'town', biome: 'coast', region: 'coast', tier: 0, pos: { x: 430, y: 700 }, forms: { of: 'Чайкової Гавані', in: 'Чайковій Гавані' }, description: 'Портове місто на березі моря: кораблі, рибалки й чутки з-за моря.' },
+  { id: 'forestTown', name: 'Смерекове', kind: 'town', biome: 'forest', region: 'forest', tier: 0, pos: { x: 1160, y: 930 }, forms: { of: 'Смерекового', in: 'Смерековому' }, description: 'Лісове містечко мисливців посеред Лісу.' },
+  { id: 'swampTown', name: 'Очеретянка', kind: 'town', biome: 'swamp', region: 'swamp', tier: 0, pos: { x: 1890, y: 780 }, forms: { of: 'Очеретянки', in: 'Очеретянці' }, description: 'Село на палях серед Болота.' },
+  { id: 'desertTown', name: 'Барханськ', kind: 'town', biome: 'desert', region: 'desert', tier: 0, pos: { x: 1160, y: 1450 }, forms: { of: 'Барханська', in: 'Барханську' }, description: 'Піщане місто-оаза в серці Пустелі.' },
+  { id: 'iceTown', name: 'Сніжногір’я', kind: 'town', biome: 'ice', region: 'ice', tier: 0, pos: { x: 1700, y: 160 }, forms: { of: 'Сніжногір’я', in: 'Сніжногір’ї' }, description: 'Гірське поселення серед вічних снігів.' },
 
   // ---------------- Coast (Столиця → порт) ----------------
   { id: 'coastRoad', name: 'Прибережна дорога', kind: 'location', biome: 'coast', region: 'coast', tier: 1.3, pos: { x: 790, y: 650 }, description: 'Скелястий берег: чайки-розбійниці й краби. Погода тут мінлива — злива або туман.', mechanics: { weathers: ['rain', 'fog'], trapsFrom: null } },

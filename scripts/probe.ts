@@ -6,7 +6,6 @@
 import { Rng } from '../src/core/rng';
 import { LOOP, SIM } from '../src/data/balance';
 import { createBattle, stepBattle } from '../src/systems/battle';
-import { SLICE_GROVE_ID } from '../src/systems/mapgen';
 import { grantLevel } from '../src/systems/leveling';
 import { createGameState, teleport } from '../src/systems/run';
 import { enterPortal } from '../src/systems/waves';
@@ -26,14 +25,14 @@ let survived = 0;
 let gold = 0;
 let waves = 0;
 for (let r = 0; r < runs; r++) {
-  const state = createGameState(1000 + r, 'slice');
+  const state = createGameState(1000 + r);
   const rng = new Rng(r).fork('bot');
   for (let l = 1; l < level; l++) {
     grantLevel(state);
     resolveModals(state, rng);
   }
-  teleport(state, SLICE_GROVE_ID);
-  const b = createBattle(state, SLICE_GROVE_ID);
+  teleport(state, 'quietGrove');
+  const b = createBattle(state, 'quietGrove');
   while (!b.finished && b.time < SIM.maxBattleTime) {
     useReadySkills(b);
     if (b.hero.hp < b.hero.maxHp * SIM.botHerbBelow) botHeal(b);

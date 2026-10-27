@@ -3,13 +3,12 @@ import { LOOP } from '../src/data/balance';
 import { createBattle, stepBattle } from '../src/systems/battle';
 import { addTelegraph } from '../src/systems/boss';
 import { assignClass, firstFreeSlot, moveSkill, skillInSlot } from '../src/systems/hero';
-import { SLICE_GROVE_ID, SLICE_LAIR_ID } from '../src/systems/mapgen';
 import { createGameState, teleport } from '../src/systems/run';
 import { useSkill } from '../src/systems/skills';
 import { spawnEnemy } from '../src/systems/waves';
 
-function warriorBattle(nodeId = SLICE_LAIR_ID) {
-  const s = createGameState(11, 'slice');
+function warriorBattle(nodeId = 'enatLair') {
+  const s = createGameState(11);
   s.hero.level = 3;
   assignClass(s.hero, 'warrior', ['whirlwind', 'charge', 'groundSlam']);
   teleport(s, nodeId);
@@ -41,7 +40,7 @@ describe('manual movement', () => {
 
 describe('player control', () => {
   function duel() {
-    const { s, b } = warriorBattle(SLICE_GROVE_ID);
+    const { s, b } = warriorBattle('quietGrove');
     s.hero.immortal = true;
     b.input.control = 'player';
     const hero = s.hero;
@@ -75,7 +74,7 @@ describe('player control', () => {
 
 describe('healing', () => {
   it('lifesteal also heals from skill damage; regen works in battle', () => {
-    const { s, b } = warriorBattle(SLICE_GROVE_ID);
+    const { s, b } = warriorBattle('quietGrove');
     s.hero.stats.lifesteal = 0.5;
     s.hero.stats.hpRegen = 0;
     // Only the base regen here (the Warrior's in-fight regen is tested with the class traits).
@@ -98,14 +97,14 @@ describe('healing', () => {
 
 describe('class basic attacks', () => {
   function pair(withClass: boolean) {
-    const s = createGameState(31, 'slice');
+    const s = createGameState(31);
     s.hero.immortal = true;
     if (withClass) {
       s.hero.level = 3;
       assignClass(s.hero, 'warrior');
     }
-    teleport(s, SLICE_GROVE_ID);
-    const b = createBattle(s, SLICE_GROVE_ID);
+    teleport(s, 'quietGrove');
+    const b = createBattle(s, 'quietGrove');
     b.input.control = 'player';
     const h = s.hero.pos;
     const a = spawnEnemy(b, 'stump', { x: h.x + 40, y: h.y });
@@ -142,7 +141,7 @@ describe('aimed skills', () => {
   });
 
   it('Charge hits every enemy on its path, not only at the landing spot', () => {
-    const { s, b } = warriorBattle(SLICE_GROVE_ID);
+    const { s, b } = warriorBattle('quietGrove');
     const h = s.hero.pos;
     const onPath = spawnEnemy(b, 'stump', { x: h.x - 120, y: h.y + 10 });
     const offPath = spawnEnemy(b, 'stump', { x: h.x - 120, y: h.y + 150 });
@@ -155,7 +154,7 @@ describe('aimed skills', () => {
   });
 
   it('without aim Charge keeps automatic targeting', () => {
-    const { s, b } = warriorBattle(SLICE_GROVE_ID);
+    const { s, b } = warriorBattle('quietGrove');
     expect(useSkill(b, 1)).toBe('noTarget');
     expect(skillInSlot(s.hero, 1)!.cooldown).toBe(0);
   });
@@ -163,7 +162,7 @@ describe('aimed skills', () => {
 
 describe('class skill picks', () => {
   it('the class choice grants exactly the 3 picked skills from the 8-skill pool', () => {
-    const s = createGameState(5, 'slice');
+    const s = createGameState(5);
     s.hero.level = 3;
     assignClass(s.hero, 'warrior', ['hook', 'earthquake', 'axeThrow']);
     expect([0, 1, 2].map((i) => skillInSlot(s.hero, i)?.id)).toEqual(['hook', 'earthquake', 'axeThrow']);
@@ -172,7 +171,7 @@ describe('class skill picks', () => {
   });
 
   it('every new warrior skill casts', () => {
-    const { s, b } = warriorBattle(SLICE_GROVE_ID);
+    const { s, b } = warriorBattle('quietGrove');
     s.hero.immortal = true;
     const h = s.hero.pos;
     spawnEnemy(b, 'stump', { x: h.x + 90, y: h.y });
@@ -196,7 +195,7 @@ describe('skill reordering', () => {
   });
 
   it('a lone skill can be dragged from slot 1 to empty slot 2, new skills fill free slots', () => {
-    const s = createGameState(3, 'slice');
+    const s = createGameState(3);
     s.hero.level = 3;
     assignClass(s.hero, 'warrior');
     s.hero.skills = s.hero.skills.filter((x) => x.slot === 0);

@@ -12,6 +12,12 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.18.0',
+    date: '2026-10-27',
+    title: 'Герой і збереження',
+    items: ['Гра — одна пригода героя: замість «забігу» — «пригода», seed більше не показується'],
+  },
+  {
     version: '0.17.1',
     date: '2026-10-27',
     title: 'Плавна камера',

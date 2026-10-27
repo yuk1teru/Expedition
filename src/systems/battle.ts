@@ -125,7 +125,7 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0): B
   const b: Battle = {
     state,
     node,
-    tier: effectiveTier(state.world, node, state.bossesDefeated.length),
+    tier: effectiveTier(node, state.bossesDefeated.length),
     biome: getBiome(node.biome),
     kind: node.isBoss ? 'boss' : 'waves',
     rng: state.rng.fork(`battle-${state.battleCount}`),

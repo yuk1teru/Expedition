@@ -10,7 +10,6 @@ import { damageHero, killEnemy } from '../src/systems/combat';
 import { type Enemy } from '../src/systems/entities';
 import { assignClass, heroAttack, heroShield, moveSkill, skillInSlot } from '../src/systems/hero';
 import { gainXp, isMaxLevel } from '../src/systems/leveling';
-import { SLICE_GROVE_ID } from '../src/systems/mapgen';
 import { promote } from '../src/systems/promotion';
 import { createGameState, teleport } from '../src/systems/run';
 import { xpToNext } from '../src/systems/scaling';
@@ -19,13 +18,13 @@ import { spawnEnemy } from '../src/systems/waves';
 
 function promoted(branch: string): Battle {
   const p = PROMOTIONS[branch]!;
-  const s = createGameState(9, 'slice');
+  const s = createGameState(9);
   s.hero.immortal = true;
   s.hero.level = PROGRESSION.promotionLevel;
   assignClass(s.hero, p.classId, CLASSES[p.classId]!.defaultPicks);
   promote(s.hero, branch);
-  teleport(s, SLICE_GROVE_ID);
-  const b = createBattle(s, SLICE_GROVE_ID);
+  teleport(s, 'quietGrove');
+  const b = createBattle(s, 'quietGrove');
   b.waves = null;
   b.input.control = 'player';
   return b;
@@ -66,7 +65,7 @@ describe('promotion data', () => {
 
 describe('promotion flow', () => {
   it('level 13 asks for the promotion instead of a card; the cap is level 20', () => {
-    const s = createGameState(2, 'slice');
+    const s = createGameState(2);
     assignClass(s.hero, 'warrior', CLASSES.warrior!.defaultPicks);
     s.hero.level = 12;
     s.modalQueue = [];
@@ -82,7 +81,7 @@ describe('promotion flow', () => {
   });
 
   it('the signature skill takes the R slot, can not be dragged; a branch only of the own class, once', () => {
-    const s = createGameState(4, 'slice');
+    const s = createGameState(4);
     assignClass(s.hero, 'mage', CLASSES.mage!.defaultPicks);
     expect(() => promote(s.hero, 'berserker')).toThrow();
     promote(s.hero, 'pyromancer');
@@ -93,7 +92,7 @@ describe('promotion flow', () => {
   });
 
   it('after the promotion branch cards come up, about twice as often per card', () => {
-    const s = createGameState(6, 'slice');
+    const s = createGameState(6);
     assignClass(s.hero, 'archer', CLASSES.archer!.defaultPicks);
     promote(s.hero, 'sniper');
     const rng = new Rng(3);

@@ -25,7 +25,7 @@ import {
   unequip,
 } from '../src/systems/items';
 import { gainXp } from '../src/systems/leveling';
-import { SLICE_GROVE_ID, SLICE_LAIR_ID, TOWN_ID, getNode, markCleared } from '../src/systems/mapgen';
+import { TOWN_ID, getNode, markCleared } from '../src/systems/mapgen';
 import { completeBattle, createGameState, leaveTown, restInTown, restoreCheckpoint, teleport } from '../src/systems/run';
 
 describe('items', () => {
@@ -44,7 +44,7 @@ describe('items', () => {
   });
 
   it('a magnifier is needed to identify before wearing; selling pays by rarity', () => {
-    const s = createGameState(2, 'slice');
+    const s = createGameState(2);
     const rng = new Rng(3);
     stashLoot(s.hero, rollItem(rng, 'rare', 1, 'armor'));
     expect(equipFromBag(s.hero, 0)).toBe(false);
@@ -63,7 +63,7 @@ describe('items', () => {
   });
 
   it('loot goes to the bag as new; wearing is manual and swaps with the worn item', () => {
-    const s = createGameState(1, 'slice');
+    const s = createGameState(1);
     const atk0 = s.hero.stats.attack;
     const rng = new Rng(2);
     const a = rollItem(rng, 'common', 1, 'weapon');
@@ -84,9 +84,9 @@ describe('items', () => {
   });
 
   it('miniboss drops common or uncommon loot, boss can drop anything', () => {
-    const s = createGameState(5, 'slice');
-    teleport(s, SLICE_GROVE_ID);
-    const b = createBattle(s, SLICE_GROVE_ID);
+    const s = createGameState(5);
+    teleport(s, 'quietGrove');
+    const b = createBattle(s, 'quietGrove');
     const mini = createBossEnemy(b, 'alpha', { x: 300, y: 300 });
     damageEnemy(b, mini, { amount: 1e6, crit: false }, { source: 'skill' });
     expect(b.stats.loot).toHaveLength(LOOT.miniboss.count);
@@ -102,7 +102,7 @@ describe('items', () => {
 
 describe('checkpoint', () => {
   it('death returns the hero to the last rest, keeping run statistics', () => {
-    const s = createGameState(9, 'slice');
+    const s = createGameState(9);
     gainXp(s, 300);
     assignClass(s.hero, 'warrior');
     s.gold = 50;
@@ -112,7 +112,7 @@ describe('checkpoint', () => {
     gainXp(s, 5000);
     s.gold = 999;
     s.day = 7;
-    markCleared(getNode(s.world, SLICE_GROVE_ID));
+    markCleared(getNode(s.world, 'quietGrove'));
     s.stats.kills = 42;
     s.hero.hp = 0;
     s.hero.dead = true;
@@ -121,7 +121,7 @@ describe('checkpoint', () => {
     expect(s.hero.classId).toBe('warrior');
     expect(s.gold).toBe(50);
     expect(s.day).toBe(1);
-    expect(getNode(s.world, SLICE_GROVE_ID).timesCleared).toBe(0);
+    expect(getNode(s.world, 'quietGrove').timesCleared).toBe(0);
     expect(s.hero.dead).toBe(false);
     expect(s.hero.hp).toBe(s.hero.maxHp);
     expect(s.stats.kills).toBe(42);
@@ -130,19 +130,21 @@ describe('checkpoint', () => {
   });
 
   it('saving works even if a battle ended mid-dash', () => {
-    const s = createGameState(12, 'slice');
+    const s = createGameState(12);
     s.hero.dash = { from: { x: 0, y: 0 }, to: { x: 1, y: 1 }, time: 0, duration: 1, onArrive: () => {} };
     expect(() => restInTown(s)).not.toThrow();
     expect(s.checkpoint.hero.dash).toBeNull();
   });
 
   it('a boss victory saves the checkpoint; death afterwards keeps it; victory screen only once', () => {
-    const s = createGameState(14, 'slice');
+    const s = createGameState(14);
     gainXp(s, 3000);
     const level = s.hero.level;
-    teleport(s, SLICE_LAIR_ID);
+    // The other bosses are already beaten: this victory completes the campaign.
+    s.bossesDefeated = s.world.nodes.filter((n) => n.isBoss && n.id !== 'enatLair').map((n) => n.id);
+    teleport(s, 'enatLair');
     const win = (): ReturnType<typeof completeBattle> => {
-      const b = createBattle(s, SLICE_LAIR_ID);
+      const b = createBattle(s, 'enatLair');
       damageEnemy(b, b.boss!, { amount: 1e7, crit: false }, { source: 'skill' });
       for (let t = 0; t < 5 && !b.finished; t += 1 / 60) stepBattle(b, 1 / 60);
       return completeBattle(s, b);
@@ -151,14 +153,14 @@ describe('checkpoint', () => {
     expect(first.runCompleted).toBe(true);
     s.hero.dead = true;
     restoreCheckpoint(s);
-    expect(s.bossesDefeated).toContain(SLICE_LAIR_ID);
+    expect(s.bossesDefeated).toContain('enatLair');
     expect(s.hero.level).toBeGreaterThanOrEqual(level);
-    teleport(s, SLICE_LAIR_ID);
+    teleport(s, 'enatLair');
     expect(win().runCompleted).toBe(false);
   });
 
   it('a new run starts with its initial state as the checkpoint', () => {
-    const s = createGameState(10, 'slice');
+    const s = createGameState(10);
     gainXp(s, 1000);
     restoreCheckpoint(s);
     expect(s.hero.level).toBe(1);
@@ -178,7 +180,7 @@ describe('item stats and the merchant item shop', () => {
   });
 
   it('the merchant sells a random identified item for the chosen slot, never legendary or common', () => {
-    const s = createGameState(12, 'slice');
+    const s = createGameState(12);
     s.gold = MERCHANT_ITEMS.price * 30;
     for (let i = 0; i < 30; i++) {
       const it = buyItem(s, 'boots')!;
@@ -194,7 +196,7 @@ describe('item stats and the merchant item shop', () => {
 
 describe('leaving town', () => {
   it('saves: an item identified in town stays identified after a death', () => {
-    const s = createGameState(31, 'slice');
+    const s = createGameState(31);
     restInTown(s);
     const item = rollItem(new Rng(3), 'rare', 500, 'boots');
     s.hero.bag.push(item);
@@ -269,9 +271,9 @@ describe('item level', () => {
   });
 
   it('loot from a battle and merchant items carry the level of the location', () => {
-    const s = createGameState(5, 'slice');
-    teleport(s, SLICE_GROVE_ID);
-    const b = createBattle(s, SLICE_GROVE_ID);
+    const s = createGameState(5);
+    teleport(s, 'quietGrove');
+    const b = createBattle(s, 'quietGrove');
     const boss = createBossEnemy(b, 'enat', { x: 500, y: 300 });
     damageEnemy(b, boss, { amount: 1e7, crit: false }, { source: 'skill' });
     for (const it of b.stats.loot) expect(it.ilvl).toBeLessThanOrEqual(40);

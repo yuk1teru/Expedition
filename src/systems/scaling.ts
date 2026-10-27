@@ -13,8 +13,8 @@ export function dayMultiplier(day: number, enabled: boolean = SCALING.dayThreat.
 }
 
 /** Day threat of a run: only in the full world. */
-export function threatMultiplier(state: { day: number; world: { kind: 'full' | 'slice' } }): number {
-  return dayMultiplier(state.day, SCALING.dayThreat.enabled && state.world.kind === 'full');
+export function threatMultiplier(state: { day: number }): number {
+  return dayMultiplier(state.day, SCALING.dayThreat.enabled);
 }
 
 /** Days left until enemies grow stronger again (1..everyDays). */

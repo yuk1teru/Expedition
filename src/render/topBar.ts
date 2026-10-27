@@ -36,6 +36,6 @@ export function drawTopBar(ctx: CanvasRenderingContext2D, state: GameState, widt
     ctx.font = `bold 16px ${THEME.font}`;
     x += lw + 6 + ctx.measureText(value).width + 26;
   }
-  drawText(ctx, `v${GAME_VERSION} · seed ${state.seed}`, width - 16, y, { size: 13, color: THEME.textMuted, align: 'right' });
+  drawText(ctx, `v${GAME_VERSION}`, width - 16, y, { size: 13, color: THEME.textMuted, align: 'right' });
   if (hasNewItems(state.hero)) drawNewItemHint(ctx, width - 150, y, time, 'right');
 }

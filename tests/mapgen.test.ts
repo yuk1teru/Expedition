@@ -1,19 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { SLICE, WORLD } from '../src/data/balance';
+import { WORLD } from '../src/data/balance';
 import { BIOME_ORDER } from '../src/data/biomes';
-import {
-  type MapNode,
-  SLICE_GROVE_ID,
-  SLICE_LAIR_ID,
-  TOWN_ID,
-  type World,
-  effectiveTier,
-  generateSliceWorld,
-  buildWorld,
-  getNode,
-  markCleared,
-  neighbours,
-} from '../src/systems/mapgen';
+import { type MapNode, type World, effectiveTier, buildWorld, getNode, markCleared, neighbours } from '../src/systems/mapgen';
 import { canPassThrough, canTravel, createGameState, passThrough, restInTown, restoreCheckpoint, travel } from '../src/systems/run';
 import { BOSSES } from '../src/data/bosses';
 import { ENEMIES } from '../src/data/enemies';
@@ -120,7 +108,7 @@ describe('travel in the fixed world', () => {
     expect(canTravel(s, 'forestTown')).toBe(true);
   });
 
-  it('cleared tiers stay fixed in the full world (they only grow in the slice grove)', () => {
+  it('cleared tiers stay fixed in the full world ', () => {
     const s = createGameState(3);
     const n = getNode(s.world, 'rotMarsh');
     const tier = n.tier;
@@ -130,50 +118,13 @@ describe('travel in the fixed world', () => {
   });
 });
 
-describe('slice world', () => {
-  it('has town, grove and boss lair connected by 2 edges', () => {
-    const w = generateSliceWorld();
-    expect(w.kind).toBe('slice');
-    expect(w.nodes.map((n) => n.id).sort()).toEqual([SLICE_GROVE_ID, SLICE_LAIR_ID, TOWN_ID].sort());
-    expect(w.edges).toHaveLength(2);
-    expect(neighbours(w, TOWN_ID).sort()).toEqual([SLICE_GROVE_ID, SLICE_LAIR_ID].sort());
-    expect(w.nodes.filter((n) => n.isBoss)).toHaveLength(1);
-  });
-
-  it('grove tier grows by 0.5 per clear up to the max', () => {
-    const w = generateSliceWorld();
-    const grove = getNode(w, SLICE_GROVE_ID);
-    const tiers = [grove.tier];
-    for (let i = 0; i < 6; i++) {
-      markCleared(grove);
-      tiers.push(grove.tier);
-    }
-    expect(tiers).toEqual([1, 1.5, 2, 2.5, 3, 3, 3]);
-    expect(getNode(w, SLICE_LAIR_ID).tier).toBe(SLICE.bossTier);
-  });
-
-  it('travel only to adjacent nodes; current location can be replayed', () => {
-    const s = createGameState(1, 'slice');
-    // The town is always reachable from the map ("До міста"), even when already there.
-    expect(canTravel(s, TOWN_ID)).toBe(true);
-    expect(travel(s, SLICE_GROVE_ID)).toEqual({ kind: 'battle', nodeId: SLICE_GROVE_ID });
-    expect(travel(s, SLICE_GROVE_ID)).toEqual({ kind: 'battle', nodeId: SLICE_GROVE_ID });
-    expect(travel(s, SLICE_LAIR_ID)).toEqual({ kind: 'blocked' });
-    expect(travel(s, TOWN_ID)).toEqual({ kind: 'town' });
-    expect(travel(s, SLICE_LAIR_ID)).toEqual({ kind: 'battle', nodeId: SLICE_LAIR_ID });
-  });
-});
-
 describe('boss threat', () => {
-  it('every defeated boss makes the locations and bosses left harder (full world only)', () => {
+  it('every defeated boss makes the locations and bosses left harder', () => {
     const s = createGameState(8);
     const d1 = getNode(s.world, 'quietGrove');
     const boss = s.world.nodes.find((n) => n.isBoss)!;
-    expect(effectiveTier(s.world, d1, 0)).toBe(d1.tier);
-    expect(effectiveTier(s.world, d1, 2)).toBeCloseTo(d1.tier + 2 * WORLD.bossThreat.locationTier);
-    expect(effectiveTier(s.world, boss, 1)).toBeCloseTo(boss.tier + WORLD.bossThreat.bossTier);
-    const slice = createGameState(8, 'slice');
-    const grove = getNode(slice.world, SLICE_GROVE_ID);
-    expect(effectiveTier(slice.world, grove, 3)).toBe(grove.tier);
+    expect(effectiveTier(d1, 0)).toBe(d1.tier);
+    expect(effectiveTier(d1, 2)).toBeCloseTo(d1.tier + 2 * WORLD.bossThreat.locationTier);
+    expect(effectiveTier(boss, 1)).toBeCloseTo(boss.tier + WORLD.bossThreat.bossTier);
   });
 });

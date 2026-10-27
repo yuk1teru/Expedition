@@ -9,12 +9,11 @@ import { addBuff } from './effects';
 import { assignClass, createHero, healFull } from './hero';
 import type { Battle } from './battle';
 import type { Item } from './items';
-import { TOWN_ID, type WorldKind, areAdjacent, createWorld, getNode, markCleared } from './mapgen';
+import { TOWN_ID, areAdjacent, buildWorld, getNode, markCleared } from './mapgen';
 import { clearBonusGold } from './scaling';
 import { promote } from './promotion';
 
-/** `world`: the full world (the game) or the vertical-slice world (`?slice=1`, tests, slice simulation). */
-export function createGameState(seed: number, world: WorldKind = 'full'): GameState {
+export function createGameState(seed: number): GameState {
   const rng = new Rng(seed);
   const state: Omit<GameState, 'checkpoint'> = {
     seed,
@@ -26,7 +25,7 @@ export function createGameState(seed: number, world: WorldKind = 'full'): GameSt
     day: 1,
     gold: 0,
     hero: createHero(0),
-    world: createWorld(world),
+    world: buildWorld(),
     currentNodeId: TOWN_ID,
     homeTown: TOWN_ID,
     bossesDefeated: [],
@@ -90,7 +89,7 @@ export function travel(state: GameState, nodeId: string): TravelResult {
   return { kind: 'battle', nodeId };
 }
 
-/** Debug / slice shortcut: jump straight to a node regardless of edges. */
+/** Debug shortcut: jump straight to a node regardless of edges. */
 export function teleport(state: GameState, nodeId: string): TravelResult {
   getNode(state.world, nodeId);
   state.currentNodeId = nodeId;

@@ -124,7 +124,7 @@ export function merchantItemLevels(state: GameState): [number, number] {
   const locations = state.world.nodes.filter((n) => !n.isTown);
   const cleared = locations.filter((n) => n.timesCleared > 0);
   // Nothing cleared yet: the easiest location.
-  const tierOf = (n: (typeof locations)[number]): number => effectiveTier(state.world, n, state.bossesDefeated.length);
+  const tierOf = (n: (typeof locations)[number]): number => effectiveTier(n, state.bossesDefeated.length);
   const tier = cleared.length > 0 ? Math.max(...cleared.map(tierOf)) : Math.min(...locations.map(tierOf));
   const [min, max] = itemLevelRange(tier);
   const [lo, hi] = ITEM_LEVEL.merchant;

@@ -7,7 +7,6 @@ import { type Card, applyCard, availableCards, isCardValid, offerCards, rerollPr
 import type { Hero } from '../src/systems/entities';
 import { assignClass, createHero, heroMoveSpeed, heroRegen } from '../src/systems/hero';
 import { createBattle } from '../src/systems/battle';
-import { SLICE_GROVE_ID } from '../src/systems/mapgen';
 import { createGameState, rerollCards, skipCards, teleport } from '../src/systems/run';
 
 function randomWarrior(rng: Rng): Hero {
@@ -101,7 +100,7 @@ describe('card offers', () => {
 
 describe('reroll and skip', () => {
   it('reroll costs gold that grows with each reroll; no gold — no reroll', () => {
-    const s = createGameState(8, 'slice');
+    const s = createGameState(8);
     s.hero.level = 4;
     assignClass(s.hero, 'warrior');
     s.gold = rerollPrice(0) + rerollPrice(1);
@@ -113,13 +112,13 @@ describe('reroll and skip', () => {
   });
 
   it('skip gives gold and a buff (now in battle, or with the next battle)', () => {
-    const s = createGameState(9, 'slice');
+    const s = createGameState(9);
     const gold = skipCards(s, 5, false);
     expect(gold).toBe(skipGold(5));
     expect(s.gold).toBe(gold);
     expect(s.hero.pendingBuffs).toHaveLength(1);
-    teleport(s, SLICE_GROVE_ID);
-    createBattle(s, SLICE_GROVE_ID);
+    teleport(s, 'quietGrove');
+    createBattle(s, 'quietGrove');
     const buff = s.hero.buffs.find((x) => x.id === 'skipCard');
     expect(buff?.damageMult).toBeCloseTo(CARDS.skip.buff.damageMult);
     expect(heroMoveSpeed(s.hero)).toBeCloseTo(s.hero.stats.moveSpeed * CARDS.skip.buff.moveSpeedMult);

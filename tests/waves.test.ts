@@ -4,7 +4,6 @@ import { type Battle, createBattle, killAll, stepBattle } from '../src/systems/b
 import { createBossEnemy } from '../src/systems/boss';
 import { killEnemy } from '../src/systems/combat';
 import { dist } from '../src/systems/entities';
-import { SLICE_GROVE_ID } from '../src/systems/mapgen';
 import { createGameState, teleport } from '../src/systems/run';
 import { TRAPS } from '../src/data/balance';
 import { ENEMIES } from '../src/data/enemies';
@@ -14,10 +13,10 @@ import { spawnTraps, trapsForWave, updateTraps } from '../src/systems/traps';
 import { inBreak, isPortalBreak, portalActive, portalInReach, requestPortalEntry, skipBreak, spawnEnemy, waveEvent, waveMult, waveSize } from '../src/systems/waves';
 
 function grove(): { b: Battle } {
-  const s = createGameState(21, 'slice');
+  const s = createGameState(21);
   s.hero.immortal = true;
-  teleport(s, SLICE_GROVE_ID);
-  return { b: createBattle(s, SLICE_GROVE_ID) };
+  teleport(s, 'quietGrove');
+  return { b: createBattle(s, 'quietGrove') };
 }
 
 /** Runs the battle, killing each wave once spawned, until `cleared` waves are done. */
@@ -86,10 +85,10 @@ describe('waves', () => {
   });
 
   it('continuing starts from the remembered wave, with 3 mandatory waves', () => {
-    const s = createGameState(5, 'slice');
+    const s = createGameState(5);
     s.hero.immortal = true;
-    teleport(s, SLICE_GROVE_ID);
-    const b = createBattle(s, SLICE_GROVE_ID, 9);
+    teleport(s, 'quietGrove');
+    const b = createBattle(s, 'quietGrove', 9);
     expect(b.waves!.index).toBe(9);
     expect(b.waves!.total).toBe(12);
     clearWaves(b, 11);

@@ -6,7 +6,6 @@ import { dist } from '../src/systems/entities';
 import { createBattle, stepBattle } from '../src/systems/battle';
 import { createBossEnemy } from '../src/systems/boss';
 import { assignClass, recomputeHeroStats } from '../src/systems/hero';
-import { SLICE_GROVE_ID } from '../src/systems/mapgen';
 import { createGameState, teleport } from '../src/systems/run';
 import { useBootDash, useSkill } from '../src/systems/skills';
 import { BOOT_DASH } from '../src/data/items';
@@ -15,12 +14,12 @@ import { Rng } from '../src/core/rng';
 import { spawnEnemy } from '../src/systems/waves';
 
 function battle(skills: string[]) {
-  const s = createGameState(3, 'slice');
+  const s = createGameState(3);
   s.hero.immortal = true;
   s.hero.level = 3;
   assignClass(s.hero, 'warrior', skills);
-  teleport(s, SLICE_GROVE_ID);
-  const b = createBattle(s, SLICE_GROVE_ID);
+  teleport(s, 'quietGrove');
+  const b = createBattle(s, 'quietGrove');
   b.waves = null;
   return b;
 }
@@ -83,10 +82,10 @@ describe('miniboss combos', () => {
   it('Ватажок sometimes chains lunge and leap without the usual pause', () => {
     let combos = 0;
     for (let seed = 1; seed <= 6; seed++) {
-      const s = createGameState(seed, 'slice');
+      const s = createGameState(seed);
       s.hero.immortal = true;
-      teleport(s, SLICE_GROVE_ID);
-      const b = createBattle(s, SLICE_GROVE_ID);
+      teleport(s, 'quietGrove');
+      const b = createBattle(s, 'quietGrove');
       b.waves = null;
       createBossEnemy(b, 'alpha', { x: b.hero.pos.x + 250, y: b.hero.pos.y });
       s.events.on('bossCombo', () => combos++);

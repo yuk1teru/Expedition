@@ -52,8 +52,6 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
   const H = app.view.height;
   const cam: Camera = { scale: ZOOM.start, x: 0, y: 0 };
   let drag: { x: number; y: number; camX: number; camY: number; moved: boolean } | null = null;
-  /** Slice world nodes are placed in screen pixels: a fixed 1:1 map without terrain. */
-  const slice = (): boolean => app.state.world.kind === 'slice';
 
   const buttons = new ButtonGroup([
     new Button({ label: '← До міста [Esc]', rect: { x: 16, y: H - 52, w: 190, h: 36 }, hotkey: 'Escape', fontSize: 14, onClick: () => app.returnToTown() }),
@@ -62,7 +60,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
     new Button({ label: 'Герой', rect: { x: W - 86, y: TOP_BAR_H + 84, w: 70, h: 30 }, hotkey: 'KeyC', fontSize: 13, onClick: () => focusHero() }),
   ]);
 
-  const worldSize = (): { w: number; h: number } => (slice() ? { w: W, h: H } : { w: WORLD_MAP.width, h: WORLD_MAP.height });
+  const worldSize = (): { w: number; h: number } => ({ w: WORLD_MAP.width, h: WORLD_MAP.height });
   const toScreen = (p: { x: number; y: number }): { x: number; y: number } => ({ x: p.x * cam.scale + cam.x, y: p.y * cam.scale + cam.y });
   const toWorld = (x: number, y: number): { x: number; y: number } => ({ x: (x - cam.x) / cam.scale, y: (y - cam.y) / cam.scale });
   const midY = TOP_BAR_H + (H - TOP_BAR_H) / 2;
@@ -75,7 +73,6 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
   }
 
   function zoomAt(sx: number, sy: number, factor: number): void {
-    if (slice()) return;
     const p = toWorld(sx, sy);
     cam.scale = Math.max(ZOOM.min, Math.min(ZOOM.max, cam.scale * factor));
     cam.x = sx - p.x * cam.scale;
@@ -84,12 +81,6 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
   }
 
   function focusHero(): void {
-    if (slice()) {
-      cam.scale = 1;
-      cam.x = 0;
-      cam.y = 0;
-      return;
-    }
     const here = app.state.world.nodes.find((n) => n.id === app.state.currentNodeId);
     const p = here?.pos ?? { x: WORLD_MAP.width / 2, y: WORLD_MAP.height / 2 };
     cam.x = W / 2 - p.x * cam.scale;
@@ -108,7 +99,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
 
   return {
     enter() {
-      cam.scale = slice() ? 1 : ZOOM.start;
+      cam.scale = ZOOM.start;
       focusHero();
     },
 
@@ -122,7 +113,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
       } else if (e.type === 'mousemove') {
         if (drag) {
           if (Math.hypot(e.x - drag.x, e.y - drag.y) > ZOOM.drag) drag.moved = true;
-          if (drag.moved && !slice()) {
+          if (drag.moved) {
             cam.x = drag.camX + (e.x - drag.x);
             cam.y = drag.camY + (e.y - drag.y);
             clampCamera();
@@ -144,7 +135,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
     render(ctx) {
       const state = app.state;
       const { world } = state;
-      const tierOf = (n: MapNode): number => effectiveTier(world, n, state.bossesDefeated.length);
+      const tierOf = (n: MapNode): number => effectiveTier(n, state.bossesDefeated.length);
       const t = app.time;
       ctx.fillStyle = '#0d1016';
       ctx.fillRect(0, 0, W, H);
@@ -157,7 +148,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
       ctx.save();
       ctx.translate(cam.x, cam.y);
       ctx.scale(cam.scale, cam.scale);
-      if (!slice()) ctx.drawImage(worldTerrain(), 0, 0);
+      ctx.drawImage(worldTerrain(), 0, 0);
       for (const [a, b] of world.edges) {
         const na = world.nodes.find((n) => n.id === a);
         const nb = world.nodes.find((n) => n.id === b);
@@ -201,7 +192,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
       ctx.restore();
 
       drawTopBar(ctx, state, W, app.totalBosses(), app.time);
-      if (state.world.kind === 'full') drawThreat(ctx, state.day, state.bossesDefeated.length);
+      drawThreat(ctx, state.day, state.bossesDefeated.length);
       buttons.draw(ctx);
       const hint = 'Клік по сусідній локації — вирушити · коліщатко, +/− — зум · тягніть — рух карти · C — до героя';
       ctx.font = font(12);
@@ -209,7 +200,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
       ctx.fillStyle = 'rgba(10, 12, 18, 0.8)';
       ctx.fillRect(W - hw - 22, H - 26, hw + 22, 26);
       drawText(ctx, hint, W - 12, H - 13, { size: 12, align: 'right', color: THEME.textDim });
-      if (!slice()) drawText(ctx, `${Math.round(cam.scale * 100)}%`, W - 51, TOP_BAR_H + 128, { size: 11, align: 'center', color: THEME.textDim });
+      drawText(ctx, `${Math.round(cam.scale * 100)}%`, W - 51, TOP_BAR_H + 128, { size: 11, align: 'center', color: THEME.textDim });
 
       if (hovered) {
         const n = world.nodes.find((x) => x.id === hovered);

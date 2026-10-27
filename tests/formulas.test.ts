@@ -90,7 +90,7 @@ describe('xp', () => {
   });
 
   it('gainXp levels up several times, queues choices and respects the cap', () => {
-    const s = createGameState(3, 'slice');
+    const s = createGameState(3);
     gainXp(s, xpToNext(1) + xpToNext(2) + xpToNext(3));
     expect(s.hero.level).toBe(4);
     expect(s.modalQueue).toEqual([{ kind: 'classChoice' }, { kind: 'cardChoice', level: 4 }]);
@@ -100,7 +100,7 @@ describe('xp', () => {
   });
 
   it('every level adds +15 HP and +2 attack', () => {
-    const s = createGameState(3, 'slice');
+    const s = createGameState(3);
     const hp = s.hero.maxHp;
     const atk = s.hero.stats.attack;
     gainXp(s, xpToNext(1));
@@ -109,13 +109,11 @@ describe('xp', () => {
   });
 });
 
-describe('day threat (full world)', () => {
-  it('enemies grow +10% every 5 days in the full world only; the map counts the days left', () => {
-    const full = createGameState(3);
-    const slice = createGameState(3, 'slice');
-    full.day = slice.day = 12;
-    expect(threatMultiplier(full)).toBeCloseTo(1.2);
-    expect(threatMultiplier(slice)).toBe(1);
+describe('day threat', () => {
+  it('enemies grow +10% every 5 days; the map counts the days left', () => {
+    const s = createGameState(3);
+    s.day = 12;
+    expect(threatMultiplier(s)).toBeCloseTo(1.2);
     expect(daysToNextThreat(12)).toBe(3);
     expect(daysToNextThreat(14)).toBe(1);
     expect(xpPenalized(1, 8)).toBe(true);
