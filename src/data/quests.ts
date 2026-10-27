@@ -43,6 +43,8 @@ export interface QuestObjective {
 }
 
 export interface QuestReward {
+  /** Wins a captured land back from the invasion (ROADMAP 15.2). */
+  reclaim?: string;
   gold?: number;
   talentPoints?: number;
   lives?: number;
@@ -61,8 +63,8 @@ export interface QuestDef {
   /** NPC to report to (default: the giver). */
   turnIn?: string;
   classId?: string;
-  /** `flag`: something the hero has seen (a soul — ROADMAP 14.3). */
-  requires?: { quests?: string[]; level?: number; flag?: 'soulSeen'; note?: string };
+  /** `flag`: something the hero has seen (a soul — ROADMAP 14.3); `captured`: this land is captured by the invasion. */
+  requires?: { quests?: string[]; level?: number; flag?: 'soulSeen'; captured?: string; note?: string };
   /** What the giver says when offering the quest. */
   offer: string;
   objectives: QuestObjective[];
@@ -362,6 +364,21 @@ export const QUESTS: Record<string, QuestDef> = {
     done: 'Сива шкура… Його бачив ще мій батько. Тримай — заслужив.',
     reward: { gold: 120, item: 'rare' },
     next: 'forestSpring',
+  },
+  reclaimForest: {
+    id: 'reclaimForest',
+    name: 'Відбити Ліс',
+    kind: 'town',
+    giver: 'forestElder',
+    requires: { captured: 'forest' },
+    offer: 'Мерці зайняли Ліс. Мисливці замкнулися по хатах, лісопилка стоїть. Вибий їх зі стежки, з галявини й з гущавини — тоді Ліс знову наш.',
+    objectives: [
+      { kind: 'clear', target: 'wolfTrail' },
+      { kind: 'clear', target: 'mushroomGlade' },
+      { kind: 'clear', target: 'darkThicket' },
+    ],
+    done: 'Ліс знову дихає. Без тебе ми б не встояли.',
+    reward: { gold: 150, gift: 'rare', reclaim: 'forest' },
   },
   forestSpring: {
     id: 'forestSpring',

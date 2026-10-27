@@ -2,6 +2,7 @@
 // locations, the hero's position, tooltips, travel by click. The map zooms with the
 // mouse wheel (25%…160%, around the cursor) and pans by dragging — always.
 
+import { INVASION_EVENTS } from '../data/invasion';
 import type { GameState } from '../core/state';
 import type { InputEvent } from '../core/input';
 import type { Screen } from '../core/screens';
@@ -118,6 +119,8 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
       if (app.state.talentPoints > 0 && app.state.hero.classId) app.hint('tree');
       // New invasion thresholds are announced when the hero looks at the map.
       for (const t of newInvasionThresholds(app.state)) app.screens.pushModal(createNoticeModal(app, t.title, t.text, () => app.screens.popModal()));
+      // What the invasion did meanwhile (ROADMAP 15.2): raids, a fallen location, a captured land.
+      for (const n of app.state.invasionNews.splice(0)) app.screens.pushModal(createNoticeModal(app, n.title, n.text, () => app.screens.popModal()));
     },
 
     update() {},
@@ -183,6 +186,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
         if (!seen.has(n.id)) continue;
         const p = toScreen(n.pos);
         drawNode(ctx, n, p.x, p.y, nodeRadius(n) * ns, canTravel(state, n.id), hovered === n.id, t);
+        drawInvasionMark(ctx, state, n, p.x, p.y, nodeRadius(n) * ns, t);
         if (n.id === state.currentNodeId) {
           const r = nodeRadius(n) * ns;
           const pulse = 1 + 0.08 * Math.sin(t * 4);
@@ -249,7 +253,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
 
       if (hovered) {
         const n = world.nodes.find((x) => x.id === hovered);
-        if (n) drawTooltip(ctx, tooltipLines(n, state.currentNodeId, state.hero.level, levelOf(n), regionLevels(world.nodes, n.region, levelOf), routeHint(state, n.id)), app.input.mouse.x, app.input.mouse.y, W, H);
+        if (n) drawTooltip(ctx, [...tooltipLines(n, state.currentNodeId, state.hero.level, levelOf(n), regionLevels(world.nodes, n.region, levelOf), routeHint(state, n.id)), ...invasionLines(state, n)], app.input.mouse.x, app.input.mouse.y, W, H);
       }
     },
   };
@@ -372,6 +376,54 @@ function regionLevels(nodes: MapNode[], region: string, levelOf: (n: MapNode) =>
   const lo = Math.min(...lv);
   const hi = Math.max(...lv);
   return lo === hi ? String(lo) : `${lo}–${hi}`;
+}
+
+/** The invasion on the map (ROADMAP 15.2): a raid, the captured land, the town under attack. */
+function drawInvasionMark(ctx: CanvasRenderingContext2D, state: GameState, n: MapNode, x: number, y: number, r: number, t: number): void {
+  const raid = state.raids[n.id] !== undefined;
+  const attacked = state.townAttack === n.id;
+  const captured = state.capturedRegion !== null && n.region === state.capturedRegion && !n.isTown;
+  if (!raid && !attacked && !captured) return;
+  ctx.save();
+  if (captured) {
+    ctx.strokeStyle = 'rgba(160, 40, 60, 0.6)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.arc(x, y, r + 6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  if (raid || attacked) {
+    const pulse = 0.5 + 0.5 * Math.sin(t * 5);
+    ctx.strokeStyle = `rgba(229, 83, 75, ${0.5 + 0.5 * pulse})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(x, y, r + 10 + pulse * 3, 0, Math.PI * 2);
+    ctx.stroke();
+    // A skull-like mark: the dead are here.
+    const sx = x - r * 0.9;
+    const sy = y - r * 0.9;
+    ctx.fillStyle = '#e8e4d8';
+    ctx.beginPath();
+    ctx.arc(sx, sy, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#1b1e27';
+    ctx.beginPath();
+    ctx.arc(sx - 2.5, sy - 1, 1.6, 0, Math.PI * 2);
+    ctx.arc(sx + 2.5, sy - 1, 1.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function invasionLines(state: GameState, n: MapNode): string[] {
+  const out: string[] = [];
+  const start = state.raids[n.id];
+  if (start !== undefined) out.push(`Набіг мерців! Відбий за ${Math.max(0, INVASION_EVENTS.raid.days - (state.day - start))} дн., інакше локація впаде`);
+  if (state.capturedRegion !== null && n.region === state.capturedRegion && !n.isTown && !n.isBoss) out.push('Край захоплено: вороги сильніші, серед них мерці');
+  if (state.townAttack === n.id) out.push('Мерці під брамою: вхід у місто — бій біля воріт');
+  return out;
 }
 
 /** Tooltip line about the way to a node that is not a neighbour (autopath). */

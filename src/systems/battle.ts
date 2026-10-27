@@ -1,5 +1,6 @@
 // One combat encounter. Pure simulation: no render, no DOM.
 
+import { invaded } from './invasion';
 import { type LooseSoul, updateSouls } from './souls';
 import type { ArenaFlip } from './arena';
 import type { ObjectiveKind } from '../data/objectives';
@@ -110,6 +111,10 @@ export interface Battle {
   /** Weather of the running event wave. */
   weather: WeatherState | null;
   waves: WaveState | null;
+  /** The invasion's enemies (ROADMAP 15.2): stronger, with the dead among the beasts. */
+  raid: boolean;
+  /** The battle at the gates of this town under attack. */
+  defense?: string;
   /** Souls of beasts hovering where they fell (ROADMAP 14.3). */
   souls: LooseSoul[];
   /** The goal of an objective arena (no waves then). */
@@ -200,6 +205,7 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0, tr
           : createWaves(startWave, plan?.waves ?? WAVES.count, plan?.miniboss ?? true),
     objective: null,
     souls: [],
+    raid: invaded(state, node),
     transit: transit && !node.isBoss,
     boss: null,
     stats: { kills: 0, xp: 0, gold: 0, damageDealt: 0, damageTaken: 0, heals: 0, killsById: {}, minibossKills: 0, loot: [], trophies: {} },

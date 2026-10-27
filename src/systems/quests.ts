@@ -62,6 +62,7 @@ export function questsOffered(state: GameState, npcId: string): QuestDef[] {
     if (r?.quests?.some((id) => !state.quests.done.includes(id))) return false;
     if (r?.level && state.hero.level < r.level) return false;
     if (r?.flag && !state[r.flag]) return false;
+    if (r?.captured && state.capturedRegion !== r.captured) return false;
     return true;
   });
 }
@@ -177,6 +178,10 @@ function giveReward(state: GameState, q: QuestDef): string[] {
   if (r.gift) {
     state.modalQueue.push({ kind: 'gift', rarity: r.gift });
     out.push('дар');
+  }
+  if (r.reclaim && state.capturedRegion === r.reclaim) {
+    state.capturedRegion = null;
+    out.push('край відбито');
   }
   if (r.unlock) out.push(fillNames(r.unlock));
   return out;

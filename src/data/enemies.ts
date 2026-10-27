@@ -46,9 +46,28 @@ export interface EnemyDef {
   shotSlow?: { value: number; time: number };
   /** Look of its projectiles (render): spores by default. */
   shotKind?: 'spike' | 'snow';
+  /** Its colour when the biome has none for it (the dead of the invasion). */
+  color?: string;
 }
 
 export const ENEMIES: Record<string, EnemyDef> = {
+  // The dead of the invasion (ROADMAP 15.2): they come with the raids, in any land.
+  deadRaider: {
+    id: 'deadRaider',
+    name: 'Мертвий налітник',
+    archetype: 'chaser',
+    hp: 14,
+    damage: 2.2,
+    speed: 80,
+    radius: 12,
+    armor: 1,
+    attackInterval: 1.6,
+    xp: 3,
+    mass: 1.2,
+    spawnWeight: 0,
+    trait: 'Не відступає і не боїться: іде просто на героя.',
+    color: '#c8c4b0',
+  },
   wolf: {
     id: 'wolf',
     name: 'Вовк',

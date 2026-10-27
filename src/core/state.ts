@@ -72,6 +72,15 @@ export interface GameState {
   ordersDone: string[];
   /** A beast's soul has been seen (ROADMAP 14.3): the wanderer tells about the stones. */
   soulSeen: boolean;
+  /** Invasion events (ROADMAP 15.2): raided locations (→ the day the raid began), the captured land, the town under attack. */
+  raids: Record<string, number>;
+  lastRaidDay: number;
+  capturedRegion: string | null;
+  townAttack: string | null;
+  /** Thresholds whose event has already happened (each once). */
+  invasionEventsDone: number[];
+  /** Invasion news not shown yet (the map shows them). */
+  invasionNews: { title: string; text: string }[];
   /** Items in the stash, shared by all towns (ROADMAP 14.7); part of the checkpoint like the bag. */
   stash: Item[];
   /** Map nodes the hero has been to (fog of war, ROADMAP 10.6). */

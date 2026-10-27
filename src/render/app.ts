@@ -1,5 +1,7 @@
 // Application shell: owns the view, input, loop, screens and the run state.
 
+import { defenseBattle, finishDefense } from '../systems/invasion';
+import { INVASION_EVENTS } from '../data/invasion';
 import { createStashModal } from './stash';
 import { blindPrice, sellBlind } from '../systems/items';
 import { createSmithModal } from './smith';
@@ -545,8 +547,16 @@ export class App {
       return;
     }
     const res = travel(this.state, nodeId);
-    if (res.kind === 'town') this.goTown();
+    if (res.kind === 'town' && this.state.townAttack === nodeId) this.startDefense(nodeId);
+    else if (res.kind === 'town') this.goTown();
     else if (res.kind === 'battle') this.startExpedition(res.nodeId);
+  }
+
+  /** A town under attack (ROADMAP 15.2): the battle at its gates comes first. */
+  startDefense(townId: string): void {
+    this.battle = defenseBattle(this.state, townId);
+    this.loop.paused = false;
+    this.screens.go('combat');
   }
 
   /** A location: its trip through the arenas (ROADMAP 13.2) begins with the first one. */
@@ -596,6 +606,22 @@ export class App {
   finishBattle(): void {
     const b = this.battle;
     if (!b) return;
+    if (b.defense) {
+      // The gates of a town under attack.
+      const summary = finishDefense(this.state, b);
+      this.logBattle(b);
+      this.battle = null;
+      this.loop.paused = false;
+      if (!summary.won) {
+        this.lastSummary = summary;
+        if (this.state.lives <= 0) this.endHero(false);
+        this.screens.go('death');
+        return;
+      }
+      this.goTown();
+      this.say('Місто відбито', `Мерці відступили від брами. Вдячні жителі зібрали ${INVASION_EVENTS.townAttack.gold} зол.`);
+      return;
+    }
     if (this.state.expedition && !b.transit) {
       // An arena of a location trip: the next one, or the end of the location.
       const res = finishStep(this.state, b);

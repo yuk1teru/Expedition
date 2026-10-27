@@ -1,5 +1,6 @@
 // Combat screen: arena, entities, effects, HUD; drives the battle simulation.
 
+import { ENEMIES } from '../data/enemies';
 import { SOULS, SOUL_RULES } from '../data/souls';
 import type { LooseSoul } from '../systems/souls';
 import { TROPHIES, TROPHY_COLORS } from '../data/trophies';
@@ -307,7 +308,7 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
       if (fx.numbersOn) fx.text({ x: e.pos.x + T.heroSideOffset, y: e.pos.y - 18 }, `+${Math.round(e.amount)}`, T.healColor, T.size);
       break;
     case 'kill': {
-      const color = b.biome.palette.enemies[e.defId] ?? '#cccccc';
+      const color = b.biome.palette.enemies[e.defId] ?? ENEMIES[e.defId]?.color ?? '#cccccc';
       fx.burst(e.pos, e.elite || e.boss ? P.eliteDeath : P.death, color);
       if (e.boss) {
         fx.shake(FX.shake.bossDeath);

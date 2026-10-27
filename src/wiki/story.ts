@@ -4,7 +4,7 @@
 import { LIVES } from '../data/balance';
 import { CLASSES } from '../data/classes';
 import { GRAVE, WAKE } from '../data/death';
-import { INVASION } from '../data/invasion';
+import { INVASION, INVASION_EVENTS } from '../data/invasion';
 import { RARITIES } from '../data/items';
 import { LORE } from '../data/lore';
 import { LORE_NAMES } from '../data/names';
@@ -279,7 +279,13 @@ export function invasionSection(): Section {
     id: 'invasion',
     title: 'Навала',
     html: `<p>Шкала навали видна на карті. Вона росте на ${v(INVASION.perDay, ['INVASION', 'perDay'])}% за день (кожна перемога — день) до 100%. Вороги й боси сильнішають разом з нею: на 100% — +${v(INVASION.strengthAt100, ['INVASION', 'strengthAt100'], 'pct')} HP і шкоди, між порогами — пропорційно.</p>
-<p class="dim small">На порогах з’являється повідомлення; самі події (набіги, захоплений край, напад на місто) — етап 15, облога столиці — етап 17 (ROADMAP.md).</p>
+<h3>Події</h3>
+<ul>
+<li><b>Набіги</b> — з ${v(INVASION_EVENTS.raid.from, ['INVASION_EVENTS', 'raid', 'from'])}% кожні ${v(INVASION_EVENTS.raid.every, ['INVASION_EVENTS', 'raid', 'every'])} дні мерці нападають на одну з пройдених локацій (не лігво боса). Там вороги на ${v(INVASION_EVENTS.raid.enemyMult - 1, null, 'pct')} сильніші, а ${v(INVASION_EVENTS.raid.raiderShare, ['INVASION_EVENTS', 'raid', 'raiderShare'], 'pct')} хвилі — ${monsterLink(INVASION_EVENTS.raid.raider)}. Пройди локацію за ${v(INVASION_EVENTS.raid.days, ['INVASION_EVENTS', 'raid', 'days'])} днів — отримаєш бонус за зачистку ще раз; не встигнеш — локацію доведеться проходити знову.</li>
+<li><b>Захоплений край</b> (${v(INVASION_EVENTS.captured.at, ['INVASION_EVENTS', 'captured', 'at'])}%) — перший край з живим босом (зараз — Ліс): усі його локації як під набігом, доки квест старости «Відбити Ліс» не звільнить край.</li>
+<li><b>Напад на місто</b> (${v(INVASION_EVENTS.townAttack.at, ['INVASION_EVENTS', 'townAttack', 'at'])}%) — місто захопленого краю: вхід у нього починається боєм біля воріт (${v(INVASION_EVENTS.townAttack.waves, ['INVASION_EVENTS', 'townAttack', 'waves'])} хвилі); перемога — ${v(INVASION_EVENTS.townAttack.gold, ['INVASION_EVENTS', 'townAttack', 'gold'])} зол. і рідкісний дар.</li>
+<li><b>Облога столиці</b> — 100%, етап 17.</li>
+</ul>
 ${table(['Поріг', 'Що стається'], rows, 'kv')}`,
   };
 }

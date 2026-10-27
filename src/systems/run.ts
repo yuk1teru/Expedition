@@ -1,5 +1,6 @@
 // Run-level flow: new expedition, travel on the map, town actions.
 
+import { driveOffRaid, invasionTick } from './invasion';
 import { elixirArenaDone } from './alchemy';
 import { EventBus } from '../core/events';
 import { Rng } from '../core/rng';
@@ -59,6 +60,12 @@ export function createGameState(seed: number, heroName = DEFAULT_HERO_NAME): Gam
     ordersDone: [],
     soulSeen: false,
     stash: [],
+    raids: {},
+    lastRaidDay: 0,
+    capturedRegion: null,
+    townAttack: null,
+    invasionEventsDone: [],
+    invasionNews: [],
   };
   return { ...state, checkpoint: snapshot(state) };
 }
@@ -235,13 +242,16 @@ export function completeBattle(state: GameState, b: Battle, opts: { final?: bool
   if (won && b.transit) {
     // A crossing on the way costs a day; the location's progress stays as it was.
     state.day += 1;
+    invasionTick(state, b.node.id);
   } else if (won && final) {
+    driveOffRaid(state, b.node, b.tier);
     recovered = recoverLostLoot(state, b.node);
     clearBonus = clearBonusGold(b.tier);
     state.gold += clearBonus;
     markCleared(b.node, b.waves?.cleared ?? 0);
     s.locationsCleared += 1;
     state.day += 1;
+    invasionTick(state, b.node.id);
     if (b.node.isBoss && !state.bossesDefeated.includes(b.node.id)) state.bossesDefeated.push(b.node.id);
     // Gifts (ROADMAP 12.8): a boss gives a legendary one; the first win over a location's miniboss may give a rare one.
     if (state.hero.classId && b.node.isBoss) state.modalQueue.push({ kind: 'gift', rarity: 'legendary' });

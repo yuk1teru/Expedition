@@ -5,6 +5,7 @@
 // miniboss in a lair — must be cleared completely, and the arena is won. Every 5th wave of
 // a location brings an event: bad weather or an elemental.
 
+import { INVASION_EVENTS } from '../data/invasion';
 import { pushOutOfObstacles } from './arena';
 import { ENEMY_ELEMENTS } from '../data/elements';
 import { ARENA, ELITE, ENEMY_COMMON, WAVES, WAVE_EVENTS } from '../data/balance';
@@ -147,6 +148,8 @@ export function updateWaves(b: Battle, dt: number): void {
     const number = w.index + 1;
     w.mult = waveMult(w.index);
     w.queue = composeWave(b.rng, b.node.enemies, b.tier, w.index, w.sizeMult ?? 1);
+    // The invasion: the dead come with the beasts (ROADMAP 15.2).
+    if (b.raid) for (const e of w.queue) if (b.rng.chance(INVASION_EVENTS.raid.raiderShare)) e.defId = INVASION_EVENTS.raid.raider;
     w.size = w.queue.length;
     w.groupTimer = 0;
     const mech = b.node.mechanics;
@@ -282,7 +285,7 @@ setSplitHandler((b, e, into, count) => {
 /** Spawns a regular enemy scaled by tier and by the running wave (summons too). */
 export function spawnEnemy(b: Battle, defId: string, pos: Vec, elite = false, summoned = false, mult: WaveMult = currentWaveMult(b)): Enemy {
   const def = getEnemyDef(defId);
-  const scaled = enemyStats(def, b.tier, threatMultiplier(b.state));
+  const scaled = enemyStats(def, b.tier, threatMultiplier(b.state) * (b.raid ? INVASION_EVENTS.raid.enemyMult : 1));
   const hpMult = archetypeHpMult(mult, def.archetype) * (elite ? ELITE.hpMult : 1);
   const radius = def.radius * (elite ? ELITE.radiusMult : 1);
   const e: Enemy = {
