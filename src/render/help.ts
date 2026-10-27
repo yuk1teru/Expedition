@@ -40,6 +40,12 @@ export function createHelpModal(app: App, onClose: () => void): Modal<CanvasRend
       hotkey: 'Enter',
       onClick: onClose,
     }),
+    new Button({
+      label: 'Вікі гри ↗',
+      rect: { x: panel.x + panel.w - 150, y: panel.y + panel.h - 58, w: 130, h: 32 },
+      fontSize: 14,
+      onClick: openWiki,
+    }),
   ]);
   return {
     id: 'help',
@@ -71,4 +77,9 @@ export function createHelpModal(app: App, onClose: () => void): Modal<CanvasRend
       buttons.draw(ctx);
     },
   };
+}
+
+/** The wiki (wiki.html next to the game) in a new tab. */
+export function openWiki(): void {
+  window.open('./wiki.html', '_blank', 'noopener');
 }

@@ -28,7 +28,7 @@ import type { App } from './app';
 import { syncBattleInput } from './battleInput';
 import { drawBoss, drawBossPlate } from './bossView';
 import { Fx } from './fx';
-import { drawControls } from './help';
+import { drawControls, openWiki } from './help';
 import { createHud } from './hud';
 import { skillFx } from './skillFx';
 import { THEME } from './theme';
@@ -78,7 +78,13 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       else confirmUntil = app.time + PAUSE_CONFIRM_TIME;
     },
   });
-  const pauseButtons = new ButtonGroup([resumeBtn, abandonBtn]);
+  const wikiBtn = new Button({
+    label: 'Вікі ↗',
+    rect: { x: PAUSE_PANEL.x + PAUSE_PANEL.w - 84, y: PAUSE_PANEL.y + 12, w: 72, h: 26 },
+    fontSize: 12,
+    onClick: openWiki,
+  });
+  const pauseButtons = new ButtonGroup([resumeBtn, abandonBtn, wikiBtn]);
 
   function onEvent(e: GameEvent): void {
     const b = battle;

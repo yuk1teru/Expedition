@@ -589,7 +589,7 @@ export const SKILLS: Record<string, SkillDef> = {
 };
 
 /** How numeric parameter changes are shown in rank descriptions (others are hidden). */
-const PARAM_INFO: Record<string, { label: string; unit: 'pct' | 's' | 'px' | 'deg' | 'n' }> = {
+export const PARAM_INFO: Record<string, { label: string; unit: 'pct' | 's' | 'px' | 'deg' | 'n' }> = {
   damage: { label: 'шкода (% атаки героя)', unit: 'pct' },
   cooldown: { label: 'перезарядка', unit: 's' },
   duration: { label: 'тривалість', unit: 's' },

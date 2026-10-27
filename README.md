@@ -19,6 +19,8 @@ npm run probe                       # на якій хвилі гине бот (
 npm run probe -- --endless --level 10  # нескінченний режим: як глибоко заходить герой 10 рівня
 ```
 
+**Вікі** — `wiki.html` поруч із грою (у dev: `http://localhost:5173/wiki.html`; на сайті — `…/Expedition/wiki.html`; кнопка «Вікі гри» у вікні «Як грати» та на паузі). Сторінка будується з `src/data`: класи, скіли з рангами, пасивки, гілки, вороги, боси й мінібоси з атаками, локації з мобами й механіками, міста й розмови NPC, речі й шанси луту, зілля, хвилі, погода, формули та всі групи `balance.ts` з коментарями. **У `npm run dev` числа можна міняти прямо у вікі**: підкреслене число — клік, нове значення, `Enter`. Dev-сервер (`scripts/wikiPlugin.ts`) знаходить це число як літерал у `src/data/*.ts` (`src/wiki/literal.ts`) і переписує файл; сторінка й гра перезавантажуються. Числа, що обчислюються (`1 / 60`, спред, значення з функцій), не редагуються. Новий розділ або поле даних — у `src/wiki/sections.ts` (`v(значення, [ГРУПА, ...шлях], формат)`).
+
 Seed забігу показано в правому верхньому куті карти. Задати його можна через URL: `http://localhost:5173/?seed=123`.
 
 ## Деплой (GitHub Pages)
@@ -128,6 +130,7 @@ tests/               rng, mapgen, formulas, cards, boss, biomes, waves, skills, 
 - **Ворога**: запис у `ENEMIES` (`src/data/enemies.ts`) з архетипом і рисою (`dash`, `volley`, `stomp`, `cripple`, `poison`, `split`, `shotSlow`), id — у `enemies` біому (`src/data/biomes.ts`), колір — у `palette.enemies`. Форму малює `drawEnemy` за архетипом.
 - **Боса чи мінібоса**: запис у `BOSSES` (`src/data/bosses.ts`) — статистики, `phase2`, `melee`, `coldAura`, таблиця атак (`weight`, `cooldown` по фазах, `params` по фазах, `followUp` для комбо); поведінка — `registerBoss('<id>', { attacks, canUse })` у `src/systems/bosses/<id>.ts` + рядок в `index.ts`. Інструменти: `addTelegraph` / `addShapedTelegraph` (коло, лінія), `bossDash`, `bossBusy`, `spawnEnemy`, `addPuddle` / `addRing` (`hazards.ts`). Вигляд — художник у `src/render/biomeBosses.ts` (або `bossView.ts`). Призначте `boss` чи `miniboss` біому.
 - **Гілку підвищення**: запис у `PROMOTIONS` (`src/data/promotions.ts`) з `effect` (новий вид обробіть у `src/systems/promotion.ts`), фірмовий скіл (з `branch`) і дві пасивки гілки.
+- **Місто й NPC**: макет міста — `TOWNS` у `src/data/towns.ts` (id = id вузла світу: будинки, вода, декор, NPC, брама, точка появи); NPC і розмови — `NPCS` у `src/data/npcs.ts`: вузли з реплікою та пунктами, пункт веде на інший вузол (`next`) і/або виконує дію (`openShop`, `openChangelog`, `openInventory`, `close`; нові дії — у `runAction` у `src/render/townView.ts`). Тест перевіряє, що до брами й кожного NPC можна дійти.
 - **Біом**: запис у `BIOMES` — палітра, 8 назв локацій, назва лігва боса, 3 вороги, мінібос, бос, декор; id — у `BIOME_ORDER`.
 
 ## Де міняти баланс і контент
