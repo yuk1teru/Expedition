@@ -29,6 +29,7 @@ export const GAME_KEYS = [
   'Digit4',
   'Digit5',
   'KeyF',
+  'KeyQ',
   'Space',
   'Escape',
   'Backquote',

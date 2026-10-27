@@ -90,7 +90,18 @@ function baseStats(level: number): HeroStats {
 /** The hero's auto-attack: the class one, or the novice one before the class choice. */
 /** Element of the hero's basic attack: the archer's arrows, otherwise neutral (a soul stone — stage 14). */
 export function basicElement(hero: Hero): Element {
-  return hero.classId === 'archer' ? hero.arrowElement : 'neutral';
+  if (hero.classId === 'archer') return hero.arrowElement;
+  // Paladin: while the branch barrier holds, the blows are holy.
+  if (hero.promotion === 'paladin' && hero.buffs.some((b) => b.id === 'aegis' && (b.shield ?? 0) > 0)) return 'holy';
+  return 'neutral';
+}
+
+/** Archer (Q): the next learned arrow type (plain arrows included). */
+export function cycleArrows(hero: Hero): Element {
+  const all: Element[] = ['neutral', ...hero.arrows];
+  const i = all.indexOf(hero.arrowElement);
+  hero.arrowElement = all[(i + 1) % all.length]!;
+  return hero.arrowElement;
 }
 
 /** Element of a skill's damage for this hero ('arrows' — the arrows in use; a fork may change it). */

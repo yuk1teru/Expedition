@@ -73,3 +73,22 @@ describe('elements', () => {
     expect(SKILLS.multishot!.element).toBe('arrows');
   });
 });
+
+describe('class elements', () => {
+  it('the archer switches between learned arrows; the paladin hits holy while the barrier holds', async () => {
+    const { createHero, cycleArrows, basicElement } = await import('../src/systems/hero');
+    const h = createHero(1);
+    h.classId = 'archer';
+    expect(basicElement(h)).toBe('neutral');
+    h.arrows = ['fire', 'water'];
+    expect(cycleArrows(h)).toBe('fire');
+    expect(cycleArrows(h)).toBe('water');
+    expect(cycleArrows(h)).toBe('neutral');
+    const p = createHero(2);
+    p.classId = 'warrior';
+    p.promotion = 'paladin';
+    expect(basicElement(p)).toBe('neutral');
+    p.buffs.push({ id: 'aegis', time: 5, attackSpeedMult: 1, damageTakenMult: 1, shield: 30 });
+    expect(basicElement(p)).toBe('holy');
+  });
+});

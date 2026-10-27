@@ -1,5 +1,6 @@
 // Combat HUD: HP, XP, level, class, gold, day, wave, pause/speed buttons, skill bar.
 
+import { ELEMENTS } from '../data/elements';
 import type { InputEvent } from '../core/input';
 import { ARENA, PROGRESSION, RANKS } from '../data/balance';
 import { FX } from '../data/fx';
@@ -220,6 +221,11 @@ export function createHud(app: App, _fx: Fx): Hud {
       drawSkillBar(ctx, b, slots, noTargetT, noTargetText, hoverSlot);
       if (hasNewItems(hero)) drawNewItemHint(ctx, W - 14, ARENA.y + ARENA.h + 12, app.time, 'right');
       drawLevelAndXp(ctx, hero.level, hero.xp, slots, ARENA.y + ARENA.h + XP_BAR.top);
+      if (hero.arrows.length > 0) {
+        const s0 = slots[0]!;
+        const el = ELEMENTS[hero.arrowElement];
+        drawText(ctx, `Q: ${el.name}`, s0.x - 60, s0.y - 10, { size: 11, bold: true, align: 'center', color: el.color });
+      }
       drawQuickSlots(ctx, hero, slots);
       drawDodgeSlot(ctx, hero, slots);
       if (dragFrom >= 0 && dragMoved) drawDragGhost(ctx, b, dragFrom, slots, app.input.mouse);

@@ -1,5 +1,7 @@
 // Combat screen: arena, entities, effects, HUD; drives the battle simulation.
 
+import { cycleArrows } from '../systems/hero';
+import { ELEMENTS } from '../data/elements';
 import { drawHazard } from './biomeBosses';
 import { heroColor } from './names';
 import { drawAimLine, drawAlly, drawBranchProjectile, drawBranchZone, drawClassProjectile, drawClassZone, drawElementalStatus, drawShieldBubble } from './classFx';
@@ -165,6 +167,11 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
       else if (/^Digit[1-5]$/.test(e.code) && battle && !app.loop.paused) hud.useSlot(Number(e.code.slice(5)) - 1);
       else if (e.code === 'KeyR' && battle && !app.loop.paused) hud.useSlot(PROGRESSION.signatureSlot);
       else if (e.code === 'KeyF' && battle && !app.loop.paused) hud.useSlot(PROGRESSION.branchSlot2);
+      else if (e.code === 'KeyQ' && battle && !app.loop.paused && battle.hero.arrows.length > 0) {
+        // Archer: switch the arrows (ROADMAP 12.5).
+        const el = cycleArrows(battle.hero);
+        fx.text({ x: battle.hero.pos.x, y: battle.hero.pos.y - 46 }, `Стріли: ${ELEMENTS[el].name}`, ELEMENTS[el].color, 15, 1.2);
+      }
     },
 
     render(ctx) {
