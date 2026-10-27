@@ -28,8 +28,8 @@ export function emptyQuestLog(): QuestLog {
   return { active: [], done: [] };
 }
 
-/** Objective kinds the game can track now; quests with others wait (trophies — stage 14, special ones — their stages). */
-const PLAYABLE = new Set(['kill', 'killMiniboss', 'killBoss', 'clear', 'reach', 'deliver', 'talk']);
+/** Objective kinds the game can track now; quests with others wait (special ones — their stages). */
+const PLAYABLE = new Set(['kill', 'killMiniboss', 'killBoss', 'clear', 'reach', 'deliver', 'talk', 'bring']);
 
 export function questPlayable(q: QuestDef): boolean {
   return q.objectives.every((o) => PLAYABLE.has(o.kind));
@@ -68,8 +68,30 @@ export function questsOffered(state: GameState, npcId: string): QuestDef[] {
 export function startQuest(state: GameState, id: string): void {
   if (!QUESTS[id] || questState(state, id)) return;
   state.quests.active.push({ id, step: 0, count: 0 });
-  // An arrival objective may be met already (the hero stands there).
+  // An arrival objective may be met already (the hero stands there), the trophies may be in the bag.
   questsArrive(state, state.currentNodeId);
+  questsBring(state);
+}
+
+/**
+ * "Bring" objectives (ROADMAP 14.1): once the bag holds enough of the trophy, the quest
+ * puts them aside (they leave the bag) and goes on. The counter shows what is collected.
+ */
+export function questsBring(state: GameState): void {
+  const bag = state.hero.trophies;
+  for (const qs of state.quests.active) {
+    for (let guard = 0; guard < 4; guard++) {
+      const o = currentObjective(qs);
+      if (o?.kind !== 'bring') break;
+      const need = o.count ?? 1;
+      const have = bag[o.target] ?? 0;
+      qs.count = Math.min(need, have);
+      if (have < need) break;
+      if (have === need) delete bag[o.target];
+      else bag[o.target] = have - need;
+      advance(qs);
+    }
+  }
 }
 
 function advance(qs: QuestState): void {
@@ -112,6 +134,7 @@ export function questsAfterBattle(state: GameState, r: BattleOutcomeForQuests): 
       else break;
     }
   }
+  questsBring(state);
 }
 
 /** Gives the quest's rewards and closes it; a short list of what was given. */
@@ -182,6 +205,8 @@ export function objectiveText(o: QuestObjective, count = 0): string {
       return `Віднести посилку: ${npcName(o.target)}`;
     case 'talk':
       return `Поговорити: ${npcName(o.target)}`;
+    case 'bring':
+      return `Зібрати: ${resolveName('trophy', o.target) ?? o.target} — ${count}/${o.count ?? 1}`;
     default:
       return o.text ? fillNames(o.text) : o.target;
   }

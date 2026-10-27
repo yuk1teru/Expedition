@@ -68,10 +68,10 @@ describe('quests', () => {
     expect(s.quests.done).toContain('forestWolves');
   });
 
-  it('quests that need trophies or special acts are not offered yet', () => {
+  it('quests that need special acts are not offered yet (trophies are, since ROADMAP 14.1)', () => {
     const s = createGameState(1);
     for (const q of Object.values(QUESTS)) {
-      if (q.objectives.some((o) => o.kind === 'bring' || o.kind === 'special')) {
+      if (q.objectives.some((o) => o.kind === 'special')) {
         expect(questPlayable(q), q.id).toBe(false);
         expect(questsOffered(s, q.giver).map((x) => x.id)).not.toContain(q.id);
       }

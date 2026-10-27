@@ -1,5 +1,6 @@
 // Geometric icons for skills, passives and classes.
 
+import { TROPHY_COLORS, type TrophyKind } from '../data/trophies';
 import { CONSUMABLES } from '../data/consumables';
 import type { ClassIcon } from '../data/classes';
 import type { SkillIcon } from '../data/skills';
@@ -364,6 +365,50 @@ export function drawConsumableIcon(ctx: CanvasRenderingContext2D, id: string, x:
       ctx.fill();
       ctx.restore();
     }
+  }
+  ctx.restore();
+}
+
+/** A trophy in the bag: its kind's shape and colour (pelt, rare gem, boss star, relic coin). */
+export function drawTrophyIcon(ctx: CanvasRenderingContext2D, kind: TrophyKind, x: number, y: number, size: number): void {
+  const r = size / 2;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = TROPHY_COLORS[kind];
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  if (kind === 'common') {
+    // A pelt / a piece: a rounded blob with a notch.
+    ctx.ellipse(0, 0, r * 0.85, r * 0.65, -0.3, 0, Math.PI * 2);
+  } else if (kind === 'rare') {
+    ctx.moveTo(0, -r);
+    ctx.lineTo(r * 0.75, 0);
+    ctx.lineTo(0, r);
+    ctx.lineTo(-r * 0.75, 0);
+    ctx.closePath();
+  } else if (kind === 'boss') {
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + (i * Math.PI) / 5;
+      const rr = i % 2 === 0 ? r : r * 0.45;
+      if (i === 0) ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+      else ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    }
+    ctx.closePath();
+  } else {
+    ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2);
+  }
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.beginPath();
+  if (kind === 'relic') {
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.arc(0, 0, r * 0.5, 0, Math.PI * 2);
+    ctx.stroke();
+  } else {
+    ctx.ellipse(-r * 0.25, -r * 0.25, r * 0.22, r * 0.14, -0.6, 0, Math.PI * 2);
+    ctx.fill();
   }
   ctx.restore();
 }

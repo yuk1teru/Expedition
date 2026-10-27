@@ -176,6 +176,8 @@ export interface Hero extends Body {
   bag: Item[];
   /** Carried consumables (magnifiers, herbs, potions). */
   consumables: Record<ConsumableId, number>;
+  /** Trophies in the bag by id (ROADMAP 14.1). */
+  trophies: Record<string, number>;
   /** Healing items on the quick slots Z / X / C (null: empty). */
   quickSlots: (HealId | null)[];
   /** Seconds until the next healing item can be used (shared by all). */

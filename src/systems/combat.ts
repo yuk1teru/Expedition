@@ -1,5 +1,6 @@
 // Damage, crits, armor, lifesteal, thorns, kills, knockback and statuses.
 
+import { dropTrophies } from './trophies';
 import { ENEMY_COMMON, HERO, HERO_DEBUFFS } from '../data/balance';
 import type { Rng } from '../core/rng';
 import type { Battle } from './battle';
@@ -108,6 +109,7 @@ export function killEnemy(b: Battle, e: Enemy): void {
     gainXp(b.state, xp);
   }
   if (e.boss) dropLoot(b, e);
+  dropTrophies(b, e);
   if (hasStatus(e, 'freeze')) shatter(b, e);
   manaFromKill(b, e);
   const split = ENEMIES[e.defId]?.split;

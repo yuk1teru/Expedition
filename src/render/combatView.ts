@@ -1,5 +1,7 @@
 // Combat screen: arena, entities, effects, HUD; drives the battle simulation.
 
+import { TROPHIES, TROPHY_COLORS } from '../data/trophies';
+import { fillNames } from '../data/names';
 import { OBJECTIVES } from '../data/objectives';
 import { drawArenaTerrain, drawObstacles } from './arenaView';
 import { cycleArrows } from '../systems/hero';
@@ -353,6 +355,11 @@ function handleEvent(b: Battle, fx: Fx, e: GameEvent): void {
       fx.showBanner(`Мінібос: ${e.name}`, THEME.bad);
       fx.burst(e.pos, P.eliteDeath, THEME.bad);
       break;
+    case 'trophy': {
+      const tr = TROPHIES[e.id];
+      if (tr) fx.text({ x: e.pos.x, y: e.pos.y - 30 }, fillNames(tr.name), TROPHY_COLORS[tr.kind], tr.kind === 'common' ? 13 : 16, 1.8);
+      break;
+    }
     case 'loot': {
       const color = RARITIES[e.rarity].color;
       fx.showBanner(`Здобич: ${e.name} — у сумці (Tab)`, color);

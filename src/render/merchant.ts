@@ -1,6 +1,7 @@
 // Town merchant: buy magnifiers, potions and random items for a chosen slot. A click on a
 // bag item opens a dropdown: identify, wear or sell. The full equipment window opens on top (Tab).
 
+import { sellTrophies, trophySale } from '../systems/trophies';
 import type { InputEvent } from '../core/input';
 import type { Modal } from '../core/screens';
 import { CONSUMABLES, type ConsumableId, describeConsumable } from '../data/consumables';
@@ -108,6 +109,16 @@ export function createMerchantModal(app: App, onClose: () => void, shop: ShopDef
     fontSize: 14,
     onClick: () => app.openInventoryOver(),
   });
+  const trophyBtn = new Button({
+    label: 'Продати трофеї',
+    rect: { x: PANEL.x + PANEL.w - 250, y: PANEL.y + PANEL.h - 54, w: 220, h: 36 },
+    fontSize: 13,
+    onClick: () => {
+      const { count } = trophySale(app.state);
+      const gold = sellTrophies(app.state);
+      say(`Продано трофеїв: ${count} — ${gold} зол.`);
+    },
+  });
   const closeBtn = new Button({
     label: 'Назад до міста',
     rect: { x: PANEL.x + PANEL.w / 2 - 110, y: PANEL.y + PANEL.h - 56, w: 220, h: 40 },
@@ -115,7 +126,7 @@ export function createMerchantModal(app: App, onClose: () => void, shop: ShopDef
     fontSize: 15,
     onClick: onClose,
   });
-  const buttons = new ButtonGroup([...buyButtons, ...itemButtons, gearBtn, closeBtn]);
+  const buttons = new ButtonGroup([...buyButtons, ...itemButtons, gearBtn, trophyBtn, closeBtn]);
 
   return {
     id: 'merchant',
@@ -124,6 +135,9 @@ export function createMerchantModal(app: App, onClose: () => void, shop: ShopDef
       GOODS.forEach((id, i) => (buyButtons[i]!.enabled = canBuy(app.state, id)));
       if (!menu) selected = -1;
       for (const b of itemButtons) b.enabled = app.state.gold >= MERCHANT_ITEMS.price;
+      const sale = trophySale(app.state);
+      trophyBtn.enabled = sale.count > 0;
+      trophyBtn.label = sale.count > 0 ? `Продати трофеї: ${sale.count} — ${sale.gold} зол.` : 'Трофеїв на продаж немає';
     },
     onInput(e: InputEvent) {
       if (e.type === 'key' && e.code === 'Tab') {

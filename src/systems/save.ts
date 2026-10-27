@@ -17,7 +17,7 @@ import { type QuestLog, emptyQuestLog } from './quests';
 import { snapshot } from './run';
 
 /** Version of the save format; bump it and add a migration when the format changes. */
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 export interface SaveData {
   version: number;
@@ -75,6 +75,8 @@ const MIGRATIONS: Record<number, (data: Record<string, unknown>) => Record<strin
     const queue = (d.modalQueue as { kind: string }[]).filter((m) => m.kind !== 'cardChoice');
     return { ...d, hero: { ...hero, skills, freeSkills: [], arrows: [] }, modalQueue: queue };
   },
+  // 4: trophies in the bag (ROADMAP 14.1).
+  3: (d) => ({ ...d, hero: { ...(d.hero as object), trophies: {} } }),
 };
 
 /** The save of the hero's progress at the last checkpoint. */

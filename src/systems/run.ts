@@ -191,6 +191,8 @@ export interface BattleSummary {
   lastWave: number;
   /** Items found in this battle. */
   loot: Item[];
+  /** Trophies found, by id. */
+  trophies: Record<string, number>;
   /** This battle defeated the last remaining boss (show the victory screen once). */
   runCompleted: boolean;
   /** A crossing on the way (one wave). */
@@ -255,6 +257,7 @@ export function completeBattle(state: GameState, b: Battle, opts: { final?: bool
     firstWave: b.waves ? b.waves.start + 1 : 0,
     lastWave: b.waves ? b.waves.cleared : 0,
     loot: [...b.stats.loot],
+    trophies: { ...b.stats.trophies },
     runCompleted: won && !wasWon && isRunWon(state),
     recovered,
     lives: state.lives,

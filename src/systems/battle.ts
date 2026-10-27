@@ -47,6 +47,8 @@ export interface BattleStats {
   minibossKills: number;
   /** Items dropped by bosses and minibosses. */
   loot: Item[];
+  /** Trophies found in this battle, by id (ROADMAP 14.1). */
+  trophies: Record<string, number>;
 }
 
 export type BattleOutcome = 'running' | 'won' | 'lost';
@@ -196,7 +198,7 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0, tr
     objective: null,
     transit: transit && !node.isBoss,
     boss: null,
-    stats: { kills: 0, xp: 0, gold: 0, damageDealt: 0, damageTaken: 0, heals: 0, killsById: {}, minibossKills: 0, loot: [] },
+    stats: { kills: 0, xp: 0, gold: 0, damageDealt: 0, damageTaken: 0, heals: 0, killsById: {}, minibossKills: 0, loot: [], trophies: {} },
     healAcc: 0,
     deathCause: null,
     castElement: null,

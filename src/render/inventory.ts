@@ -27,7 +27,10 @@ import {
 } from '../systems/items';
 import type { Hero } from '../systems/entities';
 import type { App } from './app';
-import { drawConsumableIcon, drawItemIcon } from './icons';
+import { drawConsumableIcon, drawItemIcon, drawTrophyIcon } from './icons';
+import { TROPHIES, TROPHY_COLORS, TROPHY_KIND_NAMES, type TrophyKind } from '../data/trophies';
+import { fillNames } from '../data/names';
+import { trophiesWanted } from '../systems/trophies';
 import { drawItem } from './itemArt';
 import { THEME } from './theme';
 import { type Rect, drawPanel, drawText, drawTooltip, drawTooltipBox, inRect, roundRect, tooltipSize } from './ui';
@@ -178,8 +181,24 @@ export function drawBagItemTooltip(ctx: CanvasRenderingContext2D, app: App, item
   drawTooltipBox(ctx, wornTip.lines, x + a.w + gap, place(b.h), wornTip.colors);
 }
 
+/** The bag's tabs: items and trophies (ROADMAP 14.1). */
+const TAB_RECTS = {
+  items: { x: BAG_X - 6, y: BAG_Y - 36, w: 120, h: 26 },
+  trophies: { x: BAG_X + 122, y: BAG_Y - 36, w: 130, h: 26 },
+};
+
+const KIND_ORDER: TrophyKind[] = ['boss', 'rare', 'relic', 'common'];
+
+/** The hero's trophies for the bag grid: rarest first. */
+function trophyList(h: Hero): [string, number][] {
+  return Object.entries(h.trophies)
+    .filter(([id, n]) => n > 0 && TROPHIES[id])
+    .sort(([a], [b]) => KIND_ORDER.indexOf(TROPHIES[a]!.kind) - KIND_ORDER.indexOf(TROPHIES[b]!.kind) || a.localeCompare(b));
+}
+
 export function createInventoryModal(app: App, onClose: () => void): Modal<CanvasRenderingContext2D> {
   let t = 0;
+  let tab: 'items' | 'trophies' = 'items';
   let drag: (DragSource & { x: number; y: number; moved: boolean }) | null = null;
   let menu: { x: number; y: number; options: MenuOption[] } | null = null;
   let message = '';
@@ -191,6 +210,7 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
   const hero = (): App['state']['hero'] => app.state.hero;
 
   const bagIndexAt = (x: number, y: number): number => {
+    if (tab !== 'items') return -1;
     for (let i = 0; i < hero().bag.length && i < BAG_COLS * BAG_ROWS; i++) if (inRect(bagCell(i), x, y)) return i;
     return -1;
   };
@@ -310,6 +330,14 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
           return;
         }
         if (e.button !== 0) return;
+        if (inRect(TAB_RECTS.items, e.x, e.y)) {
+          tab = 'items';
+          return;
+        }
+        if (inRect(TAB_RECTS.trophies, e.x, e.y)) {
+          tab = 'trophies';
+          return;
+        }
         const bi = bagIndexAt(e.x, e.y);
         const slot = slotAt(e.x, e.y);
         if (bi >= 0) drag = { kind: 'bag', index: bi, x: e.x, y: e.y, moved: false };
@@ -360,8 +388,27 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
         drawText(ctx, slot.name, box.x + box.w / 2, box.y + box.h + 12, { size: 12, align: 'center', color: THEME.textDim });
       }
 
-      drawText(ctx, `Сумка (${h.bag.length})`, BAG_X, BAG_Y - 18, { size: 15, bold: true, color: THEME.accent });
-      for (let i = 0; i < BAG_COLS * BAG_ROWS; i++) {
+      const trophies = trophyList(h);
+      const trophyCount = trophies.reduce((a, [, n]) => a + n, 0);
+      drawTab(ctx, TAB_RECTS.items, `Речі (${h.bag.length})`, tab === 'items');
+      drawTab(ctx, TAB_RECTS.trophies, `Трофеї (${trophyCount})`, tab === 'trophies');
+      if (tab === 'trophies') {
+        for (let i = 0; i < BAG_COLS * BAG_ROWS; i++) {
+          const cell = bagCell(i);
+          const entry = trophies[i];
+          roundRect(ctx, cell.x, cell.y, cell.w, cell.h, 8);
+          ctx.fillStyle = entry ? '#22283a' : '#1a1f2d';
+          ctx.fill();
+          ctx.strokeStyle = entry ? TROPHY_COLORS[TROPHIES[entry[0]]!.kind] : THEME.panelBorder;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          if (!entry) continue;
+          drawTrophyIcon(ctx, TROPHIES[entry[0]]!.kind, cell.x + cell.w / 2, cell.y + cell.h / 2 - 3, cell.w * 0.55);
+          drawText(ctx, `${entry[1]}`, cell.x + cell.w - 4, cell.y + cell.h - 7, { size: 11, bold: true, align: 'right' });
+        }
+        if (trophies.length === 0) drawText(ctx, 'Трофеїв ще немає — їх лишають монстри', BAG_X + (BAG_COLS * CELL) / 2 - 3, BAG_Y + 100, { size: 13, align: 'center', color: THEME.textDim });
+      }
+      for (let i = 0; tab === 'items' && i < BAG_COLS * BAG_ROWS; i++) {
         const item = h.bag[i] ?? null;
         const cell = bagCell(i);
         const dragging = drag?.kind === 'bag' && drag.index === i && drag.moved;
@@ -373,7 +420,7 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
           ctx.globalAlpha = 1;
         }
       }
-      if (h.bag.length > BAG_COLS * BAG_ROWS) {
+      if (tab === 'items' && h.bag.length > BAG_COLS * BAG_ROWS) {
         drawText(ctx, `…і ще ${h.bag.length - BAG_COLS * BAG_ROWS}`, BAG_X + BAG_COLS * CELL - 6, BAG_Y - 18, { size: 12, align: 'right', color: THEME.textDim });
       }
 
@@ -445,11 +492,40 @@ export function createInventoryModal(app: App, onClose: () => void): Modal<Canva
         ctx.globalAlpha = 1;
       } else if (menu) {
         drawMenu(ctx, menu, m);
+      } else if (tab === 'trophies' && trophyTooltip(ctx, app, m)) {
+        // The trophy under the mouse.
       } else {
         drawHoverTooltip(ctx, app, m);
       }
     },
   };
+}
+
+function drawTab(ctx: CanvasRenderingContext2D, r: Rect, label: string, active: boolean): void {
+  roundRect(ctx, r.x, r.y, r.w, r.h, 6);
+  ctx.fillStyle = active ? '#2c3550' : '#1a1f2d';
+  ctx.fill();
+  ctx.strokeStyle = active ? THEME.accent : THEME.panelBorder;
+  ctx.lineWidth = active ? 2 : 1;
+  ctx.stroke();
+  drawText(ctx, label, r.x + r.w / 2, r.y + r.h / 2, { size: 13, bold: active, align: 'center', color: active ? THEME.accent : THEME.textDim });
+}
+
+/** The tooltip of the trophy under the mouse (false: none there). */
+function trophyTooltip(ctx: CanvasRenderingContext2D, app: App, m: { x: number; y: number }): boolean {
+  const h = app.state.hero;
+  const list = trophyList(h);
+  for (let i = 0; i < list.length && i < BAG_COLS * BAG_ROWS; i++) {
+    if (!inRect(bagCell(i), m.x, m.y)) continue;
+    const [id, n] = list[i]!;
+    const tr = TROPHIES[id]!;
+    const wanted = trophiesWanted(app.state, id);
+    const lines = [fillNames(tr.name), `${TROPHY_KIND_NAMES[tr.kind]} · у вас: ${n}`, fillNames(tr.description), `Торговець дасть: ${tr.price} зол. за штуку`];
+    if (wanted > 0) lines.push(`Збирає квест: ${wanted} — торговцю не продається`);
+    drawTooltip(ctx, lines, m.x, m.y, app.view.width, app.view.height, [TROPHY_COLORS[tr.kind]]);
+    return true;
+  }
+  return false;
 }
 
 function drawHoverTooltip(ctx: CanvasRenderingContext2D, app: App, m: { x: number; y: number }): void {

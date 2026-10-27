@@ -28,6 +28,8 @@ export function eventSound(e: GameEvent): SoundId | null {
       return RARITY_ORDER.indexOf(e.rarity) >= RARITY_ORDER.indexOf('rare') ? 'lootRare' : 'loot';
     case 'gold':
       return 'gold';
+    case 'trophy':
+      return e.kind === 'common' ? 'loot' : 'lootRare';
     case 'healUse':
       return 'heal';
     case 'heroDeath':

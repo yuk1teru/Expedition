@@ -1,5 +1,7 @@
 // Reward, death and victory screens.
 
+import { TROPHIES } from '../data/trophies';
+import { fillNames } from '../data/names';
 import type { Screen } from '../core/screens';
 import { LIVES } from '../data/balance';
 import { RARITIES } from '../data/items';
@@ -50,6 +52,13 @@ function wornUids(app: App): Set<number> {
   );
 }
 
+/** "Вовча шкура ×2, …" — the trophies of a battle (empty: none). */
+function trophyLine(t: Record<string, number>): string {
+  return Object.entries(t)
+    .map(([id, n]) => `${fillNames(TROPHIES[id]?.name ?? id)}${n > 1 ? ` ×${n}` : ''}`)
+    .join(', ');
+}
+
 /** Cleared waves of a wave location (none for the boss lair). */
 function waveRows(s: BattleSummary): [string, string][] {
   if (s.wavesCleared <= 0) return [];
@@ -98,6 +107,8 @@ export function createRewardScreen(app: App): Screen<CanvasRenderingContext2D> {
           ['Отримано шкоди', String(Math.round(s.damageTaken))],
           ['День', String(app.state.day)],
         ];
+        const trophies = trophyLine(s.trophies);
+        if (trophies) items.push(['Трофеї', trophies]);
         rows(ctx, items, panel.x + 60, panel.y + 100, panel.w - 120, 25);
         lootLines(ctx, s.loot, W / 2, panel.y + 100 + items.length * 25 + 2, wornUids(app), 18);
       }

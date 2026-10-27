@@ -1,7 +1,7 @@
 // Trophies: loot from monsters (one kind per enemy; minibosses and bosses drop rare ones)
 // and relics found in treasure arenas. Merchants buy them; the alchemist and quests use
 // them; the artifact buyer in the capital pays much more for what his orders ask.
-// Not dropped in battle yet (ROADMAP 14.1) — the data is used by quests and the wiki.
+// Drops, the bag and selling: systems/trophies.ts (ROADMAP 14.1).
 
 export type TrophyKind = 'common' | 'rare' | 'boss' | 'relic';
 
@@ -17,6 +17,11 @@ export interface TrophyDef {
   price: number;
   description: string;
 }
+
+/** Colours of the kinds (bag, battle). */
+export const TROPHY_COLORS: Record<TrophyKind, string> = { common: '#c9b48a', rare: '#5aa9ff', boss: '#ffb340', relic: '#c58cff' };
+
+export const TROPHY_KIND_NAMES: Record<TrophyKind, string> = { common: 'трофей', rare: 'рідкісний трофей', boss: 'трофей боса', relic: 'реліквія' };
 
 export const TROPHIES: Record<string, TrophyDef> = {
   // Ліс

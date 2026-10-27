@@ -12,6 +12,8 @@ import type { Item } from './items';
 import { getNode } from './mapgen';
 import { type BattleSummary, completeBattle } from './run';
 import { clearBonusGold } from './scaling';
+import { rollRelics } from './trophies';
+import { fillNames } from '../data/names';
 
 export interface ArenaStep {
   kind: ArenaStepKind;
@@ -32,6 +34,7 @@ export interface Expedition {
   xp: number;
   gold: number;
   loot: Item[];
+  trophies: Record<string, number>;
 }
 
 /** The plan of a location: regular, short (transition zones, the prologue road) or a boss lair. */
@@ -49,7 +52,7 @@ export function planFor(state: GameState, nodeId: string): (ArenaStep | [ArenaSt
 export function startExpedition(state: GameState, nodeId: string): Expedition {
   const steps = planFor(state, nodeId);
   const first = steps.shift() as ArenaStep;
-  const exp: Expedition = { nodeId, steps, current: first, wavesDone: 0, kills: 0, xp: 0, gold: 0, loot: [] };
+  const exp: Expedition = { nodeId, steps, current: first, wavesDone: 0, kills: 0, xp: 0, gold: 0, loot: [], trophies: {} };
   state.expedition = exp;
   return exp;
 }
@@ -95,6 +98,7 @@ export function finishStep(state: GameState, b: Battle): StepResult {
   exp.xp += b.stats.xp;
   exp.gold += b.stats.gold;
   exp.loot.push(...b.stats.loot);
+  for (const [id, n] of Object.entries(b.stats.trophies)) exp.trophies[id] = (exp.trophies[id] ?? 0) + n;
   if (b.waves) exp.wavesDone = b.waves.cleared;
   const rewards = won ? arenaReward(state, b, exp.current.kind) : [];
   if (!won || last) {
@@ -104,6 +108,7 @@ export function finishStep(state: GameState, b: Battle): StepResult {
     summary.xp = exp.xp;
     summary.gold = exp.gold + summary.clearBonus;
     summary.loot = [...exp.loot];
+    summary.trophies = { ...exp.trophies };
     summary.wavesCleared = exp.wavesDone;
     summary.firstWave = 1;
     summary.lastWave = exp.wavesDone;
@@ -152,6 +157,7 @@ function arenaReward(state: GameState, b: Battle, kind: ArenaStepKind): string[]
       b.stats.loot.push(item);
       state.expedition?.loot.push(item);
       out.push(displayName(item));
+      for (const tr of rollRelics(b)) out.push(fillNames(tr.name));
     }
   }
   return out;

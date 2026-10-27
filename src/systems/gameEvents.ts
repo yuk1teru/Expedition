@@ -1,5 +1,6 @@
 // Events emitted by logic for render (floating numbers, particles, shake, banners).
 
+import type { TrophyKind } from '../data/trophies';
 import type { HealId, PickupKind } from '../data/consumables';
 import type { Rarity } from '../data/items';
 import type { Element } from '../data/elements';
@@ -38,6 +39,8 @@ export type GameEvent =
   /** A healing item from a quick slot: `total` HP over `duration` s. */
   | { type: 'healUse'; id: HealId; pos: Vec; total: number; duration: number }
   | { type: 'loot'; pos: Vec; name: string; rarity: Rarity }
+  /** A trophy dropped (ROADMAP 14.1). */
+  | { type: 'trophy'; pos: Vec; id: string; kind: TrophyKind }
   | { type: 'levelUp'; level: number; hp: number; attack: number }
   | { type: 'heroDeath'; pos: Vec }
   | { type: 'skillCast'; skillId: string; rank: number; pos: Vec; target: Vec | null }
