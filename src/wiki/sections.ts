@@ -550,6 +550,7 @@ export function buildSections(comment: (root: string, path: LiteralPath) => stri
     consumablesSection(),
     wavesSection(),
     formulasSection(),
-    balanceSection(comment),
+    // All the numbers of balance.ts — for the developer only.
+    ...(import.meta.env.DEV ? [balanceSection(comment)] : []),
   ];
 }

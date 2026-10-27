@@ -13,24 +13,30 @@ export interface DebugPanel {
 
 export function createDebugPanel(app: App): DebugPanel {
   const x = app.view.width - 210;
-  const y = 70;
+  const y = 50;
   const w = 196;
-  const bh = 30;
-  const gap = 6;
-  const actions: [string, () => void][] = [
+  const bh = 26;
+  const gap = 4;
+  const st = (): typeof app.state => app.state;
+  // [label, action, on/off state for switches] (ROADMAP 10.8).
+  const actions: [string, () => void, (() => boolean)?][] = [
     ['+1 рівень', () => app.debugLevelUp()],
-    ['+1000 золота', () => (app.state.gold += 1000)],
+    ['+1000 золота', () => (st().gold += 1000)],
     ['Вбити всіх', () => app.debugKillAll()],
-    ['Безсмертя', () => (app.state.hero.immortal = !app.state.hero.immortal)],
+    ['Безсмертя', () => (st().hero.immortal = !st().hero.immortal), () => st().hero.immortal],
     ['Перейти до боса', () => app.debugGoBoss()],
     ['Скинути локацію', () => app.debugResetLocation()],
-    ['Вільні переходи', () => (app.state.freeTravel = !app.state.freeTravel)],
-    ['+5 днів', () => (app.state.day += 5)],
+    ['Вільні переходи', () => (st().freeTravel = !st().freeTravel), () => !!st().freeTravel],
+    ['+5 днів', () => (st().day += 5)],
+    ['Без туману', () => (st().noFog = !st().noFog), () => !!st().noFog],
+    ['Тарадайка даром', () => (st().freeCoach = !st().freeCoach), () => !!st().freeCoach],
+    ['Без навали', () => (st().noInvasion = !st().noInvasion), () => !!st().noInvasion],
+    ['Нескінченні життя', () => (st().infiniteLives = !st().infiniteLives), () => !!st().infiniteLives],
   ];
   const buttons = new ButtonGroup(
     actions.map(
       ([label, fn], i) =>
-        new Button({ label, rect: { x: x + 10, y: y + 34 + i * (bh + gap), w: w - 20, h: bh }, fontSize: 13, onClick: fn }),
+        new Button({ label, rect: { x: x + 10, y: y + 34 + i * (bh + gap), w: w - 20, h: bh }, fontSize: 12, onClick: fn }),
     ),
   );
   const panel = {
@@ -49,10 +55,10 @@ export function createDebugPanel(app: App): DebugPanel {
       drawPanel(ctx, { x, y, w, h }, 'rgba(8, 10, 14, 0.92)', THEME.accent);
       drawText(ctx, 'Дебаг', x + 12, y + 18, { size: 14, bold: true, color: THEME.accent });
       drawText(ctx, `seed ${app.state.seed}`, x + w - 12, y + 18, { size: 11, color: THEME.textMuted, align: 'right' });
-      const immortalBtn = buttons.buttons[3];
-      if (immortalBtn) immortalBtn.label = app.state.hero.immortal ? 'Безсмертя: так' : 'Безсмертя: ні';
-      const travelBtn = buttons.buttons[6];
-      if (travelBtn) travelBtn.label = app.state.freeTravel ? 'Вільні переходи: так' : 'Вільні переходи: ні';
+      actions.forEach(([label, , on], i) => {
+        const btn = buttons.buttons[i];
+        if (btn && on) btn.label = `${label}: ${on() ? 'так' : 'ні'}`;
+      });
       buttons.draw(ctx);
       drawText(ctx, '` — закрити', x + 12, y + h - 14, { size: 11, color: THEME.textMuted });
     },

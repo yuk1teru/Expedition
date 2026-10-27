@@ -68,6 +68,10 @@ export interface GameState {
   lastDeath: LastDeath | null;
   /** Debug: the coachman rides for free. */
   freeCoach?: boolean;
+  /** Debug: the invasion does not make enemies stronger. */
+  noInvasion?: boolean;
+  /** Debug: a death takes no life. */
+  infiniteLives?: boolean;
   /** Debug: travel to any node, not only to neighbours. */
   freeTravel?: boolean;
 }

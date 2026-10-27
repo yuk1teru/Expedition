@@ -210,7 +210,7 @@ export function createMapScreen(app: App): Screen<CanvasRenderingContext2D> {
       ctx.restore();
 
       drawTopBar(ctx, state, W, app.totalBosses(), app.time);
-      drawInvasion(ctx, state.day, state.bossesDefeated.length);
+      drawInvasion(ctx, state.day, state.bossesDefeated.length, !!state.noInvasion);
       buttons.draw(ctx);
       if (app.route.length > 0) {
         const goal = world.nodes.find((x) => x.id === app.route[app.route.length - 1]);
@@ -323,7 +323,7 @@ function drawNodeLabel(
 }
 
 /** The invasion scale under the top bar: day, percent with a bar, the enemies' bonus (ROADMAP 10.3). */
-function drawInvasion(ctx: CanvasRenderingContext2D, day: number, bosses: number): void {
+function drawInvasion(ctx: CanvasRenderingContext2D, day: number, bosses: number, off: boolean): void {
   const pct = invasionPct(day);
   const bonus = Math.round((invasionMultiplier(day) - 1) * 100);
   const x = 12;
@@ -333,7 +333,7 @@ function drawInvasion(ctx: CanvasRenderingContext2D, day: number, bosses: number
   roundRect(ctx, x, y, w, bosses > 0 ? 62 : 46, 8);
   ctx.fill();
   drawText(ctx, `День ${day} · Навала ${Math.floor(pct)}%`, x + 12, y + 13, { size: 13, bold: true, color: pct >= 75 ? THEME.bad : THEME.text });
-  drawText(ctx, `вороги +${bonus}%`, x + w - 12, y + 13, { size: 12, align: 'right', color: THEME.textDim });
+  drawText(ctx, off ? 'вимкнено (дебаг)' : `вороги +${bonus}%`, x + w - 12, y + 13, { size: 12, align: 'right', color: THEME.textDim });
   // The bar with the threshold marks.
   const bx = x + 12;
   const by = y + 26;

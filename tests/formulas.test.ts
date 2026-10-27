@@ -128,6 +128,7 @@ describe('invasion', () => {
     const s = createGameState(3);
     s.day = 1 + Math.ceil(26 / INVASION.perDay);
     expect(threatMultiplier(s)).toBeCloseTo(invasionMultiplier(s.day));
+    expect(threatMultiplier({ day: s.day, noInvasion: true })).toBe(1);
     expect(newInvasionThresholds(s).map((t) => t.at)).toEqual([25]);
     expect(newInvasionThresholds(s)).toEqual([]);
     s.day = 10_000;

@@ -85,6 +85,13 @@ describe('death and lives', () => {
     expect(after).toContain(WAKE.lostLoot);
   });
 
+  it('debug: infinite lives — a death takes none', () => {
+    const { s, b } = lostBattle();
+    s.infiniteLives = true;
+    completeBattle(s, b);
+    expect(s.lives).toBe(LIVES.start);
+  });
+
   it('the last life: a death leaves none', () => {
     const { s, b } = lostBattle();
     s.lives = 1;

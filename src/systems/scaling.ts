@@ -22,9 +22,9 @@ export function invasionMultiplier(day: number): number {
   return 1 + (invasionPct(day) / 100) * INVASION.strengthAt100;
 }
 
-/** The invasion's strength of a run's enemies. */
-export function threatMultiplier(state: { day: number }): number {
-  return invasionMultiplier(state.day);
+/** The invasion's strength of a run's enemies (none with the debug switch). */
+export function threatMultiplier(state: { day: number; noInvasion?: boolean }): number {
+  return state.noInvasion ? 1 : invasionMultiplier(state.day);
 }
 
 /** Whether the hero gets only part of the XP at a location of this monster level. */

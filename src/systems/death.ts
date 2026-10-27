@@ -16,7 +16,7 @@ import { type MapNode, getNode } from './mapgen';
 
 /** A lost battle: −1 life, its loot is left in the location, the doctor will talk. */
 export function applyDeath(state: GameState, b: Battle): void {
-  state.lives = Math.max(0, state.lives - 1);
+  if (!state.infiniteLives) state.lives = Math.max(0, state.lives - 1);
   const cp = state.checkpoint;
   cp.lives = state.lives;
   // The checkpoint world is the one the hero wakes up in.
