@@ -3,7 +3,7 @@
 // hurt the hero, tall grass hides the hero from shooters further than TERRAIN.grassSight.
 
 import { ARENA, ARENA_VIEW, setArenaSize } from '../data/balance';
-import { type ArenaObstacle, type ArenaTerrain, TERRAIN, type TerrainKind, arenaFor } from '../data/arenas';
+import { type ArenaObstacle, type ArenaSide, type ArenaTerrain, TERRAIN, type TerrainKind, arenaFor } from '../data/arenas';
 import type { Battle } from './battle';
 import { addStatus, damageHero, debuffHero } from './combat';
 import type { Body, Vec } from './entities';
@@ -13,18 +13,45 @@ export interface ArenaState {
   /** Obstacles in world coordinates. */
   obstacles: ArenaObstacle[];
   terrain: ArenaTerrain[];
+  /** Monsters come only from these edges (null: all four). */
+  spawnSides: ArenaSide[] | null;
   /** Thorns damage is dealt in ticks. */
   thornsTimer: number;
 }
 
-/** Sets up the arena of a location: its size and its obstacles and terrain in world coordinates. */
-export function setupArena(nodeId: string): ArenaState {
+/** Mirroring of an arena: the arenas of one location trip are not all alike (ROADMAP 13.4). */
+export interface ArenaFlip {
+  x: boolean;
+  y: boolean;
+}
+
+const FLIP_SIDE: Record<ArenaSide, { x: ArenaSide; y: ArenaSide }> = {
+  left: { x: 'right', y: 'left' },
+  right: { x: 'left', y: 'right' },
+  top: { x: 'top', y: 'bottom' },
+  bottom: { x: 'bottom', y: 'top' },
+};
+
+/**
+ * Sets up the arena of a location: its size and its obstacles and terrain in world
+ * coordinates, mirrored by `flip` (an arena that keeps its sea below is never mirrored top to bottom).
+ */
+export function setupArena(nodeId: string, flip: ArenaFlip = { x: false, y: false }): ArenaState {
   const def = arenaFor(nodeId, ARENA_VIEW.w, ARENA_VIEW.h);
   setArenaSize(def.w, def.h);
+  // An arena that keeps its sea below is mirrored left to right instead.
+  const fy = flip.y && !def.fixedY;
+  const fx = flip.x !== (flip.y && !fy);
+  const px = (x: number, w = 0): number => ARENA.x + (fx ? def.w - x - w : x);
+  const py = (y: number, h = 0): number => ARENA.y + (fy ? def.h - y - h : y);
   return {
     id: def.id,
-    obstacles: def.obstacles.map((o) => ({ ...o, x: o.x + ARENA.x, y: o.y + ARENA.y })),
-    terrain: def.terrain.map((t) => ({ ...t, x: t.x + ARENA.x, y: t.y + ARENA.y })),
+    obstacles: def.obstacles.map((o) => ({ ...o, x: px(o.x), y: py(o.y) })),
+    terrain: def.terrain.map((t) => ({ ...t, x: px(t.x, t.w), y: py(t.y, t.h) })),
+    spawnSides: def.spawnSides?.map((s) => {
+      const a = fx ? FLIP_SIDE[s].x : s;
+      return fy ? FLIP_SIDE[a].y : a;
+    }) ?? null,
     thornsTimer: 0,
   };
 }

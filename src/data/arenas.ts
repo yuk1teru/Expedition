@@ -5,6 +5,7 @@
 // arena's top-left corner. A location without its own arena fights on a plain one.
 
 export type ObstacleKind = 'tree' | 'rock' | 'stump' | 'pillar';
+export type ArenaSide = 'left' | 'right' | 'top' | 'bottom';
 export type TerrainKind = 'water' | 'thorns' | 'grass';
 
 export interface ArenaObstacle {
@@ -30,6 +31,10 @@ export interface ArenaDef {
   h: number;
   obstacles: ArenaObstacle[];
   terrain: ArenaTerrain[];
+  /** Monsters come only from these edges (default: all four). */
+  spawnSides?: ArenaSide[];
+  /** Never mirrored top to bottom (the sea stays below). */
+  fixedY?: boolean;
 }
 
 export const TERRAIN = {
@@ -55,6 +60,7 @@ export const ARENAS: Record<string, ArenaDef> = {
     h: 416,
     obstacles: [R(220, 120, 30), R(420, 300), R(760, 110, 28), R(980, 260), R(1150, 120, 26), R(320, 220, 18)],
     terrain: [{ kind: 'water', x: 0, y: 340, w: 1280, h: 76 }],
+    fixedY: true,
   },
   quietGrove: {
     id: 'quietGrove',
@@ -66,11 +72,12 @@ export const ARENAS: Record<string, ArenaDef> = {
   },
   wolfTrail: {
     id: 'wolfTrail',
-    note: 'Широка стежка між деревами: зграї заходять з обох боків.',
+    note: 'Широка стежка між деревами: зграї заходять лише з обох кінців стежки.',
     w: 1280,
     h: 520,
     obstacles: [T(120, 80), T(300, 60), T(520, 90), T(760, 70), T(980, 90), T(1160, 70), T(140, 450), T(380, 470), T(640, 440), T(900, 460), T(1150, 440), R(640, 140, 20)],
     terrain: [],
+    spawnSides: ['left', 'right'],
   },
   mushroomGlade: {
     id: 'mushroomGlade',
@@ -91,6 +98,7 @@ export const ARENAS: Record<string, ArenaDef> = {
     h: 480,
     obstacles: [R(200, 120, 28), R(900, 360, 30), R(330, 380), R(780, 100), T(80, 420), T(1060, 60)],
     terrain: [{ kind: 'water', x: 0, y: 300, w: 1120, h: 60 }],
+    fixedY: true,
   },
   darkThicket: {
     id: 'darkThicket',

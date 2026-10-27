@@ -59,7 +59,10 @@ export function stepBattle(state: GameState): Battle {
   const exp = state.expedition!;
   const k = exp.current.kind;
   if (k === 'boss') return createBattle(state, exp.nodeId);
-  const b = createBattle(state, exp.nodeId, exp.wavesDone, false, { waves: EXPEDITION.waves[k], miniboss: k === 'lair', boss: false, objective: exp.current.goal });
+  // The fork's arenas are mirrored left to right, the lair top to bottom (or left to right
+  // when its sea must stay below): one location, different fields.
+  const flip = { x: k === 'altar' || k === 'treasure' || k === 'objective', y: k === 'lair' };
+  const b = createBattle(state, exp.nodeId, exp.wavesDone, false, { waves: EXPEDITION.waves[k], miniboss: k === 'lair', boss: false, objective: exp.current.goal, flip });
   if (k === 'treasure' && b.waves) b.waves.sizeMult = EXPEDITION.treasureWaveMult;
   b.step = k;
   return b;

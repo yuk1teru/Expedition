@@ -115,7 +115,7 @@ export function updateObjective(b: Battle, dt: number): void {
   if (o.timer > 0) return;
   o.timer = cfg.groupEvery;
   if (alive.length >= cfg.maxAlive) return;
-  const anchor = edgePoint(b.rng);
+  const anchor = edgePoint(b.rng, b.arena.spawnSides);
   for (let i = 0; i < cfg.groupSize; i++) {
     const pos = { x: anchor.x + b.rng.float(-WAVES.groupSpread, WAVES.groupSpread), y: anchor.y + b.rng.float(-WAVES.groupSpread, WAVES.groupSpread) };
     spawnEnemy(b, pickMonster(b), pos, false, false, o.mult);

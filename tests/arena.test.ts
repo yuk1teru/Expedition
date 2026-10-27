@@ -4,9 +4,10 @@ import { ARENAS, TERRAIN } from '../src/data/arenas';
 import { WORLD_NODES } from '../src/data/world';
 import { spawnProjectile } from '../src/systems/ai';
 import { createBattle, stepBattle } from '../src/systems/battle';
-import { heroHidden, terrainAt } from '../src/systems/arena';
+import { heroHidden, setupArena, terrainAt } from '../src/systems/arena';
+import { Rng } from '../src/core/rng';
 import { createGameState, teleport } from '../src/systems/run';
-import { spawnEnemy } from '../src/systems/waves';
+import { edgePoint, spawnEnemy } from '../src/systems/waves';
 
 function battleAt(nodeId: string) {
   const s = createGameState(3);
@@ -76,5 +77,37 @@ describe('arenas', () => {
     const o = glade.arena.obstacles[0]!;
     const e = spawnEnemy(glade, 'wolf', { x: o.x, y: o.y });
     expect(Math.hypot(e.pos.x - o.x, e.pos.y - o.y)).toBeGreaterThanOrEqual(o.r + e.radius - 0.01);
+  });
+  it('a mirrored arena: obstacles mirrored; a sea arena keeps its sea below and mirrors left to right instead', () => {
+    const plain = setupArena('darkThicket');
+    const flipped = setupArena('darkThicket', { x: true, y: true });
+    const def = ARENAS.darkThicket!;
+    const o0 = plain.obstacles[0]!;
+    const f0 = flipped.obstacles[0]!;
+    expect(f0.x - ARENA.x).toBeCloseTo(def.w - (o0.x - ARENA.x));
+    expect(f0.y - ARENA.y).toBeCloseTo(def.h - (o0.y - ARENA.y));
+    const coast = ARENAS.coastRoad!;
+    expect(coast.fixedY).toBe(true);
+    const c = setupArena('coastRoad', { x: false, y: true });
+    const water = c.terrain.find((t) => t.kind === 'water')!;
+    const orig = coast.terrain.find((t) => t.kind === 'water')!;
+    expect(water.y - ARENA.y).toBe(orig.y);
+    expect(c.obstacles[0]!.x - ARENA.x).toBeCloseTo(coast.w - coast.obstacles[0]!.x);
+  });
+
+  it('an arena with spawn sides: monsters come only from those edges (mirrored with the arena)', () => {
+    const def = ARENAS.wolfTrail!;
+    expect(def.spawnSides?.length).toBeGreaterThan(0);
+    for (const flip of [undefined, { x: true, y: true }]) {
+      const b = battleAt('wolfTrail');
+      b.arena = setupArena('wolfTrail', flip);
+      const rng = new Rng(9);
+      for (let i = 0; i < 50; i++) {
+        const p = edgePoint(rng, b.arena.spawnSides);
+        const nearLeft = p.x - ARENA.x < 100;
+        const nearRight = ARENA.x + ARENA.w - p.x < 100;
+        expect(nearLeft || nearRight).toBe(true);
+      }
+    }
   });
 });

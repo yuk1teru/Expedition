@@ -55,7 +55,8 @@ const CENTER_W = 270;
 function waveTitle(b: Battle): string {
   const w = b.waves;
   if (!w) return '';
-  return `Хвиля ${w.index + 1}`;
+  const here = w.index - w.start + 1;
+  return b.step ? `${STEP_INFO[b.step].name} · хвиля ${here} з ${w.total - w.start}` : `Хвиля ${here}`;
 }
 const DRAG_THRESHOLD = 6;
 const SLOT_GAP = 14;

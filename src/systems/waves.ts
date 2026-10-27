@@ -11,6 +11,7 @@ import { ARENA, ELITE, ENEMY_COMMON, WAVES, WAVE_EVENTS } from '../data/balance'
 import { getEnemyDef } from '../data/enemies';
 import { WEATHER_ORDER } from '../data/weather';
 import type { Rng } from '../core/rng';
+import type { ArenaSide } from '../data/arenas';
 import type { Battle } from './battle';
 import { createBossEnemy } from './boss';
 import { setSplitHandler } from './combat';
@@ -233,13 +234,13 @@ export function currentWaveMult(b: Battle): WaveMult {
 }
 
 function spawnMiniboss(b: Battle, defId: string): void {
-  const e = createBossEnemy(b, defId, edgePoint(b.rng), currentWaveMult(b));
+  const e = createBossEnemy(b, defId, edgePoint(b.rng, b.arena.spawnSides), currentWaveMult(b));
   b.events.emit({ type: 'miniboss', name: e.name, pos: { ...e.pos } });
   b.events.emit({ type: 'spawn', pos: { ...e.pos }, radius: e.radius });
 }
 
 function spawnGroup(b: Battle, group: SpawnEntry[], wave: number): void {
-  const anchor = edgePoint(b.rng);
+  const anchor = edgePoint(b.rng, b.arena.spawnSides);
   for (const s of group) {
     const pos = {
       x: anchor.x + b.rng.float(-WAVES.groupSpread, WAVES.groupSpread),
@@ -249,9 +250,9 @@ function spawnGroup(b: Battle, group: SpawnEntry[], wave: number): void {
   }
 }
 
-/** Random point just inside a random arena edge. */
-export function edgePoint(rng: Rng, inset: number = WAVES.spawnInset): Vec {
-  const side = rng.int(0, 3);
+/** Random point just inside a random arena edge (of `sides`, when the arena limits them). */
+export function edgePoint(rng: Rng, sides: readonly ArenaSide[] | null = null, inset: number = WAVES.spawnInset): Vec {
+  const side = sides && sides.length > 0 ? SIDE_INDEX[rng.pick(sides)] : rng.int(0, 3);
   const x0 = ARENA.x + inset;
   const x1 = ARENA.x + ARENA.w - inset;
   const y0 = ARENA.y + inset;
@@ -267,6 +268,8 @@ export function edgePoint(rng: Rng, inset: number = WAVES.spawnInset): Vec {
       return { x: x0, y: rng.float(y0, y1) };
   }
 }
+
+const SIDE_INDEX: Record<ArenaSide, number> = { top: 0, right: 1, bottom: 2, left: 3 };
 
 // Scarabs and slimes split on death into smaller ones next to where they fell.
 setSplitHandler((b, e, into, count) => {

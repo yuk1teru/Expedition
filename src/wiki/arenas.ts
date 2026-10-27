@@ -8,6 +8,7 @@ import { type Section, esc, nodeLink, t, table, v } from './html';
 
 const OBSTACLE_NAMES: Record<string, string> = { tree: 'дерев', rock: 'каменів', stump: 'пнів', pillar: 'колон' };
 const TERRAIN_NAMES: Record<string, string> = { water: 'вода', thorns: 'колючки', grass: 'висока трава' };
+const SIDE_NAMES: Record<string, string> = { left: 'зліва', right: 'справа', top: 'згори', bottom: 'знизу' };
 
 export function arenasSection(): Section {
   const rows = Object.values(ARENAS).map((a) => {
@@ -15,7 +16,8 @@ export function arenasSection(): Section {
     for (const o of a.obstacles) counts.set(o.kind, (counts.get(o.kind) ?? 0) + 1);
     const obstacles = [...counts].map(([k, n]) => `${n} ${esc(OBSTACLE_NAMES[k] ?? k)}`).join(', ') || '—';
     const terrain = [...new Set(a.terrain.map((x) => TERRAIN_NAMES[x.kind] ?? x.kind))].map(esc).join(', ') || '—';
-    return [nodeLink(a.id), `${a.w}×${a.h}`, obstacles, terrain, t(a.note, ['ARENAS', a.id, 'note'])];
+    const sides = a.spawnSides ? a.spawnSides.map((s) => SIDE_NAMES[s] ?? s).join(', ') : 'звідусіль';
+    return [nodeLink(a.id), `${a.w}×${a.h}`, obstacles, terrain, esc(sides), t(a.note, ['ARENAS', a.id, 'note'])];
   });
   const steps = (Object.keys(STEP_INFO) as ArenaStepKind[]).map((k) => [
     esc(STEP_INFO[k].name),
@@ -27,7 +29,7 @@ export function arenasSection(): Section {
     id: 'arenas',
     title: 'Арени',
     html: `<h3>Похід у локацію</h3>
-<p>Локація — це кілька арен поспіль: <b>вхід</b>, потім <b>розвилка</b> з двох (${fork}), потім <b>лігво</b> з мінібосом. Короткі локації (перехідні зони, дорога прологу) — лише вхід і лігво; лігво боса — передпокій і сам бос. Між аренами HP не відновлюється (лише зілля), хвилі ростуть далі, а повернутися на карту можна будь-коли — але локацію тоді не пройдено. Вівтар дає дар лише раз на локацію; скриня скарбу — ${v(EXPEDITION.treasureGold, ['EXPEDITION', 'treasureGold'], 'x')} бонусу за зачистку золотом і річ, зате її засідка більша (${v(EXPEDITION.treasureWaveMult, ['EXPEDITION', 'treasureWaveMult'], 'x')} ворогів); скриня лігва — ${v(EXPEDITION.lairGold, ['EXPEDITION', 'lairGold'], 'x')} бонусу.</p>
+<p>Локація — це кілька арен поспіль: <b>вхід</b>, потім <b>розвилка</b> з двох (${fork}), потім <b>лігво</b> з мінібосом. Короткі локації (перехідні зони, дорога прологу) — лише вхід і лігво; лігво боса — передпокій і сам бос. Між аренами HP не відновлюється (лише зілля), хвилі ростуть далі, а повернутися на карту можна будь-коли — але локацію тоді не пройдено. Арени розвилки — дзеркальні зліва направо, лігво — згори донизу (а там, де море чи струмок мають лишатися внизу, — теж зліва направо), тож три арени однієї локації різні. Вівтар дає дар лише раз на локацію; скриня скарбу — ${v(EXPEDITION.treasureGold, ['EXPEDITION', 'treasureGold'], 'x')} бонусу за зачистку золотом і річ, зате її засідка більша (${v(EXPEDITION.treasureWaveMult, ['EXPEDITION', 'treasureWaveMult'], 'x')} ворогів); скриня лігва — ${v(EXPEDITION.lairGold, ['EXPEDITION', 'lairGold'], 'x')} бонусу.</p>
 ${table(['Арена', 'Хвиль', 'Опис'], steps)}
 <p><b>Завдання</b> — арена без хвиль, зі своєю ціллю; її звірі сильні, як наступна хвиля локації, а перемога дає ${v(OBJECTIVES.gold, ['OBJECTIVES', 'gold'], 'x')} бонусу за зачистку золотом.</p>
 ${table(['Завдання', 'Ціль', 'Як це працює'], [
@@ -36,6 +38,6 @@ ${table(['Завдання', 'Ціль', 'Як це працює'], [
 ])}
 <h3>Поля бою</h3>
 <p>Поле бою локації: розмір (більша за екран арена прокручується за героєм), перешкоди, що зупиняють і тіла, і снаряди, та рельєф. Вода сповільнює всіх на ${v(TERRAIN.waterSlow, ['TERRAIN', 'waterSlow'], 'pct')}; колючки забирають у героя ${v(TERRAIN.thornsDps, ['TERRAIN', 'thornsDps'], 'pct')} макс. HP за секунду; у високій траві стрільці бачать героя лише ближче за ${v(TERRAIN.grassSight, ['TERRAIN', 'grassSight'])} px і підходять замість стрільби. Локації без своєї арени б’ються на рівному полі розміром з екран.</p>
-${table(['Локація', 'Розмір', 'Перешкоди', 'Рельєф', 'Особливість'], rows, 'wide')}`,
+${table(['Локація', 'Розмір', 'Перешкоди', 'Рельєф', 'Звідки йдуть', 'Особливість'], rows, 'wide')}`,
   };
 }

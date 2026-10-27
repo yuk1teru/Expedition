@@ -1,5 +1,6 @@
 // One combat encounter. Pure simulation: no render, no DOM.
 
+import type { ArenaFlip } from './arena';
 import type { ObjectiveKind } from '../data/objectives';
 import { type ObjectiveState, setupObjective, updateObjective } from './objectives';
 import { ARENA, FLOW, PROJECTILES, WAVES } from '../data/balance';
@@ -143,6 +144,8 @@ export interface ArenaPlan {
   boss?: boolean;
   /** An objective arena (ROADMAP 13.3): no waves, its own goal. */
   objective?: ObjectiveKind;
+  /** The arena mirrored (ROADMAP 13.4): the arenas of a trip are not all alike. */
+  flip?: ArenaFlip;
 }
 
 /**
@@ -156,7 +159,7 @@ export function createBattle(state: GameState, nodeId: string, startWave = 0, tr
   state.battleCount += 1;
   const hero = state.hero;
   // The arena first: its size decides where the hero starts.
-  const arena = setupArena(node.id);
+  const arena = setupArena(node.id, plan?.flip);
   resetHeroForBattle(hero);
   pushOutOfObstacles(arena, hero);
   const level = effectiveLevel(node, state.bossesDefeated.length);
