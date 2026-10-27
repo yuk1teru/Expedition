@@ -3,6 +3,7 @@
 // gate to the world map. The merchant's shop opens from the conversation. The town map is
 // bigger than the screen: the camera follows the hero.
 
+import { drawSprite } from './sprites';
 import { towerOpen, towerStart } from '../systems/tower';
 import { amuletHint } from '../systems/amulet';
 import type { Screen } from '../core/screens';
@@ -608,6 +609,8 @@ function tree(ctx: CanvasRenderingContext2D, x: number, y: number, crown: string
 }
 
 function drawProp(ctx: CanvasRenderingContext2D, kind: TownPropKind, x: number, y: number, layout: TownLayout): void {
+  // A picture, if there is one (ROADMAP 19.1); props stand on their base point.
+  if (drawSprite(ctx, 'prop', kind, x, y - 24, 64)) return;
   switch (kind) {
     case 'tree':
       tree(ctx, x, y, '#3f6a2f', false, false);

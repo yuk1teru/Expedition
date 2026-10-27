@@ -1,5 +1,7 @@
 // Combat screen: arena, entities, effects, HUD; drives the battle simulation.
 
+import { drawSprite } from './sprites';
+import { drawHeroBody } from './heroArt';
 import { ENEMIES } from '../data/enemies';
 import { SOULS, SOUL_RULES } from '../data/souls';
 import type { LooseSoul } from '../systems/souls';
@@ -599,9 +601,14 @@ function isFlashing(b: Battle, hitAt: number): boolean {
 }
 
 function drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, b: Battle, t: number): void {
-  const color = b.biome.palette.enemies[e.defId] ?? '#cccccc';
+  const color = b.biome.palette.enemies[e.defId] ?? ENEMIES[e.defId]?.color ?? '#cccccc';
   const s = spawnScale(b, e.spawnedAt);
   const r = e.radius * s;
+  // A picture, if there is one (ROADMAP 19.1).
+  if (drawSprite(ctx, 'enemy', e.defId, e.pos.x, e.pos.y, r * 2.8, e.facing)) {
+    drawStatusMarks(ctx, e, t);
+    return;
+  }
   ctx.save();
   ctx.translate(e.pos.x, e.pos.y);
   // Shadow.
@@ -899,13 +906,10 @@ function drawHero(ctx: CanvasRenderingContext2D, h: Hero, b: Battle, t: number, 
   ctx.lineTo(r - 2, -7);
   ctx.closePath();
   ctx.fill();
-  ctx.fillStyle = isFlashing(b, h.hitAt) ? '#ff8a80' : '#f4f1e8';
-  ctx.strokeStyle = heroColor(h.classId, h.promotion) ?? '#1b1e27';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.arc(0, 0, r, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
+  // A picture of the class or branch, if there is one (ROADMAP 19.1); else the silhouette (19.3).
+  if (!drawSprite(ctx, 'hero', h.promotion ?? h.classId ?? 'novice', 0, 0, r * 3)) {
+    drawHeroBody(ctx, h, r, isFlashing(b, h.hitAt) ? '#ff8a80' : '#f4f1e8', heroColor(h.classId, h.promotion) ?? '#1b1e27');
+  }
   ctx.restore();
 }
 

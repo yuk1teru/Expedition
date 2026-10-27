@@ -1,3 +1,4 @@
+import { loadSpriteIndex } from './render/sprites';
 import { Input, bindInput } from './core/input';
 import { resolveSeed } from './core/seed';
 import { App, type SaveFiles, type SaveStore, type SettingsStore, type VersionStore } from './render/app';
@@ -139,6 +140,8 @@ const unlockSound = (): void => app.sound.unlock();
 window.addEventListener('keydown', unlockSound);
 window.addEventListener('pointerdown', unlockSound);
 setButtonSound(() => app.sound.play('ui'));
+// Pictures for the sprite layer, if any were added (ROADMAP 19.1).
+loadSpriteIndex(import.meta.env.BASE_URL);
 app.start();
 canvas.focus();
 

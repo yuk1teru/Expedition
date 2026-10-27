@@ -1,6 +1,7 @@
 // Unique item art: the kind decides the shape, rarity the main colour,
 // the item's own look adds an accent colour, a gem and a small shape variation.
 
+import { drawSprite } from './sprites';
 import { RARITIES } from '../data/items';
 import type { Item } from '../systems/items';
 
@@ -226,6 +227,12 @@ const PAINTERS: Record<string, Painter> = {
 
 /** Draws an item's unique art; unidentified items are dimmed with a "?" on top. */
 export function drawItem(ctx: CanvasRenderingContext2D, item: Item, x: number, y: number, size: number): void {
+  // A picture, if there is one (ROADMAP 19.1).
+  ctx.save();
+  if (!item.identified) ctx.globalAlpha = 0.45;
+  const drawn = drawSprite(ctx, 'item', item.kind, x, y, size);
+  ctx.restore();
+  if (drawn) return;
   const r = size / 2;
   const main = RARITIES[item.rarity].color;
   const paint = PAINTERS[item.kind];

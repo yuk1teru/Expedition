@@ -1,6 +1,7 @@
 // Arena obstacles and terrain on the battlefield (ROADMAP 13.1): water with ripples,
 // thorn patches, tall grass; trees, rocks, stumps and pillars seen from above.
 
+import { drawSprite } from './sprites';
 import type { ArenaObstacle } from '../data/arenas';
 import type { Battle } from '../systems/battle';
 
@@ -64,6 +65,8 @@ export function drawArenaTerrain(ctx: CanvasRenderingContext2D, b: Battle, t: nu
 }
 
 function drawObstacle(ctx: CanvasRenderingContext2D, o: ArenaObstacle): void {
+  // A picture, if there is one (ROADMAP 19.1).
+  if (drawSprite(ctx, 'obstacle', o.kind, o.x, o.y, o.r * 2.6)) return;
   ctx.save();
   ctx.translate(o.x, o.y);
   ctx.fillStyle = 'rgba(0,0,0,0.3)';

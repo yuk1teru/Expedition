@@ -1,5 +1,6 @@
 // Boss rendering and the big boss HP bar.
 
+import { drawSprite } from './sprites';
 import { FX } from '../data/fx';
 import type { Battle } from '../systems/battle';
 import { bossDefOf } from '../systems/boss';
@@ -19,7 +20,8 @@ export function drawBoss(ctx: CanvasRenderingContext2D, e: Enemy, b: Battle, t: 
   const flash = b.time - e.hitAt < FX.hitFlash;
   drawBossMarker(ctx, e, t);
   const paint = painters[e.defId] ?? drawGenericBoss;
-  paint(ctx, e, b, t, flash);
+  // A picture, if there is one (ROADMAP 19.1).
+  if (!drawSprite(ctx, 'boss', e.defId, e.pos.x, e.pos.y, e.radius * 3, e.facing)) paint(ctx, e, b, t, flash);
   drawStatusMarks(ctx, e, t);
 }
 

@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "sim": "tsx scripts/sim.ts",
-    "probe": "tsx scripts/probe.ts"
+    "probe": "tsx scripts/probe.ts",
+    "art-prompts": "tsx scripts/artPrompts.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
