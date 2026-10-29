@@ -1,4 +1,4 @@
-// Talent trees (ROADMAP 12.1, 12.3; the draft is TALENTS.md): every class has three rows of
+// Talent trees (ROADMAP 12.1, 12.3; the draft is docs/archive/TALENTS.md): every class has three rows of
 // skills and passives (the archer — arrow types too). Row 2 opens after 5 points in the tree,
 // row 3 after 10. Points come with levels and quests; the whole tree costs far more than a
 // hero ever gets, so every hero is a choice. Editable in the wiki.

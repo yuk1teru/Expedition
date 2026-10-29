@@ -1,7 +1,7 @@
 // Prompts for generating the sprites and textures (ROADMAP 19.2), made from the game data:
 // the style, the sizes and the angle, the palettes of the lands, and one prompt per sprite id.
 //
-//   npm run art-prompts   — writes ART_PROMPTS.md
+//   npm run art-prompts   — writes docs/ART_PROMPTS.md
 
 import { writeFileSync } from 'node:fs';
 import { ARENAS } from '../src/data/arenas';
@@ -83,5 +83,5 @@ out('');
 for (const [id, b] of Object.entries(BIOMES)) out(`- Земля арени «${b.name}» (\`textures/ground-${id}.png\`, 512×512, тайлиться): ground texture of ${b.name}, colours ${b.palette.ground} and ${b.palette.groundDark}, seamless, ${STYLE}`);
 out('');
 
-writeFileSync('ART_PROMPTS.md', lines.join('\n'));
-console.log(`ART_PROMPTS.md: ${lines.length} рядків`);
+writeFileSync('docs/ART_PROMPTS.md', lines.join('\n'));
+console.log(`docs/ART_PROMPTS.md: ${lines.length} рядків`);

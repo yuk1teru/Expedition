@@ -53,7 +53,7 @@ function mainFull(args: Args): void {
     const seed = args.seed + i;
     const turn = CLASS_ORDER[i % CLASS_ORDER.length]!;
     // One class: exactly the runs (seeds) it gets in the full rotation, so its result can
-    // be put next to the other classes' numbers from SIM_RESULTS.md.
+    // be put next to the other classes' numbers from docs/SIM_RESULTS.md.
     if (args.classId && args.classId !== turn) continue;
     const classId = turn;
     const state = createGameState(seed);
