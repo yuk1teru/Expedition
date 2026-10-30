@@ -7,12 +7,12 @@
 
 import type { Screen } from '../core/screens';
 import { Rng } from '../core/rng';
-import { PASSIVE_SLOTS, REWORK_BOSS, REWORK_CARDS, REWORK_CLASSES, REWORK_STRESS, type ReworkClassId } from '../data/rework';
+import { PASSIVE_SLOTS, REWORK_BOSS, REWORK_POINTERS, REWORK_SPIRIT, REWORK_TASKS, REWORK_CARDS, REWORK_CLASSES, REWORK_STRESS, type ReworkClassId } from '../data/rework';
 import { EVOLUTIONS, REWORK_SKILLS, SKILL_SLOTS, skillParams } from '../data/reworkSkills';
 import { bossIn } from '../systems/rework/boss';
 import { altarNear, altarPrice, useAltar } from '../systems/rework/pickups';
 import { sightRadius } from '../systems/rework/spirit';
-import { taskGoal, taskLine } from '../systems/rework/task';
+import { taskLine } from '../systems/rework/task';
 import { dodge } from '../systems/rework/hero';
 import { chooseCard, passivesTaken, reroll, rerollPrice, xpToNext } from '../systems/rework/progress';
 import { createRun, runPaused, stepRun, stressSpawn } from '../systems/rework/run';
@@ -34,6 +34,15 @@ interface Patch {
   y: number;
   r: number;
   shade: string;
+}
+
+/** An arrow to something to find: its place, how high over its foot to point, its name. */
+interface Pointer {
+  key: string;
+  pos: Vec;
+  lift: number;
+  label: string;
+  color: string;
 }
 
 interface Floater {
@@ -95,6 +104,8 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
   let flashes: Flash[] = [];
   /** Dead beasts lying a moment where they fell. */
   let corpses: Corpse[] = [];
+  /** When each arrow first showed (run time): a new one pulses. */
+  const pointerSeen = new Map<string, number>();
   /** Effects of the dodge on Space; `dodging` — a dodge was in flight last frame. */
   const dodgeFx = new DodgeFx();
   let dodging = false;
@@ -123,6 +134,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     swings = [];
     flashes = [];
     corpses = [];
+    pointerSeen.clear();
     dodgeFx.reset();
     dodging = false;
     zoom = 1;
@@ -362,6 +374,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
 
       drawHud(ctx, r);
       drawTaskHud(ctx, r);
+      drawPointers(ctx, r);
       drawBossHud(ctx, r);
       if (altarHere && !r.offer && !duel) drawText(ctx, `E — вівтар: картка за ${altarPrice(r)} зол. (є ${r.gold})`, W / 2, H - 112, { size: 14, bold: true, align: 'center', color: r.gold >= altarPrice(r) ? '#ffe08a' : THEME.textMuted });
       if (r.offer && r.phase !== 'won') drawOffer(ctx, r);
@@ -600,52 +613,104 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     return { kind: 'скіл', name: d.name, rank: `ранг ${c.rank} з ${d.ranks.length + 1}`, text: `${d.name}: ${d.ranks[c.rank - 2]!.text}`, isNew: false };
   }
 
-  /** The task's line under the timer, a marker over the goal and an arrow at the screen's edge when it is off screen. */
+  /** The task's line under the timer. */
   function drawTaskHud(ctx: CanvasRenderingContext2D, r: Run): void {
     const t = r.task;
     // Shown while it runs and after, until the boss comes.
     if (!t || r.phase === 'ring' || r.phase === 'won') return;
     drawPanel(ctx, { x: W / 2 - 200, y: 64, w: 400, h: 26 }, 'rgba(14, 16, 24, 0.75)', t.state === 'done' ? '#ffd27a' : undefined);
     drawText(ctx, taskLine(t), W / 2, 77, { size: 13, bold: true, align: 'center', color: t.state === 'failed' ? THEME.textMuted : '#ffd27a' });
-    const goal = taskGoal(r);
-    if (!goal) return;
-    const gx = (goal.x - cam.x) * zoom;
-    const gy = (goal.y - cam.y) * zoom - 40;
-    const inside = gx > 30 && gx < W - 30 && gy > 100 && gy < H - 100;
-    ctx.save();
-    if (inside) {
-      ctx.translate(gx, gy - 10 + Math.sin(r.time * 5) * 4);
-      ctx.fillStyle = '#ffd27a';
-      ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(0, 12);
-      ctx.lineTo(-9, -4);
-      ctx.lineTo(9, -4);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-    } else {
-      // At the screen's edge, pointing the way.
-      const hx = (r.hero.pos.x - cam.x) * zoom;
-      const hy = (r.hero.pos.y - cam.y) * zoom;
-      const a = Math.atan2(gy - hy, gx - hx);
-      const k = Math.min((W / 2 - 40) / Math.abs(Math.cos(a) || 1e-6), (H / 2 - 110) / Math.abs(Math.sin(a) || 1e-6));
-      ctx.translate(W / 2 + Math.cos(a) * k, H / 2 + Math.sin(a) * k);
-      ctx.rotate(a);
-      ctx.fillStyle = '#ffd27a';
-      ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(16, 0);
-      ctx.lineTo(-8, -11);
-      ctx.lineTo(-3, 0);
-      ctx.lineTo(-8, 11);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
+  }
+
+  /** What the arrows point at: each den, the lumberjack (then the way out), the spirit. */
+  function pointers(r: Run): Pointer[] {
+    const out: Pointer[] = [];
+    if (r.phase === 'ring' || r.phase === 'won') return out;
+    const t = r.task;
+    if (t?.state === 'active') {
+      if (t.kind === 'nests') {
+        for (const e of r.enemies) if (t.dens.includes(e.id)) out.push({ key: `den${e.id}`, pos: e.pos, lift: 80, label: REWORK_TASKS.nests.pointer, color: '#ffd27a' });
+      } else if (t.following) out.push({ key: 'exit', pos: t.exit, lift: 20, label: REWORK_TASKS.rescue.pointerExit, color: '#ffd27a' });
+      else out.push({ key: 'man', pos: t.man, lift: 80, label: REWORK_TASKS.rescue.pointer, color: '#ffd27a' });
     }
-    ctx.restore();
+    for (const e of r.enemies) if (e.def === 'spirit') out.push({ key: `spirit${e.id}`, pos: e.pos, lift: 120, label: REWORK_SPIRIT.name, color: '#cfe8c4' });
+    return out;
+  }
+
+  /**
+   * An arrow to each thing to find, with its name: over it when it is on screen, at the screen's
+   * edge pointing the way when not. A new arrow pulses big for a few seconds, then holds its size.
+   */
+  function drawPointers(ctx: CanvasRenderingContext2D, r: Run): void {
+    const P = REWORK_POINTERS;
+    for (const p of pointers(r)) {
+      const first = pointerSeen.get(p.key) ?? r.time;
+      pointerSeen.set(p.key, first);
+      const age = r.time - first;
+      const k = age < P.pulseTime ? 1 + P.pulseScale * (1 - age / P.pulseTime) * (0.7 + 0.3 * Math.sin(age * 10)) : 1;
+      const gx = (p.pos.x - cam.x) * zoom;
+      const foot = (p.pos.y - cam.y) * zoom;
+      // On screen by its feet; the marker over it stays below the HUD on top.
+      const inside = gx > 30 && gx < W - 30 && foot > 110 && foot < H - 90;
+      const gy = inside ? Math.max(118, foot - p.lift * zoom) : foot - p.lift * zoom;
+      ctx.save();
+      ctx.fillStyle = p.color;
+      ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+      ctx.lineWidth = 2;
+      if (inside) {
+        // Over it, bobbing; the name above the marker.
+        const y = gy - 10 + Math.sin(r.time * 5) * 4;
+        ctx.save();
+        ctx.translate(gx, y);
+        ctx.scale(k, k);
+        ctx.beginPath();
+        ctx.moveTo(0, 12);
+        ctx.lineTo(-9, -4);
+        ctx.lineTo(9, -4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+        outlinedText(ctx, p.label, gx, y - 14 * k, 13 * Math.sqrt(k), p.color);
+      } else {
+        // At the screen's edge, pointing the way; the name on the screen's side of it.
+        const hx = (r.hero.pos.x - cam.x) * zoom;
+        const hy = (r.hero.pos.y - cam.y) * zoom;
+        const a = Math.atan2(gy - hy, gx - hx);
+        const reach = Math.min((W / 2 - 40) / Math.abs(Math.cos(a) || 1e-6), (H / 2 - 110) / Math.abs(Math.sin(a) || 1e-6));
+        const ax = W / 2 + Math.cos(a) * reach;
+        const ay = H / 2 + Math.sin(a) * reach;
+        ctx.save();
+        ctx.translate(ax, ay);
+        ctx.rotate(a);
+        ctx.scale(k, k);
+        ctx.beginPath();
+        ctx.moveTo(16, 0);
+        ctx.lineTo(-8, -11);
+        ctx.lineTo(-3, 0);
+        ctx.lineTo(-8, 11);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+        const tx = ax - Math.cos(a) * 34 * k;
+        const ty = ay - Math.sin(a) * 26 * k;
+        ctx.font = font(13 * Math.sqrt(k), 'bold');
+        const half = ctx.measureText(p.label).width / 2 + 8;
+        outlinedText(ctx, p.label, Math.max(half, Math.min(W - half, tx)), ty, 13 * Math.sqrt(k), p.color);
+      }
+      ctx.restore();
+    }
+  }
+
+  function outlinedText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, size: number, color: string): void {
+    ctx.font = font(size, 'bold');
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+    ctx.strokeText(text, x, y);
+    drawText(ctx, text, x, y, { size, bold: true, align: 'center', color });
   }
 
   /** The boss's warning and its health bar. */

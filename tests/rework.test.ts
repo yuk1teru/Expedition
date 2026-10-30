@@ -1,7 +1,7 @@
 // The rework's core (ROADMAP 20.2–20.5): rules, not numbers — the numbers live in
 // src/data/rework.ts and change in play.
 import { describe, expect, it } from 'vitest';
-import { PASSIVE_SLOTS, REWORK_BOSS, REWORK_CARDS, REWORK_ELITES, REWORK_FLOOD, REWORK_MAP, REWORK_PROGRESS, REWORK_SPIRIT, REWORK_TASKS } from '../src/data/rework';
+import { PASSIVE_SLOTS, REWORK_BOSS, REWORK_CARDS, REWORK_ELITES, REWORK_FLOOD, REWORK_MAP, REWORK_PICKUPS, REWORK_PROGRESS, REWORK_SPIRIT, REWORK_TASKS } from '../src/data/rework';
 import { damageEnemy as damageEnemyHit, damageHero } from '../src/systems/rework/combat';
 import { powerAt, spawnBeast, spawnInterval } from '../src/systems/rework/enemies';
 import { dodge, heroStats } from '../src/systems/rework/hero';
@@ -408,6 +408,17 @@ describe('rework map things (20.9)', () => {
     expect(run.hero.shrine?.kind).toBe('speed');
     expect(heroStats(run).speed).toBeGreaterThan(speed);
   });
+
+  it('shrines stand far apart; herbs are many', () => {
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const run = createRun(seed, 'warrior');
+      const s = run.shrines;
+      for (let i = 0; i < s.length; i++) {
+        for (let j = i + 1; j < s.length; j++) expect(Math.hypot(s[i]!.pos.x - s[j]!.pos.x, s[i]!.pos.y - s[j]!.pos.y)).toBeGreaterThanOrEqual(REWORK_PICKUPS.shrineApart);
+      }
+      expect(run.herbs.length).toBeGreaterThan(REWORK_PICKUPS.herbs * 0.8);
+    }
+  });
 });
 
 describe('rework weather spirit (20.10)', () => {
@@ -428,6 +439,25 @@ describe('rework weather spirit (20.10)', () => {
     killFully(run, spirit!);
     for (let i = 0; i < 60 * 5; i++) stepRun(run, 1 / 60, still);
     expect(run.fog).toBeLessThan(0.05);
+  });
+
+  it('low on HP it runs, but not far, and stays on the field', () => {
+    const run = createRun(92, 'mage');
+    run.hero.immortal = true;
+    run.spawnTimer = 1e9;
+    run.time = REWORK_SPIRIT.appearAt;
+    stepRun(run, 1 / 60, still);
+    const spirit = run.enemies.find((e) => e.def === 'spirit')!;
+    spirit.hp = spirit.maxHp * REWORK_SPIRIT.fleeAt * 0.5;
+    // It comes from beyond the screen's edge: once near, it stays within reach.
+    for (let i = 0; i < 60 * 25; i++) {
+      stepRun(run, 1 / 60, still);
+      run.hero.attackTimer = 1e9;
+      const d = Math.hypot(spirit.pos.x - run.hero.pos.x, spirit.pos.y - run.hero.pos.y);
+      if (i > 60 * 10) expect(d).toBeLessThan(REWORK_SPIRIT.fleeKeep + 80);
+      expect(spirit.pos.x).toBeGreaterThanOrEqual(REWORK_SPIRIT.edge);
+      expect(spirit.pos.y).toBeLessThanOrEqual(run.height - REWORK_SPIRIT.edge);
+    }
   });
 });
 

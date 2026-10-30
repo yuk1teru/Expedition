@@ -15,11 +15,12 @@ import type { Run } from './types';
 
 const P = REWORK_PICKUPS;
 
-/** A free spot on the field at least `away` from the hero. */
-function freeSpot(run: Run, away: number, radius = 20): Vec | null {
-  for (let tries = 0; tries < 40; tries++) {
+/** A free spot on the field at least `away` from the hero and `apart` from each of `others`. */
+function freeSpot(run: Run, away: number, radius = 20, others: Vec[] = [], apart = 0): Vec | null {
+  for (let tries = 0; tries < 80; tries++) {
     const p = { x: 80 + run.rng.next() * (run.width - 160), y: 80 + run.rng.next() * (run.height - 160) };
     if (Math.hypot(p.x - run.hero.pos.x, p.y - run.hero.pos.y) < away) continue;
+    if (others.some((o) => Math.hypot(p.x - o.x, p.y - o.y) < apart)) continue;
     if (isFree(run.grid, p, radius)) return p;
   }
   return null;
@@ -32,12 +33,14 @@ export function placePickups(run: Run): void {
     if (p) run.herbs.push({ pos: p });
   }
   const kinds = Object.keys(P.shrineKinds) as ShrineKind[];
+  // Shrines and altars spread over the field, not side by side.
+  const taken = (): Vec[] => [...run.shrines.map((s) => s.pos), ...run.altars.map((a) => a.pos)];
   for (let i = 0; i < P.shrines; i++) {
-    const p = freeSpot(run, 400, 40);
+    const p = freeSpot(run, 400, 40, taken(), P.shrineApart);
     if (p) run.shrines.push({ kind: kinds[i % kinds.length]!, pos: p, charge: 0, rest: 0 });
   }
   for (let i = 0; i < P.altars; i++) {
-    const p = freeSpot(run, 500, 40);
+    const p = freeSpot(run, 500, 40, taken(), P.shrineApart * 0.6);
     if (p) run.altars.push({ pos: p });
   }
 }

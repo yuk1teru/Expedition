@@ -1,7 +1,7 @@
 // The weather monster of the Forest (ROADMAP 20.10, VISION §3): the spirit of decay. It comes
 // at 3:30, keeps its distance, and now and then gathers itself (a warning) and thickens the fog
-// over the field — the hero sees less and less around him. Low on HP it runs; killed, it takes
-// the fog with it.
+// over the field — the hero sees less and less around him. Low on HP it runs, but not far, so it
+// can be caught; it never leaves the field. Killed, it takes the fog with it.
 
 import { REWORK_SPIRIT } from '../../data/rework';
 import { damageHero } from './combat';
@@ -58,13 +58,15 @@ export function stepSpirit(run: Run, e: RunEnemy, dt: number): boolean {
     e.act = { kind: 'cast', time: S.windup };
     return true;
   }
-  // Keeps its distance — or runs, low on HP — drifting sideways so it is not a straight chase.
-  const want = fleeing ? -1 : d > S.keep + 40 ? 1 : d < S.keep - 40 ? -1 : 0;
+  // Keeps its distance — or runs, low on HP, but not far — drifting sideways so it is not a
+  // straight chase; it never leaves the field.
+  const keep = fleeing ? S.fleeKeep : S.keep;
+  const want = d > keep + 40 ? 1 : d < keep - 40 ? -1 : 0;
   const speed = fleeing ? S.fleeSpeed : S.speed;
   const side = Math.sin(run.time * 0.7 + e.id) * 0.6;
   e.vel = { x: ((dx / d) * want - (dy / d) * side) * speed, y: ((dy / d) * want + (dx / d) * side) * speed };
-  e.pos.x += e.vel.x * dt;
-  e.pos.y += e.vel.y * dt;
+  e.pos.x = Math.max(S.edge, Math.min(run.width - S.edge, e.pos.x + e.vel.x * dt));
+  e.pos.y = Math.max(S.edge, Math.min(run.height - S.edge, e.pos.y + e.vel.y * dt));
   if (d < e.radius + h.radius + 2 && e.touchTimer <= 0) {
     e.touchTimer = 1;
     damageHero(run, 4);

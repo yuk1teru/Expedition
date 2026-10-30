@@ -241,12 +241,14 @@ export const REWORK_ELITES = {
 /** 20.9 — what lies on the map. */
 export const REWORK_PICKUPS = {
   /** Herbs: this many grow on the field, a new one every N s; a herb heals this share over this many s. */
-  herbs: 16,
-  herbRegrow: 25,
+  herbs: 30,
+  herbRegrow: 15,
   herbHeal: 0.25,
   herbTime: 3,
   /** Shrines: stand by one this long — a buff for this long, then it rests. */
   shrines: 4,
+  /** Shrines stand at least this far from each other (and from altars). */
+  shrineApart: 900,
   shrineRadius: 46,
   shrineCharge: 1.5,
   shrineBuff: 15,
@@ -290,17 +292,28 @@ export const REWORK_SPIRIT = {
   /** Runs away below this share of HP. */
   fleeAt: 0.3,
   fleeSpeed: 150,
+  /** Running, it stops this far from the hero (keeps away, but can be caught) and stays this far inside the field. */
+  fleeKeep: 560,
+  edge: 80,
   /** The fog thins this fast once the spirit is dead (per second). */
   clearRate: 0.5,
   xp: 30,
 };
 
 /** 20.11 — tasks of the Forest's first location (one, picked by the seed). */
+/** Arrows to what the hero should find (the task's goals, the spirit): a new one pulses big this long, then holds its size. */
+export const REWORK_POINTERS = {
+  pulseTime: 3,
+  pulseScale: 0.9,
+};
+
 export const REWORK_TASKS = {
   startAt: 90,
   duration: 75,
   nests: {
     text: 'Знищте вовчі лігва',
+    /** The arrow's caption over each den. */
+    pointer: 'Лігво',
     count: 3,
     hp: 110,
     radius: 26,
@@ -311,6 +324,9 @@ export const REWORK_TASKS = {
   },
   rescue: {
     text: 'Виведіть лісоруба до краю лісу',
+    /** The arrow's captions: to him, then (he follows) to the way out. */
+    pointer: 'Лісоруб',
+    pointerExit: 'Вихід з лісу',
     distance: [600, 900] as [number, number],
     /** He follows the hero once the hero comes this close; this fast. */
     follow: 70,
