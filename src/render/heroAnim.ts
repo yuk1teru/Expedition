@@ -6,6 +6,9 @@
 import { type HeroAnimId, WARRIOR_ANIM } from '../data/heroAnim';
 import type { Hero } from '../systems/entities';
 
+/** What the animation reads from the hero (the old game's hero or the rework's). */
+export type AnimBody = Pick<Hero, 'pos' | 'vel' | 'facing' | 'dash' | 'radius'>;
+
 const A = WARRIOR_ANIM;
 
 const sheets = new Map<string, HTMLImageElement>();
@@ -73,7 +76,7 @@ export function heroAnimCast(s: HeroAnimState): void {
 const total = (anim: OneShot): number => A.durations[anim].reduce((a, b) => a + b, 0);
 
 /** Moves the state on by `dt` (render time) from what the hero does. */
-export function stepHeroAnim(s: HeroAnimState, h: Hero, dt: number, hitAt: number): void {
+export function stepHeroAnim(s: HeroAnimState, h: AnimBody, dt: number, hitAt: number): void {
   s.clock += dt;
   const moved = s.last ? Math.hypot(h.pos.x - s.last.x, h.pos.y - s.last.y) : 0;
   s.last = { x: h.pos.x, y: h.pos.y };

@@ -72,6 +72,10 @@ export function createTitleScreen(app: App): Screen<CanvasRenderingContext2D> {
     if (app.meta.battles.length > 0) {
       menu.add(new Button({ label: `Статистика боїв (${app.meta.battles.length}) — для розробника`, rect: { x, y, w, h: 30 }, fontSize: 12, onClick: () => app.exportStats() }));
     }
+    // The new core of the rework grows in its own mode (ROADMAP 20), only in `npm run dev`.
+    if (app.debug) {
+      menu.add(new Button({ label: 'Реворк: Ліс', rect: { x: W - 196, y: H - 92, w: 180, h: 34 }, fontSize: 14, onClick: () => app.screens.go('rework') }));
+    }
   };
   entry.add(new Button({ label: 'Почати пригоду', rect: { x: panel.x + 60, y: panel.y + 190, w: panel.w - 120, h: 46 }, hotkey: 'Enter', onClick: start }));
   entry.add(new Button({ label: 'Назад [Esc]', rect: { x: panel.x + 160, y: panel.y + 246, w: panel.w - 320, h: 32 }, fontSize: 13, hotkey: 'Escape', onClick: () => (mode = 'menu') }));

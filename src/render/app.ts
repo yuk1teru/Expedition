@@ -52,6 +52,7 @@ import {
 import { type View, beginFrame, endFrame } from './canvas';
 import { createCombatScreen } from './combatView';
 import { type DebugPanel, createDebugPanel } from './debugPanel';
+import { createReworkScreen } from './reworkView';
 import { createDeathScreen, createRewardScreen, createVictoryScreen } from './endScreens';
 import { createTombstoneScreen } from './tombstone';
 import { type Grave, type MetaData, makeGrave, readMeta, statsExport } from '../systems/meta';
@@ -175,6 +176,7 @@ export class App {
     this.screens.register('death', createDeathScreen(this));
     this.screens.register('victory', createVictoryScreen(this));
     this.screens.register('tombstone', createTombstoneScreen(this));
+    this.screens.register('rework', createReworkScreen(this));
     this.debug = opts.dev ? createDebugPanel(this) : null;
     this.loop = new GameLoop(
       {
