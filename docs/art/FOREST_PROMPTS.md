@@ -22,8 +22,8 @@ _31.10.2026 · Усе, що потрібно Лісу (Ліс → Глибина
 | Павук, Прядуха, павутиння й кокони | ✓ | 3 |
 | Земля Глибини лісу | ○ | 3 |
 | Старий Енат і його примара | ✓ | 4 |
-| Коріння й колючки | ✗ | 4 |
-| Земля й предмети лігва | ✗ | 4 |
+| Коріння й колючки | ✓ | 4 |
+| Земля й предмети лігва | ✓ | 4 |
 | Сцена точки Лісу на карті | ✗ | 5 |
 | Кристал, монета, снаряди, іконки скілів | ○ | 6 |
 
@@ -431,7 +431,7 @@ face in the bark calm and sorrowful, the edges dissolving into mist, no hard sha
 facing right, transparent background, no text.
 ```
 
-### Коріння, колючки, брили ✗ → `bosses/enat/fx.png`
+### Коріння, колючки, брили ✓ → `bosses/enat/fx.png`
 
 ```
 [Прикріпи heroes/warrior/reference.png]
@@ -444,7 +444,7 @@ half out; a full tall spike); a row of three small stone thorns in a line; a lon
 grabbing branch with claw-like twigs; two petrified mossy boulders.
 ```
 
-### Земля лігва ✗ → `locations/lair/ground.png`
+### Земля лігва ✓ → `locations/lair/ground.png`
 
 ```
 [Прикріпи locations/forest/ground.png]
@@ -454,7 +454,7 @@ pale stones, faint amber glints of sap. Darker and older than the forest ground,
 nothing that stands up, no shadows, seamless on all four sides. Square image.
 ```
 
-### Предмети лігва ✗ → `locations/lair/obstacles.png`
+### Предмети лігва ✓ → `locations/lair/obstacles.png`
 
 ```
 [Прикріпи locations/forest/obstacles.png]

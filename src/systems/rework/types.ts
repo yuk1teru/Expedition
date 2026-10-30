@@ -20,6 +20,8 @@ export interface Obstacle {
   seed: number;
   /** Hung with cobwebs (the deeper forest). */
   webbed?: boolean;
+  /** Drawn from another set of props than the Forest's: the lair's, the Old Enat's boulders. */
+  art?: 'lair' | 'enat';
 }
 
 export interface Dodge {

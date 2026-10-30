@@ -4,11 +4,13 @@
 // the caller draws them sorted by it.
 
 import { REWORK_BOSS, REWORK_CLASSES, REWORK_ELITES, REWORK_ENEMIES, REWORK_MAP, REWORK_PICKUPS, REWORK_TASKS, REWORK_WEB } from '../data/rework';
-import { FOREST_ART, WEB_ART } from '../data/forestArt';
+import { ENAT_FX, FOREST_ART, WEB_ART } from '../data/forestArt';
 import { beastSheet, beastSize, drawBeastFrames, drawSheetFrame } from './beastAnim';
 import { BEAST_SHEETS, LUMBERJACK_SHEET } from '../data/beastAnim';
-import { artCrown, drawPart, drawProp, drawWebPiece, obstacleParts, partsBox, propsAtlas, tintedPiece, webAtlas } from './forestArt';
+import { artCrown, drawEnatFx, drawPart, drawProp, drawWebPiece, obstacleParts, partsBox, propSet, propsAtlas, tintedPiece, webAtlas } from './forestArt';
 import { sheet } from './heroAnim';
+
+const sheetReady = (src: string): boolean => sheet(src) !== null;
 
 /** The Old Enat's ghost (docs/art/bosses/enat/ghost.png, shrunk). */
 const GHOST = 'sprites/anim/enat-ghost.png';
@@ -35,7 +37,7 @@ function blob(ctx: CanvasRenderingContext2D, x: number, y: number, rx: number, r
 
 /** The top of the tree crown (for fading it when the hero walks behind). */
 export function crownBox(o: Obstacle): { x: number; y: number; r: number } | null {
-  if (propsAtlas()) return artCrown(o);
+  if (propsAtlas(o)) return artCrown(o);
   if (o.kind === 'tree') return { x: o.pos.x, y: o.pos.y - o.height * 0.62, r: o.radius * 2.3 };
   if (o.kind === 'oak') return { x: o.pos.x, y: o.pos.y - o.height * 0.75, r: o.radius * 2.1 };
   return null;
@@ -69,14 +71,15 @@ function codePicture(o: Obstacle): ObstaclePicture {
 
 function artPicture(o: Obstacle, img: HTMLImageElement): ObstaclePicture {
   const parts = obstacleParts(o);
-  const box = partsBox(parts);
+  const set = propSet(o);
+  const box = partsBox(parts, set);
   const pic = document.createElement('canvas');
   pic.width = Math.ceil(box.right - box.left) + 4;
   pic.height = Math.ceil(box.bottom - box.top) + 4;
   const ox = 2 - box.left;
   const oy = 2 - box.top;
   const g = pic.getContext('2d')!;
-  for (const p of parts) drawPart(g, img, p, ox, oy);
+  for (const p of parts) drawPart(g, img, p, ox, oy, false, set);
   // The deeper forest: a cobweb in the crown — from the webs atlas, or drawn until it loads.
   const web = WEB_ART.cobwebs[Math.floor(o.seed * 7) % WEB_ART.cobwebs.length]!;
   const webArt = !!o.webbed && drawWebPiece(g, web, ox + (o.seed - 0.5) * 24, oy + box.top * 0.5, WEB_ART.cobwebWidth / WEB_ART.pieces[web]!.rect[2], { mirror: o.seed > 0.5 });
@@ -90,8 +93,8 @@ function artPicture(o: Obstacle, img: HTMLImageElement): ObstaclePicture {
  * front ones), anything else is one picture.
  */
 export function obstacleLayers(o: Obstacle): { y: number; draw: (ctx: CanvasRenderingContext2D, alpha: number) => void }[] {
-  const img = propsAtlas();
-  if (o.kind !== 'stoneRing' || !img) return [{ y: o.pos.y, draw: (ctx, alpha) => drawObstacle(ctx, o, alpha) }];
+  const img = propsAtlas(o);
+  if (o.kind !== 'stoneRing' || !img || o.art) return [{ y: o.pos.y, draw: (ctx, alpha) => drawObstacle(ctx, o, alpha) }];
   return obstacleParts(o).map((p) => ({ y: o.pos.y + p.dy, draw: (ctx) => drawPart(ctx, img, p, o.pos.x, o.pos.y) }));
 }
 
@@ -104,7 +107,7 @@ export function obstacleLayers(o: Obstacle): { y: number; draw: (ctx: CanvasRend
 export function drawObstacle(ctx: CanvasRenderingContext2D, o: Obstacle, alpha: number): void {
   let c = obstaclePictures.get(o);
   if ((!c || !c.art || !c.webArt) && typeof document !== 'undefined') {
-    const img = propsAtlas();
+    const img = propsAtlas(o);
     if (!c || (img && (!c.art || webAtlas()))) {
       c = img ? artPicture(o, img) : codePicture(o);
       obstaclePictures.set(o, c);
@@ -1285,6 +1288,15 @@ export function drawBranch(ctx: CanvasRenderingContext2D, e: RunEnemy, hero: { x
     ctx.stroke();
     ctx.setLineDash([]);
   }
+  // The branch from his art, stretched to where it reaches; code strokes until it loads.
+  const len = Math.hypot(to.x - from.x, to.y - from.y);
+  const fx = ENAT_FX.pieces[ENAT_FX.branch]!;
+  const k = 0.45;
+  const own = (fx.rect[2] - fx.anchor[0]) * k;
+  if (len > 4 && drawEnatFx(ctx, ENAT_FX.branch, from.x, from.y, k, { angle: Math.atan2(to.y - from.y, to.x - from.x), stretch: len / own })) {
+    ctx.restore();
+    return;
+  }
   ctx.strokeStyle = OUTLINE;
   ctx.lineWidth = 12;
   ctx.beginPath();
@@ -1320,9 +1332,25 @@ export function drawHazard(ctx: CanvasRenderingContext2D, z: Hazard): void {
       ctx.beginPath();
       ctx.ellipse(z.pos.x, z.pos.y, z.radius * k, z.radius * 0.62 * k, 0, 0, Math.PI * 2);
       ctx.stroke();
+      // The ground cracks where it will burst.
+      if (z.kind === 'root' || z.kind === 'spike') {
+        const crack = z.kind === 'root' ? ENAT_FX.roots[0]! : ENAT_FX.spike[0]!;
+        drawEnatFx(ctx, crack, z.pos.x, z.pos.y, (z.radius * 2) / ENAT_FX.pieces[crack]!.rect[2], { alpha: 0.3 + 0.7 * k });
+      }
     }
     ctx.restore();
     return;
+  }
+  // Struck: roots and spikes burst out of the ground, thorns run along the line.
+  const burst = (frames: number[], width: number): boolean => {
+    const f = z.after > 0.25 ? frames[1]! : frames[2]!;
+    return drawEnatFx(ctx, f, z.pos.x, z.pos.y, width / ENAT_FX.pieces[f]!.rect[2], { alpha: Math.min(1, z.after / 0.12) });
+  };
+  if (z.kind === 'root' && burst(ENAT_FX.roots, z.radius * 2.2)) return ctx.restore();
+  if (z.kind === 'spike' && burst(ENAT_FX.spike, z.radius * 1.6)) return ctx.restore();
+  if (z.dir && sheetReady(ENAT_FX.props)) {
+    for (let d = 60; d < z.length!; d += 90) drawEnatFx(ctx, ENAT_FX.thorns, z.pos.x + z.dir.x * d, z.pos.y + z.dir.y * d, 0.42, { alpha: Math.min(1, z.after / 0.12) });
+    return ctx.restore();
   }
   // Struck: a moment of what burst out.
   ctx.globalAlpha = Math.min(1, z.after / 0.2);

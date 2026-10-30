@@ -25,7 +25,7 @@ import type { App } from './app';
 import { type HeroAnimState, drawHeroDust, drawHeroFrames, heroAnimAttack, heroAnimCast, heroAnimDodge, newHeroAnim, stepHeroAnim } from './heroAnim';
 import { DodgeFx } from './dodgeFx';
 import { BEAST_ANIM } from '../data/beastAnim';
-import { drawGround } from './forestArt';
+import { drawGround, propSet } from './forestArt';
 import { beastSheet, beastSize, type Corpse, corpseLife, drawCorpse, lastSide } from './beastAnim';
 import { CROWN_FADE, crownBox, obstacleLayers, drawAltar, drawBossWarning, drawChest, drawCoin, drawEnemy, drawEnemyWarning, drawGem, drawHerb, drawHeroFigure, drawLumberjack, drawBranch, drawCocoonRemains, drawGhost, drawHazard, drawShade, drawPath, drawPull, drawRingWall, drawThreads, drawWebPatch, drawWrap, drawShadow, drawShot, drawShrine, drawSpirit, drawTaskGround, drawTrap, drawZone } from './reworkDraw';
 import { THEME, font } from './theme';
@@ -325,7 +325,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       ctx.translate(-cam.x, -cam.y);
       const onScreen = (x: number, y: number, m: number): boolean => x > cam.x - m && x < cam.x + vw + m && y > cam.y - m && y < cam.y + vh + m * 2;
       // Ground (the texture; patches of code until it loads), things lying on it, warnings.
-      const ground = drawGround(ctx, cam.x, cam.y, vw, vh);
+      const ground = drawGround(ctx, cam.x, cam.y, vw, vh, propSet(REWORK_LOCATIONS[r.location]!.map).ground);
       for (const p of ground ? [] : patches) {
         if (!onScreen(p.x, p.y, p.r)) continue;
         ctx.fillStyle = p.shade;
@@ -361,7 +361,9 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       for (const e of r.enemies) if (onScreen(e.pos.x, e.pos.y, 200)) drawEnemyWarning(ctx, e);
       for (const e of r.enemies) if (e.boss) drawBossWarning(ctx, e, h.pos);
       if (r.shade) drawShade(ctx, r.shade.pos, REWORK_BOSS.enat.shade.radius, animTime);
-      for (const z of r.hazards) drawHazard(ctx, z);
+      // Strikes on the ground; roots and spikes that burst out stand among the bodies (below).
+      const standing = (z: (typeof r.hazards)[number]): boolean => z.struck && (z.kind === 'root' || z.kind === 'spike');
+      for (const z of r.hazards) if (!standing(z)) drawHazard(ctx, z);
       drawThreads(ctx, r.threads, r.pull);
       if (r.pull) drawPull(ctx, pullSegments(r), pullSegments(r, true), r.pull.time < 0);
       drawSwings(ctx, paused ? 0 : dt);
@@ -404,6 +406,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       const task = r.task;
       if (task) items.push({ y: task.man.y, draw: () => drawLumberjack(ctx, task, r.time, h.pos) });
       items.push({ y: h.pos.y, draw: () => drawHero(ctx, r, paused ? 0 : dt) });
+      for (const z of r.hazards) if (standing(z)) items.push({ y: z.pos.y + 6, draw: () => drawHazard(ctx, z) });
       items.sort((a, b) => a.y - b.y);
       for (const it of items) it.draw();
       for (const s of r.shots) if (onScreen(s.pos.x, s.pos.y, 20)) drawShot(ctx, s, r.time);

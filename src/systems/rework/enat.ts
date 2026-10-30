@@ -98,7 +98,7 @@ function petrify(run: Run, e: RunEnemy): void {
     const p = ringSpot(run, 50);
     if (Math.hypot(p.x - run.hero.pos.x, p.y - run.hero.pos.y) < 90 || Math.hypot(p.x - e.pos.x, p.y - e.pos.y) < e.radius + 70) continue;
     if (!isFree(run.grid, p, 30)) continue;
-    run.obstacles.push({ kind: 'stone', pos: p, radius: 18 + run.rng.next() * 6, height: 0, seed: run.rng.next() });
+    run.obstacles.push({ kind: 'stone', pos: p, radius: 18 + run.rng.next() * 6, height: 0, seed: run.rng.next(), art: 'enat' });
     i++;
   }
   run.grid = buildGrid(run.obstacles);

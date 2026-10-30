@@ -22,7 +22,7 @@ export function makeForest(rng: Rng, width: number, height: number, start: Vec, 
     for (let tries = 0; tries < 40; tries++) {
       const pos = { x: rng.next() * width, y: rng.next() * height };
       if (!fits(pos, radius)) continue;
-      out.push({ kind, pos, radius, height: tall, seed: rng.next(), webbed: kind === 'tree' && rng.next() < L.webbed });
+      out.push({ kind, pos, radius, height: tall, seed: rng.next(), webbed: kind === 'tree' && rng.next() < L.webbed, art: L.art });
       return;
     }
   };
@@ -31,7 +31,7 @@ export function makeForest(rng: Rng, width: number, height: number, start: Vec, 
     for (let tries = 0; tries < 60; tries++) {
       const pos = { x: ((i + 0.5) / M.landmarks.length) * width + (rng.next() - 0.5) * width * 0.2, y: height * (0.25 + rng.next() * 0.5) };
       if (!fits(pos, l.radius)) continue;
-      out.push({ kind: l.kind, pos, radius: l.radius, height: l.radius * 2, seed: rng.next(), webbed: l.kind === 'oak' && L.webbed > 0 });
+      out.push({ kind: l.kind, pos, radius: l.radius, height: l.radius * 2, seed: rng.next(), webbed: l.kind === 'oak' && L.webbed > 0, art: L.art });
       break;
     }
   });

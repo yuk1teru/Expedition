@@ -128,3 +128,91 @@ export const WEB_ART = {
   webShot: 7,
   shotScale: 0.32,
 };
+
+/** A set of props a location's obstacles are drawn from (the Forest's, the lair's, the Old Enat's boulders). */
+export interface PropSet {
+  props: string;
+  pieces: PropPiece[];
+  ground?: string;
+  trees?: number[];
+  treeScale?: number;
+  oak?: number;
+  oakScale?: number;
+  bushes?: number[];
+  bushWidth?: number;
+  stones?: { piece: number; upTo: number }[];
+  stoneWidth?: number;
+  stoneRing?: { piece: number; angle: number; scale: number; mirror: boolean }[];
+  stoneRingOval?: [number, number];
+  log?: number;
+  logScale?: number;
+}
+
+/**
+ * The lair of the Old Enat (docs/art/locations/lair/, cut with SCALE=0.65): its ground; dead trees
+ * and root arches instead of trees, a withered bush, rune stones, a hollow log; the landmarks — a
+ * ring of old stumps and bones with antlers among roots.
+ */
+export const LAIR_ART: PropSet = {
+  props: 'sprites/lair-props.png',
+  ground: 'sprites/lair-ground.jpg',
+  pieces: [
+    { rect: [0, 0, 348, 243], anchor: [154, 188] },
+    { rect: [350, 0, 331, 244], anchor: [152, 188] },
+    { rect: [683, 0, 306, 261], anchor: [177, 210] },
+    { rect: [991, 0, 326, 181], anchor: [159, 131] },
+    { rect: [1319, 0, 326, 183], anchor: [146, 131] },
+    { rect: [1647, 0, 325, 159], anchor: [162, 122] },
+    { rect: [0, 263, 280, 209], anchor: [137, 164] },
+    { rect: [282, 263, 239, 247], anchor: [114, 212] },
+    { rect: [523, 263, 200, 202], anchor: [107, 170] },
+    { rect: [725, 263, 163, 195], anchor: [72, 166] },
+    { rect: [890, 263, 159, 156], anchor: [82, 129] },
+  ],
+  /** The dead tree twice as often as each root arch. */
+  trees: [7, 7, 0, 1, 2],
+  treeScale: 0.0062,
+  oak: 6,
+  oakScale: 0.85,
+  bushes: [10],
+  bushWidth: 4.2,
+  stones: [
+    { piece: 9, upTo: 15 },
+    { piece: 8, upTo: Infinity },
+  ],
+  stoneWidth: 4.4,
+  stoneRing: [{ piece: 5, angle: 90, scale: 0.75, mirror: false }],
+  stoneRingOval: [0, 0],
+  log: 3,
+  logScale: 0.6,
+};
+
+/**
+ * The Old Enat's strikes (docs/art/bosses/enat/fx.png, SCALE=0.5): roots — cracks, half out, full;
+ * a stone spike — crack, half, full; a row of thorns; his grabbing branch (its base at the anchor,
+ * the claw to the right); the mossy boulders that rise when the forest turns to stone.
+ */
+export const ENAT_FX: PropSet & { roots: number[]; spike: number[]; thorns: number; branch: number } = {
+  props: 'sprites/enat-fx.png',
+  pieces: [
+    { rect: [0, 0, 278, 208], anchor: [141, 160] },
+    { rect: [280, 0, 249, 172], anchor: [117, 134] },
+    { rect: [531, 0, 227, 118], anchor: [113, 70] },
+    { rect: [760, 0, 138, 154], anchor: [70, 130] },
+    { rect: [900, 0, 145, 115], anchor: [66, 103] },
+    { rect: [1047, 0, 247, 115], anchor: [123, 100] },
+    { rect: [1296, 0, 151, 91], anchor: [75, 55] },
+    { rect: [1449, 0, 382, 149], anchor: [20, 80] },
+    { rect: [1833, 0, 173, 142], anchor: [90, 114] },
+    { rect: [0, 210, 198, 138], anchor: [92, 104] },
+  ],
+  roots: [2, 1, 0],
+  spike: [6, 4, 3],
+  thorns: 5,
+  branch: 7,
+  stones: [
+    { piece: 8, upTo: 21 },
+    { piece: 9, upTo: Infinity },
+  ],
+  stoneWidth: 4.6,
+};

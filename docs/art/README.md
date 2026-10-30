@@ -19,6 +19,7 @@ bosses/     alpha/  spinner/  enat/
 npc/        lumberjack/
 locations/  forest/   ground.png  obstacles.png  concept.png
             deep-forest/  webs.png
+            lair/     ground.png  obstacles.png
 fx/         fx.png
 ```
 
@@ -38,6 +39,9 @@ fx/         fx.png
 | `bosses/enat/poses.png` | Старий Енат, 3 × 4: дихання, руки вгору / удар / гілка-хапання, кам'яний / кам'яний з колючками / тріщини із соком, слабне / падає / лежить. У грі — `public/sprites/anim/enat.png` (`SCALE=1 GRID=3x4` — повний розмір, він великий) |
 | `bosses/enat/ghost.png` | примара Ената; у грі — `public/sprites/anim/enat-ghost.png` (зменшена до 560 px) |
 | `locations/deep-forest/webs.png` | кокон цілий / тріснутий / порваний, павутина на землі, дві павутини для крон, кокон і грудка павутини в польоті. У грі — атлас `public/sprites/web-props.png` (`cut-props.py`, `SCALE=0.5`) |
+| `bosses/enat/fx.png` | удари Ената: коріння (тріщини / наполовину / повністю), кам'яний шип (тріщина / наполовину / повністю), ряд колючок, гілка-хапання, дві мохові брили. У грі — атлас `public/sprites/enat-fx.png` (`cut-props.py`, `SCALE=0.5`) |
+| `locations/lair/ground.png` | земля лігва, безшовна; у грі — `public/sprites/lair-ground.jpg` (640 px) |
+| `locations/lair/obstacles.png` | предмети лігва: три кореневі арки, два дупласті стовбури, три пні, два камені з рунами, кістки з рогами, сухе дерево з лишайником, зів'ялий кущ. У грі — атлас `public/sprites/lair-props.png` (`SCALE=0.65`); у лігві замість дерев — сухе дерево й арки, замість каменів — рунічні, орієнтири — пні й кістки (`LAIR_ART`) |
 | `bosses/alpha/poses.png` | Ватажок зграї, 3 × 4: біг, ривок (присід, кидок, гальмування), стрибок (присід, політ, удар об землю), виття / задишка / удар. У грі — `public/sprites/anim/alpha.png` (`GRID=3x4`) |
 | `locations/forest/ground.png` | безшовна текстура землі Лісу; у грі — `public/sprites/forest-ground.jpg` (зменшена до 640 px: одна плитка = 640 px світу) |
 | `locations/forest/obstacles.png` | аркуш предметів Лісу: 3 ялини, 2 криві дерева, сухе дерево, Старий дуб, 3 кущі, 3 камені, стоячі камені, повалена сосна, лігво, святилище, вівтар, скриня, трава. У грі — атлас `public/sprites/forest-props.png`. Групи з двох і трьох стоячих каменів перекриваються й чисто не розрізаються — Кам'яне коло складене з одиночного каменя (дзеркально, різного розміру) |

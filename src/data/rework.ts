@@ -158,8 +158,8 @@ export const REWORK_FLOOD = {
  */
 export interface ReworkLocation {
   name: string;
-  /** Obstacles of each kind; trees with cobwebs (share). */
-  map: { trees: number; bushes: number; stones: number; webbed: number };
+  /** Obstacles of each kind; trees with cobwebs (share); another set of props and ground than the Forest's. */
+  map: { trees: number; bushes: number; stones: number; webbed: number; art?: 'lair' };
   /** Darker ground (0 — as is). */
   dark: number;
   /** Beasts from this many seconds (Infinity — not here); beasts this much stronger from the start. */
@@ -203,7 +203,7 @@ export const REWORK_LOCATIONS: ReworkLocation[] = [
   {
     // 20.15 — the lair: a short strong flood, then the Old Enat.
     name: 'Лігво Ената',
-    map: { trees: 100, bushes: 40, stones: 50, webbed: 0.15 },
+    map: { trees: 100, bushes: 40, stones: 50, webbed: 0, art: 'lair' },
     dark: 0.4,
     from: { mushroom: 0, stump: 0, spider: 0 },
     power: 2.2,

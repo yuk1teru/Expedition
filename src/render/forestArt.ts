@@ -1,15 +1,20 @@
 // The Forest's ground and props drawn from the generated pictures (data/forestArt.ts). Until the
 // pictures load (and in Node) the callers draw the old code figures.
 
-import { FOREST_ART, type PropPart, WEB_ART } from '../data/forestArt';
+import { ENAT_FX, FOREST_ART, LAIR_ART, type PropPart, type PropSet, WEB_ART } from '../data/forestArt';
 import type { Obstacle } from '../systems/rework/types';
 import { lookSheet, sheet } from './heroAnim';
 
 const F = FOREST_ART;
 
-/** The props atlas, or null while it loads. */
-export function propsAtlas(): HTMLImageElement | null {
-  return sheet(F.props);
+/** The set of props an obstacle is drawn from (the Forest's unless it says otherwise). */
+export function propSet(o?: { art?: 'lair' | 'enat' }): PropSet {
+  return o?.art === 'lair' ? LAIR_ART : o?.art === 'enat' ? ENAT_FX : F;
+}
+
+/** The props atlas of an obstacle's set (the Forest's by default), or null while it loads. */
+export function propsAtlas(o?: { art?: 'lair' | 'enat' }): HTMLImageElement | null {
+  return sheet(propSet(o).props);
 }
 
 /**
@@ -17,8 +22,8 @@ export function propsAtlas(): HTMLImageElement | null {
  * while it loads. Drawn as whole tiles: a repeating pattern over the screen cost about 9 ms a frame
  * (software canvas), the tiles about a tenth of that.
  */
-export function drawGround(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): boolean {
-  const img = sheet(F.ground);
+export function drawGround(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, src: string = F.ground): boolean {
+  const img = sheet(src);
   if (!img) return false;
   const t = img.naturalWidth;
   for (let ty = Math.floor(y / t) * t; ty < y + h; ty += t) {
@@ -35,38 +40,39 @@ const part = (piece: number, scale: number, mirror = false, dx = 0, dy = 0): Pro
 
 /** The pieces an obstacle is drawn from. */
 export function obstacleParts(o: Obstacle): PropPart[] {
-  const width = (piece: number, k: number): number => (o.radius * k) / F.pieces[piece]!.rect[2];
+  const S = propSet(o);
+  const width = (piece: number, k: number): number => (o.radius * k) / S.pieces[piece]!.rect[2];
   switch (o.kind) {
     case 'tree':
-      return [part(F.trees[pick(o, F.trees.length)]!, o.height * F.treeScale, mirrored(o))];
+      return [part(S.trees![pick(o, S.trees!.length)]!, o.height * S.treeScale!, mirrored(o))];
     case 'oak':
-      return [part(F.oak, F.oakScale)];
+      return [part(S.oak!, S.oakScale!)];
     case 'bush': {
-      const p = F.bushes[pick(o, F.bushes.length)]!;
-      return [part(p, width(p, F.bushWidth), mirrored(o))];
+      const p = S.bushes![pick(o, S.bushes!.length)]!;
+      return [part(p, width(p, S.bushWidth!), mirrored(o))];
     }
     case 'stone': {
-      const p = F.stones.find((s) => o.radius <= s.upTo)!.piece;
-      return [part(p, width(p, F.stoneWidth), mirrored(o))];
+      const p = S.stones!.find((s) => o.radius <= s.upTo)!.piece;
+      return [part(p, width(p, S.stoneWidth!), mirrored(o))];
     }
     case 'stoneRing': {
-      const [rx, ry] = F.stoneRingOval;
-      return F.stoneRing.map((s) => part(s.piece, s.scale, s.mirror, Math.cos((s.angle * Math.PI) / 180) * rx, Math.sin((s.angle * Math.PI) / 180) * ry));
+      const [rx, ry] = S.stoneRingOval!;
+      return S.stoneRing!.map((s) => part(s.piece, s.scale, s.mirror, Math.cos((s.angle * Math.PI) / 180) * rx, Math.sin((s.angle * Math.PI) / 180) * ry));
     }
     case 'log':
-      return [part(F.log, F.logScale, mirrored(o))];
+      return [part(S.log!, S.logScale!, mirrored(o))];
   }
 }
 
 /** The box a set of parts covers around the foot (world px). */
-export function partsBox(parts: PropPart[]): { left: number; top: number; right: number; bottom: number } {
+export function partsBox(parts: PropPart[], S: PropSet = F): { left: number; top: number; right: number; bottom: number } {
   let left = 0;
   let top = 0;
   let right = 0;
   let bottom = 0;
   for (const p of parts) {
-    const [, , w, h] = F.pieces[p.piece]!.rect;
-    const [ax, ay] = F.pieces[p.piece]!.anchor;
+    const [, , w, h] = S.pieces[p.piece]!.rect;
+    const [ax, ay] = S.pieces[p.piece]!.anchor;
     const ox = p.mirror ? w - ax : ax;
     left = Math.min(left, p.dx - ox * p.scale);
     right = Math.max(right, p.dx + (w - ox) * p.scale);
@@ -79,22 +85,38 @@ export function partsBox(parts: PropPart[]): { left: number; top: number; right:
 /** The crown of a tree drawn from a picture (it fades when someone stands behind it). */
 export function artCrown(o: Obstacle): { x: number; y: number; r: number } | null {
   if (o.kind !== 'tree' && o.kind !== 'oak') return null;
-  const box = partsBox(obstacleParts(o));
+  const box = partsBox(obstacleParts(o), propSet(o));
   const tall = -box.top;
   return { x: o.pos.x, y: o.pos.y - tall * 0.58, r: tall * 0.4 };
 }
 
 /** One piece with its foot at (x, y); `flash` — brightened by a hit. */
-export function drawPart(ctx: CanvasRenderingContext2D, img: HTMLImageElement, p: PropPart, x: number, y: number, flash = false): void {
-  const [sx, sy, w, h] = F.pieces[p.piece]!.rect;
-  const [ax, ay] = F.pieces[p.piece]!.anchor;
+export function drawPart(ctx: CanvasRenderingContext2D, img: HTMLImageElement, p: PropPart, x: number, y: number, flash = false, S: PropSet = F): void {
+  const [sx, sy, w, h] = S.pieces[p.piece]!.rect;
+  const [ax, ay] = S.pieces[p.piece]!.anchor;
   ctx.save();
   ctx.translate(x + p.dx, y + p.dy);
   ctx.scale(p.mirror ? -p.scale : p.scale, p.scale);
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(flash ? lookSheet(img, F.props, 'flash') : img, sx, sy, w, h, -ax, -ay, w, h);
+  ctx.drawImage(flash ? lookSheet(img, S.props, 'flash') : img, sx, sy, w, h, -ax, -ay, w, h);
   ctx.restore();
+}
+
+/** A piece of the Old Enat's strikes at a foot point (turned, stretched along x, faded); false while the atlas loads. */
+export function drawEnatFx(ctx: CanvasRenderingContext2D, piece: number, x: number, y: number, scale: number, o: { angle?: number; stretch?: number; alpha?: number } = {}): boolean {
+  const img = sheet(ENAT_FX.props);
+  if (!img) return false;
+  const [sx, sy, w, h] = ENAT_FX.pieces[piece]!.rect;
+  const [ax, ay] = ENAT_FX.pieces[piece]!.anchor;
+  ctx.save();
+  ctx.translate(x, y);
+  if (o.angle) ctx.rotate(o.angle);
+  ctx.scale(scale * (o.stretch ?? 1), scale);
+  ctx.globalAlpha *= o.alpha ?? 1;
+  ctx.drawImage(img, sx, sy, w, h, -ax, -ay, w, h);
+  ctx.restore();
+  return true;
 }
 
 /** A single prop piece (den, shrine, altar, chest, herb) at a foot point; false while the atlas loads. */
