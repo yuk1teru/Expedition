@@ -221,6 +221,21 @@ export const REWORK_PATH = {
   bannerTime: 3,
 };
 
+/**
+ * 20.16 — the biome as one run with lives (VISION §8). A life is the Berehynia's sign: a death
+ * costs one and the biome starts again from its first location at level 1 (all won in that try is
+ * lost); with no lives left — back to the last checkpoint (here: the expedition's start) and a
+ * tombstone. Beating the biome's boss is a checkpoint: lives come back. Her voice in the sign is
+ * heard at each of these moments (the mysterious set — hints at the dead world and the cracking seal).
+ */
+export const REWORK_LIVES = {
+  max: 3,
+  /** Her words after a death with 2 and 1 lives left, and when the last is lost. */
+  death: ['Не туди… Мертві ще не кличуть тебе.', 'Чуєш, як тріщить? Вставай, поки тріщина мала.'],
+  lost: 'Ти бачив їхній бік. Забудь і повертайся.',
+  checkpoint: 'Він вільний. А десь глибоко щось ворухнулось.',
+};
+
 export type ReworkClassId = 'warrior' | 'mage' | 'archer';
 
 export interface ReworkClassDef {

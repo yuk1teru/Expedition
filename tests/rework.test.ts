@@ -1,7 +1,7 @@
 // The rework's core (ROADMAP 20.2–20.5): rules, not numbers — the numbers live in
 // src/data/rework.ts and change in play.
 import { describe, expect, it } from 'vitest';
-import { PASSIVE_SLOTS, REWORK_BOSS, REWORK_CARDS, REWORK_ELITES, REWORK_FLOOD, REWORK_LOCATIONS, REWORK_MAP, REWORK_PICKUPS, REWORK_PROGRESS, REWORK_SPIRIT, REWORK_TASKS } from '../src/data/rework';
+import { PASSIVE_SLOTS, REWORK_BOSS, REWORK_CARDS, REWORK_ELITES, REWORK_FLOOD, REWORK_LIVES, REWORK_LOCATIONS, REWORK_MAP, REWORK_PICKUPS, REWORK_PROGRESS, REWORK_SPIRIT, REWORK_TASKS } from '../src/data/rework';
 import { damageEnemy as damageEnemyHit, damageHero } from '../src/systems/rework/combat';
 import { layWeb, pickBeast, powerAt, spawnBeast, spawnInterval } from '../src/systems/rework/enemies';
 import { dodge, heroStats } from '../src/systems/rework/hero';
@@ -12,6 +12,7 @@ import { castSkill, effectiveParams, evolutionReady } from '../src/systems/rewor
 import { formRing, outsideRing } from '../src/systems/rework/boss';
 import { altarPrice, openChest, useAltar } from '../src/systems/rework/pickups';
 import { startTask } from '../src/systems/rework/task';
+import { loseLife, newExpedition, reachCheckpoint } from '../src/systems/rework/expedition';
 import { sightRadius } from '../src/systems/rework/spirit';
 import { pullSegments } from '../src/systems/rework/spinner';
 import { CLASS_SKILLS, REWORK_SKILLS, type ReworkSkillId, SKILL_SLOTS, skillParams } from '../src/data/reworkSkills';
@@ -774,6 +775,31 @@ describe('rework lair and the Old Enat (20.15)', () => {
     stepRun(run, 1 / 60, still);
     expect(run.phase).toBe('won');
     expect(run.path).toBeNull();
+  });
+});
+
+describe('rework biome structure (20.16)', () => {
+  it('a death costs a sign and says her words; with none left — back to the checkpoint and a tombstone', () => {
+    const exp = newExpedition('mage');
+    expect(exp.lives).toBe(REWORK_LIVES.max);
+    const first = loseLife(exp);
+    expect(first).toEqual({ line: REWORK_LIVES.death[0], lives: 2, rollback: false });
+    const second = loseLife(exp);
+    expect(second).toEqual({ line: REWORK_LIVES.death[1], lives: 1, rollback: false });
+    const last = loseLife(exp);
+    expect(last.rollback).toBe(true);
+    expect(last.line).toBe(REWORK_LIVES.lost);
+    expect(exp.tombstones).toBe(1);
+    expect(exp.lives).toBe(REWORK_LIVES.max);
+  });
+
+  it('beating the biome boss is a checkpoint: the signs come back', () => {
+    const exp = newExpedition('warrior');
+    loseLife(exp);
+    loseLife(exp);
+    expect(reachCheckpoint(exp)).toBe(REWORK_LIVES.checkpoint);
+    expect(exp.lives).toBe(REWORK_LIVES.max);
+    expect(exp.checkpoint).toBe('forest');
   });
 });
 

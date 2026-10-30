@@ -7,13 +7,14 @@
 
 import type { Screen } from '../core/screens';
 import { Rng } from '../core/rng';
-import { PASSIVE_SLOTS, REWORK_BOSS, REWORK_LOCATIONS, REWORK_PATH, REWORK_POINTERS, REWORK_SPIRIT, REWORK_TASKS, REWORK_CARDS, REWORK_CLASSES, REWORK_STRESS, type ReworkClassId } from '../data/rework';
+import { PASSIVE_SLOTS, REWORK_BOSS, REWORK_LIVES, REWORK_LOCATIONS, REWORK_PATH, REWORK_POINTERS, REWORK_SPIRIT, REWORK_TASKS, REWORK_CARDS, REWORK_CLASSES, REWORK_STRESS, type ReworkClassId } from '../data/rework';
 import { EVOLUTIONS, REWORK_SKILLS, SKILL_SLOTS, skillParams } from '../data/reworkSkills';
 import { bossIn } from '../systems/rework/boss';
 import { altarNear, altarPrice, useAltar } from '../systems/rework/pickups';
 import { sightRadius } from '../systems/rework/spirit';
 import { pullSegments } from '../systems/rework/spinner';
 import { taskLine } from '../systems/rework/task';
+import { type DeathOutcome, type Expedition, loseLife, newExpedition, reachCheckpoint } from '../systems/rework/expedition';
 import { dodge } from '../systems/rework/hero';
 import { chooseCard, passivesTaken, reroll, rerollPrice, xpToNext } from '../systems/rework/progress';
 import { createRun, runPaused, stepRun, stressSpawn } from '../systems/rework/run';
@@ -45,6 +46,9 @@ interface Pointer {
   label: string;
   color: string;
 }
+
+/** The Berehynia's voice from the sign. */
+const SIGN_VOICE = '#e8dcae';
 
 interface Floater {
   x: number;
@@ -125,8 +129,32 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
   let stepSum = 0;
   let stepCount = 0;
 
+  /** The expedition (lives, checkpoint); standing at the biome's point between runs; what the last death or the checkpoint said. */
+  let expedition: Expedition | null = null;
+  let atPoint = false;
+  let death: DeathOutcome | null = null;
+  let checkpoint: string | null = null;
+
+  /** A new expedition with the class: to the Forest's point on the map. */
+  const begin = (id: ReworkClassId): void => {
+    classId = id;
+    expedition = newExpedition(id);
+    run = null;
+    atPoint = true;
+    death = null;
+  };
+
+  /** Back to the biome's point (after a death); the run that was is gone. */
+  const toPoint = (): void => {
+    run = null;
+    atPoint = true;
+  };
+
   const start = (id: ReworkClassId): void => {
     classId = id;
+    atPoint = false;
+    death = null;
+    checkpoint = null;
     seed += 1;
     const r = createRun(app.state.seed + seed, id);
     run = r;
@@ -147,11 +175,20 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
   };
 
   const classButtons = new ButtonGroup(
-    CLASS_ORDER.map((id, i) => new Button({ label: `${REWORK_CLASSES[id].name} [${i + 1}]`, rect: { x: W / 2 - 330 + i * 225, y: H / 2 - 10, w: 210, h: 46 }, fontSize: 17, hotkey: `Digit${i + 1}`, onClick: () => start(id) })),
+    CLASS_ORDER.map((id, i) => new Button({ label: `${REWORK_CLASSES[id].name} [${i + 1}]`, rect: { x: W / 2 - 330 + i * 225, y: H / 2 - 10, w: 210, h: 46 }, fontSize: 17, hotkey: `Digit${i + 1}`, onClick: () => begin(id) })),
   );
+  const newExpeditionButton = (): Button => new Button({ label: 'Нова експедиція [C]', rect: { x: W / 2 + 10, y: H / 2 + 90, w: 220, h: 44 }, fontSize: 16, hotkey: 'KeyC', onClick: () => ((expedition = null), (run = null), (atPoint = false)) });
   const deathButtons = new ButtonGroup([
-    new Button({ label: 'Ще раз [Enter]', rect: { x: W / 2 - 230, y: H / 2 + 60, w: 220, h: 44 }, fontSize: 16, hotkey: 'Enter', onClick: () => start(classId) }),
-    new Button({ label: 'Інший клас [C]', rect: { x: W / 2 + 10, y: H / 2 + 60, w: 220, h: 44 }, fontSize: 16, hotkey: 'KeyC', onClick: () => (run = null) }),
+    new Button({ label: 'До точки Лісу [Enter]', rect: { x: W / 2 - 230, y: H / 2 + 90, w: 220, h: 44 }, fontSize: 16, hotkey: 'Enter', onClick: toPoint }),
+    newExpeditionButton(),
+  ]);
+  const victoryButtons = new ButtonGroup([
+    new Button({ label: 'Ще раз [Enter]', rect: { x: W / 2 - 230, y: H / 2 + 90, w: 220, h: 44 }, fontSize: 16, hotkey: 'Enter', onClick: () => begin(classId) }),
+    newExpeditionButton(),
+  ]);
+  const pointButtons = new ButtonGroup([
+    new Button({ label: 'Увійти в Ліс [Enter]', rect: { x: W / 2 - 230, y: H / 2 + 90, w: 220, h: 44 }, fontSize: 16, hotkey: 'Enter', onClick: () => start(classId) }),
+    newExpeditionButton(),
   ]);
   const cardRect = (i: number): { x: number; y: number; w: number; h: number } => ({ x: W / 2 - 375 + i * 255, y: H / 2 - 110, w: 240, h: 200 });
   const debug = new ButtonGroup([
@@ -219,12 +256,17 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     onInput(e) {
       if (exitBtn.handle(e)) return;
       if (!run) {
-        classButtons.handle(e);
+        if (expedition && atPoint) pointButtons.handle(e);
+        else classButtons.handle(e);
         return;
       }
       if (debug.handle(e)) return;
-      if (run.hero.dead || (run.phase === 'won' && !run.path)) {
+      if (run.hero.dead) {
         deathButtons.handle(e);
+        return;
+      }
+      if (run.phase === 'won' && !run.path) {
+        victoryButtons.handle(e);
         return;
       }
       if (run.offer) {
@@ -259,11 +301,15 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       ctx.fillStyle = '#3a4f30';
       ctx.fillRect(0, 0, W, H);
       if (!run) {
-        drawClassChoice(ctx);
+        if (expedition && atPoint) drawPoint(ctx, expedition);
+        else drawClassChoice(ctx);
         exitBtn.draw(ctx);
         return;
       }
       const r = run;
+      // A death costs a sign once; beating the biome's boss is a checkpoint once.
+      if (expedition && r.hero.dead && !death) death = loseLife(expedition);
+      if (expedition && r.phase === 'won' && !r.path && !checkpoint) checkpoint = reachCheckpoint(expedition);
       readEvents(r);
       const paused = runPaused(r);
       const h = r.hero;
@@ -422,7 +468,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       if (h.dead) drawDeath(ctx, r);
       else if (r.phase === 'won' && !r.path) drawVictory(ctx, r);
       // The location's name waits for the card choice to close.
-      if (banner && !r.offer) drawBanner(ctx, dt);
+      if (banner && !r.offer && !h.dead) drawBanner(ctx, dt);
       drawSkillTooltip(ctx, r);
       debug.draw(ctx);
       drawText(ctx, `${Math.round(fps)} к/с · ${r.enemies.length} звірів · логіка ${stepMs.toFixed(2)} мс${h.immortal ? ' · безсмертя' : ''}`, W - 16, H - 56, { size: 11, align: 'right', color: fps >= 55 ? THEME.good : THEME.bad });
@@ -547,6 +593,8 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     ctx.fillStyle = '#d0453c';
     ctx.fillRect(24, 40, 236 * (h.hp / h.maxHp), 16);
     drawText(ctx, `${Math.ceil(h.hp)} / ${h.maxHp}`, 142, 49, { size: 12, bold: true, align: 'center' });
+    // The Berehynia's signs — the lives — under the HP.
+    if (expedition) drawSigns(ctx, 30, 84, death ? death.lives : expedition.lives, 9);
     // Timer — top centre.
     const toBoss = bossIn(r);
     const warn = r.phase === 'warning';
@@ -819,7 +867,12 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     // Freed, the Old Enat speaks in his true voice.
     if (boss === 'enat') drawText(ctx, `«${REWORK_BOSS.enat.freed}»`, W / 2, H / 2 - 100, { size: 18, align: 'center', color: '#d8f0d0' });
     drawText(ctx, `${mmss(r.time)} · рівень ${r.level} · звірів убито: ${r.kills}`, W / 2, H / 2, { size: 16, align: 'center' });
-    deathButtons.draw(ctx);
+    // The biome's boss: a checkpoint — her words, the signs back.
+    if (checkpoint && expedition) {
+      drawText(ctx, `«${checkpoint}»`, W / 2, H / 2 + 34, { size: 16, align: 'center', color: SIGN_VOICE });
+      drawSigns(ctx, W / 2 - 30, H / 2 + 62, expedition.lives, 10);
+    }
+    victoryButtons.draw(ctx);
   }
 
   /** The location's name, fading in and out over the screen. */
@@ -837,12 +890,50 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     ctx.restore();
   }
 
+  /** A death: her words from the sign, the signs left, what it costs. */
   function drawDeath(ctx: CanvasRenderingContext2D, r: Run): void {
     ctx.fillStyle = 'rgba(20, 0, 0, 0.6)';
     ctx.fillRect(0, 0, W, H);
-    drawText(ctx, 'Загинув', W / 2, H / 2 - 50, { size: 36, bold: true, align: 'center', color: THEME.bad });
-    drawText(ctx, `${mmss(r.time)} · рівень ${r.level} · звірів убито: ${r.kills}`, W / 2, H / 2, { size: 16, align: 'center' });
+    drawText(ctx, 'Загинув', W / 2, H / 2 - 110, { size: 36, bold: true, align: 'center', color: THEME.bad });
+    drawText(ctx, `${mmss(r.time)} · рівень ${r.level} · звірів убито: ${r.kills}`, W / 2, H / 2 - 70, { size: 14, align: 'center', color: THEME.textDim });
+    if (death) {
+      drawText(ctx, `«${death.line}»`, W / 2, H / 2 - 22, { size: 20, align: 'center', color: SIGN_VOICE });
+      drawSigns(ctx, W / 2 - 30, H / 2 + 14, death.lives, 10);
+      const what = death.rollback
+        ? 'Знаки згасли: назад до останнього чекпоінта — початку експедиції. На кладовищі — надгробок.'
+        : `Лишилось знаків: ${death.lives}. Біом — з першої локації, з 1-го рівня; здобуте в цій спробі втрачено.`;
+      drawText(ctx, what, W / 2, H / 2 + 50, { size: 14, align: 'center', color: THEME.text });
+    }
     deathButtons.draw(ctx);
+  }
+
+  /** The Berehynia's signs in a row: lit — lives left, dim — lost. */
+  function drawSigns(ctx: CanvasRenderingContext2D, x: number, y: number, lit: number, r: number): void {
+    for (let i = 0; i < REWORK_LIVES.max; i++) {
+      const cx = x + i * r * 3;
+      ctx.save();
+      ctx.translate(cx, y);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = i < lit ? '#ffd27a' : 'rgba(120, 110, 90, 0.35)';
+      ctx.strokeStyle = i < lit ? '#fff0c0' : 'rgba(0,0,0,0.5)';
+      ctx.lineWidth = 1.5;
+      ctx.fillRect(-r * 0.7, -r * 0.7, r * 1.4, r * 1.4);
+      ctx.strokeRect(-r * 0.7, -r * 0.7, r * 1.4, r * 1.4);
+      ctx.restore();
+    }
+  }
+
+  /** The biome's point on the map (a stand-in for the scene): the Forest, the signs, what the last death cost. */
+  function drawPoint(ctx: CanvasRenderingContext2D, exp: Expedition): void {
+    drawText(ctx, 'Ліс', W / 2, H / 2 - 140, { size: 36, bold: true, align: 'center', color: '#cfe8c4' });
+    drawText(ctx, 'Точка біому на карті · сцена буде тут (етап 21)', W / 2, H / 2 - 104, { size: 13, align: 'center', color: THEME.textMuted });
+    drawText(ctx, `${REWORK_CLASSES[exp.classId].name} · знаки Берегині:`, W / 2 - 60, H / 2 - 50, { size: 15, align: 'right', color: THEME.text });
+    drawSigns(ctx, W / 2 - 40, H / 2 - 50, exp.lives, 10);
+    const lines = ['Біом — один забіг: Ліс → Глибина лісу → Лігво Ената.', 'Загинув — знак гасне, біом з початку. Знаки згасли — назад до чекпоінта.'];
+    lines.forEach((l, i) => drawText(ctx, l, W / 2, H / 2 - 4 + i * 22, { size: 14, align: 'center', color: THEME.textDim }));
+    if (death) drawText(ctx, `«${death.line}»`, W / 2, H / 2 + 60, { size: 16, align: 'center', color: SIGN_VOICE });
+    if (exp.tombstones > 0) drawText(ctx, `Надгробків на кладовищі: ${exp.tombstones}`, W / 2, H / 2 + 150, { size: 12, align: 'center', color: THEME.textMuted });
+    pointButtons.draw(ctx);
   }
 
   function drawClassChoice(ctx: CanvasRenderingContext2D): void {
