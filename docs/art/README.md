@@ -16,6 +16,7 @@ _30.10.2026 · VISION §10. Арт у грі з'являється, коли к�
 heroes/     warrior/  mage/  archer/
 mobs/       wolf/  mushroom/  stump/  spirit/
 bosses/     alpha/
+npc/        lumberjack/
 locations/  forest/   ground.png  obstacles.png  concept.png
 fx/         fx.png
 ```
@@ -30,6 +31,7 @@ fx/         fx.png
 | `mobs/mushroom/poses.png` | Гриб-плювака, 3 × 3: хода, набухання / плювок / відкат, удар / розпад / купка. У грі — `public/sprites/anim/mushroom.png` (`GRID=3x3`) |
 | `mobs/stump/poses.png` | Пеньок, 3 × 3: хода, руки вгору / удар об землю / у тріщинах, удар / розколюється / купа трісок. У грі — `public/sprites/anim/stump.png` (`GRID=3x3`; тріщини від удару, що залізли в нижній ряд, стерто) |
 | `mobs/spirit/poses.png` | Дух занепаду, 3 × 2: ширяння, набухання / випуск туману / втеча (дивиться ліворуч). У грі — `public/sprites/anim/spirit.png` (`GRID=3x2`) |
+| `npc/lumberjack/poses.png` | Лісоруб, 3 × 2: наляканий, махає рукою, сокира напоготові; ходьба з сокирою на плечі. У грі — `public/sprites/anim/lumberjack.png` (`GRID=3x2`) |
 | `bosses/alpha/poses.png` | Ватажок зграї, 3 × 4: біг, ривок (присід, кидок, гальмування), стрибок (присід, політ, удар об землю), виття / задишка / удар. У грі — `public/sprites/anim/alpha.png` (`GRID=3x4`) |
 | `locations/forest/ground.png` | безшовна текстура землі Лісу; у грі — `public/sprites/forest-ground.jpg` (зменшена до 640 px: одна плитка = 640 px світу) |
 | `locations/forest/obstacles.png` | аркуш предметів Лісу: 3 ялини, 2 криві дерева, сухе дерево, Старий дуб, 3 кущі, 3 камені, стоячі камені, повалена сосна, лігво, святилище, вівтар, скриня, трава. У грі — атлас `public/sprites/forest-props.png`. Групи з двох і трьох стоячих каменів перекриваються й чисто не розрізаються — Кам'яне коло складене з одиночного каменя (дзеркально, різного розміру) |

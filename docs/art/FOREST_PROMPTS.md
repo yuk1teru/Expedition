@@ -17,7 +17,7 @@ _31.10.2026 · Усе, що потрібно Лісу (Ліс → Глибина
 | Воїн, Маг, Лучник | ✓ | 1 |
 | Вовк, Гриб, Пеньок, Дух занепаду | ✓ | 2 |
 | Ватажок зграї | ✓ | 2 |
-| Лісоруб | ✗ | 2 |
+| Лісоруб | ✓ | 2 |
 | Земля й предмети Лісу | ✓ | 2 |
 | Павук, Прядуха, павутиння й кокони | ✗ | 3 |
 | Земля Глибини лісу | ○ | 3 |
@@ -261,7 +261,7 @@ Row 3 — LEAP: crouched before a leap; high in the air; slamming down, front pa
 Row 4 — howling, head raised; winded, tongue out, panting; hit, recoiling.
 ```
 
-### Лісоруб (завдання «Порятунок») ✗ → `npc/lumberjack/poses.png`
+### Лісоруб (завдання «Порятунок») ✓ → `npc/lumberjack/poses.png`
 
 ```
 [Прикріпи heroes/warrior/reference.png і mobs/mushroom/poses.png]

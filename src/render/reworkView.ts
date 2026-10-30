@@ -400,7 +400,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       const altarHere = altarNear(r);
       for (const a of r.altars) if (onScreen(a.pos.x, a.pos.y, 40)) items.push({ y: a.pos.y, draw: () => drawAltar(ctx, a, r.time, a === altarHere) });
       const task = r.task;
-      if (task) items.push({ y: task.man.y, draw: () => drawLumberjack(ctx, task, r.time) });
+      if (task) items.push({ y: task.man.y, draw: () => drawLumberjack(ctx, task, r.time, h.pos) });
       items.push({ y: h.pos.y, draw: () => drawHero(ctx, r, paused ? 0 : dt) });
       items.sort((a, b) => a.y - b.y);
       for (const it of items) it.draw();

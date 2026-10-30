@@ -18,7 +18,9 @@ export type BeastPose =
   /** Spirit: gathering the fog, letting it out, running away. */
   | 'cast' | 'release' | 'flee'
   /** Alpha: dash, leap and its landing, the rest after it, the howl. */
-  | 'dashWind' | 'dash' | 'skid' | 'leapWind' | 'leapAir' | 'slam' | 'rest' | 'howl';
+  | 'dashWind' | 'dash' | 'skid' | 'leapWind' | 'leapAir' | 'slam' | 'rest' | 'howl'
+  /** The lumberjack: calling for help, the axe ready. */
+  | 'call' | 'ready';
 
 export interface BeastSheet {
   src: string;
@@ -100,6 +102,22 @@ export const BEAST_SHEETS: Partial<Record<ReworkEnemyId, BeastSheet>> = {
     shadow: 18,
     height: 80,
   },
+};
+
+/**
+ * The lumberjack of the rescue task (docs/art/npc/lumberjack/poses.png, GRID=3x2): scared, waving
+ * for help, the axe ready; the walk with the axe on his shoulder.
+ */
+export const LUMBERJACK_SHEET: BeastSheet = {
+  src: 'sprites/anim/lumberjack.png',
+  columns: 3,
+  cell: [216, 247],
+  anchor: [98, 244],
+  scale: 0.34,
+  frames: { stand: [0], call: [1], ready: [2], walk: [3, 4, 5, 4] },
+  walkFps: 7,
+  shadow: 14,
+  height: 76,
 };
 
 export const BEAST_ANIM = {

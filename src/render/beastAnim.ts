@@ -99,6 +99,14 @@ function drawCell(ctx: CanvasRenderingContext2D, pic: CanvasImageSource, sh: Bea
   ctx.restore();
 }
 
+/** One frame of a sheet with the feet at (x, y), facing `side`; false while the sheet loads. */
+export function drawSheetFrame(ctx: CanvasRenderingContext2D, sh: BeastSheet, frame: number, x: number, y: number, side: number): boolean {
+  const img = sheet(sh.src);
+  if (!img) return false;
+  drawCell(ctx, img, sh, frame, x, y, side, 1);
+  return true;
+}
+
 /**
  * Draws a living beast from its frames with its feet `lift` px above its place; false if it has
  * no sheet or the sheet is not loaded yet (the caller draws a figure). A hit flashes it, the boss

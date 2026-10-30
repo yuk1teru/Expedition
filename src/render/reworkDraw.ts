@@ -5,7 +5,8 @@
 
 import { REWORK_BOSS, REWORK_CLASSES, REWORK_ELITES, REWORK_ENEMIES, REWORK_MAP, REWORK_PICKUPS, REWORK_TASKS, REWORK_WEB } from '../data/rework';
 import { FOREST_ART } from '../data/forestArt';
-import { beastSheet, beastSize, drawBeastFrames } from './beastAnim';
+import { beastSheet, beastSize, drawBeastFrames, drawSheetFrame } from './beastAnim';
+import { LUMBERJACK_SHEET } from '../data/beastAnim';
 import { artCrown, drawPart, drawProp, obstacleParts, partsBox, propsAtlas, tintedPiece } from './forestArt';
 import type { Altar, Chest, Coin, Gem, Hazard, Herb, Obstacle, RunEnemy, RunHero, Shot, Shrine, Task, Trap, Zone } from '../systems/rework/types';
 
@@ -734,11 +735,23 @@ function label(ctx: CanvasRenderingContext2D, text: string, x: number, y: number
   ctx.fillText(text, x, y);
 }
 
-export function drawLumberjack(ctx: CanvasRenderingContext2D, t: Task, time: number): void {
+/**
+ * The lumberjack, facing the hero: waiting, he stands scared and now and then waves for help;
+ * following, he walks after the hero, and holds his axe ready while the hero stands.
+ */
+export function drawLumberjack(ctx: CanvasRenderingContext2D, t: Task, time: number, hero: { x: number; y: number }): void {
   if (t.kind !== 'rescue' || t.state !== 'active') return;
   const { x, y } = t.man;
   const r = 13;
-  drawShadow(ctx, x, y, r);
+  const L = LUMBERJACK_SHEET;
+  const side = hero.x >= x ? 1 : -1;
+  const walking = t.following && Math.hypot(hero.x - x, hero.y - y) > 52;
+  const frame = walking ? L.frames.walk![Math.floor(time * L.walkFps) % L.frames.walk!.length]! : t.following ? L.frames.ready![0]! : time % 3 < 1.1 ? L.frames.call![0]! : L.frames.stand![0]!;
+  drawShadow(ctx, x, y, L.shadow);
+  if (drawSheetFrame(ctx, L, frame, x, y, side)) {
+    if (!t.following) label(ctx, '!', x, y - L.height - 14, '#ffd27a', 18);
+    return;
+  }
   const bob = t.following ? Math.abs(Math.sin(time * 9)) * 2 : 0;
   ctx.save();
   ctx.translate(x, y - bob);
