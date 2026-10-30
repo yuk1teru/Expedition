@@ -100,7 +100,7 @@ export function formRing(run: Run): void {
   if (boss) {
     const def = B[id];
     // The pack leader and the spinner come out at the side; the Old Enat rises at the back of the ring.
-    boss.pos = id === 'enat' ? { x: run.ringCenter.x, y: run.ringCenter.y - B.ringRadius * FLAT_RING * 0.45 } : { x: run.ringCenter.x + B.ringRadius * 0.6, y: run.ringCenter.y };
+    boss.pos = id === 'enat' ? { x: run.ringCenter.x, y: run.ringCenter.y - B.ringRadius * FLAT_RING * 0.25 } : { x: run.ringCenter.x + B.ringRadius * 0.6, y: run.ringCenter.y };
     boss.radius = def.radius;
     boss.boss = true;
     boss.hp = def.hp;

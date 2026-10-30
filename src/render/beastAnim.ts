@@ -53,6 +53,12 @@ function poseOf(e: RunEnemy, sh: BeastSheet, time: number): BeastPose {
       return 1 - act.time / d.leap!.time >= A.landAt ? 'land' : 'leap';
     case 'aim':
       return 1 - act.time / d.spit!.windup >= A.spitAt ? 'spit' : 'swell';
+    case 'weave':
+      return 1 - act.time / d.web!.windup >= A.spitAt ? 'spit' : 'swell';
+    case 'spitWind':
+      return 1 - act.time / REWORK_BOSS.spinner.cocoon.windup >= A.spitAt ? 'spit' : 'swell';
+    case 'pulling':
+      return 'pull';
     case 'stomp':
       return 1 - act.time / d.stomp!.delay >= A.stompAt ? 'stomp' : 'raise';
     case 'cast':
@@ -69,9 +75,12 @@ function poseOf(e: RunEnemy, sh: BeastSheet, time: number): BeastPose {
       return 'stand';
   }
   if (e.def === 'spirit' && e.hp < e.maxHp * REWORK_SPIRIT.fleeAt) return 'flee';
-  if (e.boss && (e.howlTimer ?? 0) > REWORK_BOSS.alpha.howl.every - A.howlTime) return 'howl';
+  // The pack leader's howl, the spinner calling her spiderlings.
+  const calls = e.def === 'spinner' ? REWORK_BOSS.spinner.brood.every : REWORK_BOSS.alpha.howl.every;
+  if (e.boss && (e.howlTimer ?? 0) > calls - A.howlTime) return 'howl';
   if (d.stomp && e.traitTimer > d.stomp.every - d.stomp.delay - A.afterTime) return 'after';
-  if (d.spit && e.traitTimer > d.spit.every - d.spit.windup - A.recoilTime) return 'recoil';
+  const shot = d.spit ?? d.web;
+  if (shot && e.traitTimer > shot.every - shot.windup - A.recoilTime) return 'recoil';
   if (!e.boss && sh.frames.hurt && time - e.hitAt < A.hurtTime) return 'hurt';
   return 'walk';
 }
@@ -99,11 +108,17 @@ function drawCell(ctx: CanvasRenderingContext2D, pic: CanvasImageSource, sh: Bea
   ctx.restore();
 }
 
-/** One frame of a sheet with the feet at (x, y), facing `side`; false while the sheet loads. */
-export function drawSheetFrame(ctx: CanvasRenderingContext2D, sh: BeastSheet, frame: number, x: number, y: number, side: number): boolean {
+/** One frame of a sheet with the feet at (x, y), facing `side`, flashing white by `flash` (0–1); false while the sheet loads. */
+export function drawSheetFrame(ctx: CanvasRenderingContext2D, sh: BeastSheet, frame: number, x: number, y: number, side: number, flash = 0): boolean {
   const img = sheet(sh.src);
   if (!img) return false;
   drawCell(ctx, img, sh, frame, x, y, side, 1);
+  if (flash > 0) {
+    ctx.save();
+    ctx.globalAlpha *= flash;
+    drawCell(ctx, lookSheet(img, sh.src, 'flash'), sh, frame, x, y, side, 1);
+    ctx.restore();
+  }
   return true;
 }
 
@@ -142,7 +157,8 @@ export interface Corpse {
 }
 
 export function corpseLife(c: Corpse): number {
-  return c.boss ? A.bossCorpseTime : A.corpseTime;
+  if (c.def === 'cocoon') return A.remainsTime;
+  return BEAST_SHEETS[c.def]?.corpseTime ?? (c.boss ? A.bossCorpseTime : A.corpseTime);
 }
 
 /** Falls through the death frames, lies on the last one and fades. */
@@ -151,7 +167,7 @@ export function drawCorpse(ctx: CanvasRenderingContext2D, c: Corpse): void {
   const img = sh && sheet(sh.src);
   const die = sh?.frames.die;
   if (!sh || !img || !die) return;
-  const frame = die[Math.min(die.length - 1, Math.floor(c.age / A.dieFrame))]!;
+  const frame = die[Math.min(die.length - 1, Math.floor(c.age / (sh.dieFrame ?? A.dieFrame)))]!;
   const life = corpseLife(c);
   const fade = Math.min(1, (life - c.age) / A.corpseFade);
   if (fade <= 0) return;

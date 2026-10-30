@@ -19,9 +19,10 @@ _31.10.2026 · Усе, що потрібно Лісу (Ліс → Глибина
 | Ватажок зграї | ✓ | 2 |
 | Лісоруб | ✓ | 2 |
 | Земля й предмети Лісу | ✓ | 2 |
-| Павук, Прядуха, павутиння й кокони | ✗ | 3 |
+| Павук, Прядуха, павутиння й кокони | ✓ | 3 |
 | Земля Глибини лісу | ○ | 3 |
-| Старий Енат, його примара, коріння й колючки | ✗ | 4 |
+| Старий Енат і його примара | ✓ | 4 |
+| Коріння й колючки | ✗ | 4 |
 | Земля й предмети лігва | ✗ | 4 |
 | Сцена точки Лісу на карті | ✗ | 5 |
 | Кристал, монета, снаряди, іконки скілів | ○ | 6 |
@@ -330,7 +331,7 @@ mushroom creatures. Bold outlines, flat colours, muted palette, the hero the war
 
 Той самий набір дерев і каменів, але темніше й з павутинням (робить код). Нове — павуки й Прядуха.
 
-### Павук ✗ → `mobs/spider/poses.png`
+### Павук ✓ → `mobs/spider/poses.png`
 
 ```
 [Прикріпи heroes/warrior/reference.png і mobs/mushroom/poses.png]
@@ -351,7 +352,7 @@ cell); landing back down.
 Row 3 — hit, recoiling; flipped on its back, legs curling; dead, legs curled up.
 ```
 
-### Прядуха (бос) ✗ → `bosses/spinner/poses.png`
+### Прядуха (бос) ✓ → `bosses/spinner/poses.png`
 
 ```
 [Прикріпи heroes/warrior/reference.png, mobs/spider/poses.png і mobs/mushroom/poses.png]
@@ -372,7 +373,7 @@ small spiders; hit, recoiling.
 Row 4 — legs buckling; fallen on her back; dead, legs curled up.
 ```
 
-### Павутиння й кокони ✗ → `locations/deep-forest/webs.png`
+### Павутиння й кокони ✓ → `locations/deep-forest/webs.png`
 
 ```
 [Прикріпи heroes/warrior/reference.png]
@@ -400,7 +401,7 @@ shadows, seamless on all four sides. Square image.
 
 ## 4. Лігво — «Лігво Ената»
 
-### Старий Енат (бос біому) ✗ → `bosses/enat/poses.png`
+### Старий Енат (бос біому) ✓ → `bosses/enat/poses.png`
 
 ```
 [Прикріпи heroes/warrior/reference.png, locations/forest/obstacles.png і mobs/mushroom/poses.png]
@@ -421,7 +422,7 @@ arms spread, stone spikes on the bark; PHASE 3: the stone bark cracked open with
 Row 4 — staggered and weak; collapsing; fallen, at peace, a few fresh green leaves on him.
 ```
 
-### Примара Ената ✗ → `bosses/enat/ghost.png`
+### Примара Ената ✓ → `bosses/enat/ghost.png`
 
 ```
 [Прикріпи bosses/enat/poses.png]

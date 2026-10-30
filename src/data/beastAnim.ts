@@ -20,7 +20,9 @@ export type BeastPose =
   /** Alpha: dash, leap and its landing, the rest after it, the howl. */
   | 'dashWind' | 'dash' | 'skid' | 'leapWind' | 'leapAir' | 'slam' | 'rest' | 'howl'
   /** The lumberjack: calling for help, the axe ready. */
-  | 'call' | 'ready';
+  | 'call' | 'ready'
+  /** The spinner pulling her threads to the hero. */
+  | 'pull';
 
 export interface BeastSheet {
   src: string;
@@ -42,6 +44,9 @@ export interface BeastSheet {
   shadow: number;
   /** Height of the drawn body over the feet (hp bar, the frozen shell), world px. */
   height: number;
+  /** Dead: each death frame this long and how long the body lies (default — BEAST_ANIM). */
+  dieFrame?: number;
+  corpseTime?: number;
 }
 
 export const BEAST_SHEETS: Partial<Record<ReworkEnemyId, BeastSheet>> = {
@@ -77,6 +82,46 @@ export const BEAST_SHEETS: Partial<Record<ReworkEnemyId, BeastSheet>> = {
     walkFps: 5,
     shadow: 22,
     height: 54,
+  },
+  spider: {
+    src: 'sprites/anim/spider.png',
+    columns: 3,
+    cell: [247, 220],
+    anchor: [110, 218],
+    scale: 0.3,
+    frames: { walk: [0, 1, 2], stand: [0], swell: [3], spit: [4], recoil: [5], hurt: [6], die: [7, 8] },
+    walkFps: 10,
+    shadow: 16,
+    height: 36,
+  },
+  spinner: {
+    src: 'sprites/anim/spinner.png',
+    columns: 3,
+    cell: [228, 192],
+    anchor: [93, 188],
+    scale: 0.62,
+    frames: { walk: [0, 1, 2], stand: [0], swell: [3], spit: [4], pull: [5], rest: [6], howl: [7], hurt: [8], die: [9, 10, 11] },
+    walkFps: 10,
+    shadow: 44,
+    height: 80,
+  },
+  /**
+   * The Old Enat (packed at full size — SCALE=1 — he is drawn large): breathing; arms up; the slam;
+   * the grab; stone; stone casting thorns; cracked with sap; weak, collapsing, fallen. Which frame —
+   * by his phase and move (reworkDraw.ts).
+   */
+  enat: {
+    src: 'sprites/anim/enat.png',
+    columns: 3,
+    cell: [539, 347],
+    anchor: [284, 341],
+    scale: 0.9,
+    frames: { walk: [0, 1, 2, 1], stand: [0], die: [9, 10, 11] },
+    walkFps: 1.5,
+    shadow: 110,
+    height: 280,
+    dieFrame: 0.5,
+    corpseTime: 30,
   },
   alpha: {
     src: 'sprites/anim/alpha.png',
@@ -143,6 +188,8 @@ export const BEAST_ANIM = {
   corpseFade: 0.4,
   /** The boss falls slower. */
   bossCorpseTime: 2.4,
+  /** A destroyed cocoon's torn shell lies this long. */
+  remainsTime: 20,
   /** At most this many dead bodies lie at once (a skill can kill a crowd). */
   maxCorpses: 160,
 };

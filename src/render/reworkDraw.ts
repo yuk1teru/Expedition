@@ -4,10 +4,14 @@
 // the caller draws them sorted by it.
 
 import { REWORK_BOSS, REWORK_CLASSES, REWORK_ELITES, REWORK_ENEMIES, REWORK_MAP, REWORK_PICKUPS, REWORK_TASKS, REWORK_WEB } from '../data/rework';
-import { FOREST_ART } from '../data/forestArt';
+import { FOREST_ART, WEB_ART } from '../data/forestArt';
 import { beastSheet, beastSize, drawBeastFrames, drawSheetFrame } from './beastAnim';
-import { LUMBERJACK_SHEET } from '../data/beastAnim';
-import { artCrown, drawPart, drawProp, obstacleParts, partsBox, propsAtlas, tintedPiece } from './forestArt';
+import { BEAST_SHEETS, LUMBERJACK_SHEET } from '../data/beastAnim';
+import { artCrown, drawPart, drawProp, drawWebPiece, obstacleParts, partsBox, propsAtlas, tintedPiece, webAtlas } from './forestArt';
+import { sheet } from './heroAnim';
+
+/** The Old Enat's ghost (docs/art/bosses/enat/ghost.png, shrunk). */
+const GHOST = 'sprites/anim/enat-ghost.png';
 import type { Altar, Chest, Coin, Gem, Hazard, Herb, Obstacle, RunEnemy, RunHero, Shot, Shrine, Task, Trap, Zone } from '../systems/rework/types';
 
 const OUTLINE = 'rgba(15, 12, 10, 0.85)';
@@ -41,8 +45,9 @@ interface ObstaclePicture {
   pic: HTMLCanvasElement;
   ox: number;
   oy: number;
-  /** Painted from the props atlas (else from code figures, until the atlas loads). */
+  /** Painted from the props atlas (else from code figures, until the atlas loads); a cobweb from the webs atlas. */
   art: boolean;
+  webArt: boolean;
 }
 
 const obstaclePictures = new WeakMap<Obstacle, ObstaclePicture>();
@@ -59,7 +64,7 @@ function codePicture(o: Obstacle): ObstaclePicture {
   g.translate(ox - o.pos.x, oy - o.pos.y);
   paintObstacle(g, o);
   if (o.webbed) paintCobweb(g, o.pos.x + (o.seed - 0.5) * 20, o.pos.y - o.height * 0.55, o.radius * 1.3);
-  return { pic, ox, oy, art: false };
+  return { pic, ox, oy, art: false, webArt: false };
 }
 
 function artPicture(o: Obstacle, img: HTMLImageElement): ObstaclePicture {
@@ -72,8 +77,11 @@ function artPicture(o: Obstacle, img: HTMLImageElement): ObstaclePicture {
   const oy = 2 - box.top;
   const g = pic.getContext('2d')!;
   for (const p of parts) drawPart(g, img, p, ox, oy);
-  if (o.webbed) paintCobweb(g, ox + (o.seed - 0.5) * 24, oy + box.top * 0.5, Math.min(34, -box.top * 0.22));
-  return { pic, ox, oy, art: true };
+  // The deeper forest: a cobweb in the crown — from the webs atlas, or drawn until it loads.
+  const web = WEB_ART.cobwebs[Math.floor(o.seed * 7) % WEB_ART.cobwebs.length]!;
+  const webArt = !!o.webbed && drawWebPiece(g, web, ox + (o.seed - 0.5) * 24, oy + box.top * 0.5, WEB_ART.cobwebWidth / WEB_ART.pieces[web]!.rect[2], { mirror: o.seed > 0.5 });
+  if (o.webbed && !webArt) paintCobweb(g, ox + (o.seed - 0.5) * 24, oy + box.top * 0.5, Math.min(34, -box.top * 0.22));
+  return { pic, ox, oy, art: true, webArt: webArt || !o.webbed };
 }
 
 /**
@@ -95,9 +103,9 @@ export function obstacleLayers(o: Obstacle): { y: number; draw: (ctx: CanvasRend
  */
 export function drawObstacle(ctx: CanvasRenderingContext2D, o: Obstacle, alpha: number): void {
   let c = obstaclePictures.get(o);
-  if ((!c || !c.art) && typeof document !== 'undefined') {
+  if ((!c || !c.art || !c.webArt) && typeof document !== 'undefined') {
     const img = propsAtlas();
-    if (!c || img) {
+    if (!c || (img && (!c.art || webAtlas()))) {
       c = img ? artPicture(o, img) : codePicture(o);
       obstaclePictures.set(o, c);
     }
@@ -440,6 +448,8 @@ export function drawShot(ctx: CanvasRenderingContext2D, s: Shot, time = 0): void
   if (s.kind === 'spore') return drawSpore(ctx, s);
   if (s.kind === 'web' || s.kind === 'cocoon') {
     const big = s.kind === 'cocoon';
+    const angle = Math.atan2(s.vel.y, s.vel.x);
+    if (drawWebPiece(ctx, big ? WEB_ART.cocoonShot : WEB_ART.webShot, s.pos.x, s.pos.y - (big ? 26 : 16), WEB_ART.shotScale, { angle })) return;
     blob(ctx, s.pos.x, s.pos.y - (big ? 26 : 16), s.radius * (big ? 1.1 : 0.9), s.radius * (big ? 1.4 : 0.9), big ? '#f0ece4' : '#e6e6ee');
     return;
   }
@@ -1002,6 +1012,12 @@ function drawCocoon(ctx: CanvasRenderingContext2D, e: RunEnemy, time: number): v
   const flash = time - e.hitAt < 0.08;
   const pulse = 1 + Math.sin(time * 3 + e.id) * 0.04;
   drawShadow(ctx, e.pos.x, e.pos.y, r * 1.2);
+  // Cracked when a spider is about to hatch or it is badly hurt.
+  const cracked = (e.moveTimer ?? 9) < 0.9 || e.hp < e.maxHp * 0.5;
+  if (drawWebPiece(ctx, cracked ? WEB_ART.cracked : WEB_ART.cocoon, e.pos.x, e.pos.y, WEB_ART.cocoonScale * pulse, { flash })) {
+    hpBar(ctx, e, e.pos.y - 72, r * 2.2);
+    return;
+  }
   ctx.strokeStyle = 'rgba(230, 230, 240, 0.55)';
   ctx.lineWidth = 1.2;
   for (let i = 0; i < 6; i++) {
@@ -1028,6 +1044,10 @@ function drawSpinner(ctx: CanvasRenderingContext2D, e: RunEnemy, time: number): 
   const flash = time - e.hitAt < 0.05;
   const side = e.vel.x < -1 ? -1 : 1;
   drawShadow(ctx, e.pos.x, e.pos.y, r * 2);
+  if (drawBeastFrames(ctx, e, time)) {
+    if (e.act.kind === 'rest') stars(ctx, e.pos.x, e.pos.y - 90, r * 0.9, time);
+    return;
+  }
   const rear = e.act.kind === 'spitWind' ? 1 - e.act.time / REWORK_BOSS.spinner.cocoon.windup : 0;
   ctx.save();
   ctx.translate(e.pos.x, e.pos.y);
@@ -1042,6 +1062,8 @@ type P = { x: number; y: number };
 
 /** A web on the ground: spokes and rings, fading out at its end. */
 export function drawWebPatch(ctx: CanvasRenderingContext2D, w: { pos: P; radius: number; time: number }): void {
+  const fade = Math.min(1, w.time / 0.8);
+  if (drawWebPiece(ctx, WEB_ART.ground, w.pos.x, w.pos.y, (w.radius * WEB_ART.groundWidth) / WEB_ART.pieces[WEB_ART.ground]!.rect[2], { alpha: 0.9 * fade })) return;
   ctx.save();
   ctx.globalAlpha = 0.55 * Math.min(1, w.time / 0.8);
   ctx.strokeStyle = '#e9e9f2';
@@ -1197,6 +1219,7 @@ function drawEnat(ctx: CanvasRenderingContext2D, e: RunEnemy, time: number): voi
   const k = ENAT_SCALE;
   // The crown sways a little; the slam's wind-up lifts him.
   const charge = e.act.kind === 'charge' ? 1 - e.act.time / E.grab.charge : 0;
+  if (drawSheetFrame(ctx, BEAST_SHEETS.enat!, enatFrame(e, phase, time), x, y, 1, flash ? 0.4 : 0)) return;
   if (body) {
     const [ax, ay] = body.anchor;
     ctx.save();
@@ -1344,8 +1367,35 @@ export function drawShade(ctx: CanvasRenderingContext2D, p: { x: number; y: numb
   ctx.restore();
 }
 
-/** The Old Enat's ghost before the fight: his tree, pale and see-through, and his plea. */
+/**
+ * His frame: breathing; arms up for a slam and in the charge; the slam; the branch reaching and
+ * holding; in stone — standing, casting thorns (also his grab); cracked with sap at the end.
+ */
+function enatFrame(e: RunEnemy, phase: number, time: number): number {
+  const E = REWORK_BOSS.enat;
+  const act = e.act.kind;
+  if (phase === 2) return 8;
+  if (phase === 1) return act === 'grab' || act === 'pull' || e.traitTimer > E.thorns.every - 0.7 ? 7 : 6;
+  if (act === 'grab' || act === 'pull') return 5;
+  if (act === 'charge') return 3;
+  // The slam he started: arms up while it shows, then the blow.
+  const since = E.slam.every - e.traitTimer;
+  if (since >= 0 && since < E.slam.warn) return 3;
+  if (since >= E.slam.warn && since < E.slam.warn + 0.35) return 4;
+  return [0, 1, 2, 1][Math.floor(time * 1.5) % 4]!;
+}
+
+/** The Old Enat's ghost before the fight: see-through, sorrowful, and his plea. */
 export function drawGhost(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, alpha: number): void {
+  const pic = sheet(GHOST);
+  if (pic) {
+    const k = 260 / pic.naturalHeight;
+    ctx.save();
+    ctx.globalAlpha = 0.75 * alpha;
+    ctx.drawImage(pic, p.x - (pic.naturalWidth * k) / 2, p.y - pic.naturalHeight * k, pic.naturalWidth * k, pic.naturalHeight * k);
+    ctx.restore();
+    return;
+  }
   const g = tintedPiece(FOREST_ART.oak, 'grayscale(1) brightness(1.6) sepia(0.4) hue-rotate(60deg)');
   if (!g) return;
   ctx.save();
@@ -1354,4 +1404,9 @@ export function drawGhost(ctx: CanvasRenderingContext2D, p: { x: number; y: numb
   ctx.scale(0.6, 0.6);
   ctx.drawImage(g.pic, -g.anchor[0], -g.anchor[1]);
   ctx.restore();
+}
+
+/** A destroyed cocoon: its torn shell lies on the ground and fades at the end. */
+export function drawCocoonRemains(ctx: CanvasRenderingContext2D, c: { x: number; y: number; age: number }, life: number): void {
+  drawWebPiece(ctx, WEB_ART.torn, c.x, c.y, WEB_ART.cocoonScale, { alpha: Math.min(1, (life - c.age) / 1.5) });
 }

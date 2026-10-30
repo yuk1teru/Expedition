@@ -1,6 +1,7 @@
 # Cuts an animation sheet generated as one picture (a grid of figures on a transparent
 # background) into frames: finds every figure by its outline, aligns them by the feet and the
-# torso centre, packs them into a grid of equal cells at half size (docs/art/README.md).
+# torso centre, packs them into a grid of equal cells at half size (docs/art/README.md; SCALE=1 keeps
+# the full size — for a big figure drawn large, such as a biome's boss).
 # Usage: python scripts/pack-frames.py <sheet.png> <atlas.png> <atlas.json> <preview.png> [groups]
 # Groups steady the body inside a cycle: "0-5:xy,6-7:x" moves frames 0–5 so the glowing sign on
 # the chest stands at their mean point (x and y), frames 6–7 — along x only. The generator draws
@@ -191,7 +192,7 @@ R = max(f['box'][2] - f['anchor'][0] for f in frames) + 6
 U = max(f['anchor'][1] - f['box'][1] for f in frames) + 6
 D = 6
 cw, ch = L + R, U + D
-SCALE = 0.5
+SCALE = float(os.environ.get('SCALE', '0.5'))
 cwS, chS = int(round(cw * SCALE)), int(round(ch * SCALE))
 COLS = int(os.environ.get('COLS', '6')); ROWS = (len(frames) + COLS - 1) // COLS
 atlas = Image.new('RGBA', (cwS * COLS, chS * ROWS))

@@ -2,7 +2,7 @@
 // location. She skitters around the hero at a distance inside the living ring and now and then
 // lays a thread across the arena (shown thin first; touching it slows the hero). Every few seconds
 // she rears and spits a cocoon — a hit wraps the hero (a dodge breaks free) — and the combo
-// follows: she pulls every thread to the hero, a ring of web closing on him with one clear gap
+// follows: she stands and pulls every thread to the hero, a ring of web closing on him with one clear gap
 // (two, if the lumberjack was saved). After the pull the threads tear and she stands open. She
 // calls spiderlings unless the cocoons were destroyed. Spiders of the flood leave sticky webs on
 // the ground; webs and threads slow the hero.
@@ -162,8 +162,13 @@ export function stepSpinner(run: Run, e: RunEnemy, dt: number): boolean {
         hit: [],
       });
       startPull(run);
-      e.act = { kind: 'walk' };
+      e.act = { kind: 'pulling' };
     }
+    return true;
+  }
+  if (act.kind === 'pulling') {
+    // She stands pulling; when the pull ends she rests (stepWebs).
+    if (!run.pull) e.act = { kind: 'walk' };
     return true;
   }
   if (act.kind === 'rest') {

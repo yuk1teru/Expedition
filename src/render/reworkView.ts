@@ -27,7 +27,7 @@ import { DodgeFx } from './dodgeFx';
 import { BEAST_ANIM } from '../data/beastAnim';
 import { drawGround } from './forestArt';
 import { beastSheet, beastSize, type Corpse, corpseLife, drawCorpse, lastSide } from './beastAnim';
-import { CROWN_FADE, crownBox, obstacleLayers, drawAltar, drawBossWarning, drawChest, drawCoin, drawEnemy, drawEnemyWarning, drawGem, drawHerb, drawHeroFigure, drawLumberjack, drawBranch, drawGhost, drawHazard, drawShade, drawPath, drawPull, drawRingWall, drawThreads, drawWebPatch, drawWrap, drawShadow, drawShot, drawShrine, drawSpirit, drawTaskGround, drawTrap, drawZone } from './reworkDraw';
+import { CROWN_FADE, crownBox, obstacleLayers, drawAltar, drawBossWarning, drawChest, drawCoin, drawEnemy, drawEnemyWarning, drawGem, drawHerb, drawHeroFigure, drawLumberjack, drawBranch, drawCocoonRemains, drawGhost, drawHazard, drawShade, drawPath, drawPull, drawRingWall, drawThreads, drawWebPatch, drawWrap, drawShadow, drawShot, drawShrine, drawSpirit, drawTaskGround, drawTrap, drawZone } from './reworkDraw';
 import { THEME, font } from './theme';
 import { Button, ButtonGroup, drawPanel, drawText, drawWrapped } from './ui';
 
@@ -353,7 +353,9 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       for (const t of r.traps) if (onScreen(t.pos.x, t.pos.y, 20)) drawTrap(ctx, t);
       for (const c of corpses) {
         c.age += paused ? 0 : dt;
-        if (onScreen(c.x, c.y, 60)) drawCorpse(ctx, c);
+        if (!onScreen(c.x, c.y, 60)) continue;
+        if (c.def === 'cocoon') drawCocoonRemains(ctx, c, corpseLife(c));
+        else drawCorpse(ctx, c);
       }
       corpses = corpses.filter((c) => c.age < corpseLife(c));
       for (const e of r.enemies) if (onScreen(e.pos.x, e.pos.y, 200)) drawEnemyWarning(ctx, e);

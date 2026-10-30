@@ -81,6 +81,8 @@ export type EnemyAct =
   /** A spider stops and spits a web at a point; the spinner rears before her cocoon (20.14). */
   | { kind: 'weave'; time: number; to: Vec }
   | { kind: 'spitWind'; time: number; dir: Vec }
+  /** The spinner stands pulling her threads to the hero while the pull closes. */
+  | { kind: 'pulling' }
   /** The Old Enat (20.15): the branch reaching for the hero, pulling him in, the charged slam. */
   | { kind: 'grab'; time: number }
   | { kind: 'pull'; time: number; from: Vec }

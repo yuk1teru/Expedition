@@ -97,3 +97,34 @@ export const FOREST_ART = {
   herb: 21,
   herbScale: 0.26,
 };
+
+/**
+ * The deeper forest's webs (docs/art/locations/deep-forest/webs.png, cut by scripts/cut-props.py
+ * with SCALE=0.5): the task's cocoon whole, cracked (about to hatch) and torn (destroyed); a web
+ * on the ground; two cobwebs for tree crowns; the cocoon and the web blob in flight (facing right).
+ */
+export const WEB_ART = {
+  src: 'sprites/web-props.png',
+  pieces: [
+    { rect: [0, 0, 216, 224], anchor: [103, 186] },
+    { rect: [218, 0, 206, 222], anchor: [102, 186] },
+    { rect: [426, 0, 242, 223], anchor: [118, 180] },
+    { rect: [670, 0, 234, 115], anchor: [117, 57] },
+    { rect: [906, 0, 228, 142], anchor: [114, 71] },
+    { rect: [1136, 0, 246, 172], anchor: [123, 86] },
+    { rect: [1384, 0, 244, 110], anchor: [162, 55] },
+    { rect: [1630, 0, 146, 60], anchor: [110, 30] },
+  ] as PropPiece[],
+  cocoon: 0,
+  cracked: 1,
+  torn: 2,
+  cocoonScale: 0.32,
+  ground: 3,
+  /** The ground web is drawn this many times its patch radius wide. */
+  groundWidth: 2.4,
+  cobwebs: [4, 5],
+  cobwebWidth: 74,
+  cocoonShot: 6,
+  webShot: 7,
+  shotScale: 0.32,
+};

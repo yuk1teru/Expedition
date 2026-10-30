@@ -1,7 +1,7 @@
 // The Forest's ground and props drawn from the generated pictures (data/forestArt.ts). Until the
 // pictures load (and in Node) the callers draw the old code figures.
 
-import { FOREST_ART, type PropPart } from '../data/forestArt';
+import { FOREST_ART, type PropPart, WEB_ART } from '../data/forestArt';
 import type { Obstacle } from '../systems/rework/types';
 import { lookSheet, sheet } from './heroAnim';
 
@@ -127,4 +127,28 @@ export function tintedPiece(piece: number, filter: string): { pic: HTMLCanvasEle
     tinted.set(key, c);
   }
   return { pic: c, anchor: F.pieces[piece]!.anchor };
+}
+
+/** The webs atlas, or null while it loads. */
+export function webAtlas(): HTMLImageElement | null {
+  return sheet(WEB_ART.src);
+}
+
+/**
+ * A piece of the webs atlas with its anchor at (x, y): scaled, maybe mirrored or turned (a blob in
+ * flight), faded, flashing from a hit; false while the atlas loads.
+ */
+export function drawWebPiece(ctx: CanvasRenderingContext2D, piece: number, x: number, y: number, scale: number, o: { mirror?: boolean; angle?: number; alpha?: number; flash?: boolean } = {}): boolean {
+  const img = webAtlas();
+  if (!img) return false;
+  const [sx, sy, w, h] = WEB_ART.pieces[piece]!.rect;
+  const [ax, ay] = WEB_ART.pieces[piece]!.anchor;
+  ctx.save();
+  ctx.translate(x, y);
+  if (o.angle) ctx.rotate(o.angle);
+  ctx.scale(o.mirror ? -scale : scale, scale);
+  ctx.globalAlpha *= o.alpha ?? 1;
+  ctx.drawImage(o.flash ? lookSheet(img, WEB_ART.src, 'flash') : img, sx, sy, w, h, -ax, -ay, w, h);
+  ctx.restore();
+  return true;
 }
