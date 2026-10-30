@@ -14,10 +14,7 @@ export const REWORK_FIELD = {
 
 /** 20.2 — what stands in the Forest. Every obstacle is a circle on the ground (its foot). */
 export const REWORK_MAP = {
-  /** Count of each kind; they never stand closer than `gap` to each other or to the start. */
-  trees: 110,
-  bushes: 70,
-  stones: 45,
+  /** Obstacles never stand closer than `gap` to each other or to the start (their counts — per location, REWORK_LOCATIONS). */
   gap: 26,
   startClear: 260,
   tree: { radius: [16, 24], height: [90, 130] },
@@ -35,10 +32,13 @@ export const REWORK_MAP = {
   cell: 128,
 } as const;
 
-/** The flood's beasts and the special ones: the weather spirit, a wolf den, the pack leader. */
-export type ReworkEnemyId = 'wolf' | 'mushroom' | 'stump' | 'spirit' | 'nest' | 'alpha';
+/**
+ * The flood's beasts and the special ones: the weather spirit, a wolf den, the pack leader; in the
+ * second location (20.14) the spider, the cocoon it hatches from and the spinner.
+ */
+export type ReworkEnemyId = 'wolf' | 'mushroom' | 'stump' | 'spider' | 'spirit' | 'nest' | 'cocoon' | 'alpha' | 'spinner';
 
-/** The beasts the flood sends. */
+/** The beasts the flood sends (the stress test's mix). */
 export const FLOOD_BEASTS = ['wolf', 'mushroom', 'stump'] as const;
 
 export interface ReworkEnemyDef {
@@ -57,6 +57,8 @@ export interface ReworkEnemyDef {
   leap?: { every: number; trigger: number; windup: number; speedMult: number; time: number };
   /** Mushroom: keeps away and spits spores; every N-th shot is a fan. */
   spit?: { every: number; keep: number; range: number; windup: number; speed: number; damage: number; fanEvery: number; fanCount: number; fanDeg: number };
+  /** Spider: stops and spits a web at the hero's place; where it lands, a sticky patch slows him. */
+  web?: { every: number; trigger: number; windup: number; speed: number; range: number };
   /** Stump: stomps — a ring around it hurts after a delay. */
   stomp?: { every: number; trigger: number; reach: number; delay: number; damage: number };
 }
@@ -99,10 +101,31 @@ export const REWORK_ENEMIES: Record<ReworkEnemyId, ReworkEnemyDef> = {
     weight: 2,
     stomp: { every: 3.5, trigger: 70, reach: 46, delay: 0.7, damage: 9 },
   },
-  // The special ones walk by their own code (spirit.ts, task.ts, boss.ts); these are their bodies.
+  spider: {
+    id: 'spider',
+    name: 'Павук',
+    hp: 12,
+    damage: 3,
+    touchEvery: 1,
+    speed: 135,
+    radius: 11,
+    xp: 3,
+    weight: 3,
+    web: { every: 5, trigger: 340, windup: 0.4, speed: 320, range: 380 },
+  },
+  // The special ones walk by their own code (spirit.ts, task.ts, boss.ts, spinner.ts); these are their bodies.
   spirit: { id: 'spirit', name: 'Дух занепаду', hp: 260, damage: 4, touchEvery: 1, speed: 95, radius: 16, xp: 30, weight: 0 },
   nest: { id: 'nest', name: 'Вовче лігво', hp: 110, damage: 0, touchEvery: 1, speed: 0, radius: 26, xp: 8, weight: 0 },
+  cocoon: { id: 'cocoon', name: 'Кокон', hp: 120, damage: 0, touchEvery: 1, speed: 0, radius: 22, xp: 8, weight: 0 },
   alpha: { id: 'alpha', name: 'Ватажок зграї', hp: 2600, damage: 10, touchEvery: 0.8, speed: 125, radius: 24, xp: 120, weight: 0 },
+  spinner: { id: 'spinner', name: 'Прядуха', hp: 3200, damage: 12, touchEvery: 0.8, speed: 190, radius: 30, xp: 160, weight: 0 },
+};
+
+/** A spider's web on the ground: this wide, this long, the hero in it walks at this share of his speed. */
+export const REWORK_WEB = {
+  patchRadius: 48,
+  patchTime: 5,
+  slow: 0.5,
 };
 
 /** 20.3 — the flood: never stops, starts thin, grows thicker, every beast a bit stronger. */
@@ -119,11 +142,63 @@ export const REWORK_FLOOD = {
   damagePerMinute: 0.08,
   /** Spawn just outside the view: this far from the hero (world px). */
   spawnDistance: [640, 760] as [number, number],
-  /** The mix: the stump joins after this many seconds, the mushroom after that. */
+  /** The mix (first location): the mushroom joins after this many seconds, the stump after that. */
   mushroomFrom: 30,
   stumpFrom: 75,
   /** The location's timer (s); the boss comes at 6:30 later (step 20.12). */
   runTime: 480,
+};
+
+/**
+ * 20.14 — the biome's locations in order: the run goes from one to the next and the hero keeps
+ * his level, skills, passives and gold. The second is the deeper forest: denser, darker, with
+ * cobwebs on the trees; its flood starts stronger and brings spiders; two tasks one after another;
+ * the spinner instead of the pack leader.
+ */
+export interface ReworkLocation {
+  name: string;
+  /** Obstacles of each kind; trees with cobwebs (share). */
+  map: { trees: number; bushes: number; stones: number; webbed: number };
+  /** Darker ground (0 — as is). */
+  dark: number;
+  /** Beasts from this many seconds (Infinity — not here); beasts this much stronger from the start. */
+  from: { mushroom: number; stump: number; spider: number };
+  power: number;
+  /** Tasks: when each comes and which kinds it may be (the first by the seed, the next — another one). */
+  tasks: { at: number; kinds: TaskKind[] }[];
+  boss: 'alpha' | 'spinner';
+}
+
+export const REWORK_LOCATIONS: ReworkLocation[] = [
+  {
+    name: 'Ліс',
+    map: { trees: 110, bushes: 70, stones: 45, webbed: 0 },
+    dark: 0,
+    from: { mushroom: 30, stump: 75, spider: Infinity },
+    power: 1,
+    tasks: [{ at: 90, kinds: ['nests', 'rescue'] }],
+    boss: 'alpha',
+  },
+  {
+    name: 'Глибина лісу',
+    map: { trees: 150, bushes: 80, stones: 40, webbed: 0.35 },
+    dark: 0.3,
+    from: { mushroom: 20, stump: 60, spider: 15 },
+    power: 1.6,
+    tasks: [
+      { at: 90, kinds: ['webs', 'rescue'] },
+      { at: 300, kinds: ['webs', 'rescue'] },
+    ],
+    boss: 'spinner',
+  },
+];
+
+/** After a location's boss: the path to the next one at the field's edge. */
+export const REWORK_PATH = {
+  label: 'Глибше в ліс',
+  radius: 70,
+  /** The name of the new location shows this long. */
+  bannerTime: 3,
 };
 
 export type ReworkClassId = 'warrior' | 'mage' | 'archer';
@@ -322,6 +397,15 @@ export const REWORK_TASKS = {
     near: 700,
     distance: [500, 900] as [number, number],
   },
+  webs: {
+    text: 'Знищте павутиння',
+    pointer: 'Кокон',
+    count: 3,
+    /** Each cocoon hatches a spider every N s while the hero is near. */
+    spawnEvery: 3.5,
+    near: 700,
+    distance: [500, 900] as [number, number],
+  },
   rescue: {
     text: 'Виведіть лісоруба до краю лісу',
     /** The arrow's captions: to him, then (he follows) to the way out. */
@@ -338,7 +422,7 @@ export const REWORK_TASKS = {
   rescueHeal: 0.3,
 };
 
-export type TaskKind = 'nests' | 'rescue';
+export type TaskKind = 'nests' | 'webs' | 'rescue';
 
 /** 20.12–20.13 — the boss comes, the beasts stand in a living ring; the pack leader. */
 export const REWORK_BOSS = {
@@ -355,6 +439,9 @@ export const REWORK_BOSS = {
   zoom: 0.85,
   alpha: {
     name: 'Ватажок зграї',
+    /** Over him: a line by the hero, the victory screen's title. */
+    defeated: 'Ватажка подолано!',
+    victory: 'Ватажка зграї подолано!',
     hp: 2600,
     radius: 24,
     speed: 175,
@@ -373,6 +460,33 @@ export const REWORK_BOSS = {
     /** Howl: this many wolves from the ring rush the hero, every N s. */
     howl: { every: 9, wolves: 3 },
     xp: 120,
+  },
+  /**
+   * 20.14 — the spinner (docs/BOSSES.md): lays threads across the arena (touch — slowed), spits a
+   * cocoon (hit — wrapped, a dodge breaks free), then pulls every thread to the hero: a ring of
+   * web closing on him with one clear gap (two, if the lumberjack was saved). After the pull the
+   * threads tear and she stands open. Calls spiderlings unless the cocoons were destroyed. Her
+   * ring is sticky: touching it holds the hero.
+   */
+  spinner: {
+    name: 'Прядуха',
+    defeated: 'Прядуху подолано!',
+    victory: 'Прядуху подолано!',
+    hp: 3200,
+    radius: 30,
+    speed: 190,
+    /** Keeps this far from the hero, skittering sideways. */
+    keep: 210,
+    touch: 12,
+    threads: { every: 3, warn: 0.7, max: 5, slow: 0.5 },
+    cocoon: { every: 6.5, windup: 0.55, speed: 430, radius: 10, root: 1 },
+    /** The pull: starts this long after the spit, closes from this radius over this long. */
+    pull: { delay: 0.35, time: 1.4, radius: 300, segments: 8, gapDeg: 45, damage: 22 },
+    rest: 1.5,
+    restTake: 1.5,
+    brood: { every: 10, count: 3 },
+    /** Touching her sticky ring holds the hero this long. */
+    stick: 0.5,
   },
 };
 

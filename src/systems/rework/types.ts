@@ -18,6 +18,8 @@ export interface Obstacle {
   height: number;
   /** A small per-obstacle variation for drawing. */
   seed: number;
+  /** Hung with cobwebs (the deeper forest). */
+  webbed?: boolean;
 }
 
 export interface Dodge {
@@ -55,6 +57,9 @@ export interface RunHero {
   /** A shrine's buff and the shield it gives. */
   shrine: { kind: ShrineKind; time: number } | null;
   shield: number;
+  /** 20.14: wrapped in a cocoon or stuck to the web ring — can't walk (a dodge breaks free); walks at this share of speed (webs). */
+  root: number;
+  slow: number;
 }
 
 export type EnemyAct =
@@ -72,7 +77,10 @@ export type EnemyAct =
   /** A beast standing in the living ring (20.12) at its place. */
   | { kind: 'ring'; slot: Vec }
   /** The spirit gathers its fog (20.10). */
-  | { kind: 'cast'; time: number };
+  | { kind: 'cast'; time: number }
+  /** A spider stops and spits a web at a point; the spinner rears before her cocoon (20.14). */
+  | { kind: 'weave'; time: number; to: Vec }
+  | { kind: 'spitWind'; time: number; dir: Vec };
 
 export interface RunEnemy {
   id: number;
@@ -114,7 +122,7 @@ export interface Shot {
   life: number;
   /** Hero shots hit beasts; beast shots hit the hero. */
   byHero: boolean;
-  kind: 'bolt' | 'arrow' | 'spore' | 'axe' | 'fireball' | 'missile' | 'pierceArrow';
+  kind: 'bolt' | 'arrow' | 'spore' | 'web' | 'cocoon' | 'axe' | 'fireball' | 'missile' | 'pierceArrow';
   /** Beasts it may still pass through (arrows) and the ones already hit. */
   pierce: number;
   hit: number[];
@@ -222,6 +230,8 @@ export type RunEvent =
   | { type: 'swing'; pos: Vec; angle: number; reach: number; arc: number }
   | { type: 'kill'; pos: Vec; def: ReworkEnemyId; id: number; radius: number; boss: boolean }
   | { type: 'levelUp'; level: number }
+  /** 20.14: the run went on to the next location. */
+  | { type: 'location'; index: number }
   | { type: 'dodge'; from: Vec; to: Vec }
   | { type: 'attack'; angle: number }
   | { type: 'cast'; skill: ReworkSkillId }
@@ -285,8 +295,19 @@ export interface Run {
   fog: number;
   fogTarget: number;
   spiritCame: boolean;
-  /** 20.11 */
+  /** 20.14: which location of the biome (REWORK_LOCATIONS) and, after its boss, the path on. */
+  location: number;
+  path: Vec | null;
+  /** 20.11: the task on now; how many the location gave; the boss weakened: no wolves, no spiderlings, the lumberjack saved. */
   task: Task | null;
+  tasksGiven: number;
+  noBrood: boolean;
+  rescued: boolean;
+  /** 20.14: webs on the ground, the spinner's threads and her pull. */
+  webs: { pos: Vec; radius: number; time: number }[];
+  threads: { a: Vec; b: Vec; warn: number }[];
+  /** The pull: centre, seconds (negative — not closing yet), the first piece's angle, the clear pieces, whether it caught the hero. */
+  pull: { center: Vec; time: number; base: number; gaps: number[]; hit: boolean } | null;
   /** 20.12–20.13: the phase, the ring's centre, the boss weakened by the task. */
   phase: RunPhase;
   ringCenter: Vec;

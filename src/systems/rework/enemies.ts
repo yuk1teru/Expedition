@@ -1,11 +1,11 @@
 // The flood and the Forest's beasts (ROADMAP 20.3, 20.9). Beasts come without a break from just
 // outside the view: few at first, ever more often, each a bit stronger than the one before.
 // The wolf crouches and leaps along a shown line, the mushroom keeps away and spits spores
-// (every third time a fan), the stump stomps a ring around itself. Elites come on a timer, larger
-// and with a trait. The special beasts (the spirit, dens, the boss) and the beasts standing in
+// (every third time a fan), the stump stomps a ring around itself, the spider (the deeper forest)
+// spits webs that stick the ground. Elites come on a timer, larger and with a trait. The special beasts (the spirit, dens, the boss) and the beasts standing in
 // the living ring are stepped by their own code, passed in as `special`.
 
-import { type EliteTrait, REWORK_ELITES, REWORK_ENEMIES, REWORK_FLOOD, type ReworkEnemyId } from '../../data/rework';
+import { type EliteTrait, REWORK_BOSS, REWORK_ELITES, REWORK_ENEMIES, REWORK_FLOOD, REWORK_LOCATIONS, REWORK_WEB, type ReworkEnemyId } from '../../data/rework';
 import type { Vec } from '../entities';
 import { damageHero } from './combat';
 import { blocksShot, isFree, resolveBody } from './map';
@@ -27,9 +27,11 @@ export function powerAt(t: number): { hp: number; damage: number } {
 }
 
 export function pickBeast(run: Run): ReworkEnemyId {
+  const from = REWORK_LOCATIONS[run.location]!.from;
   const pool: ReworkEnemyId[] = ['wolf'];
-  if (run.time >= F.mushroomFrom) pool.push('mushroom');
-  if (run.time >= F.stumpFrom) pool.push('stump');
+  if (run.time >= from.mushroom) pool.push('mushroom');
+  if (run.time >= from.stump) pool.push('stump');
+  if (run.time >= from.spider) pool.push('spider');
   const total = pool.reduce((s, id) => s + REWORK_ENEMIES[id].weight, 0);
   let r = run.rng.next() * total;
   for (const id of pool) {
@@ -50,6 +52,9 @@ export function spawnBeast(run: Run, def: ReworkEnemyId, near?: Vec): RunEnemy |
     if (pos.x < d.radius || pos.y < d.radius || pos.x > run.width - d.radius || pos.y > run.height - d.radius) continue;
     if (!isFree(run.grid, pos, d.radius)) continue;
     const p = powerAt(run.time);
+    const more = REWORK_LOCATIONS[run.location]!.power;
+    p.hp *= more;
+    p.damage *= more;
     const e: RunEnemy = {
       id: run.nextId++,
       def,
@@ -165,6 +170,13 @@ function stepBeast(run: Run, e: RunEnemy, dt: number): void {
       spit(run, e, act.dir, act.fan);
       e.act = { kind: 'walk' };
     }
+  } else if (act.kind === 'weave') {
+    act.time -= dt;
+    speed = 0;
+    if (act.time <= 0) {
+      spitWeb(run, e, act.to);
+      e.act = { kind: 'walk' };
+    }
   } else if (act.kind === 'stomp') {
     act.time -= dt;
     speed = 0;
@@ -183,6 +195,10 @@ function stepBeast(run: Run, e: RunEnemy, dt: number): void {
       e.traitTimer = d.spit.every;
       e.shots += 1;
       e.act = { kind: 'aim', time: d.spit.windup, dir, fan: e.shots % d.spit.fanEvery === 0 };
+      speed = 0;
+    } else if (d.web && e.traitTimer <= 0 && dist < d.web.trigger) {
+      e.traitTimer = d.web.every;
+      e.act = { kind: 'weave', time: d.web.windup, to: { x: h.pos.x, y: h.pos.y } };
       speed = 0;
     } else if (d.stomp && e.traitTimer <= 0 && dist < d.stomp.trigger + e.radius) {
       e.traitTimer = d.stomp.every;
@@ -224,6 +240,30 @@ function spit(run: Run, e: RunEnemy, dir: Vec, fan: boolean): void {
   }
 }
 
+/** A spider's web flies to where the hero stood and sticks there (or on him, if it hits). */
+function spitWeb(run: Run, e: RunEnemy, to: Vec): void {
+  const w = REWORK_ENEMIES[e.def].web!;
+  const dx = to.x - e.pos.x;
+  const dy = to.y - e.pos.y;
+  const d = Math.hypot(dx, dy) || 1;
+  run.shots.push({
+    pos: { x: e.pos.x, y: e.pos.y },
+    vel: { x: (dx / d) * w.speed, y: (dy / d) * w.speed },
+    radius: 7,
+    damage: 0,
+    life: Math.min(d, w.range) / w.speed,
+    byHero: false,
+    kind: 'web',
+    pierce: 0,
+    hit: [],
+  });
+}
+
+/** Puts a sticky web patch on the ground. */
+export function layWeb(run: Run, pos: Vec): void {
+  run.webs.push({ pos: { x: pos.x, y: pos.y }, radius: REWORK_WEB.patchRadius, time: REWORK_WEB.patchTime });
+}
+
 const cellKey = (cx: number, cy: number): number => cx * 100003 + cy;
 
 export function stepBeasts(run: Run, dt: number, special: (e: RunEnemy) => boolean = () => false): void {
@@ -255,8 +295,8 @@ export function stepBeasts(run: Run, dt: number, special: (e: RunEnemy) => boole
           const min = e.radius + o.radius;
           if (dist >= min || dist === 0) continue;
           // A den stands where it is; the boss is barely moved by the crowd.
-          const we = e.def === 'nest' ? 0 : e.boss ? 0.1 : 1;
-          const wo = o.def === 'nest' ? 0 : o.boss ? 0.1 : 1;
+          const we = e.def === 'nest' || e.def === 'cocoon' ? 0 : e.boss ? 0.1 : 1;
+          const wo = o.def === 'nest' || o.def === 'cocoon' ? 0 : o.boss ? 0.1 : 1;
           if (we + wo === 0) continue;
           const push = (min - dist) / dist;
           e.pos.x += dx * push * (we / (we + wo));
@@ -279,7 +319,10 @@ export function stepBeasts(run: Run, dt: number, special: (e: RunEnemy) => boole
   run.enemies = run.enemies.filter((e) => !e.dead);
 }
 
-/** Beast spores fly until they hit the hero, a tree or run out. */
+/**
+ * Beast shots fly until they hit the hero, a tree or run out: a spore hurts; a web sticks to the
+ * ground where it stops (on the hero, if it hits him); the spinner's cocoon wraps the hero.
+ */
 export function stepBeastShots(run: Run, dt: number): void {
   const h = run.hero;
   for (const s of run.shots) {
@@ -287,10 +330,18 @@ export function stepBeastShots(run: Run, dt: number): void {
     s.pos.x += s.vel.x * dt;
     s.pos.y += s.vel.y * dt;
     s.life -= dt;
+    const hit = !h.dead && Math.hypot(s.pos.x - h.pos.x, s.pos.y - h.pos.y) < s.radius + h.radius;
     if (blocksShot(run.grid, s.pos)) s.life = 0;
-    else if (!h.dead && Math.hypot(s.pos.x - h.pos.x, s.pos.y - h.pos.y) < s.radius + h.radius) {
+    else if (hit && s.kind === 'cocoon') {
+      if (h.invuln <= 0) {
+        h.root = REWORK_BOSS.spinner.cocoon.root;
+        run.events.push({ type: 'note', pos: { x: h.pos.x, y: h.pos.y - 70 }, text: 'Кокон! Пробіл — вирватись', color: '#e8e8f0' });
+      }
+      s.life = 0;
+    } else if (hit && s.kind !== 'web') {
       damageHero(run, s.damage);
       s.life = 0;
-    }
+    } else if (hit) s.life = 0;
+    if (s.kind === 'web' && s.life <= 0) layWeb(run, hit ? h.pos : s.pos);
   }
 }

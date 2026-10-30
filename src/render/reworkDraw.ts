@@ -3,7 +3,7 @@
 // until the art comes (VISION §10). Three-quarter view: every body stands on its foot point, and
 // the caller draws them sorted by it.
 
-import { REWORK_BOSS, REWORK_CLASSES, REWORK_ELITES, REWORK_ENEMIES, REWORK_MAP, REWORK_PICKUPS, REWORK_TASKS } from '../data/rework';
+import { REWORK_BOSS, REWORK_CLASSES, REWORK_ELITES, REWORK_ENEMIES, REWORK_MAP, REWORK_PICKUPS, REWORK_TASKS, REWORK_WEB } from '../data/rework';
 import { FOREST_ART } from '../data/forestArt';
 import { beastSheet, beastSize, drawBeastFrames } from './beastAnim';
 import { artCrown, drawPart, drawProp, obstacleParts, partsBox, propsAtlas } from './forestArt';
@@ -57,6 +57,7 @@ function codePicture(o: Obstacle): ObstaclePicture {
   const g = pic.getContext('2d')!;
   g.translate(ox - o.pos.x, oy - o.pos.y);
   paintObstacle(g, o);
+  if (o.webbed) paintCobweb(g, o.pos.x + (o.seed - 0.5) * 20, o.pos.y - o.height * 0.55, o.radius * 1.3);
   return { pic, ox, oy, art: false };
 }
 
@@ -70,6 +71,7 @@ function artPicture(o: Obstacle, img: HTMLImageElement): ObstaclePicture {
   const oy = 2 - box.top;
   const g = pic.getContext('2d')!;
   for (const p of parts) drawPart(g, img, p, ox, oy);
+  if (o.webbed) paintCobweb(g, ox + (o.seed - 0.5) * 24, oy + box.top * 0.5, Math.min(34, -box.top * 0.22));
   return { pic, ox, oy, art: true };
 }
 
@@ -188,6 +190,14 @@ export function drawEnemyWarning(ctx: CanvasRenderingContext2D, e: RunEnemy): vo
     ctx.moveTo(e.pos.x, e.pos.y);
     ctx.lineTo(e.pos.x + act.dir.x * len, e.pos.y + act.dir.y * len);
     ctx.stroke();
+  } else if (act.kind === 'weave') {
+    ctx.strokeStyle = 'rgba(235, 235, 245, 0.7)';
+    ctx.setLineDash([5, 5]);
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(act.to.x, act.to.y, REWORK_WEB.patchRadius, REWORK_WEB.patchRadius * 0.62, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
   } else if (act.kind === 'stomp' && d.stomp) {
     const k = 1 - act.time / d.stomp.delay;
     const reach = d.stomp.reach + e.radius;
@@ -206,6 +216,8 @@ export function drawEnemyWarning(ctx: CanvasRenderingContext2D, e: RunEnemy): vo
 
 export function drawEnemy(ctx: CanvasRenderingContext2D, e: RunEnemy, time: number): void {
   if (e.def === 'nest') return drawNest(ctx, e, time);
+  if (e.def === 'cocoon') return drawCocoon(ctx, e, time);
+  if (e.def === 'spinner') return drawSpinner(ctx, e, time);
   if (e.def === 'spirit') return drawSpirit(ctx, e, time);
   if (e.def === 'alpha') return drawAlpha(ctx, e, time);
   const r = e.radius;
@@ -233,6 +245,9 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, e: RunEnemy, time: numb
   ctx.scale(side, 1);
   if (drawn) {
     // Drawn from its frames.
+  } else if (e.def === 'spider') {
+    ctx.scale(1.6, 1.6);
+    drawSpiderBody(ctx, r, time + e.id, flash, e.act.kind === 'walk');
   } else if (e.def === 'wolf') {
     const crouch = e.act.kind === 'crouch' ? 0.7 : 1;
     const stretch = e.act.kind === 'leap' ? 1.35 : 1;
@@ -421,6 +436,11 @@ export function drawShot(ctx: CanvasRenderingContext2D, s: Shot, time = 0): void
     return;
   }
   if (s.kind === 'spore') return drawSpore(ctx, s);
+  if (s.kind === 'web' || s.kind === 'cocoon') {
+    const big = s.kind === 'cocoon';
+    blob(ctx, s.pos.x, s.pos.y - (big ? 26 : 16), s.radius * (big ? 1.1 : 0.9), s.radius * (big ? 1.4 : 0.9), big ? '#f0ece4' : '#e6e6ee');
+    return;
+  }
   const y = s.pos.y - 18;
   ctx.fillStyle = '#ff9d3a';
   ctx.strokeStyle = '#fff0b0';
@@ -870,9 +890,22 @@ function stars(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, t
 }
 
 /** The boss's warnings on the ground: the dash's line and the leap's landing circle. */
-export function drawBossWarning(ctx: CanvasRenderingContext2D, e: RunEnemy): void {
+export function drawBossWarning(ctx: CanvasRenderingContext2D, e: RunEnemy, hero?: { x: number; y: number }): void {
   const A = REWORK_BOSS.alpha;
   const act = e.act;
+  if (act.kind === 'spitWind' && hero) {
+    // The spinner rears: a line to the hero — the cocoon comes along it.
+    ctx.save();
+    ctx.strokeStyle = `rgba(240, 240, 250, ${0.3 + 0.5 * (1 - act.time / REWORK_BOSS.spinner.cocoon.windup)})`;
+    ctx.setLineDash([10, 8]);
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(e.pos.x, e.pos.y - 20);
+    ctx.lineTo(hero.x, hero.y - 20);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
   if (act.kind === 'dashWind') {
     const k = 1 - act.time / A.dash.windup;
     ctx.save();
@@ -910,4 +943,224 @@ export function drawRingWall(ctx: CanvasRenderingContext2D, c: { x: number; y: n
   ctx.beginPath();
   ctx.ellipse(c.x, c.y, R, R * 0.62, 0, 0, Math.PI * 2);
   ctx.stroke();
+}
+
+/** A spider of the deeper forest until its art comes: a dark round body, eight bent legs, red eyes. */
+function drawSpiderBody(ctx: CanvasRenderingContext2D, r: number, time: number, flash: boolean, walking: boolean, big = false): void {
+  const step = walking ? Math.sin(time * (big ? 10 : 16)) : 0;
+  ctx.lineCap = 'round';
+  // Legs: a dark outline under a lighter stroke, so they read on the dark ground.
+  for (const [color, width] of [[OUTLINE, big ? 6 : 3.4], [flash ? '#ffffff' : big ? '#7a6470' : '#6e6274', big ? 3 : 1.6]] as const) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    for (let i = 0; i < 4; i++) {
+      for (const s of [-1, 1]) {
+        const a = (-0.9 + i * 0.6) * s;
+        const lift = (i % 2 ? step : -step) * r * 0.25;
+        const kx = Math.sin(a) * r * 1.3;
+        ctx.beginPath();
+        ctx.moveTo(0, -r * 0.7);
+        ctx.quadraticCurveTo(kx * 0.9, -r * 1.5 + lift, kx * 1.5 + s * r * 0.4, -r * 0.05);
+        ctx.stroke();
+      }
+    }
+  }
+  blob(ctx, -r * 0.55, -r * 0.85, r * 0.85, r * 0.7, flash ? '#ffffff' : big ? '#4a3a48' : '#55485c');
+  blob(ctx, r * 0.45, -r * 0.75, r * 0.5, r * 0.45, flash ? '#ffffff' : big ? '#5c4a56' : '#665a6e');
+  if (big) {
+    // The spinner's back: a pale mark like a spindle.
+    ctx.fillStyle = '#d9c9a0';
+    ctx.beginPath();
+    ctx.ellipse(-r * 0.6, -r * 1.1, r * 0.18, r * 0.4, 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = '#ff4a3a';
+  for (const [dx, dy] of [[0.6, -0.9], [0.75, -0.8], [0.55, -0.7]] as const) {
+    ctx.beginPath();
+    ctx.arc(dx * r, dy * r, Math.max(1.5, r * 0.08), 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/** A cocoon of the task: a pale egg sac hung with threads, pulsing. */
+function drawCocoon(ctx: CanvasRenderingContext2D, e: RunEnemy, time: number): void {
+  const r = e.radius;
+  const flash = time - e.hitAt < 0.08;
+  const pulse = 1 + Math.sin(time * 3 + e.id) * 0.04;
+  drawShadow(ctx, e.pos.x, e.pos.y, r * 1.2);
+  ctx.strokeStyle = 'rgba(230, 230, 240, 0.55)';
+  ctx.lineWidth = 1.2;
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI + (i / 5) * Math.PI;
+    ctx.beginPath();
+    ctx.moveTo(e.pos.x, e.pos.y - r);
+    ctx.lineTo(e.pos.x + Math.cos(a) * r * 1.8, e.pos.y + Math.sin(a) * r * 1.1);
+    ctx.stroke();
+  }
+  blob(ctx, e.pos.x, e.pos.y - r * pulse, r * 0.8, r * pulse, flash ? '#ffffff' : '#ddd8cc');
+  ctx.strokeStyle = 'rgba(120, 110, 100, 0.6)';
+  ctx.lineWidth = 1;
+  for (let i = -2; i <= 2; i++) {
+    ctx.beginPath();
+    ctx.ellipse(e.pos.x, e.pos.y - r + i * r * 0.32, r * 0.75 * Math.cos(i * 0.35), r * 0.12, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  hpBar(ctx, e, e.pos.y - r * 2.3, r * 2.2);
+}
+
+/** The spinner: a big spider rearing before her cocoon; when open after the pull — stars over her. */
+function drawSpinner(ctx: CanvasRenderingContext2D, e: RunEnemy, time: number): void {
+  const r = e.radius;
+  const flash = time - e.hitAt < 0.05;
+  const side = e.vel.x < -1 ? -1 : 1;
+  drawShadow(ctx, e.pos.x, e.pos.y, r * 2);
+  const rear = e.act.kind === 'spitWind' ? 1 - e.act.time / REWORK_BOSS.spinner.cocoon.windup : 0;
+  ctx.save();
+  ctx.translate(e.pos.x, e.pos.y);
+  ctx.scale(side * 1.5, 1.5);
+  ctx.rotate(-rear * 0.35);
+  drawSpiderBody(ctx, r, time, flash, Math.hypot(e.vel.x, e.vel.y) > 5, true);
+  ctx.restore();
+  if (e.act.kind === 'rest') stars(ctx, e.pos.x, e.pos.y - r * 3, r * 0.9, time);
+}
+
+type P = { x: number; y: number };
+
+/** A web on the ground: spokes and rings, fading out at its end. */
+export function drawWebPatch(ctx: CanvasRenderingContext2D, w: { pos: P; radius: number; time: number }): void {
+  ctx.save();
+  ctx.globalAlpha = 0.55 * Math.min(1, w.time / 0.8);
+  ctx.strokeStyle = '#e9e9f2';
+  ctx.lineWidth = 1.3;
+  const R = w.radius;
+  const at = (a: number, f: number): P => ({ x: w.pos.x + Math.cos(a) * R * f, y: w.pos.y + Math.sin(a) * R * f * 0.62 });
+  for (let i = 0; i < 8; i++) {
+    const p = at((i / 8) * Math.PI * 2, 1);
+    ctx.beginPath();
+    ctx.moveTo(w.pos.x, w.pos.y);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+  }
+  for (const f of [0.35, 0.65, 0.95]) {
+    ctx.beginPath();
+    for (let i = 0; i <= 8; i++) {
+      const p = at((i / 8) * Math.PI * 2, f);
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** The spinner's threads across the arena: thin and red while only shown, then white; pulled, their ends slide to the hero. */
+export function drawThreads(ctx: CanvasRenderingContext2D, threads: { a: P; b: P; warn: number }[], pull: { center: P; time: number } | null): void {
+  const S = REWORK_BOSS.spinner.pull;
+  const k = pull ? Math.min(1, Math.max(0, (pull.time + S.delay) / (S.time + S.delay))) : 0;
+  const slide = (p: P): P => (pull ? { x: p.x + (pull.center.x - p.x) * k, y: p.y + (pull.center.y - p.y) * k } : p);
+  for (const t of threads) {
+    const a = slide(t.a);
+    const b = slide(t.b);
+    ctx.save();
+    if (t.warn > 0) {
+      ctx.strokeStyle = 'rgba(230, 90, 80, 0.7)';
+      ctx.setLineDash([8, 6]);
+      ctx.lineWidth = 1.5;
+    } else {
+      ctx.strokeStyle = 'rgba(240, 240, 250, 0.85)';
+      ctx.shadowColor = 'rgba(255, 255, 255, 0.6)';
+      ctx.shadowBlur = 6;
+      ctx.lineWidth = 2.5;
+    }
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y - 6);
+    ctx.lineTo(b.x, b.y - 6);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+/** The pull: the closing ring of web (red while it waits to close) and its clear gaps, lit green. */
+export function drawPull(ctx: CanvasRenderingContext2D, segments: [P, P][], gaps: [P, P][], waiting: boolean): void {
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = waiting ? 'rgba(240, 120, 110, 0.55)' : 'rgba(245, 245, 255, 0.95)';
+  ctx.lineWidth = waiting ? 3 : 5;
+  for (const [a, b] of segments) {
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(120, 255, 140, 0.8)';
+  ctx.lineWidth = 10;
+  ctx.setLineDash([4, 8]);
+  for (const [a, b] of gaps) {
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** The path to the next location: a lit trail on the ground. */
+export function drawPath(ctx: CanvasRenderingContext2D, p: P, radius: number, time: number): void {
+  ctx.save();
+  const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
+  glow.addColorStop(0, `rgba(255, 220, 140, ${0.45 + 0.15 * Math.sin(time * 3)})`);
+  glow.addColorStop(1, 'rgba(255, 220, 140, 0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.ellipse(p.x, p.y, radius, radius * 0.62, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255, 220, 140, 0.8)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([10, 8]);
+  ctx.lineDashOffset = -time * 20;
+  ctx.beginPath();
+  ctx.ellipse(p.x, p.y, radius * 0.8, radius * 0.5, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** The hero wrapped in a cocoon or stuck to the web: white strands around him. */
+export function drawWrap(ctx: CanvasRenderingContext2D, p: P, time: number): void {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(240, 240, 248, 0.85)';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 5; i++) {
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y - 20 - i * 11, 20 - Math.abs(i - 2) * 2, 6, Math.sin(time * 4 + i) * 0.2, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** A cobweb in a tree's crown (the deeper forest), painted into its picture. */
+function paintCobweb(ctx: CanvasRenderingContext2D, x: number, y: number, r: number): void {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(235, 235, 245, 0.6)';
+  ctx.lineWidth = 1;
+  const at = (i: number, f: number): P => {
+    const a = (i / 7) * Math.PI * 2 + 0.3;
+    return { x: x + Math.cos(a) * r * f, y: y + Math.sin(a) * r * f + 2 * f };
+  };
+  for (let i = 0; i < 7; i++) {
+    const p = at(i, 1);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+  }
+  for (const f of [0.3, 0.55, 0.8, 1]) {
+    ctx.beginPath();
+    for (let i = 0; i <= 7; i++) {
+      const p = at(i, f);
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
 }

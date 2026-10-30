@@ -1,10 +1,11 @@
-// The task of a location (ROADMAP 20.11, VISION §3): given at 1:30, a line on the screen, an
-// arrow to the goal and a timer. In the Forest: destroy three wolf dens (each sends wolves while
-// the hero is near) or lead a lumberjack to the forest's edge. Not doing it costs nothing; doing
-// it gives a chest and weakens the boss — no dens, no howling wolves; the lumberjack saved —
-// HP back when the boss comes.
+// The tasks of a location (ROADMAP 20.11, 20.14, VISION §3): a line on the screen, arrows to the
+// goals and a timer. The first location gives one at 1:30, the deeper forest two (1:30 and 5:00).
+// Destroy three wolf dens (each sends wolves while the hero is near) or three cocoons (spiders),
+// or lead a lumberjack to the forest's edge. Not doing it costs nothing; doing it gives a chest
+// and weakens the boss: no dens — no howling wolves; no cocoons — no spiderlings; the lumberjack
+// saved — HP back when the pack leader comes, a second clear gap in the spinner's pull.
 
-import { REWORK_TASKS, type TaskKind } from '../../data/rework';
+import { REWORK_LOCATIONS, REWORK_TASKS, type TaskKind } from '../../data/rework';
 import type { Vec } from '../entities';
 import { spawnBeast } from './enemies';
 import { isFree } from './map';
@@ -24,20 +25,26 @@ function spotAround(run: Run, range: [number, number], radius: number): Vec {
   return { x: Math.min(run.width - 150, h.x + range[0]), y: h.y };
 }
 
-/** Which task the location gives (fixed by the run's seed). */
+/** Which task comes next: the first by the run's seed, a later one — one not given yet. */
 export function taskKind(run: Run): TaskKind {
-  return (run.rng.seed & 1) === 0 ? 'nests' : 'rescue';
+  const kinds = REWORK_LOCATIONS[run.location]!.tasks[run.tasksGiven]?.kinds ?? REWORK_LOCATIONS[0]!.tasks[0]!.kinds;
+  const last = run.task?.kind;
+  return kinds.find((k) => last && k !== last) ?? kinds[run.rng.seed & 1]!;
 }
+
+/** Destroy-tasks: the den each kind is made of and the beast it sends. */
+const DENS = { nests: { def: 'nest', sends: 'wolf' }, webs: { def: 'cocoon', sends: 'spider' } } as const;
 
 export function startTask(run: Run, kind: TaskKind): Task {
   const task: Task = { kind, time: T.duration, state: 'active', dens: [], denCount: 0, man: { x: 0, y: 0 }, following: false, exit: { x: 0, y: 0 } };
-  if (kind === 'nests') {
-    for (let i = 0; i < T.nests.count; i++) {
-      const p = spotAround(run, T.nests.distance, T.nests.radius + 10);
-      const e = spawnBeast(run, 'nest', p);
+  if (kind !== 'rescue') {
+    const D = T[kind];
+    for (let i = 0; i < D.count; i++) {
+      const p = spotAround(run, D.distance, 36);
+      const e = spawnBeast(run, DENS[kind].def, p);
       if (!e) continue;
       e.pos = p;
-      e.moveTimer = T.nests.spawnEvery * (0.3 + i * 0.25);
+      e.moveTimer = D.spawnEvery * (0.3 + i * 0.25);
       task.dens.push(e.id);
     }
     task.denCount = task.dens.length;
@@ -89,7 +96,12 @@ export function taskLine(t: Task): string {
 }
 
 export function stepTask(run: Run, dt: number): void {
-  if (!run.task && run.time >= T.startAt && run.phase === 'flood') startTask(run, taskKind(run));
+  const next = REWORK_LOCATIONS[run.location]!.tasks[run.tasksGiven];
+  if (next && run.time >= next.at && run.phase === 'flood' && run.task?.state !== 'active') {
+    const kind = taskKind(run);
+    run.tasksGiven += 1;
+    startTask(run, kind);
+  }
   const t = run.task;
   if (!t || t.state !== 'active') return;
   t.time -= dt;
@@ -124,19 +136,29 @@ function finish(run: Run, ok: boolean): void {
   }
   run.chests.push({ pos: { x: run.hero.pos.x + 70, y: run.hero.pos.y } });
   if (t.kind === 'nests') run.noHowl = true;
-  run.events.push({ type: 'note', pos: { x: run.hero.pos.x, y: run.hero.pos.y - 90 }, text: t.kind === 'nests' ? 'Лігва знищено: Ватажок не скличе вовків' : 'Лісоруба врятовано: він допоможе в бою', color: '#ffd27a' });
+  if (t.kind === 'webs') run.noBrood = true;
+  if (t.kind === 'rescue') run.rescued = true;
+  const spinner = REWORK_LOCATIONS[run.location]!.boss === 'spinner';
+  const text = {
+    nests: 'Лігва знищено: Ватажок не скличе вовків',
+    webs: 'Павутиння знищено: Прядуха не скличе павучат',
+    rescue: spinner ? 'Лісоруба врятовано: у бою він розрубає нитку' : 'Лісоруба врятовано: він допоможе в бою',
+  }[t.kind];
+  run.events.push({ type: 'note', pos: { x: run.hero.pos.x, y: run.hero.pos.y - 90 }, text, color: '#ffd27a' });
 }
 
-/** A den's own step: it stands and sends a wolf now and then while the hero is near. */
+/** A den's own step (a wolf den or a cocoon): it stands and sends its beast now and then while the hero is near. */
 export function stepNest(run: Run, e: RunEnemy, dt: number): boolean {
-  if (e.def !== 'nest') return false;
+  if (e.def !== 'nest' && e.def !== 'cocoon') return false;
+  const kind = e.def === 'nest' ? 'nests' : 'webs';
+  const D = T[kind];
   e.vel = { x: 0, y: 0 };
   const h = run.hero.pos;
-  if (Math.hypot(e.pos.x - h.x, e.pos.y - h.y) > T.nests.near) return true;
-  e.moveTimer = (e.moveTimer ?? T.nests.spawnEvery) - dt;
+  if (Math.hypot(e.pos.x - h.x, e.pos.y - h.y) > D.near) return true;
+  e.moveTimer = (e.moveTimer ?? D.spawnEvery) - dt;
   if (e.moveTimer <= 0) {
-    e.moveTimer = T.nests.spawnEvery;
-    const w = spawnBeast(run, 'wolf', e.pos);
+    e.moveTimer = D.spawnEvery;
+    const w = spawnBeast(run, DENS[kind].sends, e.pos);
     if (w) w.pos = { x: e.pos.x + e.radius + 14, y: e.pos.y + 6 };
   }
   return true;

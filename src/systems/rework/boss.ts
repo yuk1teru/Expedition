@@ -4,12 +4,15 @@
 // He dashes along a shown line, leaps at the hero (the landing circle shows first) and, often,
 // leaps right after a dash to where the hero dodged — the combo. After a leap he stands, winded:
 // the window to hit. Now and then he howls and wolves from the ring rush the hero (not if the
-// dens were destroyed). His death wins the location: the ring scatters.
+// dens were destroyed). His death wins the location: the ring scatters and, if the biome goes on,
+// a path to the next location opens at the field's edge. In the deeper forest the spinner comes
+// out instead (spinner.ts), and her ring is sticky: touching it holds the hero.
 
-import { REWORK_BOSS, REWORK_TASKS } from '../../data/rework';
+import { REWORK_BOSS, REWORK_LOCATIONS, REWORK_PATH, REWORK_TASKS } from '../../data/rework';
 import type { Vec } from '../entities';
 import { damageHero } from './combat';
 import { spawnBeast } from './enemies';
+import { isFree } from './map';
 import type { Run, RunEnemy } from './types';
 
 const B = REWORK_BOSS;
@@ -34,7 +37,29 @@ export function stepBossPhase(run: Run, dt: number): void {
       e.fear = 99;
       if (Math.hypot(e.pos.x - run.ringCenter.x, e.pos.y - run.ringCenter.y) > B.ringRadius + 500) e.dead = true;
     }
+    if (!run.path && run.location < REWORK_LOCATIONS.length - 1) run.path = pathSpot(run);
   }
+}
+
+/** The path on: a free spot at the field's edge nearest to the arena. */
+function pathSpot(run: Run): { x: number; y: number } {
+  const c = run.ringCenter;
+  const m = 90;
+  const edges = [
+    { x: m, y: c.y, d: c.x },
+    { x: run.width - m, y: c.y, d: run.width - c.x },
+    { x: c.x, y: m, d: c.y },
+    { x: c.x, y: run.height - m, d: run.height - c.y },
+  ].sort((a, b) => a.d - b.d);
+  const e = edges[0]!;
+  const along = e.x === m || e.x === run.width - m ? { x: 0, y: 1 } : { x: 1, y: 0 };
+  for (let k = 0; k < 40; k++) {
+    const off = (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 40;
+    const p = { x: e.x + along.x * off, y: e.y + along.y * off };
+    if (p.x < m || p.y < m || p.x > run.width - m || p.y > run.height - m) continue;
+    if (isFree(run.grid, p, REWORK_PATH.radius * 0.6)) return p;
+  }
+  return { x: e.x, y: e.y };
 }
 
 /** The beasts stop and stand in a ring around the hero; the boss comes out. */
@@ -43,9 +68,10 @@ export function formRing(run: Run): void {
   run.phase = 'ring';
   run.ringCenter = { x: h.pos.x, y: h.pos.y };
   h.invuln = Math.max(h.invuln, B.invuln);
-  // The spirit, the dens and spores have no place in the duel.
+  // The spirit, the dens, cocoons, webs and spores have no place in the duel.
   run.shots = run.shots.filter((s) => s.byHero);
-  for (const e of run.enemies) if (e.def === 'spirit' || e.def === 'nest') e.dead = true;
+  for (const e of run.enemies) if (e.def === 'spirit' || e.def === 'nest' || e.def === 'cocoon') e.dead = true;
+  run.webs = [];
   run.fogTarget = 0;
   let ring = run.enemies.filter((e) => !e.dead && !e.boss);
   // Too few to close the ring: wolves come to fill it; too many: the farthest go away.
@@ -66,19 +92,22 @@ export function formRing(run: Run): void {
     e.freeze = 0;
     e.fear = 0;
   });
-  // The pack leader comes out of the ring opposite the hero's facing.
-  const boss = spawnBeast(run, 'alpha', run.ringCenter);
+  // The location's boss comes out of the ring.
+  const id = REWORK_LOCATIONS[run.location]!.boss;
+  const boss = spawnBeast(run, id, run.ringCenter);
   if (boss) {
+    const def = B[id];
     boss.pos = { x: run.ringCenter.x + B.ringRadius * 0.6, y: run.ringCenter.y };
     boss.boss = true;
-    boss.hp = A.hp;
-    boss.maxHp = A.hp;
+    boss.hp = def.hp;
+    boss.maxHp = def.hp;
     boss.power = 1;
     boss.moveTimer = 2.5;
-    boss.howlTimer = A.howl.every;
+    boss.traitTimer = id === 'spinner' ? B.spinner.cocoon.every * 0.6 : boss.traitTimer;
+    boss.howlTimer = id === 'spinner' ? B.spinner.brood.every : A.howl.every;
   }
-  // The saved lumberjack throws the hero a potion.
-  if (run.task?.kind === 'rescue' && run.task.state === 'done') h.hp = Math.min(h.maxHp, h.hp + h.maxHp * REWORK_TASKS.rescueHeal);
+  // The saved lumberjack throws the hero a potion (the spinner's fight he helps in by cutting a thread).
+  if (id === 'alpha' && run.rescued) h.hp = Math.min(h.maxHp, h.hp + h.maxHp * REWORK_TASKS.rescueHeal);
 }
 
 /** The ring is an ellipse on the ground; true if the point is outside its inner edge. */
@@ -100,10 +129,11 @@ function stepRingWall(run: Run, dt: number): void {
   h.pos.x = run.ringCenter.x + Math.cos(a) * r;
   h.pos.y = run.ringCenter.y + Math.sin(a) * r * 0.62;
   if (h.dash && !h.dash.through) h.dash = null;
-  if (run.wallTimer <= 0) {
-    run.wallTimer = 1;
-    damageHero(run, B.wallDamage);
-  }
+  if (run.wallTimer > 0) return;
+  run.wallTimer = 1;
+  // The spinner's ring is sticky: it holds the hero instead of hurting.
+  if (REWORK_LOCATIONS[run.location]!.boss === 'spinner') h.root = Math.max(h.root, B.spinner.stick);
+  else damageHero(run, B.wallDamage);
 }
 
 /** A beast in the ring walks to its place and stands there, facing in. */
@@ -124,7 +154,7 @@ export function stepRingBeast(run: Run, e: RunEnemy, dt: number): boolean {
 
 /** The pack leader's own step; true — handled. */
 export function stepAlpha(run: Run, e: RunEnemy, dt: number): boolean {
-  if (!e.boss) return false;
+  if (!e.boss || e.def !== 'alpha') return false;
   const h = run.hero;
   const to = { x: h.pos.x - e.pos.x, y: h.pos.y - e.pos.y };
   const d = Math.hypot(to.x, to.y) || 1;

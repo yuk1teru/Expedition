@@ -7,11 +7,12 @@
 
 import type { Screen } from '../core/screens';
 import { Rng } from '../core/rng';
-import { PASSIVE_SLOTS, REWORK_BOSS, REWORK_POINTERS, REWORK_SPIRIT, REWORK_TASKS, REWORK_CARDS, REWORK_CLASSES, REWORK_STRESS, type ReworkClassId } from '../data/rework';
+import { PASSIVE_SLOTS, REWORK_BOSS, REWORK_LOCATIONS, REWORK_PATH, REWORK_POINTERS, REWORK_SPIRIT, REWORK_TASKS, REWORK_CARDS, REWORK_CLASSES, REWORK_STRESS, type ReworkClassId } from '../data/rework';
 import { EVOLUTIONS, REWORK_SKILLS, SKILL_SLOTS, skillParams } from '../data/reworkSkills';
 import { bossIn } from '../systems/rework/boss';
 import { altarNear, altarPrice, useAltar } from '../systems/rework/pickups';
 import { sightRadius } from '../systems/rework/spirit';
+import { pullSegments } from '../systems/rework/spinner';
 import { taskLine } from '../systems/rework/task';
 import { dodge } from '../systems/rework/hero';
 import { chooseCard, passivesTaken, reroll, rerollPrice, xpToNext } from '../systems/rework/progress';
@@ -25,7 +26,7 @@ import { DodgeFx } from './dodgeFx';
 import { BEAST_ANIM } from '../data/beastAnim';
 import { drawGround } from './forestArt';
 import { beastSheet, beastSize, type Corpse, corpseLife, drawCorpse, lastSide } from './beastAnim';
-import { CROWN_FADE, crownBox, obstacleLayers, drawAltar, drawBossWarning, drawChest, drawCoin, drawEnemy, drawEnemyWarning, drawGem, drawHerb, drawHeroFigure, drawLumberjack, drawRingWall, drawShadow, drawShot, drawShrine, drawSpirit, drawTaskGround, drawTrap, drawZone } from './reworkDraw';
+import { CROWN_FADE, crownBox, obstacleLayers, drawAltar, drawBossWarning, drawChest, drawCoin, drawEnemy, drawEnemyWarning, drawGem, drawHerb, drawHeroFigure, drawLumberjack, drawPath, drawPull, drawRingWall, drawThreads, drawWebPatch, drawWrap, drawShadow, drawShot, drawShrine, drawSpirit, drawTaskGround, drawTrap, drawZone } from './reworkDraw';
 import { THEME, font } from './theme';
 import { Button, ButtonGroup, drawPanel, drawText, drawWrapped } from './ui';
 
@@ -104,7 +105,9 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
   let flashes: Flash[] = [];
   /** Dead beasts lying a moment where they fell. */
   let corpses: Corpse[] = [];
-  /** When each arrow first showed (run time): a new one pulses. */
+  /** The new location's name over the screen for a moment. */
+  let banner: { text: string; age: number } | null = null;
+  /** When each arrow first showed (screen time, so it settles while the run is still): a new one pulses. */
   const pointerSeen = new Map<string, number>();
   /** Effects of the dodge on Space; `dodging` — a dodge was in flight last frame. */
   const dodgeFx = new DodgeFx();
@@ -134,6 +137,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     swings = [];
     flashes = [];
     corpses = [];
+    banner = { text: REWORK_LOCATIONS[0]!.name, age: 0 };
     pointerSeen.clear();
     dodgeFx.reset();
     dodging = false;
@@ -162,7 +166,17 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
   const readEvents = (r: Run): void => {
     for (const e of r.events) {
       if (e.type === 'hit') floaters.push({ x: e.pos.x + (r.rng.next() - 0.5) * 10, y: e.pos.y - 30, text: String(Math.max(1, Math.round(e.amount))), color: e.byHero ? '#ffffff' : '#ff6b5e', age: 0 });
-      else if (e.type === 'kill') {
+      else if (e.type === 'location') {
+        // The next location: its name over the screen; what lay on the old field is gone.
+        banner = { text: REWORK_LOCATIONS[e.index]!.name, age: 0 };
+        corpses = [];
+        floaters = [];
+        swings = [];
+        flashes = [];
+        pointerSeen.clear();
+        dodgeFx.reset();
+        dodging = false;
+      } else if (e.type === 'kill') {
         corpses.push({ def: e.def, x: e.pos.x, y: e.pos.y, side: lastSide(e.id), size: beastSize(e.def, e.radius), boss: e.boss, age: 0 });
         if (corpses.length > BEAST_ANIM.maxCorpses) corpses.shift();
       } else if (e.type === 'swing') {
@@ -209,7 +223,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
         return;
       }
       if (debug.handle(e)) return;
-      if (run.hero.dead || run.phase === 'won') {
+      if (run.hero.dead || (run.phase === 'won' && !run.path)) {
         deathButtons.handle(e);
         return;
       }
@@ -273,9 +287,17 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
         ctx.ellipse(p.x, p.y, p.r, p.r * 0.55, 0, 0, Math.PI * 2);
         ctx.fill();
       }
+      // The deeper forest: the ground under the dense crowns is darker.
+      const L = REWORK_LOCATIONS[r.location]!;
+      if (L.dark > 0) {
+        ctx.fillStyle = `rgba(6, 12, 16, ${L.dark})`;
+        ctx.fillRect(cam.x, cam.y, vw, vh);
+      }
       ctx.strokeStyle = 'rgba(0,0,0,0.55)';
       ctx.lineWidth = 8;
       ctx.strokeRect(0, 0, r.width, r.height);
+      for (const w of r.webs) if (onScreen(w.pos.x, w.pos.y, w.radius)) drawWebPatch(ctx, w);
+      if (r.path) drawPath(ctx, r.path, REWORK_PATH.radius, animTime);
       for (const g of r.herbs) if (onScreen(g.pos.x, g.pos.y, 20)) drawHerb(ctx, g, r.time);
       if (r.task) drawTaskGround(ctx, r.task, r.time);
       if (duel) drawRingWall(ctx, r.ringCenter, r.time);
@@ -289,7 +311,9 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       }
       corpses = corpses.filter((c) => c.age < corpseLife(c));
       for (const e of r.enemies) if (onScreen(e.pos.x, e.pos.y, 200)) drawEnemyWarning(ctx, e);
-      for (const e of r.enemies) if (e.boss) drawBossWarning(ctx, e);
+      for (const e of r.enemies) if (e.boss) drawBossWarning(ctx, e, h.pos);
+      drawThreads(ctx, r.threads, r.pull);
+      if (r.pull) drawPull(ctx, pullSegments(r), pullSegments(r, true), r.pull.time < 0);
       drawSwings(ctx, paused ? 0 : dt);
       if (r.spin) drawSpin(ctx, r);
       drawHeroDust(ctx, anim);
@@ -336,6 +360,11 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       dodgeFx.drawOver(ctx);
       drawFlashes(ctx, paused ? 0 : dt);
       ctx.restore();
+      // The deeper forest's gloom over everything.
+      if (L.dark > 0) {
+        ctx.fillStyle = `rgba(4, 8, 14, ${L.dark * 0.35})`;
+        ctx.fillRect(0, 0, W, H);
+      }
 
       // The fog: the field beyond the hero's sight is veiled; the spirit is seen through it.
       if (r.fog > 0.01) {
@@ -379,7 +408,9 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       if (altarHere && !r.offer && !duel) drawText(ctx, `E — вівтар: картка за ${altarPrice(r)} зол. (є ${r.gold})`, W / 2, H - 112, { size: 14, bold: true, align: 'center', color: r.gold >= altarPrice(r) ? '#ffe08a' : THEME.textMuted });
       if (r.offer && r.phase !== 'won') drawOffer(ctx, r);
       if (h.dead) drawDeath(ctx, r);
-      else if (r.phase === 'won') drawVictory(ctx, r);
+      else if (r.phase === 'won' && !r.path) drawVictory(ctx, r);
+      // The location's name waits for the card choice to close.
+      if (banner && !r.offer) drawBanner(ctx, dt);
       drawSkillTooltip(ctx, r);
       debug.draw(ctx);
       drawText(ctx, `${Math.round(fps)} к/с · ${r.enemies.length} звірів · логіка ${stepMs.toFixed(2)} мс${h.immortal ? ' · безсмертя' : ''}`, W - 16, H - 56, { size: 11, align: 'right', color: fps >= 55 ? THEME.good : THEME.bad });
@@ -455,6 +486,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     const drawn = drawHeroFrames(ctx, anim, h.classId, 2, flash);
     ctx.restore();
     if (!drawn) drawHeroFigure(ctx, h, anim.side, flash);
+    if (h.root > 0) drawWrap(ctx, h.pos, r.time);
   }
 
   function drawSwings(ctx: CanvasRenderingContext2D, dt: number): void {
@@ -625,11 +657,14 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
   /** What the arrows point at: each den, the lumberjack (then the way out), the spirit. */
   function pointers(r: Run): Pointer[] {
     const out: Pointer[] = [];
+    if (r.phase === 'won' && r.path) out.push({ key: 'path', pos: r.path, lift: 20, label: REWORK_PATH.label, color: '#ffe0a0' });
     if (r.phase === 'ring' || r.phase === 'won') return out;
     const t = r.task;
     if (t?.state === 'active') {
       if (t.kind === 'nests') {
         for (const e of r.enemies) if (t.dens.includes(e.id)) out.push({ key: `den${e.id}`, pos: e.pos, lift: 80, label: REWORK_TASKS.nests.pointer, color: '#ffd27a' });
+      } else if (t.kind === 'webs') {
+        for (const e of r.enemies) if (t.dens.includes(e.id)) out.push({ key: `den${e.id}`, pos: e.pos, lift: 60, label: REWORK_TASKS.webs.pointer, color: '#ffd27a' });
       } else if (t.following) out.push({ key: 'exit', pos: t.exit, lift: 20, label: REWORK_TASKS.rescue.pointerExit, color: '#ffd27a' });
       else out.push({ key: 'man', pos: t.man, lift: 80, label: REWORK_TASKS.rescue.pointer, color: '#ffd27a' });
     }
@@ -644,9 +679,9 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
   function drawPointers(ctx: CanvasRenderingContext2D, r: Run): void {
     const P = REWORK_POINTERS;
     for (const p of pointers(r)) {
-      const first = pointerSeen.get(p.key) ?? r.time;
+      const first = pointerSeen.get(p.key) ?? animTime;
       pointerSeen.set(p.key, first);
-      const age = r.time - first;
+      const age = animTime - first;
       const k = age < P.pulseTime ? 1 + P.pulseScale * (1 - age / P.pulseTime) * (0.7 + 0.3 * Math.sin(age * 10)) : 1;
       const gx = (p.pos.x - cam.x) * zoom;
       const foot = (p.pos.y - cam.y) * zoom;
@@ -724,12 +759,14 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     if (!boss || r.phase !== 'ring') return;
     const w = 420;
     drawPanel(ctx, { x: W / 2 - w / 2 - 10, y: 64, w: w + 20, h: 40 }, 'rgba(14, 10, 10, 0.85)', '#a03a2a');
-    drawText(ctx, REWORK_BOSS.alpha.name, W / 2, 76, { size: 13, bold: true, align: 'center', color: '#ffb0a0' });
+    const spinner = boss.def === 'spinner';
+    drawText(ctx, spinner ? REWORK_BOSS.spinner.name : REWORK_BOSS.alpha.name, W / 2, 76, { size: 13, bold: true, align: 'center', color: '#ffb0a0' });
     ctx.fillStyle = '#2a1416';
     ctx.fillRect(W / 2 - w / 2, 86, w, 10);
     ctx.fillStyle = boss.act.kind === 'rest' ? '#ffd27a' : '#d0453c';
     ctx.fillRect(W / 2 - w / 2, 86, w * Math.max(0, boss.hp / boss.maxHp), 10);
-    if (r.noHowl) drawText(ctx, 'без зграї', W / 2 + w / 2, 76, { size: 10, align: 'right', color: '#9fd08a' });
+    const weak = spinner ? [r.noBrood && 'без павучат', r.rescued && 'лісоруб'].filter(Boolean).join(' · ') : r.noHowl ? 'без зграї' : '';
+    if (weak) drawText(ctx, weak, W / 2 + w / 2, 76, { size: 10, align: 'right', color: '#9fd08a' });
   }
 
   /** Under the cursor over a skill slot: its numbers, what the passives give it, its evolution. */
@@ -763,9 +800,24 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
   function drawVictory(ctx: CanvasRenderingContext2D, r: Run): void {
     ctx.fillStyle = 'rgba(20, 16, 0, 0.55)';
     ctx.fillRect(0, 0, W, H);
-    drawText(ctx, 'Ватажка зграї подолано!', W / 2, H / 2 - 50, { size: 32, bold: true, align: 'center', color: '#ffd27a' });
+    drawText(ctx, REWORK_BOSS[REWORK_LOCATIONS[r.location]!.boss].victory, W / 2, H / 2 - 50, { size: 32, bold: true, align: 'center', color: '#ffd27a' });
     drawText(ctx, `${mmss(r.time)} · рівень ${r.level} · звірів убито: ${r.kills}`, W / 2, H / 2, { size: 16, align: 'center' });
     deathButtons.draw(ctx);
+  }
+
+  /** The location's name, fading in and out over the screen. */
+  function drawBanner(ctx: CanvasRenderingContext2D, dt: number): void {
+    const b = banner!;
+    b.age += dt;
+    const T = REWORK_PATH.bannerTime;
+    if (b.age >= T) {
+      banner = null;
+      return;
+    }
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, b.age / 0.4, (T - b.age) / 0.8);
+    outlinedText(ctx, b.text, W / 2, H / 2 - 150, 34, '#f0e2b8');
+    ctx.restore();
   }
 
   function drawDeath(ctx: CanvasRenderingContext2D, r: Run): void {

@@ -1,15 +1,16 @@
 // The Forest location (ROADMAP 20.2): trees, bushes, stones and three landmarks scattered over a
-// bounded field, a clear patch where the hero starts. Bodies are circles on the ground and are
+// bounded field, a clear patch where the hero starts; the deeper forest (20.14) is denser and hung
+// with cobwebs. Bodies are circles on the ground and are
 // pushed out of obstacles; a static grid keeps the lookups cheap.
 
 import type { Rng } from '../../core/rng';
-import { REWORK_MAP } from '../../data/rework';
+import { REWORK_LOCATIONS, REWORK_MAP, type ReworkLocation } from '../../data/rework';
 import type { Vec } from '../entities';
 import type { Obstacle, ObstacleKind } from './types';
 
 const between = (rng: Rng, [a, b]: readonly [number, number] | readonly number[]): number => a! + rng.next() * (b! - a!);
 
-export function makeForest(rng: Rng, width: number, height: number, start: Vec): Obstacle[] {
+export function makeForest(rng: Rng, width: number, height: number, start: Vec, L: ReworkLocation['map'] = REWORK_LOCATIONS[0]!.map): Obstacle[] {
   const M = REWORK_MAP;
   const out: Obstacle[] = [];
   const fits = (pos: Vec, radius: number): boolean => {
@@ -21,7 +22,7 @@ export function makeForest(rng: Rng, width: number, height: number, start: Vec):
     for (let tries = 0; tries < 40; tries++) {
       const pos = { x: rng.next() * width, y: rng.next() * height };
       if (!fits(pos, radius)) continue;
-      out.push({ kind, pos, radius, height: tall, seed: rng.next() });
+      out.push({ kind, pos, radius, height: tall, seed: rng.next(), webbed: kind === 'tree' && rng.next() < L.webbed });
       return;
     }
   };
@@ -30,13 +31,13 @@ export function makeForest(rng: Rng, width: number, height: number, start: Vec):
     for (let tries = 0; tries < 60; tries++) {
       const pos = { x: ((i + 0.5) / M.landmarks.length) * width + (rng.next() - 0.5) * width * 0.2, y: height * (0.25 + rng.next() * 0.5) };
       if (!fits(pos, l.radius)) continue;
-      out.push({ kind: l.kind, pos, radius: l.radius, height: l.radius * 2, seed: rng.next() });
+      out.push({ kind: l.kind, pos, radius: l.radius, height: l.radius * 2, seed: rng.next(), webbed: l.kind === 'oak' && L.webbed > 0 });
       break;
     }
   });
-  for (let i = 0; i < M.trees; i++) place('tree', between(rng, M.tree.radius), between(rng, M.tree.height));
-  for (let i = 0; i < M.bushes; i++) place('bush', between(rng, M.bush.radius), 0);
-  for (let i = 0; i < M.stones; i++) place('stone', between(rng, M.stone.radius), 0);
+  for (let i = 0; i < L.trees; i++) place('tree', between(rng, M.tree.radius), between(rng, M.tree.height));
+  for (let i = 0; i < L.bushes; i++) place('bush', between(rng, M.bush.radius), 0);
+  for (let i = 0; i < L.stones; i++) place('stone', between(rng, M.stone.radius), 0);
   return out;
 }
 

@@ -3,7 +3,7 @@
 // an elite drops a chest (and may blow up), a den counts for the task, the spirit's death clears
 // the fog, the boss's death wins the location.
 
-import { REWORK_ELITES, REWORK_ENEMIES, REWORK_PROGRESS } from '../../data/rework';
+import { REWORK_BOSS, REWORK_ELITES, REWORK_ENEMIES, REWORK_LOCATIONS, REWORK_PROGRESS } from '../../data/rework';
 import type { Run, RunEnemy } from './types';
 
 export function damageHero(run: Run, amount: number): void {
@@ -31,7 +31,7 @@ export function damageEnemy(run: Run, e: RunEnemy, amount: number): void {
   if (e.dead || e.act.kind === 'ring') return;
   // An elite's shield takes half; the boss resting after a leap takes more.
   if (e.elite === 'shield') amount *= REWORK_ELITES.shieldTake;
-  if (e.boss && e.act.kind === 'rest') amount *= 1.5;
+  if (e.boss && e.act.kind === 'rest') amount *= e.def === 'spinner' ? REWORK_BOSS.spinner.restTake : REWORK_BOSS.alpha.restTake;
   e.hp -= amount;
   e.hitAt = run.time;
   run.events.push({ type: 'hit', pos: { x: e.pos.x, y: e.pos.y }, amount, byHero: true });
@@ -48,14 +48,15 @@ export function damageEnemy(run: Run, e: RunEnemy, amount: number): void {
     run.fogTarget = 0;
     run.events.push({ type: 'note', pos: { x: e.pos.x, y: e.pos.y - 40 }, text: 'Туман розсіюється', color: '#d8f0d0' });
   }
-  if (e.def === 'nest' && run.task) {
+  if ((e.def === 'nest' || e.def === 'cocoon') && run.task) {
     run.task.dens = run.task.dens.filter((id) => id !== e.id);
   }
   if (e.boss) {
     run.phase = 'won';
     run.offer = null;
     run.pendingLevels = 0;
-    run.events.push({ type: 'note', pos: { x: e.pos.x, y: e.pos.y - 60 }, text: 'Ватажка подолано!', color: '#ffd27a' });
+    const next = run.location < REWORK_LOCATIONS.length - 1 ? ' Стежка веде глибше в ліс' : '';
+    run.events.push({ type: 'note', pos: { x: e.pos.x, y: e.pos.y - 60 }, text: REWORK_BOSS[REWORK_LOCATIONS[run.location]!.boss].defeated + next, color: '#ffd27a' });
   }
   if (run.rng.next() < REWORK_PROGRESS.goldChance) {
     const a = run.rng.next() * Math.PI * 2;

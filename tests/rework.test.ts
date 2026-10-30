@@ -1,9 +1,9 @@
 // The rework's core (ROADMAP 20.2–20.5): rules, not numbers — the numbers live in
 // src/data/rework.ts and change in play.
 import { describe, expect, it } from 'vitest';
-import { PASSIVE_SLOTS, REWORK_BOSS, REWORK_CARDS, REWORK_ELITES, REWORK_FLOOD, REWORK_MAP, REWORK_PICKUPS, REWORK_PROGRESS, REWORK_SPIRIT, REWORK_TASKS } from '../src/data/rework';
+import { PASSIVE_SLOTS, REWORK_BOSS, REWORK_CARDS, REWORK_ELITES, REWORK_FLOOD, REWORK_LOCATIONS, REWORK_MAP, REWORK_PICKUPS, REWORK_PROGRESS, REWORK_SPIRIT, REWORK_TASKS } from '../src/data/rework';
 import { damageEnemy as damageEnemyHit, damageHero } from '../src/systems/rework/combat';
-import { powerAt, spawnBeast, spawnInterval } from '../src/systems/rework/enemies';
+import { layWeb, pickBeast, powerAt, spawnBeast, spawnInterval } from '../src/systems/rework/enemies';
 import { dodge, heroStats } from '../src/systems/rework/hero';
 import { isFree, resolveBody } from '../src/systems/rework/map';
 import { chooseCard, gainXp, reroll, rerollPrice, xpToNext } from '../src/systems/rework/progress';
@@ -13,6 +13,7 @@ import { formRing, outsideRing } from '../src/systems/rework/boss';
 import { altarPrice, openChest, useAltar } from '../src/systems/rework/pickups';
 import { startTask } from '../src/systems/rework/task';
 import { sightRadius } from '../src/systems/rework/spirit';
+import { pullSegments } from '../src/systems/rework/spinner';
 import { CLASS_SKILLS, REWORK_SKILLS, type ReworkSkillId, SKILL_SLOTS, skillParams } from '../src/data/reworkSkills';
 
 const still = { x: 0, y: 0 };
@@ -561,6 +562,127 @@ describe('rework boss and ring (20.12–20.13)', () => {
     expect(seen.has('dashWind') || seen.has('leapWind')).toBe(true);
     killFully(run, boss);
     expect(run.phase).toBe('won');
+  });
+});
+
+describe('rework second location and the spinner (20.14)', () => {
+  it('after the boss a path at the edge leads on; the hero keeps level, skills, passives and gold', () => {
+    const run = createRun(141, 'warrior');
+    run.hero.immortal = true;
+    run.spawnTimer = 1e9;
+    run.time = REWORK_BOSS.warnAt + REWORK_BOSS.warnTime;
+    stepRun(run, 1 / 60, still);
+    const boss = run.enemies.find((e) => e.boss)!;
+    expect(boss.def).toBe('alpha');
+    run.level = 9;
+    run.gold = 77;
+    run.skills = [{ id: 'whirlwind', rank: 3, cooldown: 5 }];
+    run.cards = { area: 2 };
+    killFully(run, boss);
+    stepRun(run, 1 / 60, still);
+    expect(run.phase).toBe('won');
+    expect(run.path).not.toBeNull();
+    run.hero.pos = { ...run.path! };
+    run.offer = null;
+    stepRun(run, 1 / 60, still);
+    expect(run.location).toBe(1);
+    expect(run.phase).toBe('flood');
+    expect(run.time).toBe(0);
+    expect(run.level).toBeGreaterThanOrEqual(9);
+    expect(run.gold).toBeGreaterThanOrEqual(77);
+    expect(run.skills[0]!.rank).toBe(3);
+    expect(run.cards.area).toBe(2);
+    expect(run.obstacles.some((o) => o.webbed)).toBe(true);
+  });
+
+  it('the deeper forest: denser, stronger beasts, spiders, two tasks one after another', () => {
+    const first = createRun(142, 'mage');
+    const deep = createRun(142, 'mage', 1);
+    expect(deep.obstacles.length).toBeGreaterThan(first.obstacles.length);
+    const a = spawnBeast(first, 'wolf')!;
+    const b = spawnBeast(deep, 'wolf')!;
+    expect(b.maxHp).toBeGreaterThan(a.maxHp);
+    deep.time = 120;
+    const kinds = new Set(Array.from({ length: 60 }, () => pickBeast(deep)));
+    expect(kinds.has('spider')).toBe(true);
+    deep.hero.immortal = true;
+    deep.spawnTimer = 1e9;
+    deep.time = REWORK_LOCATIONS[1]!.tasks[0]!.at;
+    stepRun(deep, 1 / 60, still);
+    const one = deep.task!.kind;
+    expect(['webs', 'rescue']).toContain(one);
+    deep.task!.time = 0;
+    stepRun(deep, 1 / 60, still);
+    deep.time = REWORK_LOCATIONS[1]!.tasks[1]!.at;
+    stepRun(deep, 1 / 60, still);
+    expect(deep.task!.kind).not.toBe(one);
+    expect(deep.tasksGiven).toBe(2);
+  });
+
+  it('cocoons hatch spiders; destroyed, the spinner calls no spiderlings', () => {
+    const run = createRun(143, 'archer', 1);
+    run.hero.immortal = true;
+    run.spawnTimer = 1e9;
+    run.task = null;
+    startTask(run, 'webs');
+    const cocoons = run.enemies.filter((e) => e.def === 'cocoon');
+    expect(cocoons.length).toBe(REWORK_TASKS.webs.count);
+    for (const c of cocoons) killFully(run, c);
+    stepRun(run, 1 / 60, still);
+    expect(run.task!.state).toBe('done');
+    expect(run.noBrood).toBe(true);
+  });
+
+  it("a spider's web on the ground slows the hero", () => {
+    const run = createRun(144, 'warrior', 1);
+    run.spawnTimer = 1e9;
+    layWeb(run, run.hero.pos);
+    stepRun(run, 1 / 60, still);
+    expect(run.hero.slow).toBeLessThan(1);
+    run.webs = [];
+    stepRun(run, 1 / 60, still);
+    expect(run.hero.slow).toBe(1);
+  });
+
+  it('the spinner: her cocoon wraps the hero (a dodge breaks free), the pull hurts, then she stands open', () => {
+    const run = createRun(145, 'warrior', 1);
+    run.spawnTimer = 1e9;
+    run.time = REWORK_BOSS.warnAt + REWORK_BOSS.warnTime;
+    stepRun(run, 1 / 60, still);
+    const boss = run.enemies.find((e) => e.boss)!;
+    expect(boss.def).toBe('spinner');
+    run.hero.invuln = 0;
+    // A cocoon hits.
+    run.shots.push({ pos: { ...run.hero.pos }, vel: { x: 0, y: 0 }, radius: 10, damage: 0, life: 1, byHero: false, kind: 'cocoon', pierce: 0, hit: [] });
+    stepRun(run, 1 / 60, still);
+    expect(run.hero.root).toBeGreaterThan(0);
+    run.hero.dodgeTimer = 0;
+    expect(dodge(run, { x: 1, y: 0 })).toBe(true);
+    expect(run.hero.root).toBe(0);
+    // The pull closes on a hero who stays: it hurts; then the threads tear and she rests.
+    run.hero.dash = null;
+    run.hero.invuln = 0;
+    run.threads = [{ a: { x: 0, y: 0 }, b: { x: 1, y: 1 }, warn: 0 }];
+    run.pull = { center: { ...run.hero.pos }, time: 0, base: 0, gaps: [0], hit: false };
+    const hp = run.hero.hp;
+    for (let i = 0; i < 60 * 2 && run.pull; i++) stepRun(run, 1 / 60, still);
+    expect(run.hero.hp).toBeLessThan(hp);
+    expect(run.pull).toBeNull();
+    expect(run.threads.length).toBe(0);
+    expect(boss.act.kind).toBe('rest');
+  });
+
+  it('with the lumberjack saved the pull has two clear gaps', () => {
+    const run = createRun(146, 'mage', 1);
+    run.spawnTimer = 1e9;
+    run.rescued = true;
+    run.time = REWORK_BOSS.warnAt + REWORK_BOSS.warnTime;
+    stepRun(run, 1 / 60, still);
+    const boss = run.enemies.find((e) => e.boss)!;
+    boss.traitTimer = 0;
+    for (let i = 0; i < 60 && !run.pull; i++) stepRun(run, 1 / 60, still);
+    expect(run.pull?.gaps.length).toBe(2);
+    expect(pullSegments(run).length).toBe(REWORK_BOSS.spinner.pull.segments - 2);
   });
 });
 

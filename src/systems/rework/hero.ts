@@ -44,6 +44,8 @@ export function newHero(classId: ReworkClassId, pos: Vec, radius: number): RunHe
     regen: null,
     shrine: null,
     shield: 0,
+    root: 0,
+    slow: 1,
   };
 }
 
@@ -96,8 +98,12 @@ export function stepHero(run: Run, dt: number, move: Vec): void {
         h.dash = null;
       }
     } else if (resolveBody(run.grid, h.pos, h.radius, run.width, run.height) || k >= 1) h.dash = null;
+  } else if (h.root > 0) {
+    // Wrapped or stuck: stands (a dodge breaks free).
+    h.root = Math.max(0, h.root - dt);
+    h.vel = { x: 0, y: 0 };
   } else {
-    h.vel = { x: move.x * st.speed, y: move.y * st.speed };
+    h.vel = { x: move.x * st.speed * h.slow, y: move.y * st.speed * h.slow };
     h.pos.x += h.vel.x * dt;
     h.pos.y += h.vel.y * dt;
     resolveBody(run.grid, h.pos, h.radius, run.width, run.height);
@@ -159,6 +165,7 @@ export function dodge(run: Run, move: Vec, aim: Vec | null = null): boolean {
   let to = { x: from.x + dir.x * st.dodgeDistance, y: from.y + dir.y * st.dodgeDistance };
   h.dodgeTimer = d.cooldown;
   h.invuln = Math.max(h.invuln, d.invuln);
+  h.root = 0;
   run.events.push({ type: 'dodge', from, to });
   if (d.kind === 'blink') {
     // A blink flies fast to the farthest free point along the way, through what stands between.
