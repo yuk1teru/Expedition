@@ -2,8 +2,8 @@
 // cut, aligned by the feet and packed into a grid of equal cells by scripts/pack-frames.py:
 // - the main sheet (docs/art/warrior-anim.png, 6 × 3; "0-5:xy,6-7:x") — idle, attack, skill,
 //   dash, hit (its first row, an older walk, is not used);
-// - the walk (docs/art/warrior-walk.png, 4 × 2, COLS=4; "0-7:x" — only along x, the body rises
-//   and dips by design).
+// - the walk (docs/art/warrior-walk.png, 4 × 2, COLS=4; "0-7:xy75" — the generator drew the
+//   body rising and dipping 18 px, which shakes; three quarters of it are taken out).
 // Every cell has the feet of the figure at `anchor`; the figure faces right.
 
 export type HeroAnimId = 'walk' | 'idle' | 'attack' | 'cast' | 'dash' | 'hurt';
@@ -25,8 +25,8 @@ export const WARRIOR_ANIM = {
     walk: {
       src: 'sprites/anim/warrior-walk.png',
       columns: 4,
-      cell: [168, 206] as [number, number],
-      anchor: [88, 202] as [number, number],
+      cell: [168, 199] as [number, number],
+      anchor: [88, 196] as [number, number],
       frameHeight: 189,
     },
   },
@@ -49,7 +49,7 @@ export const WARRIOR_ANIM = {
     hurt: [0.1, 0.12],
   },
   /** World px walked per full walk cycle (two steps). */
-  stride: 72,
+  stride: 80,
   /** Seconds per breath frame. */
   breath: 0.7,
   /** A hit shows the recoil at most this often (s): contact hits come many per second. */

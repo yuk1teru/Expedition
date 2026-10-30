@@ -4,7 +4,8 @@
 # Usage: python scripts/pack-frames.py <sheet.png> <atlas.png> <atlas.json> <preview.png> [groups]
 # Groups steady the body inside a cycle: "0-5:xy,6-7:x" moves frames 0–5 so the glowing sign on
 # the chest stands at their mean point (x and y), frames 6–7 — along x only. The generator draws
-# every frame a little off, and without this the body jitters while walking.
+# every frame a little off, and without this the body jitters while walking. A number after y
+# removes only that share of the vertical spread: "0-7:xy75" keeps a quarter of the bob.
 # The atlas has COLS columns (environment, default 6). Needs Python 3 with Pillow and NumPy.
 
 import json, os, sys
@@ -16,7 +17,9 @@ groups = []
 if len(sys.argv) > 5:
     for g in sys.argv[5].split(','):
         rng, axes = g.split(':'); a, b = rng.split('-')
-        groups.append((list(range(int(a), int(b) + 1)), axes))
+        share = 1.0
+        if 'y' in axes and axes.split('y')[1]: share = int(axes.split('y')[1]) / 100
+        groups.append((list(range(int(a), int(b) + 1)), axes, share))
 im = Image.open(src).convert('RGBA'); A = np.array(im)
 alpha = A[..., 3]
 S = 3; m = alpha[::S, ::S] > 128; h, w = m.shape
@@ -59,7 +62,7 @@ def sign_point(f):
     if len(xs) < 20: return None
     return xs.mean() - f['anchor'][0], ys.mean() - f['anchor'][1]
 
-for idx, axes in groups:
+for idx, axes, share in groups:
     pts = {i: sign_point(frames[i]) for i in idx}
     known = [p for p in pts.values() if p]
     mx = sum(p[0] for p in known) / len(known); my = sum(p[1] for p in known) / len(known)
@@ -67,7 +70,7 @@ for idx, axes in groups:
         if not p: continue
         ax, ay = frames[i]['anchor']
         dx = round(p[0] - mx) if 'x' in axes else 0
-        dy = round(p[1] - my) if 'y' in axes else 0
+        dy = round((p[1] - my) * share) if 'y' in axes else 0
         frames[i]['anchor'] = (ax + dx, ay + dy)
         print('steady', i, 'shift', -dx, -dy)
 L = max(f['anchor'][0] - f['box'][0] for f in frames) + 6

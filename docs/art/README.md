@@ -59,7 +59,7 @@ Use a long, clearly visible stride so the legs are easy to read at small size.
 No motion blur, no effects, no text, no grid lines, fully transparent background.
 ```
 
-Нарізка: `COLS=4 python scripts/pack-frames.py <аркуш> <атлас> <json> <прев'ю> "0-7:x"` — вирівнювання лише по x: тіло піднімається й опускається навмисно.
+Нарізка: `COLS=4 python scripts/pack-frames.py <аркуш> <атлас> <json> <прев'ю> "0-7:xy75"` — по x вирівнювання повне, по y знімається 75% стрибання: генератор перебільшує підйом і присідання тіла (до 18 px), і без цього ходьба трясеться.
 
 ## Правила стилю
 
