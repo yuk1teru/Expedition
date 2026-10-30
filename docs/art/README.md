@@ -11,56 +11,57 @@ _30.10.2026 · VISION §10. Арт у грі з'являється, коли к�
 | Файл | Що це |
 |---|---|
 | `hero-reference.png` | еталон стилю (Воїн цілий) |
-| `warrior-anim.png` | 18 кадрів анімації Воїна однією генерацією (сітка 6×3) — оригінал |
-| `warrior-walk.png` | ходьба Воїна, 8 кадрів (сітка 4×2) — оригінал; у грі — `public/sprites/anim/warrior-walk.png`. Перший ряд `warrior-anim.png` (стара ходьба) не використовується |
-| `warrior-poses.png` | ключові пози — перша спроба, у грі не використовується |
+| **`warrior-full.png`** | **аркуш Воїна, яким грає гра:** 3 × 6 — стояння, ходьба, вертикальний удар, горизонтальний удар, випад мечем, ривок щитом. У грі — `public/sprites/anim/warrior.png` |
 | `fx.png` | ефекти (слід удару, сяйво леза, спалах знака, іскра, кільце, пилюка) — оригінал; у грі — `public/sprites/anim/fx.png` |
+| `warrior-anim.png`, `warrior-walk.png`, `warrior-walk-plain.png`, `warrior-idle.png`, `warrior-poses.png` | попередні спроби — історія, у грі не використовуються |
 
-**Анімація — покадрова.** Кадри генеруються **однією картинкою** (так персонаж однаковий у всіх кадрах). Скрипт вирізає кожен кадр за його контуром, вирівнює по ногах і центру тулуба й пакує в сітку однакових клітинок: `public/sprites/anim/warrior.png`. Які кадри — які рухи і скільки триває кожен — `src/data/heroAnim.ts`.
-
-Промпт аркуша Воїна (сітка 6×3, прикріпити `hero-reference.png`):
-
-```
-Using exactly this character and style, draw one animation sprite sheet:
-a grid of 6 columns × 3 rows, 18 frames, landscape image.
-Rules for every frame: facing right, three-quarter view, the same size and scale,
-one figure per cell, centred, figures never touch or overlap,
-feet on the same ground line within each row, identical design, colours and outlines.
-No motion blur, no effects, no text, no grid lines, fully transparent background.
-
-Row 1 — walk cycle, 6 frames: right foot forward, down, passing, left foot forward, down, passing.
-Row 2 — 1) idle, breathing in; 2) idle, breathing out; 3) ready stance; 4) wind-up, sword raised
-behind the shoulder; 5) strike — sword swung horizontally forward; 6) follow-through.
-Row 3 — 1) charging, sword low, knees bent; 2) sword raised high overhead, chest sign glowing;
-3) dash start behind the shield; 4) low lunge forward, cloak flying back;
-5) hit reaction, recoiling; 6) staggered, recovering.
-```
-
-Ряди «ходьба / спокій і удар / скіл, ривок, влучання» — шаблон і для інших персонажів (для ворогів — свої рухи).
-
-**Ходьбу генеруй окремо, з описом кожного кадру й чоботами різного кольору** — інакше генератор малює 8 майже однакових стійок (ту саму ногу спереду), і ходьба виглядає як тупцювання. Різний колір чобіт дає і генераторові, і нам перевірити, що ноги чергуються. Генератор однаково може повторити кадр — перевір кожен і візьми в цикл лише правильні (`frames.walk` у `src/data/heroAnim.ts`). Промпт ходьби на 8 кадрів (сітка 4×2):
+**Анімація — покадрова.** Усі рухи персонажа генеруються **однією картинкою** — так персонаж однаковий у всіх кадрах і в однакових пропорціях. Скрипт вирізає кожен кадр за його контуром, розкладає по рядах за лінією ніг, вирівнює по ногах і центру тулуба й пакує в сітку однакових клітинок:
 
 ```
-Using exactly this character and style, draw ONLY a walk cycle sprite sheet:
-8 frames in a grid of 4 columns × 2 rows, landscape image, reading order left to right, top to bottom.
-Facing right, three-quarter view, same size and scale in every frame, one figure per cell,
-figures never touch, feet on the same ground line, identical design, colours and outlines.
-To tell the legs apart: the NEAR leg (closer to the viewer) has a LIGHT tan boot,
-the FAR leg has a DARK brown boot. Keep these colours in every frame.
-1) LIGHT boot far forward, heel on the ground; DARK boot far behind, on its toes.
-2) Weight on the LIGHT boot, knee bent; DARK boot lifted off the ground behind.
-3) DARK boot lifted high (knee raised), swinging past the LIGHT leg; body at its highest.
-4) DARK boot reaching forward in the air, LIGHT boot pushing off behind.
-5) DARK boot far forward, heel on the ground; LIGHT boot far behind, on its toes.
-6) Weight on the DARK boot, knee bent; LIGHT boot lifted off the ground behind.
-7) LIGHT boot lifted high (knee raised), swinging past the DARK leg; body at its highest.
-8) LIGHT boot reaching forward in the air, DARK boot pushing off behind.
-Frames 1 and 5 must look clearly different: a different boot colour in front.
-In frames 3 and 7 one foot must be clearly off the ground.
-No motion blur, no effects, no text, no grid lines, fully transparent background.
+COLS=3 python scripts/pack-frames.py <аркуш> <атлас.png> <атлас.json> <прев'ю.png> "0-2:xy,3-5:xy75"
 ```
 
-Нарізка: `COLS=4 python scripts/pack-frames.py <аркуш> <атлас> <json> <прев'ю> "0-7:xy75"` — по x вирівнювання повне, по y знімається 75% стрибання: генератор перебільшує підйом і присідання тіла (до 18 px), і без цього ходьба трясеться.
+Які кадри — які рухи, скільки триває кожен і який скіл грає який удар — `src/data/heroAnim.ts`.
+
+**Чого навчились:**
+- кожен рух — **3 кадри** (початок, середина, кінець): генератор їх тримає однаковими, а більше кадрів дає «тупцювання» й повтори;
+- ходьба — **3 кадри** (крок, ноги разом, інший крок), грається туди й назад; **у кадрах 1 і 3 спереду мають бути різні ноги** — перевір перед тим, як брати;
+- **дихання й відкидання — кодом** (одна картинка), плавніше за перемикання майже однакових кадрів;
+- генеруй усе **в одному чаті** з `hero-reference.png` і попереднім аркушем як зразком пропорцій.
+
+Промпт аркуша (3 × 6, вертикальна картинка; прикріпити `hero-reference.png`):
+
+```
+Using exactly this character and style, with the SAME PROPORTIONS AND SCALE as the attached
+walk sheet (same height, same leg length and thickness, same boots, cloak, shield and sword size),
+draw one animation sprite sheet: a grid of 3 columns × 6 rows, 18 frames, PORTRAIT image.
+
+Rules for every frame: facing right, three-quarter view, the same size and scale, one figure per
+cell, centred, figures never touch or overlap, feet on the same ground line within each row,
+identical design, colours and outlines. The sword is always in the right hand, the shield on the
+left arm. No motion blur, no speed lines, no effects, no text, no grid lines,
+fully transparent background.
+
+Row 1 — STANDING: 1) relaxed ready stance, feet a little apart, sword held low pointing
+down-forward; 2) the same, chest slightly raised (breathing in); 3) the same, shoulders slightly lower.
+Row 2 — WALK (3 frames): 1) one leg far forward, heel down, the other far behind;
+2) passing — legs close together, the back foot slightly lifted; 3) the OTHER leg far forward,
+the first leg far behind (the mirror of frame 1 — clearly the other leg in front).
+Row 3 — VERTICAL SLASH: 1) start — the sword raised high above the head, body leaning slightly
+back; 2) middle — the sword coming down at shoulder height in front; 3) end — the sword low in
+front near the ground, body leaning forward.
+Row 4 — HORIZONTAL SLASH: 1) start — the sword pulled back behind the body at waist height;
+2) middle — the sword straight out in front, horizontal, arm extended; 3) end — follow-through,
+the sword swung across to the far side, arm across the chest.
+Row 5 — SWORD LUNGE FORWARD: 1) start — knees bent, the sword pulled back at the hip, point
+forward; 2) middle — lunging forward, front leg stepping out; 3) end — full lunge, front knee
+bent deep, the sword thrust straight forward at full reach.
+Row 6 — SHIELD DASH FORWARD: 1) start — crouched low behind the raised shield;
+2) middle — charging forward behind the shield, body leaning far forward, back leg pushing off;
+3) end — the shield thrust forward at full reach as at an impact, sword held back.
+```
+
+Для інших персонажів — той самий шаблон рядів зі своїми рухами (для ворогів — їхні атаки).
 
 ## Правила стилю
 

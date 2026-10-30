@@ -51,8 +51,15 @@ for c in comps:
     band = (ys > y0 + 0.3 * hgt) & (ys < y0 + 0.6 * hgt)
     ax = int(np.median(xs[band])); ay = int(y1)
     frames.append({'keep': keep, 'box': (int(x0), int(y0), int(x1), int(y1)), 'anchor': (ax, ay), 'cy': (y0 + y1) / 2})
-# order: rows by the foot line, then x
-frames.sort(key=lambda f: (round(f['box'][3] / 340), f['box'][0]))
+# order: rows by the foot line (a new row where the feet drop by more than half a figure), then x
+frames.sort(key=lambda f: f['box'][3])
+half = sorted(f['box'][3] - f['box'][1] for f in frames)[len(frames) // 2] / 2
+row, prev = 0, None
+for f in frames:
+    if prev is not None and f['box'][3] - prev > half: row += 1
+    f['row'] = row
+    prev = f['box'][3]
+frames.sort(key=lambda f: (f['row'], f['box'][0]))
 
 def sign_point(f):
     """Centre of the glowing sign on the chest (pale gold, bright), relative to the anchor."""

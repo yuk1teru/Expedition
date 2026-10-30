@@ -110,7 +110,7 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
   function onEvent(e: GameEvent): void {
     const b = battle;
     if (!b) return;
-    if (e.type === 'skillCast') heroAnimCast(anim);
+    if (e.type === 'skillCast') heroAnimCast(anim, e.skillId);
     if (e.type === 'heroAttack') heroAnimAttack(anim);
     if (e.type === 'noTarget') hud.noTarget(e.slot, e.reason);
     else if (e.type === 'skillCast' || e.type === 'skillTick' || e.type === 'chain' || e.type === 'shieldHit') skillFx(fx, e);
