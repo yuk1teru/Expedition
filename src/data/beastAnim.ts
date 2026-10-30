@@ -1,8 +1,7 @@
 // The Forest's beasts drawn from generated frames (rework, VISION §10), like the heroes: each sheet
 // was generated as one picture (docs/art/<beast>-full.png), cut, aligned by the feet and packed into
 // a grid of equal cells by scripts/pack-frames.py (GRID=3x3, the alpha 3x4, the spirit 3x2). Every
-// cell has the feet at `anchor`; the beast faces right. The stump has no sheet yet and stays drawn
-// by code.
+// cell has the feet at `anchor`; the beast faces right.
 
 import type { ReworkEnemyId } from './rework';
 
@@ -13,6 +12,8 @@ export type BeastPose =
   | 'crouch' | 'leap' | 'land'
   /** Mushroom: swelling before a spit, spitting, the recoil after it. */
   | 'swell' | 'spit' | 'recoil'
+  /** Stump: arms up before a stomp, the stomp, standing in the cracked ground after it. */
+  | 'raise' | 'stomp' | 'after'
   /** Spirit: gathering the fog, letting it out, running away. */
   | 'cast' | 'release' | 'flee'
   /** Alpha: dash, leap and its landing, the rest after it, the howl. */
@@ -63,6 +64,17 @@ export const BEAST_SHEETS: Partial<Record<ReworkEnemyId, BeastSheet>> = {
     shadow: 15,
     height: 46,
   },
+  stump: {
+    src: 'sprites/anim/stump.png',
+    columns: 3,
+    cell: [212, 224],
+    anchor: [108, 222],
+    scale: 0.33,
+    frames: { walk: [0, 1, 2, 1], stand: [1], raise: [3], stomp: [4], after: [5], hurt: [6], die: [7, 8] },
+    walkFps: 5,
+    shadow: 22,
+    height: 54,
+  },
   alpha: {
     src: 'sprites/anim/alpha.png',
     columns: 3,
@@ -97,6 +109,9 @@ export const BEAST_ANIM = {
   /** The mushroom spits in the last part of its wind-up and recoils this long after. */
   spitAt: 0.65,
   recoilTime: 0.2,
+  /** The stump slams the ground in the last part of its stomp and stands in the cracks this long after. */
+  stompAt: 0.8,
+  afterTime: 0.3,
   /** The spirit lets the fog out in the last part of its cast. */
   releaseAt: 0.7,
   /** The alpha skids in the last part of its dash, slams the ground at the start of its rest, howls this long. */

@@ -4,7 +4,9 @@
 // the caller draws them sorted by it.
 
 import { REWORK_BOSS, REWORK_CLASSES, REWORK_ELITES, REWORK_ENEMIES, REWORK_MAP, REWORK_PICKUPS, REWORK_TASKS } from '../data/rework';
+import { FOREST_ART } from '../data/forestArt';
 import { beastSheet, beastSize, drawBeastFrames } from './beastAnim';
+import { artCrown, drawPart, drawProp, obstacleParts, partsBox, propsAtlas } from './forestArt';
 import type { Altar, Chest, Coin, Gem, Herb, Obstacle, RunEnemy, RunHero, Shot, Shrine, Task, Trap, Zone } from '../systems/rework/types';
 
 const OUTLINE = 'rgba(15, 12, 10, 0.85)';
@@ -28,33 +30,63 @@ function blob(ctx: CanvasRenderingContext2D, x: number, y: number, rx: number, r
 
 /** The top of the tree crown (for fading it when the hero walks behind). */
 export function crownBox(o: Obstacle): { x: number; y: number; r: number } | null {
+  if (propsAtlas()) return artCrown(o);
   if (o.kind === 'tree') return { x: o.pos.x, y: o.pos.y - o.height * 0.62, r: o.radius * 2.3 };
   if (o.kind === 'oak') return { x: o.pos.x, y: o.pos.y - o.height * 0.75, r: o.radius * 2.1 };
   return null;
 }
 
-const obstaclePictures = new WeakMap<Obstacle, { pic: HTMLCanvasElement; ox: number; oy: number }>();
+interface ObstaclePicture {
+  pic: HTMLCanvasElement;
+  ox: number;
+  oy: number;
+  /** Painted from the props atlas (else from code figures, until the atlas loads). */
+  art: boolean;
+}
+
+const obstaclePictures = new WeakMap<Obstacle, ObstaclePicture>();
+
+function codePicture(o: Obstacle): ObstaclePicture {
+  const w = Math.ceil(o.radius * 6 + 60);
+  const h = Math.ceil(o.height * 1.4 + o.radius * 3 + 60);
+  const pic = document.createElement('canvas');
+  pic.width = w;
+  pic.height = h;
+  const ox = w / 2;
+  const oy = h - o.radius - 20;
+  const g = pic.getContext('2d')!;
+  g.translate(ox - o.pos.x, oy - o.pos.y);
+  paintObstacle(g, o);
+  return { pic, ox, oy, art: false };
+}
+
+function artPicture(o: Obstacle, img: HTMLImageElement): ObstaclePicture {
+  const parts = obstacleParts(o);
+  const box = partsBox(parts);
+  const pic = document.createElement('canvas');
+  pic.width = Math.ceil(box.right - box.left) + 4;
+  pic.height = Math.ceil(box.bottom - box.top) + 4;
+  const ox = 2 - box.left;
+  const oy = 2 - box.top;
+  const g = pic.getContext('2d')!;
+  for (const p of parts) drawPart(g, img, p, ox, oy);
+  return { pic, ox, oy, art: true };
+}
 
 /**
  * `alpha` — how solid an obstacle is drawn (a tree fades when someone stands behind it). Each
- * obstacle is painted once into a picture of its own: a tree is a dozen outlined shapes, and a
- * screen holds dozens of trees.
+ * obstacle is painted once into a picture of its own (scaling a big piece of the atlas, or a
+ * dozen outlined shapes, on every frame for dozens of trees is costly); a code picture is painted
+ * again from the atlas once it loads.
  */
 export function drawObstacle(ctx: CanvasRenderingContext2D, o: Obstacle, alpha: number): void {
   let c = obstaclePictures.get(o);
-  if (!c && typeof document !== 'undefined') {
-    const w = Math.ceil(o.radius * 6 + 60);
-    const h = Math.ceil(o.height * 1.4 + o.radius * 3 + 60);
-    const pic = document.createElement('canvas');
-    pic.width = w;
-    pic.height = h;
-    const ox = w / 2;
-    const oy = h - o.radius - 20;
-    const g = pic.getContext('2d')!;
-    g.translate(ox - o.pos.x, oy - o.pos.y);
-    paintObstacle(g, o);
-    c = { pic, ox, oy };
-    obstaclePictures.set(o, c);
+  if ((!c || !c.art) && typeof document !== 'undefined') {
+    const img = propsAtlas();
+    if (!c || img) {
+      c = img ? artPicture(o, img) : codePicture(o);
+      obstaclePictures.set(o, c);
+    }
   }
   if (!c) return paintObstacle(ctx, o);
   ctx.globalAlpha = alpha;
@@ -377,14 +409,48 @@ export function drawShot(ctx: CanvasRenderingContext2D, s: Shot, time = 0): void
     ctx.restore();
     return;
   }
-  const y = s.pos.y - (s.kind === 'bolt' ? 18 : 12);
-  ctx.fillStyle = s.kind === 'bolt' ? '#ff9d3a' : '#c7e66b';
-  ctx.strokeStyle = s.kind === 'bolt' ? '#fff0b0' : '#4c6a20';
+  if (s.kind === 'spore') return drawSpore(ctx, s);
+  const y = s.pos.y - 18;
+  ctx.fillStyle = '#ff9d3a';
+  ctx.strokeStyle = '#fff0b0';
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.arc(s.pos.x, y, s.radius, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
+}
+
+/** A mushroom's spore: a glowing pink-red ball with a trail of sparks, as on its spit frame. */
+function drawSpore(ctx: CanvasRenderingContext2D, s: Shot): void {
+  const y = s.pos.y - 24;
+  const speed = Math.hypot(s.vel.x, s.vel.y) || 1;
+  const bx = -s.vel.x / speed;
+  const by = -s.vel.y / speed;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const glow = ctx.createRadialGradient(s.pos.x, y, 0, s.pos.x, y, s.radius * 2.6);
+  glow.addColorStop(0, 'rgba(255, 90, 140, 0.8)');
+  glow.addColorStop(1, 'rgba(255, 40, 90, 0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(s.pos.x - s.radius * 2.6, y - s.radius * 2.6, s.radius * 5.2, s.radius * 5.2);
+  ctx.fillStyle = 'rgba(255, 110, 150, 0.7)';
+  for (let i = 1; i <= 3; i++) {
+    ctx.beginPath();
+    ctx.arc(s.pos.x + bx * s.radius * 1.6 * i, y + by * s.radius * 1.6 * i, s.radius * (0.55 - i * 0.12), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+  ctx.fillStyle = '#ff5a8c';
+  ctx.strokeStyle = '#8a1838';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(s.pos.x, y, s.radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#ffd0de';
+  ctx.beginPath();
+  ctx.arc(s.pos.x - s.radius * 0.3, y - s.radius * 0.3, s.radius * 0.4, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 export function drawGem(ctx: CanvasRenderingContext2D, g: Gem, time: number): void {
@@ -473,6 +539,7 @@ export function drawChest(ctx: CanvasRenderingContext2D, c: Chest, time: number)
   ctx.ellipse(x, y, 26, 13, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
+  if (drawProp(ctx, FOREST_ART.chest, FOREST_ART.chestScale, x, y)) return;
   drawShadow(ctx, x, y, 16);
   ctx.fillStyle = '#7a4a22';
   ctx.strokeStyle = OUTLINE;
@@ -493,6 +560,18 @@ export function drawChest(ctx: CanvasRenderingContext2D, c: Chest, time: number)
 export function drawHerb(ctx: CanvasRenderingContext2D, g: Herb, time: number): void {
   const { x, y } = g.pos;
   const sway = Math.sin(time * 2 + x) * 2;
+  if (propsAtlas()) {
+    // The white bells glow softly.
+    ctx.save();
+    ctx.globalAlpha = 0.25 + 0.15 * Math.sin(time * 3 + x);
+    ctx.fillStyle = '#e8f4a0';
+    ctx.beginPath();
+    ctx.ellipse(x, y - 14, 18, 14, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    drawProp(ctx, FOREST_ART.herb, FOREST_ART.herbScale, x, y);
+    return;
+  }
   ctx.strokeStyle = '#2f6a2a';
   ctx.lineWidth = 2.5;
   for (const [dx, h] of [[-5, 14], [0, 18], [5, 13]] as const) {
@@ -529,6 +608,21 @@ export function drawShrine(ctx: CanvasRenderingContext2D, s: Shrine, time: numbe
     ctx.ellipse(x, y, r, r * 0.55, 0, -Math.PI / 2, -Math.PI / 2 + (s.charge / REWORK_PICKUPS.shrineCharge) * Math.PI * 2);
     ctx.stroke();
   }
+  if (drawProp(ctx, FOREST_ART.shrine, FOREST_ART.shrineScale, x, y)) {
+    // The crystal glows in the colour of its buff while it is ready.
+    if (!ready) return;
+    const [gx, gy] = FOREST_ART.shrineGem;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.45 + 0.25 * Math.sin(time * 3);
+    const glow = ctx.createRadialGradient(x + gx, y + gy, 0, x + gx, y + gy, 22);
+    glow.addColorStop(0, k.color);
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(x + gx - 22, y + gy - 22, 44, 44);
+    ctx.restore();
+    return;
+  }
   drawShadow(ctx, x, y, 14);
   ctx.fillStyle = '#7d7a72';
   ctx.strokeStyle = OUTLINE;
@@ -545,6 +639,21 @@ export function drawShrine(ctx: CanvasRenderingContext2D, s: Shrine, time: numbe
 
 export function drawAltar(ctx: CanvasRenderingContext2D, a: Altar, time: number, near: boolean): void {
   const { x, y } = a.pos;
+  if (drawProp(ctx, FOREST_ART.altar, FOREST_ART.altarScale, x, y)) {
+    // The candle flickers; brighter when the hero stands by.
+    const [fx, fy] = FOREST_ART.altarFlame;
+    const r = near ? 26 : 16;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = (near ? 0.7 : 0.45) + 0.15 * Math.sin(time * 9) * Math.sin(time * 5.3);
+    const glow = ctx.createRadialGradient(x + fx, y + fy, 0, x + fx, y + fy, r);
+    glow.addColorStop(0, '#ffd27a');
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(x + fx - r, y + fy - r, r * 2, r * 2);
+    ctx.restore();
+    return;
+  }
   drawShadow(ctx, x, y, 26);
   ctx.fillStyle = '#6b6560';
   ctx.strokeStyle = OUTLINE;
@@ -637,6 +746,10 @@ function hpBar(ctx: CanvasRenderingContext2D, e: RunEnemy, y: number, w: number)
 function drawNest(ctx: CanvasRenderingContext2D, e: RunEnemy, time: number): void {
   const r = e.radius;
   const flash = time - e.hitAt < 0.08;
+  if (drawProp(ctx, FOREST_ART.den, FOREST_ART.denScale, e.pos.x, e.pos.y, flash)) {
+    hpBar(ctx, e, e.pos.y - 70, r * 2.2);
+    return;
+  }
   drawShadow(ctx, e.pos.x, e.pos.y, r * 1.3);
   blob(ctx, e.pos.x, e.pos.y - r * 0.5, r * 1.3, r * 0.8, flash ? '#ffffff' : '#5b4630');
   ctx.fillStyle = '#1a1410';

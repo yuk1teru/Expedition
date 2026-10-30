@@ -23,6 +23,7 @@ import type { App } from './app';
 import { type HeroAnimState, drawHeroDust, drawHeroFrames, heroAnimAttack, heroAnimCast, heroAnimDodge, newHeroAnim, stepHeroAnim } from './heroAnim';
 import { DodgeFx } from './dodgeFx';
 import { BEAST_ANIM } from '../data/beastAnim';
+import { drawGround } from './forestArt';
 import { beastSheet, beastSize, type Corpse, corpseLife, drawCorpse, lastSide } from './beastAnim';
 import { CROWN_FADE, crownBox, drawAltar, drawBossWarning, drawChest, drawCoin, drawEnemy, drawEnemyWarning, drawGem, drawHerb, drawHeroFigure, drawLumberjack, drawObstacle, drawRingWall, drawShadow, drawShot, drawShrine, drawSpirit, drawTaskGround, drawTrap, drawZone } from './reworkDraw';
 import { THEME, font } from './theme';
@@ -251,8 +252,9 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       ctx.scale(zoom, zoom);
       ctx.translate(-cam.x, -cam.y);
       const onScreen = (x: number, y: number, m: number): boolean => x > cam.x - m && x < cam.x + vw + m && y > cam.y - m && y < cam.y + vh + m * 2;
-      // Ground, things lying on it, warnings.
-      for (const p of patches) {
+      // Ground (the texture; patches of code until it loads), things lying on it, warnings.
+      const ground = drawGround(ctx, cam.x, cam.y, vw, vh);
+      for (const p of ground ? [] : patches) {
         if (!onScreen(p.x, p.y, p.r)) continue;
         ctx.fillStyle = p.shade;
         ctx.beginPath();

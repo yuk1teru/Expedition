@@ -53,6 +53,8 @@ function poseOf(e: RunEnemy, sh: BeastSheet, time: number): BeastPose {
       return 1 - act.time / d.leap!.time >= A.landAt ? 'land' : 'leap';
     case 'aim':
       return 1 - act.time / d.spit!.windup >= A.spitAt ? 'spit' : 'swell';
+    case 'stomp':
+      return 1 - act.time / d.stomp!.delay >= A.stompAt ? 'stomp' : 'raise';
     case 'cast':
       return 1 - act.time / REWORK_SPIRIT.windup >= A.releaseAt ? 'release' : 'cast';
     case 'dashWind':
@@ -68,6 +70,7 @@ function poseOf(e: RunEnemy, sh: BeastSheet, time: number): BeastPose {
   }
   if (e.def === 'spirit' && e.hp < e.maxHp * REWORK_SPIRIT.fleeAt) return 'flee';
   if (e.boss && (e.howlTimer ?? 0) > REWORK_BOSS.alpha.howl.every - A.howlTime) return 'howl';
+  if (d.stomp && e.traitTimer > d.stomp.every - d.stomp.delay - A.afterTime) return 'after';
   if (d.spit && e.traitTimer > d.spit.every - d.spit.windup - A.recoilTime) return 'recoil';
   if (!e.boss && sh.frames.hurt && time - e.hitAt < A.hurtTime) return 'hurt';
   return 'walk';
