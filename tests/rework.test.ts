@@ -111,6 +111,14 @@ describe('rework combat (20.4)', () => {
     }
   });
 
+  it('without a cursor (the setting "along the walk") the dodge follows the walk', () => {
+    const run = createRun(36, 'warrior');
+    const from = { x: run.hero.pos.x, y: run.hero.pos.y };
+    dodge(run, { x: 0, y: -1 }, null);
+    for (let i = 0; i < 30; i++) stepRun(run, 1 / 60, still);
+    expect(from.y - run.hero.pos.y).toBeGreaterThan(40);
+  });
+
   it('a dodge gives invulnerability and waits for its cooldown', () => {
     const run = createRun(32, 'warrior');
     expect(dodge(run, { x: 1, y: 0 })).toBe(true);

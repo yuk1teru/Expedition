@@ -130,7 +130,7 @@ function attack(run: Run): void {
   });
 }
 
-/** Space: the class's dodge towards the cursor (without one — along the walk, else ahead). */
+/** Space: the class's dodge towards `aim` (the cursor) if given, else along the walk, else ahead. */
 export function dodge(run: Run, move: Vec, aim: Vec | null = null): boolean {
   const h = run.hero;
   if (h.dead || h.dash || h.dodgeTimer > 0) return false;

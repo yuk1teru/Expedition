@@ -16,6 +16,7 @@ import type { CardOffer, Obstacle, Run } from '../systems/rework/types';
 import type { Vec } from '../systems/entities';
 import type { App } from './app';
 import { type HeroAnimState, drawHeroDust, drawHeroFrames, heroAnimAttack, heroAnimCast, heroAnimDodge, newHeroAnim, stepHeroAnim } from './heroAnim';
+import { DodgeFx } from './dodgeFx';
 import { CROWN_FADE, crownBox, drawCoin, drawEnemy, drawEnemyWarning, drawGem, drawHeroFigure, drawObstacle, drawShadow, drawShot, drawTrap, drawZone } from './reworkDraw';
 import { THEME, font } from './theme';
 import { Button, ButtonGroup, drawPanel, drawText, drawWrapped } from './ui';
@@ -81,6 +82,9 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
   let floaters: Floater[] = [];
   let swings: Swing[] = [];
   let flashes: Flash[] = [];
+  /** Effects of the dodge on Space; `dodging` — a dodge was in flight last frame. */
+  const dodgeFx = new DodgeFx();
+  let dodging = false;
   let seed = 1;
   /** The camera of the last frame: the cursor's world point is read through it. */
   let cam = { x: 0, y: 0 };
@@ -103,6 +107,8 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     floaters = [];
     swings = [];
     flashes = [];
+    dodgeFx.reset();
+    dodging = false;
     const g = new Rng(app.state.seed).fork('reworkGround');
     patches = Array.from({ length: 900 }, () => ({ x: g.next() * r.width, y: g.next() * r.height, r: 18 + g.next() * 60, shade: PATCH_SHADES[Math.floor(g.next() * PATCH_SHADES.length)]! }));
   };
@@ -119,7 +125,10 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     ...REWORK_STRESS.counts.map((n, i) => new Button({ label: `+${n}`, rect: { x: W - 316 + i * 62, y: H - 46, w: 56, h: 28 }, fontSize: 12, onClick: () => run && stressSpawn(run, n) })),
     new Button({ label: 'Безсмертя', rect: { x: W - 126, y: H - 46, w: 110, h: 28 }, fontSize: 12, onClick: () => run && (run.hero.immortal = !run.hero.immortal) }),
   ]);
-  const exitBtn = new ButtonGroup([new Button({ label: 'Вийти [Esc]', rect: { x: W - 126, y: 12, w: 110, h: 30 }, fontSize: 13, hotkey: 'Escape', onClick: () => app.screens.go('title') })]);
+  const exitBtn = new ButtonGroup([
+    new Button({ label: 'Вийти [Esc]', rect: { x: W - 126, y: 12, w: 110, h: 30 }, fontSize: 13, hotkey: 'Escape', onClick: () => app.screens.go('title') }),
+    new Button({ label: 'Налаштування', rect: { x: W - 252, y: 12, w: 120, h: 30 }, fontSize: 13, onClick: () => app.openSettings() }),
+  ]);
 
   const readEvents = (r: Run): void => {
     for (const e of r.events) {
@@ -127,7 +136,11 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       else if (e.type === 'swing') {
         swings.push({ x: e.pos.x, y: e.pos.y, angle: e.angle, reach: e.reach, arc: e.arc, age: 0 });
       } else if (e.type === 'attack') heroAnimAttack(anim, r.hero.classId);
-      else if (e.type === 'dodge') heroAnimDodge(anim);
+      else if (e.type === 'dodge') {
+        heroAnimDodge(anim);
+        dodgeFx.start(REWORK_CLASSES[r.hero.classId].dodge.kind, e.from, e.to);
+        dodging = true;
+      }
       else if (e.type === 'cast') heroAnimCast(anim, r.hero.classId, e.skill);
       else if (e.type === 'blast') flashes.push({ kind: 'ring', points: [e.pos], radius: e.radius, color: e.color, age: 0 });
       else if (e.type === 'chain') flashes.push({ kind: 'chain', points: e.points, radius: 0, color: '#bfe3ff', age: 0 });
@@ -178,7 +191,8 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
         }
         return;
       }
-      if (e.type === 'key' && e.code === 'Space') dodge(run, app.input.moveVector(), cursorWorld());
+      // The dodge goes towards the cursor or along the walk — as the player set it.
+      if (e.type === 'key' && e.code === 'Space') dodge(run, app.input.moveVector(), app.settings.dodgeToCursor ? cursorWorld() : null);
       if (e.type === 'key' && /^Digit[1-4]$/.test(e.code)) castSkill(run, Number(e.code.slice(5)) - 1, cursorWorld());
     },
 
@@ -227,6 +241,21 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       drawSwings(ctx, paused ? 0 : dt);
       if (r.spin) drawSpin(ctx, r);
       drawHeroDust(ctx, anim);
+      // The dodge: a trail while it flies, its landing when it is over.
+      const fdt = paused ? 0 : dt;
+      if (dodging && h.dash) dodgeFx.follow(h.pos, fdt);
+      else if (dodging) {
+        dodgeFx.end(h.pos);
+        dodging = false;
+      }
+      dodgeFx.update(fdt);
+      dodgeFx.drawUnder(ctx);
+      dodgeFx.drawGhosts(ctx, (x, y) => {
+        ctx.save();
+        ctx.translate(x, y);
+        drawHeroFrames(ctx, anim, h.classId, 2, false);
+        ctx.restore();
+      });
 
       // Bodies and obstacles sorted by their foot: lower on the screen is in front.
       const items: { y: number; draw: () => void }[] = [];
@@ -239,6 +268,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       items.sort((a, b) => a.y - b.y);
       for (const it of items) it.draw();
       for (const s of r.shots) if (onScreen(s.pos.x, s.pos.y, 20)) drawShot(ctx, s, r.time);
+      dodgeFx.drawOver(ctx);
       drawFlashes(ctx, paused ? 0 : dt);
       drawFloaters(ctx, paused ? 0 : dt);
       ctx.restore();

@@ -144,7 +144,7 @@ export const REWORK_CLASSES: Record<ReworkClassId, ReworkClassDef> = {
     speed: 120,
     color: '#c0563f',
     attack: { kind: 'arc', damage: 12, every: 0.8, reach: 78, arcDeg: 140 },
-    dodge: { name: 'Ривок щитом', kind: 'dash', distance: 120, time: 0.18, invuln: 0.25, cooldown: 3 },
+    dodge: { name: 'Ривок щитом', kind: 'dash', distance: 120, time: 0.24, invuln: 0.28, cooldown: 3 },
   },
   mage: {
     id: 'mage',
@@ -153,7 +153,7 @@ export const REWORK_CLASSES: Record<ReworkClassId, ReworkClassDef> = {
     speed: 118,
     color: '#5b7fd6',
     attack: { kind: 'bolt', damage: 14, every: 0.9, range: 380, speed: 430, splash: 50, splashShare: 0.5 },
-    dodge: { name: 'Блимання', kind: 'blink', distance: 130, time: 0.14, invuln: 0.2, cooldown: 3 },
+    dodge: { name: 'Блимання', kind: 'blink', distance: 130, time: 0.22, invuln: 0.26, cooldown: 3 },
   },
   archer: {
     id: 'archer',
@@ -162,7 +162,7 @@ export const REWORK_CLASSES: Record<ReworkClassId, ReworkClassDef> = {
     speed: 128,
     color: '#5f9a4a',
     attack: { kind: 'arrow', damage: 10, every: 0.55, range: 430, speed: 620, pierce: 2 },
-    dodge: { name: 'Відскок', kind: 'vault', distance: 110, time: 0.16, invuln: 0.22, cooldown: 3 },
+    dodge: { name: 'Відскок', kind: 'vault', distance: 110, time: 0.24, invuln: 0.28, cooldown: 3 },
   },
 };
 

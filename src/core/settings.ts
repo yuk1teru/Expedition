@@ -9,9 +9,11 @@ export interface GameSettings {
   shake: boolean;
   /** Floating damage and healing numbers. */
   damageNumbers: boolean;
+  /** The dodge (Space) goes towards the cursor; off — along the walk. */
+  dodgeToCursor: boolean;
 }
 
-export const DEFAULT_SETTINGS: GameSettings = { volume: 0.7, music: 0.5, shake: true, damageNumbers: true };
+export const DEFAULT_SETTINGS: GameSettings = { volume: 0.7, music: 0.5, shake: true, damageNumbers: true, dodgeToCursor: true };
 
 /** Settings from storage; unknown or broken values fall back to the defaults. */
 export function readSettings(text: string | null): GameSettings {
@@ -23,6 +25,7 @@ export function readSettings(text: string | null): GameSettings {
       music: typeof raw.music === 'number' && raw.music >= 0 && raw.music <= 1 ? raw.music : DEFAULT_SETTINGS.music,
       shake: typeof raw.shake === 'boolean' ? raw.shake : DEFAULT_SETTINGS.shake,
       damageNumbers: typeof raw.damageNumbers === 'boolean' ? raw.damageNumbers : DEFAULT_SETTINGS.damageNumbers,
+      dodgeToCursor: typeof raw.dodgeToCursor === 'boolean' ? raw.dodgeToCursor : DEFAULT_SETTINGS.dodgeToCursor,
     };
   } catch {
     return { ...DEFAULT_SETTINGS };
