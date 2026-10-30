@@ -37,9 +37,9 @@ export const WARRIOR_ANIM = {
   } satisfies Record<HeroAnimId, number[]>,
   /** Seconds per frame of the one-shot animations: the wind-up longer, the strike short. */
   durations: {
-    slashV: [0.09, 0.05, 0.12],
-    slashH: [0.08, 0.05, 0.12],
-    lunge: [0.08, 0.06, 0.14],
+    slashV: [0.15, 0.08, 0.18],
+    slashH: [0.14, 0.08, 0.18],
+    lunge: [0.13, 0.08, 0.2],
     cast: [0.12, 0.3],
     dash: [0.05, 0.08, 0.3],
     hurt: [0.18],
