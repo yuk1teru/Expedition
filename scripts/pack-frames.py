@@ -7,6 +7,8 @@
 # every frame a little off, and without this the body jitters while walking. A number after y
 # removes only that share of the vertical spread: "0-7:xy75" keeps a quarter of the bob.
 # The atlas has COLS columns (environment, default 6). Needs Python 3 with Pillow and NumPy.
+# When figures of neighbouring cells touch (a staff tip on the figure below), set GRID=<cols>x<rows>:
+# the sheet is cut along the emptiest lines near the grid instead of by outlines.
 
 import json, os, sys
 import numpy as np
@@ -39,6 +41,85 @@ for y in range(h):
 # full-res mask per component: nearest upsample of the label map, dilated by one low-res pixel
 up = np.kron(lab, np.ones((S, S), int))[:A.shape[0], :A.shape[1]]
 frames = []
+GRID = os.environ.get('GRID')
+if GRID:
+    # Rows are cut along the emptiest lines near the grid; inside a row band every figure is an
+    # outline of its own. A small piece cut off at a band edge (a staff tip that crossed the line)
+    # goes back to the nearest figure of the neighbouring row it came from.
+    gc, gr = (int(v) for v in GRID.lower().split('x'))
+    solid = alpha > 40
+    def cut(profile, n, size):
+        out = [0]
+        for k in range(1, n):
+            c = int(k * size / n); w = int(size / n * 0.3)
+            out.append(c - w + int(np.argmin(profile[c - w:c + w])))
+        return out + [size]
+    rows = cut(solid.sum(axis=1), gr, alpha.shape[0])
+    def label(mask):
+        hh, ww = mask.shape; lb = np.zeros((hh, ww), int); parts = []; n = 0
+        for y in range(hh):
+            for x in range(ww):
+                if mask[y, x] and not lb[y, x]:
+                    n += 1; q = deque([(y, x)]); lb[y, x] = n; cnt = 0; sx = sy = 0
+                    while q:
+                        cy, cx = q.popleft(); cnt += 1; sx += cx; sy += cy
+                        for dy in (-1, 0, 1):
+                            for dx in (-1, 0, 1):
+                                ny, nx = cy + dy, cx + dx
+                                if 0 <= ny < hh and 0 <= nx < ww and mask[ny, nx] and not lb[ny, nx]:
+                                    lb[ny, nx] = n; q.append((ny, nx))
+                    parts.append({'id': n, 'size': cnt, 'cx': sx / cnt, 'cy': sy / cnt})
+        return lb, parts
+    figs = []  # per row: list of (figure keep mask in full res)
+    pieces = []  # small pieces: (row, touches 'top'/'bottom'/None, mask, cx)
+    for r in range(gr):
+        y0b, y1b = rows[r], rows[r + 1]
+        low = solid[y0b:y1b:S, ::S]
+        # Thin the outlines by one step first, so a tip that only touches a boot comes apart.
+        er = low.copy()
+        er[1:, :] &= low[:-1, :]; er[:-1, :] &= low[1:, :]; er[:, 1:] &= low[:, :-1]; er[:, :-1] &= low[:, 1:]
+        lb, parts = label(er)
+        parts.sort(key=lambda p: -p['size'])
+        big = sorted(parts[:gc], key=lambda p: p['cx'])
+        up = np.kron(lb, np.ones((S, S), int))[:y1b - y0b, :alpha.shape[1]]
+        row_figs = []
+        for p in big:
+            m = np.zeros_like(solid); m[y0b:y1b] = up == p['id']; row_figs.append({'mask': m, 'cx': p['cx'] * S})
+        figs.append(row_figs)
+        for p in parts[gc:]:
+            m = np.zeros_like(solid); m[y0b:y1b] = up == p['id']
+            ys = np.nonzero(m.any(axis=1))[0]
+            edge = 'top' if ys.min() <= y0b + 24 else 'bottom' if ys.max() >= y1b - 24 else None
+            pieces.append((r, edge, m, p['cx'] * S))
+    for r, edge, m, cx in pieces:
+        rr = r - 1 if edge == 'top' and r > 0 else r + 1 if edge == 'bottom' and r < gr - 1 else r
+        target = min(figs[rr], key=lambda f: abs(f['cx'] - cx))
+        target['mask'] |= m
+    claimed = np.zeros_like(solid)
+    for row_figs in figs:
+        for f in row_figs: claimed |= f['mask']
+    for r, row_figs in enumerate(figs):
+        for c, f in enumerate(row_figs):
+            # Grow the mask a little to take the soft edge pixels — but never onto another figure's.
+            mk = f['mask']; d = mk.copy()
+            for sh in range(1, S + 2):
+                d[sh:, :] |= mk[:-sh, :]; d[:-sh, :] |= mk[sh:, :]; d[:, sh:] |= mk[:, :-sh]; d[:, :-sh] |= mk[:, sh:]
+            keep = (mk | (d & ~claimed)) & (alpha > 0)
+            # Drop small loose bits not joined to the figure (a neighbour's tip left at its feet).
+            low = keep[::S, ::S] & (alpha[::S, ::S] > 128)
+            lb2, parts2 = label(low)
+            if parts2:
+                biggest = max(p['size'] for p in parts2)
+                drop = [p['id'] for p in parts2 if p['size'] < biggest * 0.03]
+                if drop:
+                    gone = np.kron(np.isin(lb2, drop), np.ones((S, S), bool))[:keep.shape[0], :keep.shape[1]]
+                    keep &= ~gone
+            ys, xs = np.nonzero(keep & (alpha > 128))
+            y0, y1, x0, x1 = ys.min(), ys.max(), xs.min(), xs.max()
+            hgt = y1 - y0
+            bandm = (ys > y0 + 0.3 * hgt) & (ys < y0 + 0.6 * hgt)
+            frames.append({'keep': keep, 'box': (int(x0), int(y0), int(x1), int(y1)), 'anchor': (int(np.median(xs[bandm])), int(y1)), 'cy': (y0 + y1) / 2, 'row': r, 'col': c})
+    comps = []
 for c in comps:
     mk = up == c
     d = mk.copy()
@@ -52,14 +133,17 @@ for c in comps:
     ax = int(np.median(xs[band])); ay = int(y1)
     frames.append({'keep': keep, 'box': (int(x0), int(y0), int(x1), int(y1)), 'anchor': (ax, ay), 'cy': (y0 + y1) / 2})
 # order: rows by the foot line (a new row where the feet drop by more than half a figure), then x
-frames.sort(key=lambda f: f['box'][3])
-half = sorted(f['box'][3] - f['box'][1] for f in frames)[len(frames) // 2] / 2
-row, prev = 0, None
-for f in frames:
-    if prev is not None and f['box'][3] - prev > half: row += 1
-    f['row'] = row
-    prev = f['box'][3]
-frames.sort(key=lambda f: (f['row'], f['box'][0]))
+# (cut by the grid, the order is the grid's)
+if GRID: frames.sort(key=lambda f: (f['row'], f['col']))
+frames.sort(key=lambda f: (f.get('row', 0), f['box'][0]) if GRID else f['box'][3])
+if not GRID:
+    half = sorted(f['box'][3] - f['box'][1] for f in frames)[len(frames) // 2] / 2
+    row, prev = 0, None
+    for f in frames:
+        if prev is not None and f['box'][3] - prev > half: row += 1
+        f['row'] = row
+        prev = f['box'][3]
+    frames.sort(key=lambda f: (f['row'], f['box'][0]))
 
 def sign_point(f):
     """Centre of the glowing sign on the chest (pale gold, bright), relative to the anchor."""

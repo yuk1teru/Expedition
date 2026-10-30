@@ -1,10 +1,10 @@
-// The warrior drawn from generated frames (rework, VISION §10): walking steps through the walk
-// cycle by the distance covered, standing breathes, a basic attack swings vertically and
-// horizontally in turn, skills play their own strike or raise the sword, a dash charges behind
-// the shield with dust behind, a hit recoils. Three-quarter view: the figure never rotates, it
-// only mirrors to face left or right.
+// Heroes drawn from generated frames (rework, VISION §10), each class from its own sheet:
+// walking steps through the walk cycle by the distance covered, standing breathes, a basic attack
+// plays the class's attack moves in turn, skills play their own move or `cast`, a dodge plays
+// the class's dash (with dust behind while moving), a hit recoils. Three-quarter view: the figure
+// never rotates, it only mirrors to face left or right.
 
-import { type HeroAnimId, WARRIOR_ANIM } from '../data/heroAnim';
+import { HERO_ANIM, HERO_SHEETS, type HeroAnimId, type HeroSheet } from '../data/heroAnim';
 import type { Vec } from '../systems/entities';
 
 /** What the animation reads from the hero (the old game's hero or the rework's): only whether a dash is on. */
@@ -16,7 +16,12 @@ export interface AnimBody {
   radius: number;
 }
 
-const A = WARRIOR_ANIM;
+const A = HERO_ANIM;
+
+/** True if the class has frames (else the caller draws a figure). */
+export function hasHeroFrames(cls: string | null): boolean {
+  return !!cls && cls in HERO_SHEETS;
+}
 
 const sheets = new Map<string, HTMLImageElement>();
 
@@ -54,8 +59,8 @@ export interface HeroAnimState {
   /** The one-shot animation playing and its time. */
   shot: OneShot | null;
   time: number;
-  /** The next basic attack swings horizontally (they take turns). */
-  nextHorizontal: boolean;
+  /** Which of the class's attack moves comes next (they take turns). */
+  attackIndex: number;
   lastHitAt: number;
   lastHurt: number;
   clock: number;
@@ -64,11 +69,11 @@ export interface HeroAnimState {
 }
 
 export function newHeroAnim(): HeroAnimState {
-  return { side: 1, last: null, moving: false, still: 0, cycle: 0, rest: 0, shot: null, time: 0, nextHorizontal: false, lastHitAt: -Infinity, lastHurt: -Infinity, clock: 0, dustTimer: 0, puffs: [] };
+  return { side: 1, last: null, moving: false, still: 0, cycle: 0, rest: 0, shot: null, time: 0, attackIndex: 0, lastHitAt: -Infinity, lastHurt: -Infinity, clock: 0, dustTimer: 0, puffs: [] };
 }
 
 /** Higher plays over lower. */
-const PRIORITY: Record<OneShot, number> = { hurt: 1, dash: 2, slashV: 3, slashH: 3, lunge: 3, cast: 4 };
+const PRIORITY: Record<OneShot, number> = { hurt: 1, dash: 2, moveA: 3, moveB: 3, moveC: 3, cast: 4 };
 
 function play(s: HeroAnimState, anim: OneShot): void {
   if (s.shot && PRIORITY[s.shot] > PRIORITY[anim]) return;
@@ -76,24 +81,34 @@ function play(s: HeroAnimState, anim: OneShot): void {
   s.time = 0;
 }
 
-/** A basic attack: the vertical and the horizontal slash take turns. */
-export function heroAnimAttack(s: HeroAnimState): void {
-  play(s, s.nextHorizontal ? 'slashH' : 'slashV');
-  s.nextHorizontal = !s.nextHorizontal;
+/** A basic attack: the class's attack moves take turns. */
+export function heroAnimAttack(s: HeroAnimState, cls: string | null): void {
+  const sh = cls ? HERO_SHEETS[cls] : undefined;
+  if (!sh) return;
+  play(s, sh.attacks[s.attackIndex % sh.attacks.length] as OneShot);
+  s.attackIndex += 1;
 }
 
-/** A skill: its own strike if it has one, else the raised sword. */
-export function heroAnimCast(s: HeroAnimState, skill?: string): void {
-  const anim = skill ? A.skillAnim[skill as keyof typeof A.skillAnim] : undefined;
+/** A skill: its own move if it has one, else `cast`. */
+export function heroAnimCast(s: HeroAnimState, cls: string | null, skill?: string): void {
+  const sh = cls ? HERO_SHEETS[cls] : undefined;
+  if (!sh) return;
+  const anim = skill ? sh.skillAnim[skill as keyof HeroSheet['skillAnim']] : undefined;
   play(s, (anim as OneShot | undefined) ?? 'cast');
 }
 
-const total = (anim: OneShot): number => A.durations[anim].reduce((a, b) => a + b, 0);
+/** A dodge that is not a dash in flight (the mage's blink): play the dash move once. */
+export function heroAnimDodge(s: HeroAnimState): void {
+  play(s, 'dash');
+}
 
-const STRIKES: ReadonlySet<OneShot> = new Set(['slashV', 'slashH', 'lunge', 'cast']);
+const total = (sh: HeroSheet, anim: OneShot): number => sh.durations[anim].reduce((a, b) => a + b, 0);
+
+const STRIKES: ReadonlySet<OneShot> = new Set(['moveA', 'moveB', 'moveC', 'cast']);
 
 /** Moves the state on by `dt` (render time) from what the hero does. */
-export function stepHeroAnim(s: HeroAnimState, h: AnimBody, dt: number, hitAt: number): void {
+export function stepHeroAnim(s: HeroAnimState, cls: string | null, h: AnimBody, dt: number, hitAt: number): void {
+  const sh = (cls && HERO_SHEETS[cls]) || HERO_SHEETS.warrior!;
   s.clock += dt;
   const moved = s.last ? Math.hypot(h.pos.x - s.last.x, h.pos.y - s.last.y) : 0;
   s.last = { x: h.pos.x, y: h.pos.y };
@@ -123,7 +138,7 @@ export function stepHeroAnim(s: HeroAnimState, h: AnimBody, dt: number, hitAt: n
   if (s.shot) {
     s.time += dt;
     // A dash holds its last frame while the hero is still dashing.
-    const done = s.shot === 'dash' ? !h.dash && s.time > total('dash') * 0.5 : s.time >= total(s.shot);
+    const done = s.shot === 'dash' && h.dash ? false : s.time >= total(sh, s.shot);
     if (done) s.shot = null;
   }
   if (h.dash) {
@@ -137,18 +152,18 @@ export function stepHeroAnim(s: HeroAnimState, h: AnimBody, dt: number, hitAt: n
   s.puffs = s.puffs.filter((p) => p.age < A.dustLife);
 }
 
-/** The animation shown now and its frame (a cell of the sheet). */
-function currentFrame(s: HeroAnimState): { anim: HeroAnimId; frame: number } {
+/** The animation shown now and its frame (a cell of the class's sheet). */
+function currentFrame(s: HeroAnimState, sh: HeroSheet): { anim: HeroAnimId; frame: number } {
   if (s.shot) {
-    const durations = A.durations[s.shot];
+    const durations = sh.durations[s.shot];
     let t = s.time;
     for (let i = 0; i < durations.length; i++) {
-      if (t < durations[i]! || i === durations.length - 1) return { anim: s.shot, frame: A.frames[s.shot][i]! };
+      if (t < durations[i]! || i === durations.length - 1) return { anim: s.shot, frame: sh.frames[s.shot][i]! };
       t -= durations[i]!;
     }
   }
-  if (s.moving) return { anim: 'walk', frame: A.frames.walk[Math.floor(s.cycle * A.frames.walk.length) % A.frames.walk.length]! };
-  return { anim: 'idle', frame: A.frames.idle[0]! };
+  if (s.moving) return { anim: 'walk', frame: sh.frames.walk[Math.floor(s.cycle * sh.frames.walk.length) % sh.frames.walk.length]! };
+  return { anim: 'idle', frame: sh.frames.idle[0]! };
 }
 
 function drawFx(ctx: CanvasRenderingContext2D, img: HTMLImageElement, rect: number[], x: number, y: number, size: number, alpha: number): void {
@@ -178,26 +193,27 @@ export function drawHeroDust(ctx: CanvasRenderingContext2D, s: HeroAnimState): v
 }
 
 /**
- * Draws the warrior with its feet at (0, `feet`) of the current transform; false if the
- * frames are not loaded yet (the caller draws the old figure).
+ * Draws the hero of class `cls` with its feet at (0, `feet`) of the current transform; false if
+ * the class has no frames or they are not loaded yet (the caller draws a figure).
  */
-export function drawWarrior(ctx: CanvasRenderingContext2D, s: HeroAnimState, feet: number, flash: boolean): boolean {
-  const img = sheet(A.sheet.src);
+export function drawHeroFrames(ctx: CanvasRenderingContext2D, s: HeroAnimState, cls: string | null, feet: number, flash: boolean): boolean {
+  const sh = cls ? HERO_SHEETS[cls] : undefined;
+  if (!sh) return false;
+  const img = sheet(sh.src);
   if (!img) return false;
-  const { anim, frame } = currentFrame(s);
-  const sh = A.sheet;
+  const { anim, frame } = currentFrame(s, sh);
   const [cw, ch] = sh.cell;
   const [ax, ay] = sh.anchor;
   const sx = (frame % sh.columns) * cw;
   const sy = Math.floor(frame / sh.columns) * ch;
   const scale = A.height / sh.frameHeight;
   // Walking: the body lifts between steps.
-  const step = (s.cycle * A.frames.walk.length) % 1;
+  const step = (s.cycle * sh.frames.walk.length) % 1;
   const lift = anim === 'walk' ? A.walkBob * Math.sin(Math.PI * step) : 0;
   // Standing: the chest rises and falls (a slight stretch up from the feet).
   const breath = anim === 'idle' ? 1 + A.breathScale * (0.5 + 0.5 * Math.sin((s.rest / A.breathPeriod) * Math.PI * 2)) : 1;
   // A hit: tilted back from the feet, easing out.
-  const tilt = anim === 'hurt' ? -A.hurtTilt * (1 - s.time / total('hurt')) : 0;
+  const tilt = anim === 'hurt' ? -A.hurtTilt * (1 - s.time / total(sh, 'hurt')) : 0;
   ctx.save();
   ctx.translate(0, feet);
   ctx.scale(s.side * scale, scale * breath);
@@ -211,10 +227,10 @@ export function drawWarrior(ctx: CanvasRenderingContext2D, s: HeroAnimState, fee
   // A skill: the sign on the chest flares while the sword is raised.
   const fx = sheet(A.fxSheet);
   if (fx && s.shot === 'cast') {
-    const k = Math.max(0, 1 - Math.abs(s.time - A.durations.cast[0]! - 0.08) / 0.2);
+    const k = Math.max(0, 1 - Math.abs(s.time - sh.durations.cast[0]! - 0.08) / 0.2);
     if (k > 0) {
       ctx.globalCompositeOperation = 'lighter';
-      drawFx(ctx, fx, A.fx.signFlare, A.chest[0], A.chest[1], 40 + 60 * k, k);
+      drawFx(ctx, fx, A.fx.signFlare, sh.chest[0], sh.chest[1], 40 + 60 * k, k);
       ctx.globalCompositeOperation = 'source-over';
     }
   }

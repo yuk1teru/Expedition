@@ -2,7 +2,7 @@
 
 import { drawSprite } from './sprites';
 import { drawHeroBody } from './heroArt';
-import { type HeroAnimState, drawHeroDust, drawWarrior, heroAnimAttack, heroAnimCast, newHeroAnim, stepHeroAnim } from './heroAnim';
+import { type HeroAnimState, drawHeroDust, drawHeroFrames, hasHeroFrames, heroAnimAttack, heroAnimCast, newHeroAnim, stepHeroAnim } from './heroAnim';
 import { ENEMIES } from '../data/enemies';
 import { SOULS, SOUL_RULES } from '../data/souls';
 import type { LooseSoul } from '../systems/souls';
@@ -110,8 +110,8 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
   function onEvent(e: GameEvent): void {
     const b = battle;
     if (!b) return;
-    if (e.type === 'skillCast') heroAnimCast(anim, e.skillId);
-    if (e.type === 'heroAttack') heroAnimAttack(anim);
+    if (e.type === 'skillCast') heroAnimCast(anim, b.hero.classId, e.skillId);
+    if (e.type === 'heroAttack') heroAnimAttack(anim, b.hero.classId);
     if (e.type === 'noTarget') hud.noTarget(e.slot, e.reason);
     else if (e.type === 'skillCast' || e.type === 'skillTick' || e.type === 'chain' || e.type === 'shieldHit') skillFx(fx, e);
     else handleEvent(b, fx, e);
@@ -231,13 +231,13 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
         if (c.kind === 'aimedShot' && to) drawAimLine(ctx, b.hero.pos, to, Math.min(1, c.time / c.delay));
       }
       if (b.input.control === 'player' && !b.hero.dead) drawAttackArc(ctx, b.hero);
-      if (b.hero.classId === 'warrior') {
-        stepHeroAnim(anim, b.hero, frozen ? 0 : Math.max(0, app.time - animTime), b.hero.hitAt);
+      if (hasHeroFrames(b.hero.classId)) {
+        stepHeroAnim(anim, b.hero.classId, b.hero, frozen ? 0 : Math.max(0, app.time - animTime), b.hero.hitAt);
         drawHeroDust(ctx, anim);
       }
       animTime = app.time;
       // The tall three-quarter warrior would be covered by the swing crescent: it goes under him.
-      const slashUnder = b.hero.classId === 'warrior';
+      const slashUnder = hasHeroFrames(b.hero.classId);
       if (slashUnder) fx.drawSlashes(ctx);
       drawHero(ctx, b.hero, b, app.time, fx.lungeOffset(), anim);
       if (!b.hero.dead) drawAttackReady(ctx, b.hero, app.time);
@@ -915,7 +915,7 @@ function drawHero(ctx: CanvasRenderingContext2D, h: Hero, b: Battle, t: number, 
   }
   // The warrior is drawn from frames in three-quarter view (rework): it mirrors instead of
   // turning, and the direction wedge lies on the ground at its feet.
-  if (h.classId === 'warrior' && anim) {
+  if (hasHeroFrames(h.classId) && anim) {
     ctx.save();
     ctx.translate(0, r * 0.7);
     ctx.scale(1, 0.5);
@@ -928,7 +928,7 @@ function drawHero(ctx: CanvasRenderingContext2D, h: Hero, b: Battle, t: number, 
     ctx.closePath();
     ctx.fill();
     ctx.restore();
-    if (drawWarrior(ctx, anim, r * 0.7, isFlashing(b, h.hitAt))) {
+    if (drawHeroFrames(ctx, anim, h.classId, r * 0.7, isFlashing(b, h.hitAt))) {
       ctx.restore();
       return;
     }

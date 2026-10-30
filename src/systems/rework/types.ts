@@ -152,6 +152,7 @@ export type RunEvent =
   | { type: 'kill'; pos: Vec; def: ReworkEnemyId }
   | { type: 'levelUp'; level: number }
   | { type: 'dodge'; from: Vec; to: Vec }
+  | { type: 'attack'; angle: number }
   | { type: 'cast'; skill: ReworkSkillId }
   | { type: 'blast'; pos: Vec; radius: number; color: string }
   | { type: 'chain'; points: Vec[] };

@@ -95,6 +95,7 @@ function attack(run: Run): void {
   h.attackTimer = a.every / (1 + (run.buff?.attackSpeed ?? 0));
   const angle = Math.atan2(target.pos.y - h.pos.y, target.pos.x - h.pos.x);
   h.facing = angle;
+  run.events.push({ type: 'attack', angle });
   if (a.kind === 'arc') {
     const reach = a.reach * st.area;
     const half = (a.arcDeg * Math.PI) / 360;

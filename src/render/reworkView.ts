@@ -15,7 +15,7 @@ import { castSkill } from '../systems/rework/skills';
 import type { CardOffer, Obstacle, Run } from '../systems/rework/types';
 import type { Vec } from '../systems/entities';
 import type { App } from './app';
-import { type HeroAnimState, drawHeroDust, drawWarrior, heroAnimAttack, heroAnimCast, newHeroAnim, stepHeroAnim } from './heroAnim';
+import { type HeroAnimState, drawHeroDust, drawHeroFrames, heroAnimAttack, heroAnimCast, heroAnimDodge, newHeroAnim, stepHeroAnim } from './heroAnim';
 import { CROWN_FADE, crownBox, drawCoin, drawEnemy, drawEnemyWarning, drawGem, drawHeroFigure, drawObstacle, drawShadow, drawShot, drawTrap, drawZone } from './reworkDraw';
 import { THEME, font } from './theme';
 import { Button, ButtonGroup, drawPanel, drawText, drawWrapped } from './ui';
@@ -126,8 +126,9 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       if (e.type === 'hit') floaters.push({ x: e.pos.x + (r.rng.next() - 0.5) * 10, y: e.pos.y - 30, text: String(Math.max(1, Math.round(e.amount))), color: e.byHero ? '#ffffff' : '#ff6b5e', age: 0 });
       else if (e.type === 'swing') {
         swings.push({ x: e.pos.x, y: e.pos.y, angle: e.angle, reach: e.reach, arc: e.arc, age: 0 });
-        heroAnimAttack(anim);
-      } else if (e.type === 'cast') heroAnimCast(anim, e.skill);
+      } else if (e.type === 'attack') heroAnimAttack(anim, r.hero.classId);
+      else if (e.type === 'dodge') heroAnimDodge(anim);
+      else if (e.type === 'cast') heroAnimCast(anim, r.hero.classId, e.skill);
       else if (e.type === 'blast') flashes.push({ kind: 'ring', points: [e.pos], radius: e.radius, color: e.color, age: 0 });
       else if (e.type === 'chain') flashes.push({ kind: 'chain', points: e.points, radius: 0, color: '#bfe3ff', age: 0 });
       else if (e.type === 'levelUp') floaters.push({ x: r.hero.pos.x, y: r.hero.pos.y - 80, text: `Рівень ${e.level}!`, color: THEME.accent, age: -0.2 });
@@ -225,7 +226,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       for (const e of r.enemies) if (onScreen(e.pos.x, e.pos.y, 200)) drawEnemyWarning(ctx, e);
       drawSwings(ctx, paused ? 0 : dt);
       if (r.spin) drawSpin(ctx, r);
-      if (h.classId === 'warrior') drawHeroDust(ctx, anim);
+      drawHeroDust(ctx, anim);
 
       // Bodies and obstacles sorted by their foot: lower on the screen is in front.
       const items: { y: number; draw: () => void }[] = [];
@@ -310,16 +311,15 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
   function drawHero(ctx: CanvasRenderingContext2D, r: Run, dt: number): void {
     const h = r.hero;
     if (h.dead) return;
-    stepHeroAnim(anim, h, dt, -Infinity);
+    stepHeroAnim(anim, h.classId, h, dt, -Infinity);
     const flash = r.time - h.hitAt < 0.1;
     drawShadow(ctx, h.pos.x, h.pos.y, h.radius);
     // The dodge shows only its own frames and dust: no blinking for the invulnerability.
-    if (h.classId === 'warrior') {
-      ctx.save();
-      ctx.translate(h.pos.x, h.pos.y);
-      drawWarrior(ctx, anim, 2, flash);
-      ctx.restore();
-    } else drawHeroFigure(ctx, h, anim.side, flash);
+    ctx.save();
+    ctx.translate(h.pos.x, h.pos.y);
+    const drawn = drawHeroFrames(ctx, anim, h.classId, 2, flash);
+    ctx.restore();
+    if (!drawn) drawHeroFigure(ctx, h, anim.side, flash);
   }
 
   function drawSwings(ctx: CanvasRenderingContext2D, dt: number): void {
