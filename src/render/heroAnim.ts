@@ -161,9 +161,12 @@ export function drawWarrior(ctx: CanvasRenderingContext2D, s: HeroAnimState, fee
   const sx = (frame % A.columns) * cw;
   const sy = Math.floor(frame / A.columns) * ch;
   const scale = A.height / A.frameHeight;
+  // Walking: an even dip on each foot landing — the middle of frames 1 and 4 of the cycle.
+  const bob = !s.shot && s.moving ? A.walkBob * (0.5 + 0.5 * Math.cos(4 * Math.PI * (s.cycle - 0.25))) : 0;
   ctx.save();
   ctx.translate(0, feet);
   ctx.scale(s.side * scale, scale);
+  ctx.translate(0, bob);
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
   if (flash) ctx.filter = 'brightness(1.6)';

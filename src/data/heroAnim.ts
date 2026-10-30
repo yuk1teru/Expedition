@@ -1,6 +1,7 @@
 // The warrior's frame animation (rework, VISION §10): 18 frames generated as one sheet
 // (docs/art/warrior-anim.png), cut, aligned by the feet and packed into a 6 × 3 grid of equal
-// cells. Every cell has the feet of the figure at `anchor`; the figure faces right.
+// cells (scripts/pack-frames.py … "0-5:xy,6-7:x": the walk and idle frames are steadied by the
+// sign on the chest). Every cell has the feet of the figure at `anchor`; the figure faces right.
 
 export type HeroAnimId = 'walk' | 'idle' | 'attack' | 'cast' | 'dash' | 'hurt';
 
@@ -9,8 +10,8 @@ export const WARRIOR_ANIM = {
   fxSheet: 'sprites/anim/fx.png',
   columns: 6,
   /** One cell of the grid and the feet inside it, px of the sheet. */
-  cell: [164, 157] as [number, number],
-  anchor: [66, 154] as [number, number],
+  cell: [165, 157] as [number, number],
+  anchor: [67, 154] as [number, number],
   /** A standing figure on the sheet is this tall; on screen it is `height`. */
   frameHeight: 136,
   height: 84,
@@ -32,6 +33,8 @@ export const WARRIOR_ANIM = {
   },
   /** World px walked per full walk cycle. */
   stride: 64,
+  /** The body dips this much (sheet px) on each foot landing (frames 1 and 4 of the walk). */
+  walkBob: 4,
   /** Seconds per breath frame. */
   breath: 0.7,
   /** A hit shows the recoil at most this often (s): contact hits come many per second. */

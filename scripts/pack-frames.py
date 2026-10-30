@@ -1,7 +1,10 @@
 # Cuts an animation sheet generated as one picture (a grid of figures on a transparent
 # background) into frames: finds every figure by its outline, aligns them by the feet and the
 # torso centre, packs them into a grid of equal cells at half size (docs/art/README.md).
-# Usage: python scripts/pack-frames.py <sheet.png> <atlas.png> <atlas.json> <preview.png>
+# Usage: python scripts/pack-frames.py <sheet.png> <atlas.png> <atlas.json> <preview.png> [groups]
+# Groups steady the body inside a cycle: "0-5:xy,6-7:x" moves frames 0–5 so the glowing sign on
+# the chest stands at their mean point (x and y), frames 6–7 — along x only. The generator draws
+# every frame a little off, and without this the body jitters while walking.
 # Needs Python 3 with Pillow and NumPy.
 
 import json, sys
@@ -9,6 +12,11 @@ import numpy as np
 from PIL import Image, ImageDraw
 from collections import deque
 src, out_png, out_json, preview = sys.argv[1:5]
+groups = []
+if len(sys.argv) > 5:
+    for g in sys.argv[5].split(','):
+        rng, axes = g.split(':'); a, b = rng.split('-')
+        groups.append((list(range(int(a), int(b) + 1)), axes))
 im = Image.open(src).convert('RGBA'); A = np.array(im)
 alpha = A[..., 3]
 S = 3; m = alpha[::S, ::S] > 128; h, w = m.shape
@@ -40,8 +48,28 @@ for c in comps:
     band = (ys > y0 + 0.3 * hgt) & (ys < y0 + 0.6 * hgt)
     ax = int(np.median(xs[band])); ay = int(y1)
     frames.append({'keep': keep, 'box': (int(x0), int(y0), int(x1), int(y1)), 'anchor': (ax, ay), 'cy': (y0 + y1) / 2})
-# order: rows by centre y, then x
+# order: rows by the foot line, then x
 frames.sort(key=lambda f: (round(f['box'][3] / 340), f['box'][0]))
+
+def sign_point(f):
+    """Centre of the glowing sign on the chest (pale gold, bright), relative to the anchor."""
+    r, g, b, a = (A[..., k].astype(int) for k in range(4))
+    m = f['keep'] & (a > 200) & (r > 225) & (g > 205) & (b > 120) & (b < 230)
+    ys, xs = np.nonzero(m)
+    if len(xs) < 20: return None
+    return xs.mean() - f['anchor'][0], ys.mean() - f['anchor'][1]
+
+for idx, axes in groups:
+    pts = {i: sign_point(frames[i]) for i in idx}
+    known = [p for p in pts.values() if p]
+    mx = sum(p[0] for p in known) / len(known); my = sum(p[1] for p in known) / len(known)
+    for i, p in pts.items():
+        if not p: continue
+        ax, ay = frames[i]['anchor']
+        dx = round(p[0] - mx) if 'x' in axes else 0
+        dy = round(p[1] - my) if 'y' in axes else 0
+        frames[i]['anchor'] = (ax + dx, ay + dy)
+        print('steady', i, 'shift', -dx, -dy)
 L = max(f['anchor'][0] - f['box'][0] for f in frames) + 6
 R = max(f['box'][2] - f['anchor'][0] for f in frames) + 6
 U = max(f['anchor'][1] - f['box'][1] for f in frames) + 6
