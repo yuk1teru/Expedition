@@ -89,7 +89,8 @@ export function stepHeroAnim(s: HeroAnimState, h: Hero, dt: number, hitAt: numbe
   else if (c < -0.2) s.side = -1;
   if (hitAt > s.lastHitAt) {
     s.lastHitAt = hitAt;
-    if (s.clock - s.lastHurt > A.hurtEvery) {
+    // Walking, a hit only flashes: the recoil frames would break the steps.
+    if (!s.moving && s.clock - s.lastHurt > A.hurtEvery) {
       s.lastHurt = s.clock;
       play(s, 'hurt');
     }
@@ -112,17 +113,18 @@ export function stepHeroAnim(s: HeroAnimState, h: Hero, dt: number, hitAt: numbe
   s.puffs = s.puffs.filter((p) => p.age < A.dustLife);
 }
 
-function currentFrame(s: HeroAnimState): number {
+/** The animation shown now and its frame (a cell of that animation's sheet). */
+function currentFrame(s: HeroAnimState): { anim: HeroAnimId; frame: number } {
   if (s.shot) {
     const durations = A.durations[s.shot];
     let t = s.time;
     for (let i = 0; i < durations.length; i++) {
-      if (t < durations[i]! || i === durations.length - 1) return A.frames[s.shot][i]!;
+      if (t < durations[i]! || i === durations.length - 1) return { anim: s.shot, frame: A.frames[s.shot][i]! };
       t -= durations[i]!;
     }
   }
-  if (s.moving) return A.frames.walk[Math.floor(s.cycle * A.frames.walk.length) % A.frames.walk.length]!;
-  return A.frames.idle[Math.floor(s.rest / A.breath) % A.frames.idle.length]!;
+  if (s.moving) return { anim: 'walk', frame: A.frames.walk[Math.floor(s.cycle * A.frames.walk.length) % A.frames.walk.length]! };
+  return { anim: 'idle', frame: A.frames.idle[Math.floor(s.rest / A.breath) % A.frames.idle.length]! };
 }
 
 function drawFx(ctx: CanvasRenderingContext2D, img: HTMLImageElement, rect: number[], x: number, y: number, size: number, alpha: number): void {
@@ -156,20 +158,19 @@ export function drawHeroDust(ctx: CanvasRenderingContext2D, s: HeroAnimState): v
  * frames are not loaded yet (the caller draws the old figure).
  */
 export function drawWarrior(ctx: CanvasRenderingContext2D, s: HeroAnimState, feet: number, flash: boolean): boolean {
-  const img = sheet(A.sheet);
-  if (!img) return false;
-  const frame = currentFrame(s);
-  const [cw, ch] = A.cell;
-  const [ax, ay] = A.anchor;
-  const sx = (frame % A.columns) * cw;
-  const sy = Math.floor(frame / A.columns) * ch;
-  const scale = A.height / A.frameHeight;
-  // Walking: an even dip on each foot landing — the middle of frames 1 and 4 of the cycle.
-  const bob = !s.shot && s.moving ? A.walkBob * (0.5 + 0.5 * Math.cos(4 * Math.PI * (s.cycle - 0.25))) : 0;
+  const { anim, frame } = currentFrame(s);
+  const sh = A.sheets[A.sheetOf[anim] ?? 'main'];
+  const main = sheet(A.sheets.main.src);
+  const img = sheet(sh.src);
+  if (!main || !img) return false;
+  const [cw, ch] = sh.cell;
+  const [ax, ay] = sh.anchor;
+  const sx = (frame % sh.columns) * cw;
+  const sy = Math.floor(frame / sh.columns) * ch;
+  const scale = A.height / sh.frameHeight;
   ctx.save();
   ctx.translate(0, feet);
   ctx.scale(s.side * scale, scale);
-  ctx.translate(0, bob);
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
   if (flash) ctx.filter = 'brightness(1.6)';
@@ -181,7 +182,8 @@ export function drawWarrior(ctx: CanvasRenderingContext2D, s: HeroAnimState, fee
     const k = Math.max(0, 1 - Math.abs(s.time - A.durations.cast[0]! - 0.08) / 0.2);
     if (k > 0) {
       ctx.globalCompositeOperation = 'lighter';
-      drawFx(ctx, fx, A.fx.signFlare, A.chest[0], A.chest[1], 40 + 60 * k, k);
+      const m = sh.frameHeight / A.sheets.main.frameHeight;
+      drawFx(ctx, fx, A.fx.signFlare, A.chest[0] * m, A.chest[1] * m, (40 + 60 * k) * m, k);
       ctx.globalCompositeOperation = 'source-over';
     }
   }

@@ -12,6 +12,7 @@ _30.10.2026 · VISION §10. Арт у грі з'являється, коли к�
 |---|---|
 | `hero-reference.png` | еталон стилю (Воїн цілий) |
 | `warrior-anim.png` | 18 кадрів анімації Воїна однією генерацією (сітка 6×3) — оригінал |
+| `warrior-walk.png` | ходьба Воїна, 8 кадрів (сітка 4×2) — оригінал; у грі — `public/sprites/anim/warrior-walk.png`. Перший ряд `warrior-anim.png` (стара ходьба) не використовується |
 | `warrior-poses.png` | ключові пози — перша спроба, у грі не використовується |
 | `fx.png` | ефекти (слід удару, сяйво леза, спалах знака, іскра, кільце, пилюка) — оригінал; у грі — `public/sprites/anim/fx.png` |
 
@@ -36,6 +37,29 @@ Row 3 — 1) charging, sword low, knees bent; 2) sword raised high overhead, che
 ```
 
 Ряди «ходьба / спокій і удар / скіл, ривок, влучання» — шаблон і для інших персонажів (для ворогів — свої рухи).
+
+**Ходьбу генеруй окремо, з описом кожного кадру** — інакше генератор малює 6 майже однакових стійок, і ноги «вібрують». Промпт ходьби на 8 кадрів (сітка 4×2):
+
+```
+Using exactly this character and style, draw ONLY a walk cycle sprite sheet:
+8 frames in a grid of 4 columns × 2 rows, landscape image, reading order left to right, top to bottom.
+Facing right, three-quarter view, same size and scale in every frame, one figure per cell,
+figures never touch, feet on the same ground line, identical design, colours and outlines.
+The torso, head, shield and sword arm stay almost still; the LEGS do the walking.
+Use a long, clearly visible stride so the legs are easy to read at small size.
+"Near leg" = the leg closer to the viewer, "far leg" = the other one.
+1) Contact: near leg forward, heel down; far leg back, on its toes.
+2) Down: weight on the near leg, knee bent, body slightly lower; far leg lifting.
+3) Passing: far leg swings forward past the near leg; body highest.
+4) Up: far leg reaching forward, near leg pushing off behind.
+5) Contact: FAR leg forward, heel down; near leg back — the opposite of frame 1.
+6) Down: weight on the far leg; near leg lifting.
+7) Passing: near leg swings forward past the far leg; body highest.
+8) Up: near leg reaching forward, far leg pushing off behind.
+No motion blur, no effects, no text, no grid lines, fully transparent background.
+```
+
+Нарізка: `COLS=4 python scripts/pack-frames.py <аркуш> <атлас> <json> <прев'ю> "0-7:x"` — вирівнювання лише по x: тіло піднімається й опускається навмисно.
 
 ## Правила стилю
 

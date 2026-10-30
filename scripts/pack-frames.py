@@ -5,9 +5,9 @@
 # Groups steady the body inside a cycle: "0-5:xy,6-7:x" moves frames 0–5 so the glowing sign on
 # the chest stands at their mean point (x and y), frames 6–7 — along x only. The generator draws
 # every frame a little off, and without this the body jitters while walking.
-# Needs Python 3 with Pillow and NumPy.
+# The atlas has COLS columns (environment, default 6). Needs Python 3 with Pillow and NumPy.
 
-import json, sys
+import json, os, sys
 import numpy as np
 from PIL import Image, ImageDraw
 from collections import deque
@@ -77,8 +77,9 @@ D = 6
 cw, ch = L + R, U + D
 SCALE = 0.5
 cwS, chS = int(round(cw * SCALE)), int(round(ch * SCALE))
-atlas = Image.new('RGBA', (cwS * 6, chS * 3))
-prev = Image.new('RGBA', (cw * 6, ch * 3), (70, 90, 60, 255)); pd = ImageDraw.Draw(prev)
+COLS = int(os.environ.get('COLS', '6')); ROWS = (len(frames) + COLS - 1) // COLS
+atlas = Image.new('RGBA', (cwS * COLS, chS * ROWS))
+prev = Image.new('RGBA', (cw * COLS, ch * ROWS), (70, 90, 60, 255)); pd = ImageDraw.Draw(prev)
 for i, f in enumerate(frames):
     x0, y0, x1, y1 = f['box']; ax, ay = f['anchor']
     pad = 8
@@ -87,14 +88,14 @@ for i, f in enumerate(frames):
     crop[..., 3] = np.where(f['keep'][cy0:y1 + pad, cx0:x1 + pad], crop[..., 3], 0)
     cimg = Image.fromarray(crop)
     cell = Image.new('RGBA', (cw, ch)); cell.alpha_composite(cimg, (L - (ax - cx0), U - (ay - cy0)))
-    col, row = i % 6, i // 6
+    col, row = i % COLS, i // COLS
     atlas.alpha_composite(cell.resize((cwS, chS), Image.LANCZOS), (col * cwS, row * chS))
     prev.alpha_composite(cell, (col * cw, row * ch))
     pd.line([(col * cw, row * ch + U), (col * cw + cw, row * ch + U)], fill=(255, 255, 0, 255))
     pd.line([(col * cw + L, row * ch), (col * cw + L, row * ch + ch)], fill=(0, 255, 255, 255))
     pd.text((col * cw + 4, row * ch + 4), str(i), fill=(255, 255, 255, 255))
 atlas.save(out_png, optimize=True)
-prev.convert('RGB').resize((cw * 3, int(ch * 1.5))).save(preview)
+prev.convert('RGB').resize((cw * COLS // 2, ch * ROWS // 2)).save(preview)
 json.dump({'cell': [cwS, chS], 'anchor': [round(L * SCALE), round(U * SCALE)], 'frameHeight': round(sum(f['box'][3] - f['box'][1] for f in frames[:6]) / 6 * SCALE)}, open(out_json, 'w'))
 print('cells', cw, ch, '->', cwS, chS, 'anchor', L, U)
 print(json.load(open(out_json)))

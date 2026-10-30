@@ -1,23 +1,40 @@
-// The warrior's frame animation (rework, VISION §10): 18 frames generated as one sheet
-// (docs/art/warrior-anim.png), cut, aligned by the feet and packed into a 6 × 3 grid of equal
-// cells (scripts/pack-frames.py … "0-5:xy,6-7:x": the walk and idle frames are steadied by the
-// sign on the chest). Every cell has the feet of the figure at `anchor`; the figure faces right.
+// The warrior's frame animation (rework, VISION §10). Each sheet is generated as one picture,
+// cut, aligned by the feet and packed into a grid of equal cells by scripts/pack-frames.py:
+// - the main sheet (docs/art/warrior-anim.png, 6 × 3; "0-5:xy,6-7:x") — idle, attack, skill,
+//   dash, hit (its first row, an older walk, is not used);
+// - the walk (docs/art/warrior-walk.png, 4 × 2, COLS=4; "0-7:x" — only along x, the body rises
+//   and dips by design).
+// Every cell has the feet of the figure at `anchor`; the figure faces right.
 
 export type HeroAnimId = 'walk' | 'idle' | 'attack' | 'cast' | 'dash' | 'hurt';
 
 export const WARRIOR_ANIM = {
-  sheet: 'sprites/anim/warrior.png',
   fxSheet: 'sprites/anim/fx.png',
-  columns: 6,
-  /** One cell of the grid and the feet inside it, px of the sheet. */
-  cell: [165, 157] as [number, number],
-  anchor: [67, 154] as [number, number],
-  /** A standing figure on the sheet is this tall; on screen it is `height`. */
-  frameHeight: 136,
+  /** A standing figure is `height` px tall on screen. */
   height: 84,
-  /** Frames of each animation (cell numbers, row by row). */
+  sheets: {
+    main: {
+      src: 'sprites/anim/warrior.png',
+      columns: 6,
+      /** One cell of the grid and the feet inside it, px of the sheet. */
+      cell: [165, 157] as [number, number],
+      anchor: [67, 154] as [number, number],
+      /** A standing figure on this sheet is this tall. */
+      frameHeight: 136,
+    },
+    walk: {
+      src: 'sprites/anim/warrior-walk.png',
+      columns: 4,
+      cell: [168, 206] as [number, number],
+      anchor: [88, 202] as [number, number],
+      frameHeight: 189,
+    },
+  },
+  /** The sheet of each animation (the main one if not listed). */
+  sheetOf: { walk: 'walk' } as Partial<Record<HeroAnimId, 'main' | 'walk'>>,
+  /** Frames of each animation (cell numbers on its sheet, row by row). */
   frames: {
-    walk: [0, 1, 2, 3, 4, 5],
+    walk: [0, 1, 2, 3, 4, 5, 6, 7],
     idle: [6, 7],
     attack: [8, 9, 10, 11],
     cast: [12, 13],
@@ -31,10 +48,8 @@ export const WARRIOR_ANIM = {
     dash: [0.08, 0.3],
     hurt: [0.1, 0.12],
   },
-  /** World px walked per full walk cycle. */
-  stride: 64,
-  /** The body dips this much (sheet px) on each foot landing (frames 1 and 4 of the walk). */
-  walkBob: 4,
+  /** World px walked per full walk cycle (two steps). */
+  stride: 72,
   /** Seconds per breath frame. */
   breath: 0.7,
   /** A hit shows the recoil at most this often (s): contact hits come many per second. */
