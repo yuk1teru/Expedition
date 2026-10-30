@@ -80,8 +80,11 @@ export function stepHeroAnim(s: HeroAnimState, h: Hero, dt: number, hitAt: numbe
   s.moving = dt > 0 && moved / dt > 20;
   s.cycle = (s.cycle + moved / A.stride) % 1;
   s.rest = s.moving ? 0 : s.rest + dt;
-  // Mirror only on a clear turn, so aiming straight up or down does not flicker.
-  const c = Math.cos(h.facing);
+  // Faces where it walks (no walking backwards); while striking or casting — where it strikes.
+  // Mirror only on a clear turn, so moving or aiming straight up or down does not flicker.
+  const striking = s.shot === 'attack' || s.shot === 'cast';
+  const speed = Math.hypot(h.vel.x, h.vel.y);
+  const c = !striking && speed > 1 ? h.vel.x / speed : Math.cos(h.facing);
   if (c > 0.2) s.side = 1;
   else if (c < -0.2) s.side = -1;
   if (hitAt > s.lastHitAt) {
