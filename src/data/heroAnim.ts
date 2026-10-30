@@ -27,6 +27,11 @@ export interface HeroSheet {
   skillAnim: Partial<Record<ReworkSkillId, HeroAnimId>>;
   /** The sign on the chest relative to the feet in the `cast` frame, sheet px (the skill flare). */
   chest: [number, number];
+  /**
+   * Frames the generator drew smaller or larger than the rest: cell → scale from the feet.
+   * Measured by the hood's top and the chest sign over the feet against the standing frame.
+   */
+  frameScale?: Partial<Record<number, number>>;
 }
 
 const STRIKE = [0.15, 0.08, 0.18];
@@ -79,6 +84,8 @@ export const HERO_SHEETS: Record<string, HeroSheet> = {
     attacks: ['moveA'],
     skillAnim: { fireball: 'moveA', magicMissiles: 'moveA', frostRing: 'moveB', chainLightning: 'moveC' },
     chest: [4, -80],
+    /** The walk was drawn about 12% smaller than the standing mage. */
+    frameScale: { 3: 1.12, 4: 1.12, 5: 1.12 },
   },
   // Rows: standing, walk, shoot forward, shoot upward, fan shot, vault back.
   archer: {
@@ -101,6 +108,7 @@ export const HERO_SHEETS: Record<string, HeroSheet> = {
     attacks: ['moveA'],
     skillAnim: { piercingShot: 'moveA', hunterTrap: 'moveA', arrowRain: 'moveB', multishot: 'moveC' },
     chest: [0, -78],
+    frameScale: { 3: 1.03, 4: 1.03, 5: 1.03 },
   },
 };
 

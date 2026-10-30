@@ -206,7 +206,7 @@ export function drawHeroFrames(ctx: CanvasRenderingContext2D, s: HeroAnimState, 
   const [ax, ay] = sh.anchor;
   const sx = (frame % sh.columns) * cw;
   const sy = Math.floor(frame / sh.columns) * ch;
-  const scale = A.height / sh.frameHeight;
+  const scale = (A.height / sh.frameHeight) * (sh.frameScale?.[frame] ?? 1);
   // Walking: the body lifts between steps.
   const step = (s.cycle * sh.frames.walk.length) % 1;
   const lift = anim === 'walk' ? A.walkBob * Math.sin(Math.PI * step) : 0;
