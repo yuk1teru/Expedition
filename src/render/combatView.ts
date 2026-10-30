@@ -2,6 +2,7 @@
 
 import { drawSprite } from './sprites';
 import { drawHeroBody } from './heroArt';
+import { type RigState, drawRigDust, drawWarriorRig, newRigState, rigAttack, rigCast, stepRig } from './heroRig';
 import { ENEMIES } from '../data/enemies';
 import { SOULS, SOUL_RULES } from '../data/souls';
 import type { LooseSoul } from '../systems/souls';
@@ -69,6 +70,9 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
   let decor: Decor[] = [];
   let patches: Patch[] = [];
   let battle: Battle | null = null;
+  /** The warrior puppet and the render time it was last stepped at. */
+  let rig: RigState = newRigState();
+  let rigTime = 0;
   /** Abandon-run needs a second click within this time. */
   let confirmUntil = 0;
   const W = app.view.width;
@@ -106,6 +110,8 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
   function onEvent(e: GameEvent): void {
     const b = battle;
     if (!b) return;
+    if (e.type === 'skillCast') rigCast(rig);
+    if (e.type === 'heroAttack') rigAttack(rig);
     if (e.type === 'noTarget') hud.noTarget(e.slot, e.reason);
     else if (e.type === 'skillCast' || e.type === 'skillTick' || e.type === 'chain' || e.type === 'shieldHit') skillFx(fx, e);
     else handleEvent(b, fx, e);
@@ -116,6 +122,8 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
 
     enter() {
       battle = app.battle;
+      rig = newRigState();
+      rigTime = app.time;
       fx.reset();
       fx.reducedMotion = app.reducedMotion;
       hud.reset();
@@ -223,7 +231,12 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
         if (c.kind === 'aimedShot' && to) drawAimLine(ctx, b.hero.pos, to, Math.min(1, c.time / c.delay));
       }
       if (b.input.control === 'player' && !b.hero.dead) drawAttackArc(ctx, b.hero);
-      drawHero(ctx, b.hero, b, app.time, fx.lungeOffset());
+      if (b.hero.classId === 'warrior') {
+        stepRig(rig, b.hero, frozen ? 0 : Math.max(0, app.time - rigTime), b.hero.hitAt);
+        drawRigDust(ctx, rig);
+      }
+      rigTime = app.time;
+      drawHero(ctx, b.hero, b, app.time, fx.lungeOffset(), rig);
       if (!b.hero.dead) drawAttackReady(ctx, b.hero, app.time);
       fx.drawCones(ctx);
       fx.drawSlashes(ctx);
@@ -816,7 +829,7 @@ function drawEnemyBar(ctx: CanvasRenderingContext2D, e: Enemy): void {
   ctx.fillRect(x, y, w * Math.max(0, e.hp / e.maxHp), 3);
 }
 
-function drawHero(ctx: CanvasRenderingContext2D, h: Hero, b: Battle, t: number, lunge: { x: number; y: number }): void {
+function drawHero(ctx: CanvasRenderingContext2D, h: Hero, b: Battle, t: number, lunge: { x: number; y: number }, rig: RigState | null): void {
   if (h.dead) return;
   const r = h.radius;
   ctx.save();
@@ -896,6 +909,26 @@ function drawHero(ctx: CanvasRenderingContext2D, h: Hero, b: Battle, t: number, 
     ctx.arc(0, 0, r + 15, -t * 2, -t * 2 + Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
+  }
+  // The warrior is a cut-out puppet in three-quarter view (rework): it mirrors instead of
+  // turning, and the direction wedge lies on the ground at its feet.
+  if (h.classId === 'warrior' && rig) {
+    ctx.save();
+    ctx.translate(0, r * 0.7);
+    ctx.scale(1, 0.5);
+    ctx.rotate(h.facing);
+    ctx.fillStyle = '#f2c14e';
+    ctx.beginPath();
+    ctx.moveTo(r + 14, 0);
+    ctx.lineTo(r + 2, 8);
+    ctx.lineTo(r + 2, -8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    if (drawWarriorRig(ctx, rig, r * 0.7, isFlashing(b, h.hitAt))) {
+      ctx.restore();
+      return;
+    }
   }
   ctx.rotate(h.facing);
   // Direction wedge.
