@@ -58,6 +58,9 @@ export const WARRIOR_ANIM = {
    * sheet, the stride, and a lift (sheet px) the code adds between steps.
    */
   walkStyles: [
+    // The two steps (light boot ahead, dark boot ahead) and one pose between them, played
+    // step → between → step → between.
+    { name: '3 кадри: крайні й проміжний', frames: [0, 5, 3, 5], stride: 96, bob: 4 },
     { name: '6 кадрів', frames: [0, 1, 2, 3, 5, 6], stride: 96, bob: 0 },
     { name: '4 кадри, без задраного коліна', frames: [0, 1, 3, 5], stride: 96, bob: 3 },
     { name: '2 кадри + підстрибування', frames: [0, 3], stride: 84, bob: 6 },
