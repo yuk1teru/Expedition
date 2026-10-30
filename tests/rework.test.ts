@@ -489,6 +489,16 @@ describe('rework task (20.11)', () => {
     expect(t.state).toBe('done');
   });
 
+  it('the way out is far from the lumberjack, on the field edge', () => {
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      const run = createRun(seed, 'mage');
+      const t = startTask(run, 'rescue');
+      expect(Math.hypot(t.exit.x - t.man.x, t.exit.y - t.man.y)).toBeGreaterThanOrEqual(REWORK_TASKS.rescue.exitDistance[0]);
+      const onEdge = t.exit.x <= 60 || t.exit.y <= 60 || t.exit.x >= run.width - 60 || t.exit.y >= run.height - 60;
+      expect(onEdge).toBe(true);
+    }
+  });
+
   it('time runs out: failed, nothing lost', () => {
     const run = createRun(103, 'warrior');
     run.spawnTimer = 1e9;

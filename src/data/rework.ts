@@ -450,7 +450,8 @@ export const REWORK_TASKS = {
     /** He follows the hero once the hero comes this close; this fast. */
     follow: 70,
     speed: 115,
-    /** The way out: this wide, on the field's nearest edge to him. */
+    /** The way out: on the field's edge, this far from him (world px), this wide. */
+    exitDistance: [1100, 1500] as [number, number],
     exitRadius: 90,
   },
   /** Success: a chest. Dens destroyed — the boss calls no wolves; the lumberjack saved — 30% HP back when the boss comes. */

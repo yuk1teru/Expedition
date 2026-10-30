@@ -25,6 +25,22 @@ function spotAround(run: Run, range: [number, number], radius: number): Vec {
   return { x: Math.min(run.width - 150, h.x + range[0]), y: h.y };
 }
 
+/**
+ * The way out for the lumberjack: a free spot on the field's edge, far enough from him that
+ * leading him there is a walk (not the edge nearest to him); the farthest one if none fits.
+ */
+function exitFor(run: Run, man: Vec): Vec {
+  const m = 60;
+  const spots: Vec[] = [];
+  for (let x = m; x <= run.width - m; x += 120) spots.push({ x, y: m }, { x, y: run.height - m });
+  for (let y = m; y <= run.height - m; y += 120) spots.push({ x: m, y }, { x: run.width - m, y });
+  const far = (p: Vec): number => Math.hypot(p.x - man.x, p.y - man.y);
+  const [lo, hi] = T.rescue.exitDistance;
+  const fit = spots.filter((p) => far(p) >= lo && far(p) <= hi && isFree(run.grid, p, 30));
+  if (fit.length > 0) return fit[Math.floor(run.rng.next() * fit.length)]!;
+  return spots.reduce((a, b) => (far(b) > far(a) ? b : a));
+}
+
 /** Which task comes next: the first by the run's seed, a later one — one not given yet. */
 export function taskKind(run: Run): TaskKind {
   const kinds = REWORK_LOCATIONS[run.location]!.tasks[run.tasksGiven]?.kinds ?? REWORK_LOCATIONS[0]!.tasks[0]!.kinds;
@@ -50,15 +66,7 @@ export function startTask(run: Run, kind: TaskKind): Task {
     task.denCount = task.dens.length;
   } else {
     task.man = spotAround(run, T.rescue.distance, 20);
-    // The way out: the field's edge nearest to the man.
-    const m = task.man;
-    const edges = [
-      { x: 60, y: m.y, d: m.x },
-      { x: run.width - 60, y: m.y, d: run.width - m.x },
-      { x: m.x, y: 60, d: m.y },
-      { x: m.x, y: run.height - 60, d: run.height - m.y },
-    ].sort((a, b) => a.d - b.d);
-    task.exit = { x: edges[0]!.x, y: edges[0]!.y };
+    task.exit = exitFor(run, task.man);
   }
   run.task = task;
   run.events.push({ type: 'note', pos: { x: run.hero.pos.x, y: run.hero.pos.y - 90 }, text: `Завдання: ${T[kind].text}`, color: '#ffd27a' });
