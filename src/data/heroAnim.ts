@@ -80,6 +80,28 @@ export const HERO_SHEETS: Record<string, HeroSheet> = {
     skillAnim: { fireball: 'moveA', magicMissiles: 'moveA', frostRing: 'moveB', chainLightning: 'moveC' },
     chest: [4, -80],
   },
+  // Rows: standing, walk, shoot forward, shoot upward, fan shot, vault back.
+  archer: {
+    src: 'sprites/anim/archer.png',
+    columns: 3,
+    cell: [160, 170],
+    anchor: [79, 166],
+    frameHeight: 132,
+    frames: {
+      idle: [0],
+      walk: [3, 4, 5, 4],
+      moveA: [6, 7, 8],
+      moveB: [9, 10, 11],
+      moveC: [12, 13, 14],
+      cast: [7, 7],
+      dash: [15, 16, 17],
+      hurt: [0],
+    },
+    durations: { moveA: [0.1, 0.08, 0.12], moveB: [0.12, 0.08, 0.14], moveC: [0.1, 0.07, 0.14], cast: [0.12, 0.3], dash: [0.05, 0.07, 0.12], hurt: [0.18] },
+    attacks: ['moveA'],
+    skillAnim: { piercingShot: 'moveA', hunterTrap: 'moveA', arrowRain: 'moveB', multishot: 'moveC' },
+    chest: [0, -78],
+  },
 };
 
 export const HERO_ANIM = {

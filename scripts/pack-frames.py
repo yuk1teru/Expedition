@@ -91,6 +91,25 @@ if GRID:
             ys = np.nonzero(m.any(axis=1))[0]
             edge = 'top' if ys.min() <= y0b + 24 else 'bottom' if ys.max() >= y1b - 24 else None
             pieces.append((r, edge, m, p['cx'] * S))
+        # Thin lines the thinning wiped out (an arrow, a bowstring): every leftover bit of the band
+        # goes to the figure whose box holds it (or the nearest one).
+        taken = np.zeros((y1b - y0b, alpha.shape[1]), bool)
+        for f in row_figs: taken |= f['mask'][y0b:y1b]
+        for _, _, m, _ in [q for q in pieces if q[0] == r]: taken |= m[y0b:y1b]
+        rest = low & ~taken[::S, ::S][:low.shape[0], :low.shape[1]]
+        lb3, parts3 = label(rest)
+        up3 = np.kron(lb3, np.ones((S, S), int))[:y1b - y0b, :alpha.shape[1]]
+        for f in row_figs:
+            ys, xs = np.nonzero(f['mask'])
+            f['box'] = (xs.min(), ys.min(), xs.max(), ys.max())
+        for p in parts3:
+            px, py = p['cx'] * S, y0b + p['cy'] * S
+            def gap(f):
+                x0, y0, x1, y1 = f['box']
+                return max(x0 - px, 0, px - x1) + max(y0 - py, 0, py - y1)
+            target = min(row_figs, key=gap)
+            m = np.zeros_like(solid); m[y0b:y1b] = up3 == p['id']
+            target['mask'] |= m
     for r, edge, m, cx in pieces:
         rr = r - 1 if edge == 'top' and r > 0 else r + 1 if edge == 'bottom' and r < gr - 1 else r
         target = min(figs[rr], key=lambda f: abs(f['cx'] - cx))
@@ -110,7 +129,10 @@ if GRID:
             lb2, parts2 = label(low)
             if parts2:
                 biggest = max(p['size'] for p in parts2)
-                drop = [p['id'] for p in parts2 if p['size'] < biggest * 0.03]
+                # only bits lying at the row's edge (a neighbour's tip); thin parts inside — an
+                # arrow, a bowstring — stay
+                near = lambda p: p['cy'] * S < rows[r] + 30 or p['cy'] * S > rows[r + 1] - 30
+                drop = [p['id'] for p in parts2 if p['size'] < biggest * 0.03 and near(p)]
                 if drop:
                     gone = np.kron(np.isin(lb2, drop), np.ones((S, S), bool))[:keep.shape[0], :keep.shape[1]]
                     keep &= ~gone
