@@ -1,5 +1,6 @@
 // Application shell: owns the view, input, loop, screens and the run state.
 
+import { MUSIC_ENABLED } from '../data/music';
 import { MusicPlayer, themeFor } from './music';
 import { finishFloor, isBossFloor, towerBattle, towerStart } from '../systems/tower';
 import { CAPITAL_ID } from '../data/world';
@@ -893,7 +894,7 @@ export class App {
   /** The theme of what is on screen (ROADMAP 19.4). */
   private updateMusic(): void {
     const ctx = this.sound.context;
-    if (!ctx) return;
+    if (!ctx || !MUSIC_ENABLED) return;
     this.music.attach(ctx);
     const b = this.battle;
     this.music.play(

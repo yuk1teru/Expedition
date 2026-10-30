@@ -3,6 +3,7 @@
 
 import type { Modal } from '../core/screens';
 import type { App } from './app';
+import { MUSIC_ENABLED } from '../data/music';
 import { CONTROLS } from './help';
 import { THEME } from './theme';
 import { Button, ButtonGroup, drawPanel, drawText } from './ui';
@@ -57,7 +58,7 @@ export function createSettingsModal(app: App, onClose: () => void): Modal<Canvas
       const rows = ['Гучність звуків', 'Гучність музики', 'Тряска екрана', 'Цифри шкоди й лікування', 'Ухил (Пробіл) — у бік'];
       rows.forEach((r, i) => drawText(ctx, r, panel.x + 40, rowY(i), { size: 16 }));
       drawText(ctx, `${Math.round(s().volume * 100)}%`, panel.x + panel.w - 125, rowY(0), { size: 16, bold: true, align: 'center' });
-      drawText(ctx, `${Math.round(s().music * 100)}%`, panel.x + panel.w - 125, rowY(1), { size: 16, bold: true, align: 'center' });
+      drawText(ctx, MUSIC_ENABLED ? `${Math.round(s().music * 100)}%` : 'вимкнено', panel.x + panel.w - 125, rowY(1), { size: MUSIC_ENABLED ? 16 : 12, bold: true, align: 'center', color: MUSIC_ENABLED ? THEME.text : THEME.textMuted });
       buttons.draw(ctx);
       // Controls (read-only for now).
       const top = rowY(5) + 10;

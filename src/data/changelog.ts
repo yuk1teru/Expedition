@@ -12,6 +12,12 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.55.0',
+    date: '2026-10-31',
+    title: 'Без музики',
+    items: ['Процедурну музику вимкнено: згодом її замінить справжня. Звуки лишаються'],
+  },
+  {
     version: '0.54.0',
     date: '2026-10-30',
     title: 'Мальований Воїн',

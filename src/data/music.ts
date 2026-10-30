@@ -5,6 +5,12 @@
 
 import type { Wave } from './sounds';
 
+/**
+ * Off for now (the author, 31.10.2026; VISION §10: procedural music goes, CC0 placeholders and
+ * real music come later). The player and the themes stay; true turns them back on.
+ */
+export const MUSIC_ENABLED = false;
+
 export type ThemeId = 'title' | 'town' | 'map' | 'forest' | 'swamp' | 'desert' | 'ice' | 'coast' | 'mountain' | 'boss' | 'siege' | 'tower' | 'sorrow';
 
 export interface ThemeDef {
