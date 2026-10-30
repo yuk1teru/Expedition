@@ -4,10 +4,16 @@
 // rotates, it only mirrors to face left or right.
 
 import { type HeroAnimId, WARRIOR_ANIM } from '../data/heroAnim';
-import type { Hero } from '../systems/entities';
+import type { Vec } from '../systems/entities';
 
-/** What the animation reads from the hero (the old game's hero or the rework's). */
-export type AnimBody = Pick<Hero, 'pos' | 'vel' | 'facing' | 'dash' | 'radius'>;
+/** What the animation reads from the hero (the old game's hero or the rework's): only whether a dash is on. */
+export interface AnimBody {
+  pos: Vec;
+  vel: Vec;
+  facing: number;
+  dash: object | null;
+  radius: number;
+}
 
 const A = WARRIOR_ANIM;
 
