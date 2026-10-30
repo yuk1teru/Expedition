@@ -25,7 +25,8 @@ _31.10.2026 · Усе, що потрібно Лісу (Ліс → Глибина
 | Коріння й колючки | ✓ | 4 |
 | Земля й предмети лігва | ✓ | 4 |
 | Сцена точки Лісу на карті | ✗ | 5 |
-| Кристал, монета, снаряди, іконки скілів | ○ | 6 |
+| Ефекти ударів і скілів (Воїн, Маг, Лучник, спільні) | ✗ | 6 |
+| Кристал, монета, спора, іконки скілів | ○ | 7 |
 
 ---
 
@@ -470,30 +471,176 @@ among roots; a dead tree with hanging lichen; a small bush with withered leaves.
 
 ## 5. Сцена точки Лісу ✗ → `locations/forest/scene.png`
 
-Сцена при першому приході в біом (VISION: голос краю, біженці, натяк на твіст). Показується з текстом над картою.
+**Що має вийти:** одна широка картинка 16:9 — те, що гравець бачить, коли вперше приходить до Лісу на карті. Вона на весь екран, знизу поверх неї — рядок тексту (голос краю), тож нижня третина спокійна (дорога, трава). Сенс: з лісу тікають люди, звідти дивляться очі звірів, у небі ледь видно тріщину (натяк на твіст), а герой стоїть спиною до нас і дивиться в ліс — він іде туди, куди всі бояться.
+
+**Чого не має бути:** люди не тікають від героя й не йдуть у ліс; героя не видно спереду; у героя не видно зброї (він будь-якого класу); жодного тексту.
+
+Прикріпи `locations/forest/concept.png` **лише як зразок стилю** (не персонажа).
 
 ```
-A painted scene illustration in the same bold-outline muted folk-fantasy style as the attached
-reference, wide 16:9: the edge of a dark autumn forest at dusk. A road leads into the trees; on
-the road — village refugees with bundles and a cart, looking back at the forest in fear. Among
-the trees — the faint glow of animal eyes. In the sky above the forest, barely visible, a thin
-dark crack like a fissure in the air. In the foreground, seen from behind, the warm hooded
-hero with a faint gold glow on his chest. No text.
+A painted scene illustration, wide 16:9, in the same style as the attached image (bold even dark
+outlines, flat muted colours with one shadow tone, light painted texture, dark Slavic
+folk-fantasy mood). Use the attached image ONLY for the drawing style — do not copy its
+characters. No text, no UI, no frame.
+
+Setting: the edge of a dark autumn forest at dusk, seen from an open field in front of it.
+The forest fills the whole upper half from left to right: tall dark fir trees and crooked
+oaks, very dark between the trunks, a few orange and brown autumn leaves, low grey mist
+along the ground.
+
+A dirt road starts at the bottom centre of the image, close to the viewer, and runs straight
+away from us into the forest, disappearing between the trees into darkness.
+
+Refugees: five or six frightened villagers — a woman with a bundle, an old man with a stick,
+a child holding a woman's hand, a man pulling a small two-wheeled cart piled with bundles —
+walk ON the road OUT OF the forest, TOWARDS the viewer, in the middle distance. They hurry away
+from the forest; several of them look back over their shoulders at the trees in fear. They
+are not afraid of the traveller by the road and walk past him.
+
+In the dark between the trees, barely visible: a few pairs of small glowing yellow eyes.
+
+The sky above the forest: dusky grey-violet. High above the trees, a thin dark crack in the
+sky, like a fissure in glass, with a faint cold light leaking from it — subtle, easy to miss.
+
+Foreground, bottom left, seen FROM BEHIND: a lone traveller standing at the side of the road,
+facing the forest, small in the frame. A hooded figure wrapped in a long dark wine-red cloak
+that covers the body and arms completely — NO weapon visible. A faint warm gold glow seeps out
+from under the cloak at the chest, as a rim of light. He is the warmest spot of the picture.
+
+Mood: quiet, uneasy, the moment before entering. The bottom third of the image stays calm
+(the road and grass), with room for a line of text over it.
 ```
 
 ---
 
-## 6. За бажанням ○
+## 6. Ефекти ударів і скілів ✗
 
-### Підбирання й снаряди → `fx/items.png`
+**Що це й навіщо.** Зараз удари й скіли в грі намальовані кодом: білий півмісяць замаху, кружечки куль, лінії стріл. Ці аркуші дадуть їм справжній вигляд. Відчуття влучання (спалах звіра, тряска, мікропауза, іскри-частинки) лишаються кодом — їх не генеруємо.
+
+**Що має вийти — загальне для всіх аркушів:**
+- **Лише ефект, без персонажа**: дуга удару без меча й без героя, вибух без мага.
+- **Сітка 3 стовпці**, кожен ряд — **один ефект у трьох стадіях**: 1) починається (тонкий, малий), 2) на повну силу (найяскравіший), 3) тане (розсипається на іскри, розвіюється).
+- **Те, що летить** (куля, стріла, сокира), — **носом праворуч**; гра сама поверне в потрібний бік.
+- **Те, що лежить на землі** (кільця, зони, ударна хвиля), — **пласкі овали, видні згори під кутом** (ширші, ніж високі), як тіні.
+- Прозорий фон, ефекти не торкаються один одного.
+- Скинь у чат — я поріжу на кадри й поставлю на удари й скіли.
+
+Стиль у кожному промпті вже є; прикріплюй `heroes/<клас>/poses.png` того класу, щоб кольори пасували до героя.
+
+### Воїн — удари → `fx/warrior.png`
+
+**Що має вийти:** 3 × 5. Ряд 1 — дуга вертикального удару (згори вниз), ряд 2 — дуга горизонтального (зліва направо), ряд 3 — слід випаду мечем (довгий клин уперед), ряд 4 — іскра влучання, ряд 5 — золота хвиля бойового кличу на землі. У грі дуга з'являється перед воїном щоразу, як він б'є.
+
+```
+[Прикріпи heroes/warrior/poses.png]
+2D game visual effects sprite sheet for a top-down three-quarter view action game, in the same
+painted style as the attached sheet: bold dark outline around each effect shape, flat bright
+colours with one shadow tone, light painted texture. ONLY the effects — no character, no
+weapon, no hands. Transparent background, no text. A grid of 3 columns x 5 rows; each row is
+ONE effect in three stages left to right: 1) appearing, thin and small; 2) at full strength,
+the brightest; 3) fading, breaking into sparks. Effects centred in their cells, never touching.
+Row 1 — VERTICAL SLASH: a crescent arc of cold white-steel light sweeping from top to bottom,
+on the right side of the cell (where a sword in front of the hero would cut).
+Row 2 — HORIZONTAL SLASH: a wide flat crescent sweeping from left to right at waist height.
+Row 3 — SWORD THRUST: a long narrow wedge of light pointing right, like the streak of a lunge.
+Row 4 — HIT SPARK: a small starburst of white and gold sparks with a dark outline.
+Row 5 — BATTLE CRY: a warm golden shockwave ring on the ground, a flat ellipse seen from above
+at an angle (wider than tall), with a few golden sparks rising from it.
+```
+
+### Воїн — скіли → `fx/warrior-skills.png`
+
+**Що має вийти:** 3 × 3. Ряд 1 — вихор: кільце вітру й сталевих смуг довкола порожнього центру (там стоїть воїн), три кадри — кільце повертається. Ряд 2 — удар об землю: клин ударної хвилі з тріщинами й пилом. Ряд 3 — кидок сокири: сокира в трьох поворотах (гра її крутить).
+
+```
+[Прикріпи heroes/warrior/poses.png]
+2D game visual effects sprite sheet for a top-down three-quarter view action game, in the same
+painted style as the attached sheet (bold dark outlines, flat colours, one shadow tone). ONLY
+the effects — no character. Transparent background, no text. A grid of 3 columns x 3 rows,
+effects centred in their cells, never touching.
+Row 1 — WHIRLWIND, three frames of one spinning loop: a flat ring of pale blue wind streaks and
+steel-white blade trails around an EMPTY centre (a hero will stand there), seen from above at an
+angle (a wide ellipse); each frame the streaks turned a little further clockwise.
+Row 2 — GROUND SLAM, three stages: a cone-shaped shockwave on the ground pointing right, flat,
+seen from above at an angle — 1) a small crack in the earth; 2) the full wedge of cracks with
+flying stones and dust; 3) settling dust.
+Row 3 — THROWING AXE in flight, three rotation angles: blade up; blade right; blade down; a
+short motion arc behind it.
+```
+
+### Маг → `fx/mage.png`
+
+**Що має вийти:** 3 × 5. Ряд 1 — вогняна куля в польоті (три мерехтіння, хвіст ліворуч), ряд 2 — вибух кулі, ряд 3 — крижане кільце на землі (з'являється, крига, тане), ряд 4 — чарівна стріла (маленька фіолетова), ряд 5 — три різні шматки блискавки для ланцюгової блискавки.
+
+```
+[Прикріпи heroes/mage/poses.png]
+2D game visual effects sprite sheet for a top-down three-quarter view action game, in the same
+painted style as the attached sheet (bold dark outline around each effect shape, flat bright
+colours, one shadow tone). ONLY the effects — no character, no staff. Transparent background,
+no text. A grid of 3 columns x 5 rows, effects centred in their cells, never touching.
+Row 1 — FIREBALL in flight, pointing right, three flickering frames: a round bright orange-
+yellow core with a short ragged flame tail to the left.
+Row 2 — FIRE EXPLOSION, three stages: a small flash; a big round burst of orange flame; a dark
+smoke puff with a few embers.
+Row 3 — FROST RING on the ground, a flat ellipse seen from above at an angle, three stages: a
+thin cold blue ring; a full ring of jagged ice shards with frost; melting, broken shards.
+Row 4 — MAGIC MISSILE in flight, pointing right, three frames: a small violet glowing bolt with
+a short sparkling tail.
+Row 5 — CHAIN LIGHTNING: three DIFFERENT horizontal jagged lightning bolt segments, blue-white
+with a bright core, each from the left edge of its cell to the right edge.
+```
+
+### Лучник → `fx/archer.png`
+
+**Що має вийти:** 3 × 4. Ряд 1 — стріла в польоті зі слідом, ряд 2 — пробивна стріла (золота, світиться), ряд 3 — дощ стріл (летять згори, встромляються, стирчать із землі), ряд 4 — пастка мисливця (закрита, відкрита, клацнула).
+
+```
+[Прикріпи heroes/archer/poses.png]
+2D game visual effects sprite sheet for a top-down three-quarter view action game, in the same
+painted style as the attached sheet (bold dark outlines, flat colours, one shadow tone). ONLY
+the effects and objects — no character, no bow. Transparent background, no text. A grid of 3
+columns x 4 rows, everything centred in its cell, never touching.
+Row 1 — ARROW in flight, pointing right, three frames: a wooden arrow with a short pale motion
+trail behind it, the trail a little different in each frame.
+Row 2 — PIERCING ARROW, pointing right, three frames: the arrow glowing warm gold with a long
+bright streak behind it.
+Row 3 — ARROW RAIN on a small patch of ground (a flat ellipse seen from above at an angle):
+1) a few arrows falling steeply from above; 2) arrows striking the ground with puffs of dust;
+3) arrows stuck in the ground.
+Row 4 — HUNTER TRAP, a small iron jaw trap on the ground: closed; open and set; snapped shut
+with a burst of sparks.
+```
+
+### Спільні → `fx/common.png`
+
+**Що має вийти:** 3 × 3. Ряд 1 — лікування (зелені листочки й іскри піднімаються вгору), ряд 2 — щит святилища (золотий мерехтливий овал довкола героя), ряд 3 — новий рівень (золотий стовп світла).
+
+```
+[Прикріпи heroes/warrior/reference.png]
+2D game visual effects sprite sheet for a top-down three-quarter view action game, in the same
+painted style as the attached image (bold dark outlines, flat colours, one shadow tone). ONLY
+the effects — no character. Transparent background, no text. A grid of 3 columns x 3 rows,
+effects centred in their cells, never touching; each row is one effect in three stages
+(appearing, full, fading).
+Row 1 — HEAL: small green leaves and soft green sparkles rising upwards around an empty
+centre.
+Row 2 — SHIELD: a warm golden shimmering oval shell around an empty centre, like a bubble seen
+at an angle, thin lines of light across it.
+Row 3 — LEVEL UP: a column of golden light rising from a flat glowing ring on the ground.
+```
+
+---
+
+## 7. За бажанням ○
+
+### Кристал, монета, спора → `fx/items.png`
 
 ```
 [Прикріпи heroes/warrior/reference.png]
 A sheet of small separate game items, same style as the reference, each alone with wide space
 around it, never touching. Transparent background, no text.
-A small glowing green experience crystal; a gold coin with a simple rune; a fireball (round,
-bright orange core, short flame tail); a wooden arrow; a throwing axe; a pink-red glowing spore
-ball with a few sparks; a magic missile (small violet glowing bolt).
+A small glowing green experience crystal; a gold coin with a simple rune; a pink-red glowing
+spore ball with a few sparks.
 ```
 
 ### Іконки скілів і пасивок → `fx/icons.png`
