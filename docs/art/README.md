@@ -38,24 +38,25 @@ Row 3 — 1) charging, sword low, knees bent; 2) sword raised high overhead, che
 
 Ряди «ходьба / спокій і удар / скіл, ривок, влучання» — шаблон і для інших персонажів (для ворогів — свої рухи).
 
-**Ходьбу генеруй окремо, з описом кожного кадру** — інакше генератор малює 6 майже однакових стійок, і ноги «вібрують». Промпт ходьби на 8 кадрів (сітка 4×2):
+**Ходьбу генеруй окремо, з описом кожного кадру й чоботами різного кольору** — інакше генератор малює 8 майже однакових стійок (ту саму ногу спереду), і ходьба виглядає як тупцювання. Різний колір чобіт дає і генераторові, і нам перевірити, що ноги чергуються. Генератор однаково може повторити кадр — перевір кожен і візьми в цикл лише правильні (`frames.walk` у `src/data/heroAnim.ts`). Промпт ходьби на 8 кадрів (сітка 4×2):
 
 ```
 Using exactly this character and style, draw ONLY a walk cycle sprite sheet:
 8 frames in a grid of 4 columns × 2 rows, landscape image, reading order left to right, top to bottom.
 Facing right, three-quarter view, same size and scale in every frame, one figure per cell,
 figures never touch, feet on the same ground line, identical design, colours and outlines.
-The torso, head, shield and sword arm stay almost still; the LEGS do the walking.
-Use a long, clearly visible stride so the legs are easy to read at small size.
-"Near leg" = the leg closer to the viewer, "far leg" = the other one.
-1) Contact: near leg forward, heel down; far leg back, on its toes.
-2) Down: weight on the near leg, knee bent, body slightly lower; far leg lifting.
-3) Passing: far leg swings forward past the near leg; body highest.
-4) Up: far leg reaching forward, near leg pushing off behind.
-5) Contact: FAR leg forward, heel down; near leg back — the opposite of frame 1.
-6) Down: weight on the far leg; near leg lifting.
-7) Passing: near leg swings forward past the far leg; body highest.
-8) Up: near leg reaching forward, far leg pushing off behind.
+To tell the legs apart: the NEAR leg (closer to the viewer) has a LIGHT tan boot,
+the FAR leg has a DARK brown boot. Keep these colours in every frame.
+1) LIGHT boot far forward, heel on the ground; DARK boot far behind, on its toes.
+2) Weight on the LIGHT boot, knee bent; DARK boot lifted off the ground behind.
+3) DARK boot lifted high (knee raised), swinging past the LIGHT leg; body at its highest.
+4) DARK boot reaching forward in the air, LIGHT boot pushing off behind.
+5) DARK boot far forward, heel on the ground; LIGHT boot far behind, on its toes.
+6) Weight on the DARK boot, knee bent; LIGHT boot lifted off the ground behind.
+7) LIGHT boot lifted high (knee raised), swinging past the DARK leg; body at its highest.
+8) LIGHT boot reaching forward in the air, DARK boot pushing off behind.
+Frames 1 and 5 must look clearly different: a different boot colour in front.
+In frames 3 and 7 one foot must be clearly off the ground.
 No motion blur, no effects, no text, no grid lines, fully transparent background.
 ```
 
