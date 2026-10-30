@@ -1,14 +1,22 @@
-// Damage in the rework's run (ROADMAP 20.4): hurting the hero (dodge and debug immortality
-// stop it) and hurting a beast (it dies, drops its gem and maybe a coin).
+// Damage in the rework's run (ROADMAP 20.4–20.13): hurting the hero (a dodge, a shrine's shield
+// and debug immortality stop it) and hurting a beast — it dies, drops its gem and maybe a coin;
+// an elite drops a chest (and may blow up), a den counts for the task, the spirit's death clears
+// the fog, the boss's death wins the location.
 
-import { REWORK_ENEMIES, REWORK_PROGRESS } from '../../data/rework';
+import { REWORK_ELITES, REWORK_ENEMIES, REWORK_PROGRESS } from '../../data/rework';
 import type { Run, RunEnemy } from './types';
 
 export function damageHero(run: Run, amount: number): void {
   const h = run.hero;
   if (h.dead || h.invuln > 0 || h.immortal || amount <= 0) return;
-  // The battle cry takes a share off.
+  // The battle cry takes a share off; a shrine's shield takes the rest first.
   amount *= 1 - (run.buff?.guard ?? 0);
+  if (h.shield > 0) {
+    const taken = Math.min(h.shield, amount);
+    h.shield -= taken;
+    amount -= taken;
+    if (amount <= 0) return;
+  }
   h.hp -= amount;
   h.hitAt = run.time;
   run.events.push({ type: 'hit', pos: { x: h.pos.x, y: h.pos.y }, amount, byHero: false });
@@ -19,7 +27,11 @@ export function damageHero(run: Run, amount: number): void {
 }
 
 export function damageEnemy(run: Run, e: RunEnemy, amount: number): void {
-  if (e.dead) return;
+  // The living ring is a wall: its beasts are not hurt.
+  if (e.dead || e.act.kind === 'ring') return;
+  // An elite's shield takes half; the boss resting after a leap takes more.
+  if (e.elite === 'shield') amount *= REWORK_ELITES.shieldTake;
+  if (e.boss && e.act.kind === 'rest') amount *= 1.5;
   e.hp -= amount;
   e.hitAt = run.time;
   run.events.push({ type: 'hit', pos: { x: e.pos.x, y: e.pos.y }, amount, byHero: true });
@@ -27,7 +39,24 @@ export function damageEnemy(run: Run, e: RunEnemy, amount: number): void {
   e.dead = true;
   run.kills += 1;
   run.events.push({ type: 'kill', pos: { x: e.pos.x, y: e.pos.y }, def: e.def });
-  run.gems.push({ pos: { x: e.pos.x, y: e.pos.y }, xp: REWORK_ENEMIES[e.def].xp, pulled: false });
+  run.gems.push({ pos: { x: e.pos.x, y: e.pos.y }, xp: e.elite ? REWORK_ELITES.xp : REWORK_ENEMIES[e.def].xp, pulled: false });
+  if (e.elite) {
+    run.chests.push({ pos: { x: e.pos.x, y: e.pos.y } });
+    if (e.elite === 'explosive') run.blasts.push({ time: REWORK_ELITES.blast.delay, pos: { x: e.pos.x, y: e.pos.y }, radius: REWORK_ELITES.blast.radius, damage: REWORK_ELITES.blast.damage });
+  }
+  if (e.def === 'spirit') {
+    run.fogTarget = 0;
+    run.events.push({ type: 'note', pos: { x: e.pos.x, y: e.pos.y - 40 }, text: 'Туман розсіюється', color: '#d8f0d0' });
+  }
+  if (e.def === 'nest' && run.task) {
+    run.task.dens = run.task.dens.filter((id) => id !== e.id);
+  }
+  if (e.boss) {
+    run.phase = 'won';
+    run.offer = null;
+    run.pendingLevels = 0;
+    run.events.push({ type: 'note', pos: { x: e.pos.x, y: e.pos.y - 60 }, text: 'Ватажка подолано!', color: '#ffd27a' });
+  }
   if (run.rng.next() < REWORK_PROGRESS.goldChance) {
     const a = run.rng.next() * Math.PI * 2;
     run.coins.push({ pos: { x: e.pos.x + Math.cos(a) * 10, y: e.pos.y + Math.sin(a) * 10 }, pulled: false });

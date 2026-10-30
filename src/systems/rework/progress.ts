@@ -1,12 +1,14 @@
-// Experience, gold and the level-up choice in the rework's run (ROADMAP 20.5–20.6). Gems and
+// Experience, gold and the level-up choice in the rework's run (ROADMAP 20.5–20.8). Gems and
 // coins lie where beasts fell and fly to the hero inside the magnet radius. A level-up stops the
-// run for a choice of 1 of 3 cards: a new skill while a slot is free, a skill's next rank, a
-// passive's next rank. The first choice is always three skills — the hero starts with none. The
-// cards can be re-rolled for gold, dearer each time.
+// run for a choice of 1 of 3 cards: a new skill while one of 4 slots is free, a skill's next
+// rank, a new passive while one of 5 slots is free, a passive's next rank — and, when a skill at
+// rank 5 has its passive, the golden evolution card. The first choice is always three skills —
+// the hero starts with none. The cards can be re-rolled for gold, dearer each time.
 
-import { REWORK_CARDS, REWORK_PROGRESS, type ReworkCardId } from '../../data/rework';
+import { PASSIVE_SLOTS, REWORK_CARDS, REWORK_PROGRESS, type ReworkCardId } from '../../data/rework';
 import { CLASS_SKILLS, REWORK_SKILLS, SKILL_SLOTS } from '../../data/reworkSkills';
 import { heroStats } from './hero';
+import { evolutionReady } from './skills';
 import type { CardOffer, Run } from './types';
 
 const P = REWORK_PROGRESS;
@@ -73,18 +75,25 @@ function openCards(run: Run): CardOffer[] {
   // The hero starts with the basic attack only: the first choice is a skill.
   if (run.skills.length === 0 && newSkills.length > 0) return newSkills;
   const ranks: CardOffer[] = run.skills.filter((s) => s.rank < REWORK_SKILLS[s.id].ranks.length + 1).map((s) => ({ kind: 'skill', id: s.id, rank: s.rank + 1 }));
+  // A new passive only while a slot is free; the ones taken keep growing.
+  const full = passivesTaken(run).length >= PASSIVE_SLOTS;
   const passives: CardOffer[] = (Object.keys(REWORK_CARDS) as ReworkCardId[])
-    .filter((id) => (run.cards[id] ?? 0) < REWORK_CARDS[id].ranks)
+    .filter((id) => (run.cards[id] ?? 0) < REWORK_CARDS[id].ranks && (!full || (run.cards[id] ?? 0) > 0))
     .map((id) => ({ kind: 'passive', id, rank: (run.cards[id] ?? 0) + 1 }));
   return [...newSkills, ...ranks, ...passives];
 }
 
-/** Up to three different cards. */
+/** The passives in their slots, in the order they came. */
+export function passivesTaken(run: Run): ReworkCardId[] {
+  return (Object.keys(run.cards) as ReworkCardId[]).filter((id) => (run.cards[id] ?? 0) > 0);
+}
+
+/** Up to three different cards; a ready evolution always comes first (golden). */
 export function makeOffer(run: Run): CardOffer[] {
+  const picks: CardOffer[] = run.skills.filter((s) => evolutionReady(run, s)).map((s) => ({ kind: 'evolve', id: s.id, rank: s.rank }));
   const open = openCards(run);
-  const picks: CardOffer[] = [];
   while (picks.length < 3 && open.length > 0) picks.push(open.splice(Math.floor(run.rng.next() * open.length), 1)[0]!);
-  return picks;
+  return picks.slice(0, 3);
 }
 
 /** Takes card `index` of the offer; the next pending level gets a new offer. */
@@ -93,7 +102,11 @@ export function chooseCard(run: Run, index: number): boolean {
   if (!card) return false;
   const before = heroStats(run).maxHp;
   if (card.kind === 'passive') run.cards[card.id] = card.rank;
-  else {
+  else if (card.kind === 'evolve') {
+    const sk = run.skills.find((s) => s.id === card.id);
+    if (sk) sk.evolved = true;
+    run.events.push({ type: 'evolve', skill: card.id });
+  } else {
     const have = run.skills.find((s) => s.id === card.id);
     if (have) have.rank = card.rank;
     else run.skills.push({ id: card.id, rank: 1, cooldown: 0 });

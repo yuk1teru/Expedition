@@ -1,14 +1,18 @@
 // The rework's core (ROADMAP 20.2–20.5): rules, not numbers — the numbers live in
 // src/data/rework.ts and change in play.
 import { describe, expect, it } from 'vitest';
-import { REWORK_CARDS, REWORK_FLOOD, REWORK_MAP, REWORK_PROGRESS } from '../src/data/rework';
-import { damageHero } from '../src/systems/rework/combat';
+import { PASSIVE_SLOTS, REWORK_BOSS, REWORK_CARDS, REWORK_ELITES, REWORK_FLOOD, REWORK_MAP, REWORK_PROGRESS, REWORK_SPIRIT, REWORK_TASKS } from '../src/data/rework';
+import { damageEnemy as damageEnemyHit, damageHero } from '../src/systems/rework/combat';
 import { powerAt, spawnBeast, spawnInterval } from '../src/systems/rework/enemies';
 import { dodge, heroStats } from '../src/systems/rework/hero';
 import { isFree, resolveBody } from '../src/systems/rework/map';
 import { chooseCard, gainXp, reroll, rerollPrice, xpToNext } from '../src/systems/rework/progress';
 import { createRun, runPaused, stepRun, stressSpawn } from '../src/systems/rework/run';
-import { castSkill } from '../src/systems/rework/skills';
+import { castSkill, effectiveParams, evolutionReady } from '../src/systems/rework/skills';
+import { formRing, outsideRing } from '../src/systems/rework/boss';
+import { altarPrice, openChest, useAltar } from '../src/systems/rework/pickups';
+import { startTask } from '../src/systems/rework/task';
+import { sightRadius } from '../src/systems/rework/spirit';
 import { CLASS_SKILLS, REWORK_SKILLS, type ReworkSkillId, SKILL_SLOTS, skillParams } from '../src/data/reworkSkills';
 
 const still = { x: 0, y: 0 };
@@ -181,13 +185,10 @@ describe('rework experience and cards (20.5)', () => {
 
   it('a card at its last rank is not offered again', () => {
     const run = createRun(43, 'warrior');
-    for (const id of Object.keys(REWORK_CARDS) as (keyof typeof REWORK_CARDS)[]) if (id !== 'magnet') run.cards[id] = REWORK_CARDS[id].ranks;
+    for (const id of ['amount', 'area', 'cooldown', 'health'] as const) run.cards[id] = REWORK_CARDS[id].ranks;
+    run.skills = (['whirlwind', 'groundSlam', 'axeThrow', 'battleCry'] as const).map((id) => ({ id, rank: 5, cooldown: 0, evolved: true }));
     gainXp(run, xpToNext(1));
-    run.skills = (['whirlwind', 'groundSlam', 'axeThrow', 'battleCry'] as const).map((id) => ({ id, rank: 5, cooldown: 0 }));
-    run.offer = null;
-    run.pendingLevels = 0;
-    gainXp(run, xpToNext(run.level));
-    expect(run.offer!.map((c) => c.id)).toEqual(['magnet']);
+    expect(run.offer!.map((c) => c.id).sort()).toEqual(['magnet', 'swiftness']);
   });
 
   it('re-rolling costs gold and gets dearer', () => {
@@ -302,3 +303,238 @@ describe('rework skills (20.6)', () => {
     expect(hp - run.hero.hp).toBeCloseTo(10 * (1 - run.buff!.guard));
   });
 });
+
+describe('rework passives (20.7)', () => {
+  it('no more than five passives; when full, only the taken ones grow', () => {
+    const run = createRun(61, 'warrior');
+    run.skills = CLASS_SKILLS.warrior.map((id) => ({ id, rank: 5, cooldown: 0, evolved: true }));
+    for (const id of ['amount', 'area', 'cooldown', 'health', 'swiftness'] as const) run.cards[id] = 1;
+    gainXp(run, xpToNext(1));
+    expect(run.offer!.length).toBeGreaterThan(0);
+    for (const c of run.offer!) expect(c.id).not.toBe('magnet');
+    expect(PASSIVE_SLOTS).toBe(5);
+  });
+
+  it('Кількість adds shots, Площа widens, Перезарядка shortens', () => {
+    const run = createRun(62, 'mage');
+    const sk = { id: 'fireball' as const, rank: 1, cooldown: 0 };
+    const base = effectiveParams(run, sk);
+    run.cards = { amount: 1, area: 2, cooldown: 3 };
+    const p = effectiveParams(run, sk);
+    expect(p.count).toBe(base.count + 1);
+    expect(p.radius).toBeGreaterThan(base.radius);
+    expect(p.cooldown).toBeLessThan(base.cooldown);
+  });
+});
+
+describe('rework evolutions (20.8)', () => {
+  it('a skill at rank 5 with its passive brings the golden card first', () => {
+    const run = createRun(71, 'warrior');
+    run.skills = [{ id: 'whirlwind', rank: 5, cooldown: 0 }];
+    run.cards = { swiftness: 1 };
+    expect(evolutionReady(run, run.skills[0]!)).toBe(true);
+    gainXp(run, xpToNext(1));
+    expect(run.offer![0]).toEqual({ kind: 'evolve', id: 'whirlwind', rank: 5 });
+    chooseCard(run, 0);
+    expect(run.skills[0]!.evolved).toBe(true);
+    expect(evolutionReady(run, run.skills[0]!)).toBe(false);
+  });
+
+  it('without its passive there is no evolution', () => {
+    const run = createRun(72, 'warrior');
+    run.skills = [{ id: 'whirlwind', rank: 5, cooldown: 0 }];
+    expect(evolutionReady(run, run.skills[0]!)).toBe(false);
+  });
+
+  it('evolved axes circle the hero and keep cutting', () => {
+    const run = createRun(73, 'warrior');
+    run.spawnTimer = 1e9;
+    run.hero.attackTimer = 1e9;
+    run.skills = [{ id: 'axeThrow', rank: 5, cooldown: 0, evolved: true }];
+    castSkill(run, 0, null);
+    expect(run.shots.filter((s) => s.kind === 'axe').length).toBeGreaterThanOrEqual(3);
+    for (let i = 0; i < 60; i++) stepRun(run, 1 / 60, still);
+    for (const a of run.shots.filter((s) => s.kind === 'axe')) expect(Math.hypot(a.pos.x - run.hero.pos.x, a.pos.y - run.hero.pos.y)).toBeLessThan(120);
+  });
+});
+
+describe('rework map things (20.9)', () => {
+  it('elites come on time, stronger, and drop a chest', () => {
+    const run = createRun(81, 'warrior');
+    run.hero.immortal = true;
+    run.time = REWORK_ELITES.times[0]! - 0.01;
+    stepRun(run, 1 / 60, still);
+    const elite = run.enemies.find((e) => e.elite);
+    expect(elite).toBeTruthy();
+    expect(elite!.maxHp).toBeGreaterThan(30);
+    killFully(run, elite!);
+    expect(run.chests.length).toBe(1);
+  });
+
+  it('a chest gives a ready evolution first, else a rank', () => {
+    const run = createRun(82, 'archer');
+    run.skills = [{ id: 'multishot', rank: 5, cooldown: 0 }, { id: 'arrowRain', rank: 2, cooldown: 0 }];
+    run.cards = { amount: 1 };
+    openChest(run, run.hero.pos);
+    expect(run.skills[0]!.evolved).toBe(true);
+    openChest(run, run.hero.pos);
+    expect(run.skills[1]!.rank).toBe(3);
+  });
+
+  it('a herb heals over time; an altar sells a card for gold', () => {
+    const run = createRun(83, 'mage');
+    run.spawnTimer = 1e9;
+    run.hero.hp = 10;
+    run.herbs = [{ pos: { x: run.hero.pos.x + 5, y: run.hero.pos.y } }];
+    for (let i = 0; i < 120; i++) stepRun(run, 1 / 60, still);
+    expect(run.hero.hp).toBeGreaterThan(20);
+    run.altars = [{ pos: { x: run.hero.pos.x, y: run.hero.pos.y } }];
+    run.skills = [{ id: 'fireball', rank: 1, cooldown: 0 }];
+    expect(useAltar(run)).toBe(false);
+    run.gold = 100;
+    const price = altarPrice(run);
+    expect(useAltar(run)).toBe(true);
+    expect(run.gold).toBe(100 - price);
+    expect(run.offer).not.toBeNull();
+    expect(altarPrice(run)).toBeGreaterThan(price);
+  });
+
+  it('standing by a shrine gives its buff', () => {
+    const run = createRun(84, 'warrior');
+    run.spawnTimer = 1e9;
+    run.shrines = [{ kind: 'speed', pos: { x: run.hero.pos.x, y: run.hero.pos.y }, charge: 0, rest: 0 }];
+    const speed = heroStats(run).speed;
+    for (let i = 0; i < 120; i++) stepRun(run, 1 / 60, still);
+    expect(run.hero.shrine?.kind).toBe('speed');
+    expect(heroStats(run).speed).toBeGreaterThan(speed);
+  });
+});
+
+describe('rework weather spirit (20.10)', () => {
+  it('comes at its time, thickens the fog; killed, the fog goes', () => {
+    const run = createRun(91, 'mage');
+    run.hero.immortal = true;
+    run.spawnTimer = 1e9;
+    run.time = REWORK_SPIRIT.appearAt;
+    stepRun(run, 1 / 60, still);
+    const spirit = run.enemies.find((e) => e.def === 'spirit');
+    expect(spirit).toBeTruthy();
+    for (let i = 0; i < 60 * 25; i++) {
+      stepRun(run, 1 / 60, still);
+      run.hero.attackTimer = 1e9;
+    }
+    expect(run.fog).toBeGreaterThan(0.1);
+    expect(sightRadius(run.fog)).toBeLessThan(sightRadius(0));
+    killFully(run, spirit!);
+    for (let i = 0; i < 60 * 5; i++) stepRun(run, 1 / 60, still);
+    expect(run.fog).toBeLessThan(0.05);
+  });
+});
+
+describe('rework task (20.11)', () => {
+  it('dens destroyed: a chest and the boss calls no wolves', () => {
+    const run = createRun(101, 'warrior');
+    run.spawnTimer = 1e9;
+    startTask(run, 'nests');
+    expect(run.task!.dens.length).toBe(REWORK_TASKS.nests.count);
+    for (const e of run.enemies.filter((x) => x.def === 'nest')) killFully(run, e);
+    stepRun(run, 1 / 60, still);
+    expect(run.task!.state).toBe('done');
+    expect(run.noHowl).toBe(true);
+    expect(run.chests.length).toBe(1);
+  });
+
+  it('the lumberjack follows the hero and is saved at the edge', () => {
+    const run = createRun(102, 'warrior');
+    run.spawnTimer = 1e9;
+    run.hero.immortal = true;
+    const t = startTask(run, 'rescue');
+    run.hero.pos = { x: t.man.x + 30, y: t.man.y };
+    stepRun(run, 1 / 60, still);
+    expect(t.following).toBe(true);
+    run.hero.pos = { x: t.exit.x, y: t.exit.y };
+    for (let i = 0; i < 60 * 20 && t.state === 'active'; i++) stepRun(run, 1 / 60, still);
+    expect(t.state).toBe('done');
+  });
+
+  it('time runs out: failed, nothing lost', () => {
+    const run = createRun(103, 'warrior');
+    run.spawnTimer = 1e9;
+    run.hero.immortal = true;
+    startTask(run, 'nests');
+    for (let i = 0; i < 60 * (REWORK_TASKS.duration + 1); i++) {
+      stepRun(run, 1 / 60, still);
+      while (run.offer) chooseCard(run, 0);
+    }
+    expect(run.task!.state).toBe('failed');
+    expect(run.noHowl).toBe(false);
+  });
+});
+
+describe('rework boss and ring (20.12–20.13)', () => {
+  it('a warning, then the beasts stand in a ring and the boss comes', () => {
+    const run = createRun(111, 'warrior');
+    run.hero.immortal = true;
+    stressSpawn(run, 20);
+    run.time = REWORK_BOSS.warnAt;
+    stepRun(run, 1 / 60, still);
+    expect(run.phase).toBe('warning');
+    run.time = REWORK_BOSS.warnAt + REWORK_BOSS.warnTime;
+    stepRun(run, 1 / 60, still);
+    expect(run.phase).toBe('ring');
+    expect(run.enemies.some((e) => e.boss)).toBe(true);
+    expect(run.enemies.filter((e) => e.act.kind === 'ring').length).toBeGreaterThanOrEqual(REWORK_BOSS.ringMin);
+    const count = run.enemies.length;
+    for (let i = 0; i < 60 * 3; i++) {
+      stepRun(run, 1 / 60, still);
+      while (run.offer) chooseCard(run, 0);
+    }
+    // No more beasts come during the duel.
+    expect(run.enemies.length).toBeLessThanOrEqual(count);
+  });
+
+  it('the beasts of the ring are a wall: not hurt by the hero', () => {
+    const run = createRun(114, 'warrior');
+    run.hero.immortal = true;
+    stressSpawn(run, 40);
+    formRing(run);
+    const ring = run.enemies.filter((e) => e.act.kind === 'ring');
+    const hp = ring[0]!.hp;
+    damageEnemyHit(run, ring[0]!, 9999);
+    expect(ring[0]!.hp).toBe(hp);
+    expect(ring[0]!.dead).toBe(false);
+  });
+
+  it('the ring is a wall: the hero stays inside', () => {
+    const run = createRun(112, 'archer');
+    run.hero.immortal = true;
+    formRing(run);
+    for (let i = 0; i < 60 * 4; i++) {
+      stepRun(run, 1 / 60, { x: 1, y: 0 });
+      while (run.offer) chooseCard(run, 0);
+    }
+    expect(outsideRing(run, run.hero.pos, 0)).toBe(false);
+  });
+
+  it('the boss dashes and leaps; his death wins the location', () => {
+    const run = createRun(113, 'warrior');
+    run.hero.immortal = true;
+    formRing(run);
+    const boss = run.enemies.find((e) => e.boss)!;
+    const seen = new Set<string>();
+    for (let i = 0; i < 60 * 30; i++) {
+      stepRun(run, 1 / 60, still);
+      while (run.offer) chooseCard(run, 0);
+      seen.add(boss.act.kind);
+      run.hero.attackTimer = 1e9;
+    }
+    expect(seen.has('dashWind') || seen.has('leapWind')).toBe(true);
+    killFully(run, boss);
+    expect(run.phase).toBe('won');
+  });
+});
+
+/** Hits a beast until it dies (a shield or a resting boss take less). */
+function killFully(run: ReturnType<typeof createRun>, e: Parameters<typeof damageEnemyHit>[1]): void {
+  for (let i = 0; i < 50 && !e.dead; i++) damageEnemyHit(run, e, 1e6);
+}

@@ -4,21 +4,22 @@
 // invulnerability and no damage. The cards (20.5) change the numbers through `heroStats`; the
 // hero's shots fly in shots.ts.
 
-import { REWORK_CARDS, REWORK_CLASSES, REWORK_PROGRESS, type ReworkClassId } from '../../data/rework';
+import { REWORK_CARDS, REWORK_CLASSES, REWORK_PICKUPS, REWORK_PROGRESS, type ReworkClassId } from '../../data/rework';
 import type { Vec } from '../entities';
 import { damageEnemy } from './combat';
 import { isFree, resolveBody } from './map';
 import type { Run, RunEnemy, RunHero } from './types';
 
-/** The hero's numbers with the cards taken. */
+/** The hero's numbers with the passives taken and a shrine's buff. */
 export function heroStats(run: Run): { maxHp: number; speed: number; dodgeDistance: number; magnet: number; area: number } {
   const c = REWORK_CLASSES[run.hero.classId];
   const rank = (id: keyof typeof REWORK_CARDS): number => (run.cards[id] ?? 0) * REWORK_CARDS[id].value / 100;
+  const shrine = run.hero.shrine?.kind;
   return {
     maxHp: Math.round(c.hp * (1 + rank('health'))),
-    speed: c.speed * (1 + rank('swiftness')),
+    speed: c.speed * (1 + rank('swiftness') + (shrine === 'speed' ? REWORK_PICKUPS.speedBonus : 0)),
     dodgeDistance: c.dodge.distance * (1 + rank('swiftness') * 1.25),
-    magnet: REWORK_PROGRESS.magnet * (1 + rank('magnet')),
+    magnet: REWORK_PROGRESS.magnet * (1 + rank('magnet')) * (shrine === 'magnet' ? REWORK_PICKUPS.magnetMult : 1),
     area: 1 + rank('area'),
   };
 }
@@ -40,6 +41,9 @@ export function newHero(classId: ReworkClassId, pos: Vec, radius: number): RunHe
     dead: false,
     hitAt: -Infinity,
     immortal: false,
+    regen: null,
+    shrine: null,
+    shield: 0,
   };
 }
 
@@ -47,7 +51,7 @@ function nearest(run: Run, from: Vec, range: number): RunEnemy | null {
   let best: RunEnemy | null = null;
   let bestD = range;
   for (const e of run.enemies) {
-    if (e.dead) continue;
+    if (e.dead || e.act.kind === 'ring') continue;
     const d = Math.hypot(e.pos.x - from.x, e.pos.y - from.y) - e.radius;
     if (d < bestD) {
       bestD = d;
@@ -64,6 +68,18 @@ export function stepHero(run: Run, dt: number, move: Vec): void {
   const st = heroStats(run);
   h.invuln = Math.max(0, h.invuln - dt);
   h.dodgeTimer = Math.max(0, h.dodgeTimer - dt);
+  if (h.regen) {
+    h.hp = Math.min(h.maxHp, h.hp + h.regen.perSec * dt);
+    h.regen.time -= dt;
+    if (h.regen.time <= 0) h.regen = null;
+  }
+  if (h.shrine) {
+    h.shrine.time -= dt;
+    if (h.shrine.time <= 0) {
+      if (h.shrine.kind === 'shield') h.shield = 0;
+      h.shrine = null;
+    }
+  }
   h.attackTimer -= dt;
   if (h.dash) {
     const d = h.dash;

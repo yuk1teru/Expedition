@@ -12,7 +12,7 @@ function nearestFree(run: Run, s: Shot): RunEnemy | null {
   let best: RunEnemy | null = null;
   let bd = 500;
   for (const e of run.enemies) {
-    if (e.dead || s.hit.includes(e.id)) continue;
+    if (e.dead || e.act.kind === 'ring' || s.hit.includes(e.id)) continue;
     const d = Math.hypot(e.pos.x - s.pos.x, e.pos.y - s.pos.y);
     if (d < bd) {
       bd = d;
@@ -22,12 +22,20 @@ function nearestFree(run: Run, s: Shot): RunEnemy | null {
   return best;
 }
 
-/** A fireball bursts once: on the first beast or at its point. */
+/** A fireball bursts once: on the first beast or at its point; the evolved one splits in three. */
 function explode(run: Run, s: Shot): void {
   const b = s.blast!;
   s.blast = undefined;
   burst(run, s.pos, b.radius, s.damage);
   if (b.burn > 0) run.zones.push({ kind: 'fire', pos: { x: s.pos.x, y: s.pos.y }, radius: b.radius * 0.8, time: b.burn, damage: s.damage * 0.12, tick: 0.25, slow: 0 });
+  if (s.split) {
+    const base = Math.atan2(s.vel.y, s.vel.x);
+    for (let i = 0; i < 3; i++) {
+      const a = base + ((i - 1) * Math.PI) / 3;
+      const at = { x: s.pos.x + Math.cos(a) * 85, y: s.pos.y + Math.sin(a) * 85 };
+      run.delayed.push({ time: 0.18, pos: at, radius: b.radius * 0.6, damage: s.damage * 0.6, freeze: 0, color: '#ff9d3a' });
+    }
+  }
   s.life = 0;
 }
 
@@ -36,6 +44,30 @@ export function stepHeroShots(run: Run, dt: number): void {
   const h = run.hero;
   for (const s of run.shots) {
     if (!s.byHero || s.life <= 0) continue;
+    // Circling the hero (the evolved axes and missiles); a missile breaks off at a beast that comes near.
+    if (s.orbit) {
+      const o = s.orbit;
+      o.angle += o.spin * dt;
+      s.pos = { x: h.pos.x + Math.cos(o.angle) * o.radius, y: h.pos.y + Math.sin(o.angle) * o.radius * 0.6 };
+      if (o.launch > 0) {
+        const near = run.enemies.find((e) => !e.dead && e.act.kind !== 'ring' && Math.hypot(e.pos.x - h.pos.x, e.pos.y - h.pos.y) < o.launch);
+        if (near) {
+          s.orbit = undefined;
+          s.homing = true;
+          const a = Math.atan2(near.pos.y - s.pos.y, near.pos.x - s.pos.x);
+          s.vel = { x: Math.cos(a) * 420, y: Math.sin(a) * 420 };
+          s.life = 1.5;
+        }
+      }
+    }
+    // Hits the same beast again after a while (the circling axes).
+    if (s.rehit !== undefined) {
+      s.rehit -= dt;
+      if (s.rehit <= 0) {
+        s.rehit = 0.4;
+        s.hit = [];
+      }
+    }
     // A missile turns to the nearest beast it has not hit yet.
     if (s.homing) {
       const t = nearestFree(run, s);
@@ -50,8 +82,10 @@ export function stepHeroShots(run: Run, dt: number): void {
         s.vel = { x: Math.cos(a) * speed, y: Math.sin(a) * speed };
       }
     }
-    s.pos.x += s.vel.x * dt;
-    s.pos.y += s.vel.y * dt;
+    if (!s.orbit) {
+      s.pos.x += s.vel.x * dt;
+      s.pos.y += s.vel.y * dt;
+    }
     s.life -= dt;
     // The fireball bursts where it was sent.
     if (s.blast && s.target && Math.hypot(s.target.x - s.pos.x, s.target.y - s.pos.y) < Math.hypot(s.vel.x, s.vel.y) * dt + 4) {
@@ -59,7 +93,7 @@ export function stepHeroShots(run: Run, dt: number): void {
       continue;
     }
     for (const e of run.enemies) {
-      if (e.dead || s.life <= 0 || s.hit.includes(e.id)) continue;
+      if (e.dead || e.act.kind === 'ring' || s.life <= 0 || s.hit.includes(e.id)) continue;
       if (Math.hypot(e.pos.x - s.pos.x, e.pos.y - s.pos.y) > e.radius + s.radius) continue;
       if (s.blast) {
         explode(run, s);
@@ -78,6 +112,7 @@ export function stepHeroShots(run: Run, dt: number): void {
         }
         s.life = 0;
       } else if (s.kind === 'missile') {
+        if (s.orbit) continue;
         if ((s.bounce ?? 0) > 0) s.bounce! -= 1;
         else s.life = 0;
       } else if (s.pierce > 0) s.pierce -= 1;

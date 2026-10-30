@@ -266,3 +266,29 @@ export function skillParams(id: ReworkSkillId, rank: number): SkillParams {
   }
   return p;
 }
+
+/**
+ * Evolutions (20.8, docs/SKILLS.md): a skill at rank 5 and the named passive (any rank) bring a
+ * golden card; the evolved skill keeps its rank-5 numbers changed by `mul`/`add` and gains its
+ * new form (the cast reads `evolved`). Three per class open with the starting passives; the
+ * others wait for passives that bosses open later.
+ */
+export interface EvolutionDef {
+  name: string;
+  needs: 'amount' | 'area' | 'cooldown' | 'health' | 'swiftness' | 'magnet';
+  text: string;
+  mul?: Partial<SkillParams>;
+  add?: Partial<SkillParams>;
+}
+
+export const EVOLUTIONS: Partial<Record<ReworkSkillId, EvolutionDef>> = {
+  whirlwind: { name: 'Буревій', needs: 'swiftness', text: 'вихор довший, ширший і тягне ворогів до себе', mul: { duration: 1.5, radius: 1.25, damage: 1.3 }, add: { pull: 1 } },
+  groundSlam: { name: 'Розлам', needs: 'area', text: 'удар лишає тріщину, що тричі вибухає вздовж лінії', mul: { damage: 1.2 } },
+  axeThrow: { name: 'Сокировий вир', needs: 'amount', text: 'сокири 3 с кружляють довкола героя й ріжуть усіх поруч', add: { count: 2 } },
+  fireball: { name: 'Вогняний розсип', needs: 'amount', text: 'кожна куля розпадається на 3 менші вибухи', mul: { damage: 1.1 } },
+  frostRing: { name: 'Полярне коло', needs: 'area', text: 'кільце розходиться трьома хвилями, кожна ширша', mul: { damage: 1.1 } },
+  magicMissiles: { name: 'Чарівний рій', needs: 'magnet', text: 'стріли кружляють довкола героя й зриваються на тих, хто підійшов', add: { count: 3, bounce: 1 } },
+  multishot: { name: 'Залп', needs: 'amount', text: 'три віяла стріл поспіль', mul: { damage: 1.1 } },
+  arrowRain: { name: 'Злива', needs: 'area', text: 'дощ стріл іде за героєм і триває довше', mul: { duration: 1.6 } },
+  piercingShot: { name: 'Стріла долі', needs: 'cooldown', text: 'стріла летить далі й повертається, пробиваючи всіх удруге', mul: { range: 1.6 }, add: { returns: 1 } },
+};

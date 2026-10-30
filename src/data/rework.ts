@@ -35,7 +35,11 @@ export const REWORK_MAP = {
   cell: 128,
 } as const;
 
-export type ReworkEnemyId = 'wolf' | 'mushroom' | 'stump';
+/** The flood's beasts and the special ones: the weather spirit, a wolf den, the pack leader. */
+export type ReworkEnemyId = 'wolf' | 'mushroom' | 'stump' | 'spirit' | 'nest' | 'alpha';
+
+/** The beasts the flood sends. */
+export const FLOOD_BEASTS = ['wolf', 'mushroom', 'stump'] as const;
 
 export interface ReworkEnemyDef {
   id: ReworkEnemyId;
@@ -95,6 +99,10 @@ export const REWORK_ENEMIES: Record<ReworkEnemyId, ReworkEnemyDef> = {
     weight: 2,
     stomp: { every: 3.5, trigger: 70, reach: 46, delay: 0.7, damage: 9 },
   },
+  // The special ones walk by their own code (spirit.ts, task.ts, boss.ts); these are their bodies.
+  spirit: { id: 'spirit', name: 'Дух занепаду', hp: 260, damage: 4, touchEvery: 1, speed: 95, radius: 16, xp: 30, weight: 0 },
+  nest: { id: 'nest', name: 'Вовче лігво', hp: 110, damage: 0, touchEvery: 1, speed: 0, radius: 26, xp: 8, weight: 0 },
+  alpha: { id: 'alpha', name: 'Ватажок зграї', hp: 2600, damage: 10, touchEvery: 0.8, speed: 125, radius: 24, xp: 120, weight: 0 },
 };
 
 /** 20.3 — the flood: never stops, starts thin, grows thicker, every beast a bit stronger. */
@@ -183,17 +191,171 @@ export const REWORK_PROGRESS = {
   rerollStep: 10,
 };
 
-export type ReworkCardId = 'health' | 'swiftness' | 'magnet' | 'area';
+/** The shared passives (20.7, docs/SKILLS.md): the six open from the start of the game. */
+export type ReworkCardId = 'amount' | 'area' | 'cooldown' | 'health' | 'swiftness' | 'magnet';
+
+export const PASSIVE_SLOTS = 5;
 
 /**
- * 20.5 — the cards before skills arrive (20.6): four of the shared passives from
- * docs/SKILLS.md, five ranks each. The full pool with slots comes at 20.7.
+ * Each rank says what it gives. `value` is the share per rank (Кількість: extra shots on ranks
+ * 1, 3 and 5, +10% damage of the skill on ranks 2 and 4).
  */
 export const REWORK_CARDS: Record<ReworkCardId, { name: string; ranks: number; text: string; value: number }> = {
+  amount: { name: 'Кількість', ranks: 5, text: 'ранги 1, 3, 5: +1 снаряд, стрибок чи пастка скілам; 2, 4: +10% їхньої шкоди', value: 10 },
+  area: { name: 'Площа', ranks: 5, text: '+{v}% радіуса, дальності й ширини скілів і базової атаки', value: 10 },
+  cooldown: { name: 'Перезарядка', ranks: 5, text: '−{v}% перезарядки скілів', value: 6 },
   health: { name: 'Здоров’я', ranks: 5, text: '+{v}% макс. HP (і лікує на стільки ж)', value: 10 },
   swiftness: { name: 'Прудкість', ranks: 5, text: '+{v}% швидкості руху, ухил далі', value: 8 },
   magnet: { name: 'Магніт', ranks: 5, text: '+{v}% радіуса, з якого летить досвід', value: 25 },
-  area: { name: 'Площа', ranks: 5, text: '+{v}% зони базової атаки', value: 10 },
+};
+
+/** Extra shots from Кількість at a rank (ranks 1, 3, 5 add one each). */
+export function amountExtra(rank: number): number {
+  return Math.ceil(rank / 2);
+}
+
+/** 20.9 — elites: a stronger beast with one trait and a glow; it drops a chest. */
+export type EliteTrait = 'swift' | 'explosive' | 'shield' | 'caller';
+
+export const REWORK_ELITES = {
+  /** Run seconds when an elite comes. */
+  times: [70, 210, 330],
+  hpMult: 7,
+  damageMult: 1.6,
+  sizeMult: 1.4,
+  xp: 15,
+  traits: {
+    swift: { name: 'Прудкий', color: '#7fd8ff' },
+    explosive: { name: 'Вибуховий', color: '#ff7a3a' },
+    shield: { name: 'Щит', color: '#e6e6f0' },
+    caller: { name: 'Кличе зграю', color: '#c58cff' },
+  } satisfies Record<EliteTrait, { name: string; color: string }>,
+  /** Explosive: blows up this long after death, this wide, this hard on the hero. */
+  blast: { delay: 0.8, radius: 80, damage: 18 },
+  /** Shield: takes this share of damage. */
+  shieldTake: 0.5,
+  /** Caller: two wolves every N s. */
+  callEvery: 5,
+};
+
+/** 20.9 — what lies on the map. */
+export const REWORK_PICKUPS = {
+  /** Herbs: this many grow on the field, a new one every N s; a herb heals this share over this many s. */
+  herbs: 16,
+  herbRegrow: 25,
+  herbHeal: 0.25,
+  herbTime: 3,
+  /** Shrines: stand by one this long — a buff for this long, then it rests. */
+  shrines: 4,
+  shrineRadius: 46,
+  shrineCharge: 1.5,
+  shrineBuff: 15,
+  shrineRest: 60,
+  shrineKinds: {
+    speed: { name: 'Святилище швидкості', text: '+30% швидкості', color: '#7fd8ff' },
+    magnet: { name: 'Святилище магніту', text: 'досвід летить звідусіль', color: '#5fe0a0' },
+    shield: { name: 'Святилище щита', text: 'щит на 40 шкоди', color: '#ffe08a' },
+  },
+  speedBonus: 0.3,
+  magnetMult: 4,
+  shieldHp: 40,
+  /** Altars: press E nearby to buy one more card for gold, dearer each time. */
+  altars: 2,
+  altarRadius: 50,
+  altarPrice: 30,
+  altarStep: 20,
+  /** A chest that lies unopened is picked up on touch. */
+  chestRadius: 22,
+};
+
+export type ShrineKind = keyof typeof REWORK_PICKUPS.shrineKinds;
+
+/** 20.10 — the weather monster of the Forest: the spirit of decay with its fog. */
+export const REWORK_SPIRIT = {
+  name: 'Дух занепаду',
+  appearAt: 210,
+  hp: 260,
+  radius: 16,
+  speed: 95,
+  /** Keeps this far from the hero. */
+  keep: 380,
+  /** Casts fog every N s after a warning; each cast thickens it. */
+  castEvery: 9,
+  windup: 1.2,
+  fogStep: 0.22,
+  fogMax: 0.88,
+  /** Seen radius around the hero at no fog and at the thickest fog (world px). */
+  sightClear: 620,
+  sightThick: 200,
+  /** Runs away below this share of HP. */
+  fleeAt: 0.3,
+  fleeSpeed: 150,
+  /** The fog thins this fast once the spirit is dead (per second). */
+  clearRate: 0.5,
+  xp: 30,
+};
+
+/** 20.11 — tasks of the Forest's first location (one, picked by the seed). */
+export const REWORK_TASKS = {
+  startAt: 90,
+  duration: 75,
+  nests: {
+    text: 'Знищте вовчі лігва',
+    count: 3,
+    hp: 110,
+    radius: 26,
+    /** Each den sends a wolf every N s while the hero is near. */
+    spawnEvery: 4,
+    near: 700,
+    distance: [500, 900] as [number, number],
+  },
+  rescue: {
+    text: 'Виведіть лісоруба до краю лісу',
+    distance: [600, 900] as [number, number],
+    /** He follows the hero once the hero comes this close; this fast. */
+    follow: 70,
+    speed: 115,
+    /** The way out: this wide, on the field's nearest edge to him. */
+    exitRadius: 90,
+  },
+  /** Success: a chest. Dens destroyed — the boss calls no wolves; the lumberjack saved — 30% HP back when the boss comes. */
+  rescueHeal: 0.3,
+};
+
+export type TaskKind = 'nests' | 'rescue';
+
+/** 20.12–20.13 — the boss comes, the beasts stand in a living ring; the pack leader. */
+export const REWORK_BOSS = {
+  /** Run seconds: the warning, then the ring and the boss. */
+  warnAt: 390,
+  warnTime: 5,
+  ringRadius: 300,
+  /** The ring is a wall: it pushes back and hurts this much per second of touch. */
+  wallDamage: 6,
+  /** The ring needs at least this many beasts (wolves come to fill it) and holds at most this many. */
+  ringMin: 34,
+  ringMax: 90,
+  invuln: 2.5,
+  zoom: 0.85,
+  alpha: {
+    name: 'Ватажок зграї',
+    hp: 2600,
+    radius: 24,
+    speed: 125,
+    touch: 10,
+    /** Dash along a shown line. */
+    dash: { every: 4.5, windup: 0.7, length: 340, width: 34, speed: 950, damage: 24 },
+    /** Leap at the hero: the landing circle shows first. */
+    leap: { windup: 0.55, time: 0.45, radius: 72, damage: 28 },
+    /** After a dash it leaps where the hero went (the combo) this often. */
+    combo: 0.6,
+    /** After a leap it stands still (the window): takes this much more damage. */
+    rest: 1.1,
+    restTake: 1.5,
+    /** Howl: this many wolves from the ring rush the hero, every N s. */
+    howl: { every: 11, wolves: 3 },
+    xp: 120,
+  },
 };
 
 /** Stress test (20.1): the buttons put this many beasts on the field. */

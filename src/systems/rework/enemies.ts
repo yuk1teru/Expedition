@@ -1,9 +1,11 @@
-// The flood and the Forest's beasts (ROADMAP 20.3). Beasts come without a break from just
+// The flood and the Forest's beasts (ROADMAP 20.3, 20.9). Beasts come without a break from just
 // outside the view: few at first, ever more often, each a bit stronger than the one before.
 // The wolf crouches and leaps along a shown line, the mushroom keeps away and spits spores
-// (every third time a fan), the stump stomps a ring around itself.
+// (every third time a fan), the stump stomps a ring around itself. Elites come on a timer, larger
+// and with a trait. The special beasts (the spirit, dens, the boss) and the beasts standing in
+// the living ring are stepped by their own code, passed in as `special`.
 
-import { REWORK_ENEMIES, REWORK_FLOOD, type ReworkEnemyId } from '../../data/rework';
+import { type EliteTrait, REWORK_ELITES, REWORK_ENEMIES, REWORK_FLOOD, type ReworkEnemyId } from '../../data/rework';
 import type { Vec } from '../entities';
 import { damageHero } from './combat';
 import { blocksShot, isFree, resolveBody } from './map';
@@ -24,7 +26,7 @@ export function powerAt(t: number): { hp: number; damage: number } {
   return { hp: 1 + F.hpPerMinute * min, damage: 1 + F.damagePerMinute * min };
 }
 
-function pickBeast(run: Run): ReworkEnemyId {
+export function pickBeast(run: Run): ReworkEnemyId {
   const pool: ReworkEnemyId[] = ['wolf'];
   if (run.time >= F.mushroomFrom) pool.push('mushroom');
   if (run.time >= F.stumpFrom) pool.push('stump');
@@ -75,8 +77,27 @@ export function spawnBeast(run: Run, def: ReworkEnemyId, near?: Vec): RunEnemy |
   return null;
 }
 
-/** The flood: spawns on its timer, a few at once later on. */
+/** An elite: a beast of the mix, larger and stronger, with a trait and a glow. */
+export function spawnElite(run: Run): RunEnemy | null {
+  const e = spawnBeast(run, pickBeast(run));
+  if (!e) return null;
+  const traits = Object.keys(REWORK_ELITES.traits) as EliteTrait[];
+  e.elite = traits[Math.floor(run.rng.next() * traits.length)]!;
+  e.hp *= REWORK_ELITES.hpMult;
+  e.maxHp = e.hp;
+  e.power *= REWORK_ELITES.damageMult;
+  e.radius *= REWORK_ELITES.sizeMult;
+  e.moveTimer = REWORK_ELITES.callEvery;
+  return e;
+}
+
+/** The flood: spawns on its timer, a few at once later on; elites come on theirs. */
 export function stepFlood(run: Run, dt: number): void {
+  const E = REWORK_ELITES;
+  if (run.elitesSent < E.times.length && run.time >= E.times[run.elitesSent]!) {
+    run.elitesSent += 1;
+    spawnElite(run);
+  }
   run.spawnTimer -= dt;
   if (run.spawnTimer > 0) return;
   run.spawnTimer += spawnInterval(run.time);
@@ -114,7 +135,18 @@ function stepBeast(run: Run, e: RunEnemy, dt: number): void {
     e.pos.y += e.vel.y * dt;
     return;
   }
-  let speed = d.speed;
+  // An elite that calls the pack: two wolves by it now and then.
+  if (e.elite === 'caller') {
+    e.moveTimer = (e.moveTimer ?? 0) - dt;
+    if (e.moveTimer <= 0) {
+      e.moveTimer = REWORK_ELITES.callEvery;
+      for (let i = 0; i < 2; i++) {
+        const w = spawnBeast(run, 'wolf', e.pos);
+        if (w) w.pos = { x: e.pos.x + (i ? 30 : -30), y: e.pos.y + 10 };
+      }
+    }
+  }
+  let speed = d.speed * (e.elite === 'swift' ? 1.5 : 1);
   let move = dir;
   const act = e.act;
   if (act.kind === 'crouch') {
@@ -194,8 +226,8 @@ function spit(run: Run, e: RunEnemy, dir: Vec, fan: boolean): void {
 
 const cellKey = (cx: number, cy: number): number => cx * 100003 + cy;
 
-export function stepBeasts(run: Run, dt: number): void {
-  for (const e of run.enemies) if (!e.dead) stepBeast(run, e, dt);
+export function stepBeasts(run: Run, dt: number, special: (e: RunEnemy) => boolean = () => false): void {
+  for (const e of run.enemies) if (!e.dead && !special(e)) stepBeast(run, e, dt);
   // Push apart through a grid of cells, then out of obstacles and the hero.
   const C = 32;
   const cells = new Map<number, RunEnemy[]>();
@@ -222,11 +254,15 @@ export function stepBeasts(run: Run, dt: number): void {
           const dist = Math.hypot(dx, dy);
           const min = e.radius + o.radius;
           if (dist >= min || dist === 0) continue;
-          const push = (min - dist) / 2 / dist;
-          e.pos.x += dx * push;
-          e.pos.y += dy * push;
-          o.pos.x -= dx * push;
-          o.pos.y -= dy * push;
+          // A den stands where it is; the boss is barely moved by the crowd.
+          const we = e.def === 'nest' ? 0 : e.boss ? 0.1 : 1;
+          const wo = o.def === 'nest' ? 0 : o.boss ? 0.1 : 1;
+          if (we + wo === 0) continue;
+          const push = (min - dist) / dist;
+          e.pos.x += dx * push * (we / (we + wo));
+          e.pos.y += dy * push * (we / (we + wo));
+          o.pos.x -= dx * push * (wo / (we + wo));
+          o.pos.y -= dy * push * (wo / (we + wo));
         }
       }
     }

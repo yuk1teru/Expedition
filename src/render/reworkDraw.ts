@@ -2,8 +2,8 @@
 // (VISION §10): ground, obstacles, beasts with their warnings, shots, gems. Three-quarter view:
 // every body stands on its foot point, and the caller draws them sorted by it.
 
-import { REWORK_CLASSES, REWORK_ENEMIES, REWORK_MAP } from '../data/rework';
-import type { Gem, Coin, Obstacle, RunEnemy, RunHero, Shot, Trap, Zone } from '../systems/rework/types';
+import { REWORK_BOSS, REWORK_CLASSES, REWORK_ELITES, REWORK_ENEMIES, REWORK_MAP, REWORK_PICKUPS, REWORK_TASKS } from '../data/rework';
+import type { Altar, Chest, Coin, Gem, Herb, Obstacle, RunEnemy, RunHero, Shot, Shrine, Task, Trap, Zone } from '../systems/rework/types';
 
 const OUTLINE = 'rgba(15, 12, 10, 0.85)';
 
@@ -31,8 +31,36 @@ export function crownBox(o: Obstacle): { x: number; y: number; r: number } | nul
   return null;
 }
 
-/** `alpha` — how solid a tree is drawn (less when someone stands behind it). */
+const obstaclePictures = new WeakMap<Obstacle, { pic: HTMLCanvasElement; ox: number; oy: number }>();
+
+/**
+ * `alpha` — how solid an obstacle is drawn (a tree fades when someone stands behind it). Each
+ * obstacle is painted once into a picture of its own: a tree is a dozen outlined shapes, and a
+ * screen holds dozens of trees.
+ */
 export function drawObstacle(ctx: CanvasRenderingContext2D, o: Obstacle, alpha: number): void {
+  let c = obstaclePictures.get(o);
+  if (!c && typeof document !== 'undefined') {
+    const w = Math.ceil(o.radius * 6 + 60);
+    const h = Math.ceil(o.height * 1.4 + o.radius * 3 + 60);
+    const pic = document.createElement('canvas');
+    pic.width = w;
+    pic.height = h;
+    const ox = w / 2;
+    const oy = h - o.radius - 20;
+    const g = pic.getContext('2d')!;
+    g.translate(ox - o.pos.x, oy - o.pos.y);
+    paintObstacle(g, o);
+    c = { pic, ox, oy };
+    obstaclePictures.set(o, c);
+  }
+  if (!c) return paintObstacle(ctx, o);
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(c.pic, o.pos.x - c.ox, o.pos.y - c.oy);
+  ctx.globalAlpha = 1;
+}
+
+function paintObstacle(ctx: CanvasRenderingContext2D, o: Obstacle): void {
   const { x, y } = o.pos;
   const r = o.radius;
   drawShadow(ctx, x, y, r * 1.3);
@@ -41,7 +69,6 @@ export function drawObstacle(ctx: CanvasRenderingContext2D, o: Obstacle, alpha: 
     case 'oak': {
       const oak = o.kind === 'oak';
       const trunkH = o.height * (oak ? 0.55 : 0.45);
-      ctx.globalAlpha = alpha;
       ctx.fillStyle = oak ? '#5a4128' : '#4e3a26';
       ctx.strokeStyle = OUTLINE;
       ctx.lineWidth = 2;
@@ -133,11 +160,25 @@ export function drawEnemyWarning(ctx: CanvasRenderingContext2D, e: RunEnemy): vo
 }
 
 export function drawEnemy(ctx: CanvasRenderingContext2D, e: RunEnemy, time: number): void {
+  if (e.def === 'nest') return drawNest(ctx, e, time);
+  if (e.def === 'spirit') return drawSpirit(ctx, e, time);
+  if (e.def === 'alpha') return drawAlpha(ctx, e, time);
   const r = e.radius;
   const side = e.vel.x < -1 ? -1 : 1;
   const flash = time - e.hitAt < 0.08;
   const bob = Math.abs(Math.sin(time * 9 + e.id)) * (e.act.kind === 'walk' ? 2 : 0);
   drawShadow(ctx, e.pos.x, e.pos.y, r);
+  // An elite glows in the colour of its trait.
+  if (e.elite) {
+    ctx.save();
+    ctx.globalAlpha = 0.45 + 0.25 * Math.sin(time * 6);
+    ctx.strokeStyle = REWORK_ELITES.traits[e.elite].color;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.ellipse(e.pos.x, e.pos.y, r * 1.5, r * 0.8, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
   ctx.save();
   ctx.translate(e.pos.x, e.pos.y - bob);
   ctx.scale(side, 1);
@@ -416,3 +457,317 @@ export function drawTrap(ctx: CanvasRenderingContext2D, t: Trap): void {
 
 /** Re-export for the screen: how strongly a crown fades. */
 export const CROWN_FADE = REWORK_MAP.crownFade;
+
+// ---- 20.9–20.13: what lies on the map, the special beasts, the boss and the ring ----
+
+export function drawChest(ctx: CanvasRenderingContext2D, c: Chest, time: number): void {
+  const { x, y } = c.pos;
+  const glow = 0.5 + 0.5 * Math.sin(time * 4);
+  ctx.save();
+  ctx.globalAlpha = 0.35 + 0.3 * glow;
+  ctx.fillStyle = '#ffd27a';
+  ctx.beginPath();
+  ctx.ellipse(x, y, 26, 13, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  drawShadow(ctx, x, y, 16);
+  ctx.fillStyle = '#7a4a22';
+  ctx.strokeStyle = OUTLINE;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(x - 15, y - 20, 30, 20, 3);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#9a6030';
+  ctx.beginPath();
+  ctx.roundRect(x - 16, y - 28, 32, 10, 5);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#f2c14e';
+  ctx.fillRect(x - 3, y - 22, 6, 7);
+}
+
+export function drawHerb(ctx: CanvasRenderingContext2D, g: Herb, time: number): void {
+  const { x, y } = g.pos;
+  const sway = Math.sin(time * 2 + x) * 2;
+  ctx.strokeStyle = '#2f6a2a';
+  ctx.lineWidth = 2.5;
+  for (const [dx, h] of [[-5, 14], [0, 18], [5, 13]] as const) {
+    ctx.beginPath();
+    ctx.moveTo(x + dx, y);
+    ctx.quadraticCurveTo(x + dx + sway, y - h / 2, x + dx * 1.6 + sway, y - h);
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#e8f4a0';
+  ctx.beginPath();
+  ctx.arc(x + sway, y - 19, 3, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+export function drawShrine(ctx: CanvasRenderingContext2D, s: Shrine, time: number): void {
+  const { x, y } = s.pos;
+  const k = REWORK_PICKUPS.shrineKinds[s.kind];
+  const ready = s.rest <= 0;
+  const r = REWORK_PICKUPS.shrineRadius;
+  ctx.strokeStyle = ready ? k.color : 'rgba(150,150,150,0.5)';
+  ctx.globalAlpha = ready ? 0.5 + 0.2 * Math.sin(time * 3) : 0.4;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 6]);
+  ctx.beginPath();
+  ctx.ellipse(x, y, r, r * 0.55, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
+  // Charging: the ring fills.
+  if (s.charge > 0) {
+    ctx.strokeStyle = k.color;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.ellipse(x, y, r, r * 0.55, 0, -Math.PI / 2, -Math.PI / 2 + (s.charge / REWORK_PICKUPS.shrineCharge) * Math.PI * 2);
+    ctx.stroke();
+  }
+  drawShadow(ctx, x, y, 14);
+  ctx.fillStyle = '#7d7a72';
+  ctx.strokeStyle = OUTLINE;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(x - 9, y - 40, 18, 40, 4);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = ready ? k.color : '#55554f';
+  ctx.beginPath();
+  ctx.arc(x, y - 28, 5, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+export function drawAltar(ctx: CanvasRenderingContext2D, a: Altar, time: number, near: boolean): void {
+  const { x, y } = a.pos;
+  drawShadow(ctx, x, y, 26);
+  ctx.fillStyle = '#6b6560';
+  ctx.strokeStyle = OUTLINE;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(x - 24, y - 18, 48, 18, 3);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#857e76';
+  ctx.beginPath();
+  ctx.roundRect(x - 18, y - 30, 36, 13, 3);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = near ? '#ffe08a' : '#c9a24a';
+  ctx.globalAlpha = 0.7 + 0.3 * Math.sin(time * 5);
+  ctx.beginPath();
+  ctx.ellipse(x, y - 32, 6, 9, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+/** The way out for the lumberjack, on the ground. */
+export function drawTaskGround(ctx: CanvasRenderingContext2D, t: Task, time: number): void {
+  if (t.kind !== 'rescue' || t.state !== 'active') return;
+  const e = t.exit;
+  const R = REWORK_TASKS.rescue.exitRadius;
+  ctx.fillStyle = `rgba(255, 210, 120, ${0.12 + 0.08 * Math.sin(time * 3)})`;
+  ctx.strokeStyle = 'rgba(255, 210, 120, 0.8)';
+  ctx.lineWidth = 3;
+  ctx.setLineDash([10, 8]);
+  ctx.beginPath();
+  ctx.ellipse(e.x, e.y, R, R * 0.55, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function label(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, color: string, size: number): void {
+  ctx.font = `bold ${size}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+  ctx.strokeText(text, x, y);
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, y);
+}
+
+export function drawLumberjack(ctx: CanvasRenderingContext2D, t: Task, time: number): void {
+  if (t.kind !== 'rescue' || t.state !== 'active') return;
+  const { x, y } = t.man;
+  const r = 13;
+  drawShadow(ctx, x, y, r);
+  const bob = t.following ? Math.abs(Math.sin(time * 9)) * 2 : 0;
+  ctx.save();
+  ctx.translate(x, y - bob);
+  ctx.fillStyle = '#5a7a3a';
+  ctx.strokeStyle = OUTLINE;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.8, 0);
+  ctx.lineTo(r * 0.8, 0);
+  ctx.lineTo(r * 0.5, -r * 2.3);
+  ctx.lineTo(-r * 0.5, -r * 2.3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  blob(ctx, 0, -r * 2.65, r * 0.55, r * 0.55, '#e6c39a');
+  ctx.strokeStyle = '#6b4a2a';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(r * 0.7, -r * 0.6);
+  ctx.lineTo(r * 1.3, -r * 2.2);
+  ctx.stroke();
+  ctx.fillStyle = '#c9ccd4';
+  ctx.fillRect(r * 1.1, -r * 2.5, 7, 6);
+  ctx.restore();
+  if (!t.following) label(ctx, '!', x, y - r * 3.6, '#ffd27a', 18);
+}
+
+function hpBar(ctx: CanvasRenderingContext2D, e: RunEnemy, y: number, w: number): void {
+  if (e.hp >= e.maxHp) return;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(e.pos.x - w / 2 - 1, y - 1, w + 2, 5);
+  ctx.fillStyle = '#e5534b';
+  ctx.fillRect(e.pos.x - w / 2, y, w * Math.max(0, e.hp / e.maxHp), 3);
+}
+
+/** A wolf den: a mound of earth and branches with a dark mouth. */
+function drawNest(ctx: CanvasRenderingContext2D, e: RunEnemy, time: number): void {
+  const r = e.radius;
+  const flash = time - e.hitAt < 0.08;
+  drawShadow(ctx, e.pos.x, e.pos.y, r * 1.3);
+  blob(ctx, e.pos.x, e.pos.y - r * 0.5, r * 1.3, r * 0.8, flash ? '#ffffff' : '#5b4630');
+  ctx.fillStyle = '#1a1410';
+  ctx.beginPath();
+  ctx.ellipse(e.pos.x, e.pos.y - r * 0.35, r * 0.6, r * 0.38, 0, Math.PI, 0);
+  ctx.fill();
+  ctx.strokeStyle = '#3d2c1c';
+  ctx.lineWidth = 3;
+  for (let i = 0; i < 5; i++) {
+    const a = Math.PI + (i / 4) * Math.PI;
+    ctx.beginPath();
+    ctx.moveTo(e.pos.x + Math.cos(a) * r * 0.9, e.pos.y - r * 0.5 + Math.sin(a) * r * 0.5);
+    ctx.lineTo(e.pos.x + Math.cos(a) * r * 1.4, e.pos.y - r * 0.5 + Math.sin(a) * r * 0.9);
+    ctx.stroke();
+  }
+  hpBar(ctx, e, e.pos.y - r * 1.8, r * 2.2);
+}
+
+/** The spirit of decay: a pale drifting shape; it swells and glows before it casts the fog. */
+export function drawSpirit(ctx: CanvasRenderingContext2D, e: RunEnemy, time: number): void {
+  const r = e.radius;
+  const casting = e.act.kind === 'cast';
+  const flash = time - e.hitAt < 0.08;
+  const float = Math.sin(time * 2.5 + e.id) * 4;
+  const y = e.pos.y - 30 + float;
+  ctx.save();
+  if (casting) {
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = '#c8d6c0';
+    ctx.beginPath();
+    ctx.arc(e.pos.x, y, r * (2.4 + Math.sin(time * 20) * 0.3), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 0.85;
+  ctx.fillStyle = flash ? '#ffffff' : '#a9b8a2';
+  ctx.strokeStyle = 'rgba(40, 50, 40, 0.8)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(e.pos.x - r, y);
+  ctx.quadraticCurveTo(e.pos.x - r, y - r * 1.6, e.pos.x, y - r * 1.6);
+  ctx.quadraticCurveTo(e.pos.x + r, y - r * 1.6, e.pos.x + r, y);
+  for (let i = 3; i >= 0; i--) ctx.lineTo(e.pos.x - r + (i * 2 * r) / 3, y + (i % 2 ? r * 0.9 : r * 0.4) + Math.sin(time * 6 + i) * 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#20281e';
+  ctx.beginPath();
+  ctx.arc(e.pos.x - r * 0.35, y - r * 0.7, 2.5, 0, Math.PI * 2);
+  ctx.arc(e.pos.x + r * 0.35, y - r * 0.7, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  hpBar(ctx, e, y - r * 2.2, r * 2.6);
+}
+
+/** The pack leader: a big dark wolf with a pale mane and red eyes. */
+function drawAlpha(ctx: CanvasRenderingContext2D, e: RunEnemy, time: number): void {
+  const r = e.radius;
+  const side = e.vel.x < -1 ? -1 : 1;
+  // Hit all the time in a duel: a short warm flash, not a white body.
+  const flash = time - e.hitAt < 0.05;
+  const air = e.act.kind === 'leapAir' ? Math.sin((1 - e.act.time / REWORK_BOSS.alpha.leap.time) * Math.PI) * 40 : 0;
+  drawShadow(ctx, e.pos.x, e.pos.y, r * (1 - air / 120));
+  ctx.save();
+  ctx.translate(e.pos.x, e.pos.y - air);
+  ctx.scale(side, 1);
+  const crouch = e.act.kind === 'dashWind' || e.act.kind === 'leapWind' ? 0.75 : 1;
+  const stretch = e.act.kind === 'dash' ? 1.4 : 1;
+  ctx.scale(stretch, crouch);
+  const body = flash ? '#8a7466' : '#4a4038';
+  blob(ctx, -r * 0.1, -r * 0.8, r * 1.2, r * 0.72, body);
+  blob(ctx, -r * 0.25, -r * 1.15, r * 0.7, r * 0.45, flash ? '#efe6d6' : '#c9bfae');
+  blob(ctx, r * 1.0, -r * 1.25, r * 0.55, r * 0.5, body);
+  ctx.fillStyle = '#2c2520';
+  ctx.beginPath();
+  ctx.moveTo(r * 0.8, -r * 1.6);
+  ctx.lineTo(r * 0.95, -r * 2.2);
+  ctx.lineTo(r * 1.15, -r * 1.65);
+  ctx.fill();
+  ctx.fillStyle = '#ff4a3a';
+  ctx.beginPath();
+  ctx.arc(r * 1.2, -r * 1.3, r * 0.12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  // Resting after a leap: winded — stars over the head.
+  if (e.act.kind === 'rest') {
+    ctx.fillStyle = '#ffe27a';
+    for (let i = 0; i < 3; i++) {
+      const a = time * 6 + (i * Math.PI * 2) / 3;
+      ctx.beginPath();
+      ctx.arc(e.pos.x + Math.cos(a) * r * 0.9, e.pos.y - r * 2.4 + Math.sin(a) * r * 0.25, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+/** The boss's warnings on the ground: the dash's line and the leap's landing circle. */
+export function drawBossWarning(ctx: CanvasRenderingContext2D, e: RunEnemy): void {
+  const A = REWORK_BOSS.alpha;
+  const act = e.act;
+  if (act.kind === 'dashWind') {
+    const k = 1 - act.time / A.dash.windup;
+    ctx.save();
+    ctx.translate(e.pos.x, e.pos.y);
+    ctx.rotate(Math.atan2(act.dir.y, act.dir.x));
+    ctx.fillStyle = `rgba(230, 70, 60, ${0.15 + 0.25 * k})`;
+    ctx.strokeStyle = 'rgba(230, 70, 60, 0.9)';
+    ctx.lineWidth = 2;
+    ctx.fillRect(0, -A.dash.width / 2, A.dash.length, A.dash.width);
+    ctx.strokeRect(0, -A.dash.width / 2, A.dash.length, A.dash.width);
+    ctx.fillStyle = 'rgba(230, 70, 60, 0.5)';
+    ctx.fillRect(0, -A.dash.width / 2, A.dash.length * k, A.dash.width);
+    ctx.restore();
+  } else if (act.kind === 'leapWind' || act.kind === 'leapAir') {
+    const R = A.leap.radius;
+    const k = act.kind === 'leapWind' ? 1 - act.time / A.leap.windup : 1;
+    ctx.fillStyle = `rgba(230, 70, 60, ${0.15 + 0.2 * k})`;
+    ctx.strokeStyle = 'rgba(230, 70, 60, 0.9)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(act.to.x, act.to.y, R, R * 0.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(act.to.x, act.to.y, R * k, R * 0.6 * k, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+/** The living ring's wall: a dark band on the ground just inside the beasts. */
+export function drawRingWall(ctx: CanvasRenderingContext2D, c: { x: number; y: number }, time: number): void {
+  const R = REWORK_BOSS.ringRadius;
+  ctx.strokeStyle = `rgba(120, 30, 20, ${0.35 + 0.1 * Math.sin(time * 3)})`;
+  ctx.lineWidth = 10;
+  ctx.beginPath();
+  ctx.ellipse(c.x, c.y, R, R * 0.62, 0, 0, Math.PI * 2);
+  ctx.stroke();
+}
