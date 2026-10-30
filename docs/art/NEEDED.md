@@ -8,6 +8,7 @@ _30.10.2026 · Що в режимі «Реворк: Ліс» ще малюєть
 - Готовий аркуш поклади в папку істоти: `mobs/<звір>/poses.png`, `bosses/<бос>/poses.png`, предмети й землю — у `locations/<локація>/`.
 - **Аркуш = одна картинка**, сітка кадрів. Так персонаж однаковий у всіх кадрах. Фігури **не торкаються** одна одної, між рядами вільне місце. Ноги кожного рядка стоять на одній лінії.
 - Прозорий фон, без тіні на землі, без тексту й номерів.
+- **Ходьбу описуй кадр за кадром** (яка нога попереду, яка позаду, яка піднята) і проси різний колір обмотки на лівій і правій нозі — інакше генератор малює три однакові кадри. Якщо все одно однакові — проси виправлення лише ряду ходьби (приклад — нижче, у лісоруба).
 - Готовий аркуш поклади в чат: я поріжу його (`scripts/pack-frames.py` / `scripts/cut-props.py`) і поставлю в гру.
 
 Спільний початок кожного промпта (далі — **[СТИЛЬ]**):
@@ -39,8 +40,29 @@ not an enemy) but less bright than the hero.
 Grid 3 columns x 2 rows:
 row 1 — standing scared and looking around; waving one arm high to call for help;
         holding the axe ready, crouched;
-row 2 — walking, three frames of a walk cycle (left foot forward, feet together,
-        right foot forward), the axe on the shoulder.
+row 2 — walking, the axe on the shoulder, three CLEARLY DIFFERENT frames with a long
+        exaggerated stride (left boot wrapping dark brown, right boot wrapping pale linen):
+        1 — left leg far forward heel down, right leg far back on its toes, right arm forward;
+        2 — legs together, right leg lifted and bent passing the straight left leg, body higher;
+        3 — mirror of 1: right leg far forward, left leg far back, left arm forward.
+```
+
+Якщо кадри ходьби вийшли однакові — у тому самому чаті:
+
+```
+Keep exactly the same woodcutter, the same style and the same row 1.
+Redraw ONLY row 2 — the walk cycle. The three frames are currently identical; they must be
+clearly different poses, readable even when the image is shrunk to 100 px tall.
+Side view of the legs, facing right, a long exaggerated stride:
+frame 1 (contact, left leg forward): left leg stretched far forward, heel on the ground,
+  right leg stretched far back, only its toes touching the ground; legs form a wide
+  upside-down V; right arm swings forward, left arm back (the axe stays on the left shoulder).
+frame 2 (passing): legs together under the body — the right leg is lifted and bent at the
+  knee, passing the straight left leg; the body is a little higher than in frames 1 and 3.
+frame 3 (contact, right leg forward): the mirror of frame 1 — right leg far forward, heel down,
+  left leg far back on its toes; left arm forward, right arm back.
+To tell the legs apart, the left boot wrapping is dark brown and the right one pale linen.
+Same height, size and feet baseline in all three frames. Transparent background, no text.
 ```
 
 ### Дрібниці (необов'язково), аркуш предметів
@@ -66,7 +88,8 @@ a throwing axe; a pink-red glowing spore ball with a few sparks.
 Enemy: a forest spider the size of a dog, round dark purple-grey body, eight long bent
 legs, a small head with a cluster of red glowing eyes, a few pale hairs. Cold dark colours.
 Grid 3 columns x 3 rows:
-row 1 — running, three frames of a leg cycle;
+row 1 — running, three CLEARLY DIFFERENT frames of a leg cycle: legs stretched wide;
+        legs gathered under the body; the other pair of legs stretched wide;
 row 2 — stopping and rearing up with front legs raised; spitting a white web blob forward
         (the blob is part of the figure); landing back down;
 row 3 — hit (recoiling); collapsing on its back with legs curling; dead, legs curled up.
