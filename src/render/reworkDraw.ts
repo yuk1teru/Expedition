@@ -31,7 +31,8 @@ export function crownBox(o: Obstacle): { x: number; y: number; r: number } | nul
   return null;
 }
 
-export function drawObstacle(ctx: CanvasRenderingContext2D, o: Obstacle, crownAlpha: number): void {
+/** `alpha` — how solid a tree is drawn (less when someone stands behind it). */
+export function drawObstacle(ctx: CanvasRenderingContext2D, o: Obstacle, alpha: number): void {
   const { x, y } = o.pos;
   const r = o.radius;
   drawShadow(ctx, x, y, r * 1.3);
@@ -40,6 +41,7 @@ export function drawObstacle(ctx: CanvasRenderingContext2D, o: Obstacle, crownAl
     case 'oak': {
       const oak = o.kind === 'oak';
       const trunkH = o.height * (oak ? 0.55 : 0.45);
+      ctx.globalAlpha = alpha;
       ctx.fillStyle = oak ? '#5a4128' : '#4e3a26';
       ctx.strokeStyle = OUTLINE;
       ctx.lineWidth = 2;
@@ -48,7 +50,6 @@ export function drawObstacle(ctx: CanvasRenderingContext2D, o: Obstacle, crownAl
       ctx.fill();
       ctx.stroke();
       const c = crownBox(o)!;
-      ctx.globalAlpha = crownAlpha;
       const greens = oak ? ['#4a5a2a', '#5c6e30', '#6f8236'] : ['#21402a', '#2a5232', '#33603a'];
       const lobes = [
         [0, 0.15, 1],

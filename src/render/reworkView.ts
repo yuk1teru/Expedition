@@ -229,7 +229,10 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
 
       // Bodies and obstacles sorted by their foot: lower on the screen is in front.
       const items: { y: number; draw: () => void }[] = [];
-      for (const o of r.obstacles) if (onScreen(o.pos.x, o.pos.y, o.height + 80)) items.push({ y: o.pos.y, draw: () => drawObstacle(ctx, o, crownAlpha(o, h.pos)) });
+      // Who could stand hidden behind a tree: the hero and the beasts on screen (foot and height).
+      const bodies = [{ x: h.pos.x, y: h.pos.y, tall: 70 }];
+      for (const e of r.enemies) if (onScreen(e.pos.x, e.pos.y, 40)) bodies.push({ x: e.pos.x, y: e.pos.y, tall: e.radius * 2.6 });
+      for (const o of r.obstacles) if (onScreen(o.pos.x, o.pos.y, o.height + 80)) items.push({ y: o.pos.y, draw: () => drawObstacle(ctx, o, treeAlpha(o, bodies)) });
       for (const e of r.enemies) if (onScreen(e.pos.x, e.pos.y, 40)) items.push({ y: e.pos.y, draw: () => drawEnemy(ctx, e, r.time) });
       items.push({ y: h.pos.y, draw: () => drawHero(ctx, r, paused ? 0 : dt) });
       items.sort((a, b) => a.y - b.y);
@@ -296,11 +299,12 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     flashes = flashes.filter((f) => f.age < 0.3);
   }
 
-  /** A tree crown the hero walks behind fades, so the hero stays visible. */
-  function crownAlpha(o: Obstacle, hero: { x: number; y: number }): number {
+  /** A tree fades when the hero or a beast stands behind it, so nobody is hidden. */
+  function treeAlpha(o: Obstacle, bodies: { x: number; y: number; tall: number }[]): number {
     const c = crownBox(o);
-    if (!c || hero.y >= o.pos.y) return 1;
-    return Math.abs(hero.x - c.x) < c.r && hero.y > c.y - c.r && hero.y - 70 < c.y + c.r ? CROWN_FADE : 1;
+    if (!c) return 1;
+    const behind = bodies.some((b) => b.y < o.pos.y && Math.abs(b.x - c.x) < c.r + 8 && b.y > c.y - c.r && b.y - b.tall < c.y + c.r);
+    return behind ? CROWN_FADE : 1;
   }
 
   function drawHero(ctx: CanvasRenderingContext2D, r: Run, dt: number): void {
