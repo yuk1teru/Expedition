@@ -236,10 +236,13 @@ export function createCombatScreen(app: App): Screen<CanvasRenderingContext2D> &
         drawHeroDust(ctx, anim);
       }
       animTime = app.time;
+      // The tall three-quarter warrior would be covered by the swing crescent: it goes under him.
+      const slashUnder = b.hero.classId === 'warrior';
+      if (slashUnder) fx.drawSlashes(ctx);
       drawHero(ctx, b.hero, b, app.time, fx.lungeOffset(), anim);
       if (!b.hero.dead) drawAttackReady(ctx, b.hero, app.time);
       fx.drawCones(ctx);
-      fx.drawSlashes(ctx);
+      if (!slashUnder) fx.drawSlashes(ctx);
       fx.drawRings(ctx);
       fx.drawBolts(ctx);
       fx.drawParticles(ctx);
