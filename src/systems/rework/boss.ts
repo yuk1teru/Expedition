@@ -194,7 +194,7 @@ export function stepAlpha(run: Run, e: RunEnemy, dt: number): boolean {
   } else {
     // Walking at the hero; a dash or a leap when ready.
     e.moveTimer = (e.moveTimer ?? A.dash.every) - dt;
-    speed = d > 140 ? A.speed : A.speed * 0.4;
+    speed = d > 140 ? A.speed : A.speed * A.nearSpeed;
     if (e.moveTimer <= 0) {
       e.moveTimer = A.dash.every;
       if (d > 170 || run.rng.next() < 0.5) e.act = { kind: 'dashWind', time: A.dash.windup, dir };

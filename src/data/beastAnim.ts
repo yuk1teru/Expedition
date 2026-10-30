@@ -82,7 +82,7 @@ export const BEAST_SHEETS: Partial<Record<ReworkEnemyId, BeastSheet>> = {
     anchor: [152, 165],
     scale: 0.62,
     frames: { walk: [0, 1, 2], stand: [10], dashWind: [3], dash: [4], skid: [5], leapWind: [6], leapAir: [7], slam: [8], rest: [10], howl: [9], hurt: [11], die: [11] },
-    walkFps: 9,
+    walkFps: 12,
     shadow: 44,
     height: 72,
   },

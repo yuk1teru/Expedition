@@ -357,19 +357,21 @@ export const REWORK_BOSS = {
     name: 'Ватажок зграї',
     hp: 2600,
     radius: 24,
-    speed: 125,
+    speed: 175,
+    /** Close to the hero it slows to this share of its speed (circles instead of ramming). */
+    nearSpeed: 0.7,
     touch: 10,
     /** Dash along a shown line. */
-    dash: { every: 4.5, windup: 0.7, length: 340, width: 34, speed: 950, damage: 24 },
+    dash: { every: 2.8, windup: 0.5, length: 360, width: 34, speed: 1150, damage: 24 },
     /** Leap at the hero: the landing circle shows first. */
-    leap: { windup: 0.55, time: 0.45, radius: 72, damage: 28 },
+    leap: { windup: 0.45, time: 0.38, radius: 72, damage: 28 },
     /** After a dash it leaps where the hero went (the combo) this often. */
-    combo: 0.6,
+    combo: 0.7,
     /** After a leap it stands still (the window): takes this much more damage. */
-    rest: 1.1,
+    rest: 0.85,
     restTake: 1.5,
     /** Howl: this many wolves from the ring rush the hero, every N s. */
-    howl: { every: 11, wolves: 3 },
+    howl: { every: 9, wolves: 3 },
     xp: 120,
   },
 };
