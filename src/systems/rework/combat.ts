@@ -32,6 +32,8 @@ export function damageEnemy(run: Run, e: RunEnemy, amount: number): void {
   // An elite's shield takes half; the boss resting after a leap takes more.
   if (e.elite === 'shield') amount *= REWORK_ELITES.shieldTake;
   if (e.boss && e.act.kind === 'rest') amount *= e.def === 'spinner' ? REWORK_BOSS.spinner.restTake : REWORK_BOSS.alpha.restTake;
+  // The Old Enat's cracked bark in his last phase.
+  if (e.def === 'enat' && run.bossPhase === 2) amount *= REWORK_BOSS.enat.sapTake;
   e.hp -= amount;
   e.hitAt = run.time;
   run.events.push({ type: 'hit', pos: { x: e.pos.x, y: e.pos.y }, amount, byHero: true });
@@ -53,10 +55,15 @@ export function damageEnemy(run: Run, e: RunEnemy, amount: number): void {
   }
   if (e.boss) {
     run.phase = 'won';
+    run.hazards = [];
+    run.shade = null;
+    run.threads = [];
+    run.pull = null;
+    run.hero.root = 0;
     run.offer = null;
     run.pendingLevels = 0;
-    const next = run.location < REWORK_LOCATIONS.length - 1 ? ' Стежка веде глибше в ліс' : '';
-    run.events.push({ type: 'note', pos: { x: e.pos.x, y: e.pos.y - 60 }, text: REWORK_BOSS[REWORK_LOCATIONS[run.location]!.boss].defeated + next, color: '#ffd27a' });
+    const L = REWORK_LOCATIONS[run.location]!;
+    run.events.push({ type: 'note', pos: { x: e.pos.x, y: e.pos.y - 60 }, text: REWORK_BOSS[L.boss].defeated + (L.path ? ` ${L.path.note}` : ''), color: '#ffd27a' });
   }
   if (run.rng.next() < REWORK_PROGRESS.goldChance) {
     const a = run.rng.next() * Math.PI * 2;

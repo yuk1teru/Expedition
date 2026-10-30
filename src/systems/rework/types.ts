@@ -80,7 +80,32 @@ export type EnemyAct =
   | { kind: 'cast'; time: number }
   /** A spider stops and spits a web at a point; the spinner rears before her cocoon (20.14). */
   | { kind: 'weave'; time: number; to: Vec }
-  | { kind: 'spitWind'; time: number; dir: Vec };
+  | { kind: 'spitWind'; time: number; dir: Vec }
+  /** The Old Enat (20.15): the branch reaching for the hero, pulling him in, the charged slam. */
+  | { kind: 'grab'; time: number }
+  | { kind: 'pull'; time: number; from: Vec }
+  | { kind: 'charge'; time: number };
+
+/**
+ * A boss's strike on the ground (20.15): it waits `delay` (following the hero if `follow`), shows
+ * for `warn` and strikes once, then lingers `after` seconds to be seen. A circle or a line from
+ * `pos` along `dir`; thorns do not hurt in the crown's shade.
+ */
+export interface Hazard {
+  kind: 'root' | 'slam' | 'thorn' | 'spike';
+  pos: Vec;
+  dir?: Vec;
+  length?: number;
+  radius: number;
+  delay: number;
+  warn: number;
+  total: number;
+  damage: number;
+  follow?: boolean;
+  shadeSafe?: boolean;
+  after: number;
+  struck: boolean;
+}
 
 export interface RunEnemy {
   id: number;
@@ -308,6 +333,11 @@ export interface Run {
   threads: { a: Vec; b: Vec; warn: number }[];
   /** The pull: centre, seconds (negative — not closing yet), the first piece's angle, the clear pieces, whether it caught the hero. */
   pull: { center: Vec; time: number; base: number; gaps: number[]; hit: boolean } | null;
+  /** 20.15: the boss's strikes on the ground; the boss's phase (0, 1, 2); the crown's safe shade; the ghost's seconds left. */
+  hazards: Hazard[];
+  bossPhase: number;
+  shade: { pos: Vec; to: Vec } | null;
+  ghost: number;
   /** 20.12–20.13: the phase, the ring's centre, the boss weakened by the task. */
   phase: RunPhase;
   ringCenter: Vec;

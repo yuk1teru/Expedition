@@ -17,18 +17,20 @@ import type { Run, RunEnemy } from './types';
 
 const B = REWORK_BOSS;
 const A = B.alpha;
+/** The ring is an oval on the ground: its height to its width. */
+const FLAT_RING = 0.62;
 
 /** Seconds of the run left until the boss (negative — he is here). */
 export function bossIn(run: Run): number {
-  return B.warnAt + B.warnTime - run.time;
+  return REWORK_LOCATIONS[run.location]!.bossAt + B.warnTime - run.time;
 }
 
 export function stepBossPhase(run: Run, dt: number): void {
-  if (run.phase === 'flood' && run.time >= B.warnAt) {
+  if (run.phase === 'flood' && run.time >= REWORK_LOCATIONS[run.location]!.bossAt) {
     run.phase = 'warning';
     run.events.push({ type: 'note', pos: { x: run.hero.pos.x, y: run.hero.pos.y - 100 }, text: 'Земля тремтить…', color: '#ff8a6a' });
   }
-  if (run.phase === 'warning' && run.time >= B.warnAt + B.warnTime) formRing(run);
+  if (run.phase === 'warning' && bossIn(run) <= 0) formRing(run);
   if (run.phase === 'ring') stepRingWall(run, dt);
   if (run.phase === 'won') {
     // The ring scatters and is gone.
@@ -97,14 +99,18 @@ export function formRing(run: Run): void {
   const boss = spawnBeast(run, id, run.ringCenter);
   if (boss) {
     const def = B[id];
-    boss.pos = { x: run.ringCenter.x + B.ringRadius * 0.6, y: run.ringCenter.y };
+    // The pack leader and the spinner come out at the side; the Old Enat rises at the back of the ring.
+    boss.pos = id === 'enat' ? { x: run.ringCenter.x, y: run.ringCenter.y - B.ringRadius * FLAT_RING * 0.45 } : { x: run.ringCenter.x + B.ringRadius * 0.6, y: run.ringCenter.y };
+    boss.radius = def.radius;
     boss.boss = true;
     boss.hp = def.hp;
     boss.maxHp = def.hp;
     boss.power = 1;
     boss.moveTimer = 2.5;
-    boss.traitTimer = id === 'spinner' ? B.spinner.cocoon.every * 0.6 : boss.traitTimer;
-    boss.howlTimer = id === 'spinner' ? B.spinner.brood.every : A.howl.every;
+    boss.traitTimer = id === 'spinner' ? B.spinner.cocoon.every * 0.6 : id === 'enat' ? 3 : boss.traitTimer;
+    boss.howlTimer = id === 'spinner' ? B.spinner.brood.every : id === 'enat' ? B.enat.push.every : A.howl.every;
+    // The Old Enat's first grab comes some seconds in.
+    if (id === 'enat') boss.shots = B.enat.grab.every - 7;
   }
   // The saved lumberjack throws the hero a potion (the spinner's fight he helps in by cutting a thread).
   if (id === 'alpha' && run.rescued) h.hp = Math.min(h.maxHp, h.hp + h.maxHp * REWORK_TASKS.rescueHeal);

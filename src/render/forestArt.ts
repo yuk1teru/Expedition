@@ -104,3 +104,27 @@ export function drawProp(ctx: CanvasRenderingContext2D, piece: number, scale: nu
   drawPart(ctx, img, part(piece, scale), x, y, flash);
   return true;
 }
+
+const tinted = new Map<string, HTMLCanvasElement>();
+
+/**
+ * One piece of the atlas on its own canvas with a filter baked in (the Old Enat as living wood,
+ * as stone, flashing; his ghost): drawn often, filtered once.
+ */
+export function tintedPiece(piece: number, filter: string): { pic: HTMLCanvasElement; anchor: [number, number] } | null {
+  const img = propsAtlas();
+  if (!img || typeof document === 'undefined') return null;
+  const key = `${piece}|${filter}`;
+  let c = tinted.get(key);
+  const [sx, sy, w, h] = F.pieces[piece]!.rect;
+  if (!c) {
+    c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const g = c.getContext('2d')!;
+    g.filter = filter;
+    g.drawImage(img, sx, sy, w, h, 0, 0, w, h);
+    tinted.set(key, c);
+  }
+  return { pic: c, anchor: F.pieces[piece]!.anchor };
+}

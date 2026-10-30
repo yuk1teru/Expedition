@@ -6,8 +6,8 @@
 import { REWORK_BOSS, REWORK_CLASSES, REWORK_ELITES, REWORK_ENEMIES, REWORK_MAP, REWORK_PICKUPS, REWORK_TASKS, REWORK_WEB } from '../data/rework';
 import { FOREST_ART } from '../data/forestArt';
 import { beastSheet, beastSize, drawBeastFrames } from './beastAnim';
-import { artCrown, drawPart, drawProp, obstacleParts, partsBox, propsAtlas } from './forestArt';
-import type { Altar, Chest, Coin, Gem, Herb, Obstacle, RunEnemy, RunHero, Shot, Shrine, Task, Trap, Zone } from '../systems/rework/types';
+import { artCrown, drawPart, drawProp, obstacleParts, partsBox, propsAtlas, tintedPiece } from './forestArt';
+import type { Altar, Chest, Coin, Gem, Hazard, Herb, Obstacle, RunEnemy, RunHero, Shot, Shrine, Task, Trap, Zone } from '../systems/rework/types';
 
 const OUTLINE = 'rgba(15, 12, 10, 0.85)';
 
@@ -218,6 +218,7 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, e: RunEnemy, time: numb
   if (e.def === 'nest') return drawNest(ctx, e, time);
   if (e.def === 'cocoon') return drawCocoon(ctx, e, time);
   if (e.def === 'spinner') return drawSpinner(ctx, e, time);
+  if (e.def === 'enat') return drawEnat(ctx, e, time);
   if (e.def === 'spirit') return drawSpirit(ctx, e, time);
   if (e.def === 'alpha') return drawAlpha(ctx, e, time);
   const r = e.radius;
@@ -1162,5 +1163,182 @@ function paintCobweb(ctx: CanvasRenderingContext2D, x: number, y: number, r: num
     }
     ctx.stroke();
   }
+  ctx.restore();
+}
+
+/** The Old Enat's look in each phase: living wood, stone, cracked stone; a hit flashes. */
+const ENAT_LOOK = ['saturate(0.8) brightness(0.85)', 'grayscale(1) brightness(0.95) contrast(1.1)', 'grayscale(0.85) sepia(0.25) brightness(0.8)'];
+const ENAT_SCALE = 1.05;
+
+/**
+ * The Old Enat: the Old Oak's picture come alive — eyes glowing in the bark; turned to stone in
+ * phase 2, cracked and bleeding amber sap in phase 3. Code shapes until the atlas loads.
+ */
+function drawEnat(ctx: CanvasRenderingContext2D, e: RunEnemy, time: number): void {
+  const E = REWORK_BOSS.enat;
+  const share = e.hp / e.maxHp;
+  const phase = share < E.phases[1]! ? 2 : share < E.phases[0]! ? 1 : 0;
+  const flash = time - e.hitAt < 0.05;
+  const { x, y } = e.pos;
+  const body = tintedPiece(FOREST_ART.oak, ENAT_LOOK[phase]!);
+  const k = ENAT_SCALE;
+  // The crown sways a little; the slam's wind-up lifts him.
+  const charge = e.act.kind === 'charge' ? 1 - e.act.time / E.grab.charge : 0;
+  if (body) {
+    const [ax, ay] = body.anchor;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(k * (1 + charge * 0.04), k * (1 + charge * 0.08));
+    ctx.rotate(Math.sin(time * 0.8) * 0.01);
+    ctx.drawImage(body.pic, -ax, -ay);
+    if (flash) {
+      ctx.globalAlpha = 0.4;
+      ctx.drawImage(tintedPiece(FOREST_ART.oak, 'brightness(1.8)')!.pic, -ax, -ay);
+    }
+    ctx.restore();
+  } else {
+    blob(ctx, x, y - 60, 30, 60, '#4e3a26');
+    blob(ctx, x, y - 170, 110, 80, '#33503a');
+  }
+  // The face: eyes in the bark, green — amber when the sap runs.
+  const fy = y - 110 * k;
+  const eye = phase === 2 ? '255, 170, 70' : '150, 255, 160';
+  const glow = 0.6 + 0.3 * Math.sin(time * 2.2) + charge * 0.4;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (const dx of [-11, 11]) {
+    const g = ctx.createRadialGradient(x + dx, fy, 0, x + dx, fy, 12);
+    g.addColorStop(0, `rgba(${eye}, ${Math.min(1, glow)})`);
+    g.addColorStop(1, `rgba(${eye}, 0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(x + dx - 12, fy - 12, 24, 24);
+  }
+  ctx.restore();
+  if (phase === 2) {
+    // Cracks with amber sap running down the trunk.
+    ctx.save();
+    ctx.strokeStyle = `rgba(255, 160, 60, ${0.7 + 0.3 * Math.sin(time * 4)})`;
+    ctx.lineWidth = 2.5;
+    for (const [dx, top, len] of [[-20, 60, 70], [6, 90, 80], [22, 50, 60]] as const) {
+      ctx.beginPath();
+      ctx.moveTo(x + dx, y - top - len);
+      for (let i = 1; i <= 4; i++) ctx.lineTo(x + dx + (i % 2 ? 5 : -4), y - top - len + (len * i) / 4);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+/** The Old Enat's branch: thin while it reaches (the warning), thick while it holds the hero. */
+export function drawBranch(ctx: CanvasRenderingContext2D, e: RunEnemy, hero: { x: number; y: number }): void {
+  const act = e.act;
+  if (act.kind !== 'grab' && act.kind !== 'pull' && act.kind !== 'charge') return;
+  const from = { x: e.pos.x + 30, y: e.pos.y - 90 };
+  const reach = act.kind === 'grab' ? 1 - act.time / REWORK_BOSS.enat.grab.warn : 1;
+  const to = { x: from.x + (hero.x - from.x) * reach, y: from.y + (hero.y - 30 - from.y) * reach };
+  ctx.save();
+  ctx.lineCap = 'round';
+  if (act.kind === 'grab') {
+    // Where it reaches: a red line to the hero.
+    ctx.strokeStyle = 'rgba(230, 70, 60, 0.6)';
+    ctx.setLineDash([10, 8]);
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(hero.x, hero.y - 30);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  ctx.strokeStyle = OUTLINE;
+  ctx.lineWidth = 12;
+  ctx.beginPath();
+  ctx.moveTo(from.x, from.y);
+  ctx.quadraticCurveTo((from.x + to.x) / 2, Math.min(from.y, to.y) - 40, to.x, to.y);
+  ctx.stroke();
+  ctx.strokeStyle = '#5a4128';
+  ctx.lineWidth = 7;
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** A strike on the ground: red while it shows (filling as it comes), then roots, thorns or dust. */
+export function drawHazard(ctx: CanvasRenderingContext2D, z: Hazard): void {
+  if (z.delay > 0) return;
+  ctx.save();
+  if (!z.struck) {
+    const k = 1 - z.warn / z.total;
+    ctx.fillStyle = `rgba(230, 70, 60, ${0.12 + 0.25 * k})`;
+    ctx.strokeStyle = 'rgba(230, 70, 60, 0.85)';
+    ctx.lineWidth = 2;
+    if (z.dir) {
+      ctx.translate(z.pos.x, z.pos.y);
+      ctx.rotate(Math.atan2(z.dir.y, z.dir.x));
+      ctx.fillRect(0, -z.radius / 2, z.length!, z.radius);
+      ctx.fillStyle = 'rgba(230, 70, 60, 0.35)';
+      ctx.fillRect(0, -z.radius / 2, z.length! * k, z.radius);
+    } else {
+      ctx.beginPath();
+      ctx.ellipse(z.pos.x, z.pos.y, z.radius, z.radius * 0.62, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(z.pos.x, z.pos.y, z.radius * k, z.radius * 0.62 * k, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+    return;
+  }
+  // Struck: a moment of what burst out.
+  ctx.globalAlpha = Math.min(1, z.after / 0.2);
+  const spike = (sx: number, sy: number, h: number, color: string): void => {
+    ctx.fillStyle = color;
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(sx - h * 0.25, sy);
+    ctx.lineTo(sx, sy - h);
+    ctx.lineTo(sx + h * 0.25, sy);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  };
+  if (z.dir) {
+    for (let d = 40; d < z.length!; d += 46) spike(z.pos.x + z.dir.x * d, z.pos.y + z.dir.y * d, 26, '#8a8a84');
+  } else if (z.kind === 'slam') {
+    ctx.strokeStyle = 'rgba(200, 170, 120, 0.8)';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.ellipse(z.pos.x, z.pos.y, z.radius, z.radius * 0.62, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  } else {
+    const color = z.kind === 'root' ? '#5a4128' : '#8a8a84';
+    for (const [dx, dy, h] of [[-18, 4, 30], [0, -4, 44], [16, 6, 34], [-6, 12, 24], [24, -6, 22]] as const) spike(z.pos.x + dx, z.pos.y + dy, h, color);
+  }
+  ctx.restore();
+}
+
+/** The shade of his crown (phase 3): the one place the thorns do not reach. */
+export function drawShade(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, radius: number, time: number): void {
+  ctx.save();
+  ctx.fillStyle = 'rgba(10, 30, 16, 0.55)';
+  ctx.beginPath();
+  ctx.ellipse(p.x, p.y, radius, radius * 0.62, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = `rgba(120, 255, 140, ${0.6 + 0.3 * Math.sin(time * 3)})`;
+  ctx.lineWidth = 3;
+  ctx.setLineDash([8, 6]);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** The Old Enat's ghost before the fight: his tree, pale and see-through, and his plea. */
+export function drawGhost(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, alpha: number): void {
+  const g = tintedPiece(FOREST_ART.oak, 'grayscale(1) brightness(1.6) sepia(0.4) hue-rotate(60deg)');
+  if (!g) return;
+  ctx.save();
+  ctx.globalAlpha = 0.45 * alpha;
+  ctx.translate(p.x, p.y);
+  ctx.scale(0.6, 0.6);
+  ctx.drawImage(g.pic, -g.anchor[0], -g.anchor[1]);
   ctx.restore();
 }

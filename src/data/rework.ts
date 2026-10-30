@@ -36,7 +36,7 @@ export const REWORK_MAP = {
  * The flood's beasts and the special ones: the weather spirit, a wolf den, the pack leader; in the
  * second location (20.14) the spider, the cocoon it hatches from and the spinner.
  */
-export type ReworkEnemyId = 'wolf' | 'mushroom' | 'stump' | 'spider' | 'spirit' | 'nest' | 'cocoon' | 'alpha' | 'spinner';
+export type ReworkEnemyId = 'wolf' | 'mushroom' | 'stump' | 'spider' | 'spirit' | 'nest' | 'cocoon' | 'alpha' | 'spinner' | 'enat';
 
 /** The beasts the flood sends (the stress test's mix). */
 export const FLOOD_BEASTS = ['wolf', 'mushroom', 'stump'] as const;
@@ -119,6 +119,7 @@ export const REWORK_ENEMIES: Record<ReworkEnemyId, ReworkEnemyDef> = {
   cocoon: { id: 'cocoon', name: 'Кокон', hp: 120, damage: 0, touchEvery: 1, speed: 0, radius: 22, xp: 8, weight: 0 },
   alpha: { id: 'alpha', name: 'Ватажок зграї', hp: 2600, damage: 10, touchEvery: 0.8, speed: 125, radius: 24, xp: 120, weight: 0 },
   spinner: { id: 'spinner', name: 'Прядуха', hp: 3200, damage: 12, touchEvery: 0.8, speed: 190, radius: 30, xp: 160, weight: 0 },
+  enat: { id: 'enat', name: 'Старий Енат', hp: 7000, damage: 0, touchEvery: 1, speed: 0, radius: 46, xp: 0, weight: 0 },
 };
 
 /** A spider's web on the ground: this wide, this long, the hero in it walks at this share of his speed. */
@@ -166,7 +167,11 @@ export interface ReworkLocation {
   power: number;
   /** Tasks: when each comes and which kinds it may be (the first by the seed, the next — another one). */
   tasks: { at: number; kinds: TaskKind[] }[];
-  boss: 'alpha' | 'spinner';
+  /** The boss and when he is announced (run seconds; the ring forms `REWORK_BOSS.warnTime` later). */
+  boss: 'alpha' | 'spinner' | 'enat';
+  bossAt: number;
+  /** After the boss: the path's caption and the line that points to it. */
+  path: { label: string; note: string } | null;
 }
 
 export const REWORK_LOCATIONS: ReworkLocation[] = [
@@ -178,6 +183,8 @@ export const REWORK_LOCATIONS: ReworkLocation[] = [
     power: 1,
     tasks: [{ at: 90, kinds: ['nests', 'rescue'] }],
     boss: 'alpha',
+    bossAt: 390,
+    path: { label: 'Глибше в ліс', note: 'Стежка веде глибше в ліс' },
   },
   {
     name: 'Глибина лісу',
@@ -190,12 +197,25 @@ export const REWORK_LOCATIONS: ReworkLocation[] = [
       { at: 300, kinds: ['webs', 'rescue'] },
     ],
     boss: 'spinner',
+    bossAt: 390,
+    path: { label: 'До лігва', note: 'Стежка веде до лігва Ената' },
+  },
+  {
+    // 20.15 — the lair: a short strong flood, then the Old Enat.
+    name: 'Лігво Ената',
+    map: { trees: 100, bushes: 40, stones: 50, webbed: 0.15 },
+    dark: 0.4,
+    from: { mushroom: 0, stump: 0, spider: 0 },
+    power: 2.2,
+    tasks: [],
+    boss: 'enat',
+    bossAt: 90,
+    path: null,
   },
 ];
 
-/** After a location's boss: the path to the next one at the field's edge. */
+/** After a location's boss: the path to the next one at the field's edge (its caption — per location). */
 export const REWORK_PATH = {
-  label: 'Глибше в ліс',
   radius: 70,
   /** The name of the new location shows this long. */
   bannerTime: 3,
@@ -487,6 +507,37 @@ export const REWORK_BOSS = {
     brood: { every: 10, count: 3 },
     /** Touching her sticky ring holds the hero this long. */
     stick: 0.5,
+  },
+  /**
+   * 20.15 — the Old Enat, the biome's boss (docs/BOSSES.md). He stands in the arena and does not
+   * move. Phase 1: roots burst under the hero one after another, a slam around himself, roots push
+   * ring beasts at the hero; the combo — a grab (always catches), the pull to him, a charged slam
+   * (a dodge in the charge saves). Phase 2 (60%): the forest turns to stone (boulders in the
+   * arena), thorns in 8 lines across it and a spike under the hero at once. Phase 3 (25%): his
+   * bark cracks (takes more damage), thorns never stop, and only the moving shade of his crown is
+   * safe from them. A ghost asks for help before the fight; freed, he speaks after it.
+   */
+  enat: {
+    name: 'Старий Енат',
+    defeated: 'Ената звільнено!',
+    victory: 'Старого Ената звільнено!',
+    /** His ghost at the lair's start; his true voice after the fight. */
+    ghost: 'Звільни мене від звіра',
+    ghostTime: 6,
+    freed: 'Сьогодні вночі ліс не спатиме',
+    hp: 7000,
+    radius: 46,
+    /** Phases begin at these shares of HP. */
+    phases: [0.6, 0.25],
+    roots: { every: 3.4, count: 3, gap: 0.5, warn: 0.9, radius: 55, damage: 20 },
+    slam: { every: 6, warn: 1, radius: 190, damage: 30 },
+    grab: { every: 12, warn: 0.6, pull: 0.45, charge: 1, radius: 165, damage: 34 },
+    push: { every: 9, beasts: 4 },
+    thorns: { every: 4.5, warn: 0.9, length: 900, width: 26, damage: 24, spike: 45 },
+    stones: 6,
+    shade: { radius: 70, speed: 55, every: 1.6 },
+    sapTake: 1.5,
+    touch: 8,
   },
 };
 

@@ -686,6 +686,97 @@ describe('rework second location and the spinner (20.14)', () => {
   });
 });
 
+describe('rework lair and the Old Enat (20.15)', () => {
+  const lairBoss = (seed: number): { run: ReturnType<typeof createRun>; enat: ReturnType<typeof createRun>['enemies'][number] } => {
+    const run = createRun(seed, 'warrior', 2);
+    run.spawnTimer = 1e9;
+    run.time = REWORK_LOCATIONS[2]!.bossAt + REWORK_BOSS.warnTime;
+    stepRun(run, 1 / 60, still);
+    const enat = run.enemies.find((e) => e.boss)!;
+    return { run, enat };
+  };
+
+  it('the path after the spinner leads to the lair; its ghost asks for help; the boss comes at 1:30', () => {
+    const run = createRun(151, 'archer', 1);
+    run.phase = 'won';
+    stepRun(run, 1 / 60, still);
+    expect(run.path).not.toBeNull();
+    run.hero.pos = { ...run.path! };
+    stepRun(run, 1 / 60, still);
+    expect(run.location).toBe(2);
+    expect(run.ghost).toBeGreaterThan(0);
+    const { run: lair, enat } = lairBoss(152);
+    expect(enat.def).toBe('enat');
+    expect(lair.phase).toBe('ring');
+  });
+
+  it('he stands; roots burst under the hero and hurt', () => {
+    const { run, enat } = lairBoss(153);
+    const at = { ...enat.pos };
+    run.hero.invuln = 0;
+    run.hero.pos = { x: enat.pos.x + 120, y: enat.pos.y + 100 };
+    enat.moveTimer = 0;
+    const hp = run.hero.hp;
+    for (let i = 0; i < 60 * 2; i++) stepRun(run, 1 / 60, still);
+    expect(run.hero.hp).toBeLessThan(hp);
+    expect(Math.hypot(enat.pos.x - at.x, enat.pos.y - at.y)).toBeLessThan(1);
+  });
+
+  it('the combo: the branch catches and pulls the hero in; a dodge in the charge breaks free', () => {
+    const { run, enat } = lairBoss(154);
+    run.hero.pos = { x: enat.pos.x + 200, y: enat.pos.y + 120 };
+    enat.moveTimer = 1e9;
+    enat.howlTimer = 1e9;
+    enat.shots = 1e9;
+    enat.traitTimer = 0;
+    for (let i = 0; i < 120 && enat.act.kind !== 'charge'; i++) stepRun(run, 1 / 60, still);
+    expect(enat.act.kind).toBe('charge');
+    expect(Math.hypot(run.hero.pos.x - enat.pos.x, run.hero.pos.y - enat.pos.y)).toBeLessThan(enat.radius + 40);
+    expect(run.hero.root).toBeGreaterThan(0);
+    run.hero.dodgeTimer = 0;
+    expect(dodge(run, { x: 0, y: 1 })).toBe(true);
+    expect(run.hero.root).toBe(0);
+  });
+
+  it('phase 2 turns the forest to stone and sends thorns; phase 3 gives the shade and more damage taken', () => {
+    const { run, enat } = lairBoss(155);
+    run.hero.immortal = true;
+    const stones = run.obstacles.length;
+    enat.hp = enat.maxHp * 0.5;
+    stepRun(run, 1 / 60, still);
+    expect(run.bossPhase).toBe(1);
+    expect(run.obstacles.length).toBeGreaterThan(stones);
+    enat.traitTimer = 0;
+    enat.shots = 0;
+    stepRun(run, 1 / 60, still);
+    expect(run.hazards.filter((z) => z.kind === 'thorn').length).toBe(8);
+    enat.hp = enat.maxHp * 0.2;
+    stepRun(run, 1 / 60, still);
+    expect(run.bossPhase).toBe(2);
+    expect(run.shade).not.toBeNull();
+    const before = enat.hp;
+    damageEnemyHit(run, enat, 100);
+    expect(before - enat.hp).toBeCloseTo(100 * REWORK_BOSS.enat.sapTake);
+  });
+
+  it('thorns do not hurt in the shade; his death ends the biome', () => {
+    const { run, enat } = lairBoss(156);
+    enat.hp = enat.maxHp * 0.2;
+    stepRun(run, 1 / 60, still);
+    run.hero.invuln = 0;
+    run.hero.pos = { ...run.shade!.pos };
+    run.shade!.to = { ...run.shade!.pos };
+    run.hazards = [{ kind: 'thorn', pos: { x: run.hero.pos.x - 100, y: run.hero.pos.y }, dir: { x: 1, y: 0 }, length: 300, radius: 26, delay: 0, warn: 0.01, total: 0.01, damage: 30, shadeSafe: true, after: 0.3, struck: false }];
+    const hp = run.hero.hp;
+    stepRun(run, 1 / 60, still);
+    expect(run.hero.hp).toBe(hp);
+    killFully(run, enat);
+    stepRun(run, 1 / 60, still);
+    expect(run.phase).toBe('won');
+    expect(run.path).toBeNull();
+  });
+});
+
 /** Hits a beast until it dies (a shield or a resting boss take less). */
 function killFully(run: ReturnType<typeof createRun>, e: Parameters<typeof damageEnemyHit>[1]): void {
   for (let i = 0; i < 50 && !e.dead; i++) damageEnemyHit(run, e, 1e6);

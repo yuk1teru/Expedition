@@ -6,9 +6,10 @@
 // No DOM here: it steps the same in the browser and in Node.
 
 import { Rng } from '../../core/rng';
-import { FLOOD_BEASTS, REWORK_FIELD, REWORK_LOCATIONS, REWORK_PATH, type ReworkClassId } from '../../data/rework';
+import { FLOOD_BEASTS, REWORK_BOSS, REWORK_FIELD, REWORK_LOCATIONS, REWORK_PATH, type ReworkClassId } from '../../data/rework';
 import type { Vec } from '../entities';
 import { stepAlpha, stepBossPhase, stepRingBeast } from './boss';
+import { stepEnat, stepHazards } from './enat';
 import { spawnBeast, stepBeastShots, stepBeasts, stepFlood } from './enemies';
 import { newHero, stepHero } from './hero';
 import { buildGrid, makeForest } from './map';
@@ -72,6 +73,10 @@ export function createRun(seed: number, classId: ReworkClassId, location = 0): R
     webs: [],
     threads: [],
     pull: null,
+    hazards: [],
+    bossPhase: 0,
+    shade: null,
+    ghost: REWORK_LOCATIONS[location]!.boss === 'enat' ? REWORK_BOSS.enat.ghostTime : 0,
     phase: 'flood',
     ringCenter: { x: start.x, y: start.y },
     noHowl: false,
@@ -118,7 +123,7 @@ export function runPaused(run: Run): boolean {
 
 /** Beasts with their own code: the spirit, dens, the boss, the beasts standing in the ring. */
 function special(run: Run, dt: number): (e: RunEnemy) => boolean {
-  return (e) => stepSpirit(run, e, dt) || stepNest(run, e, dt) || stepAlpha(run, e, dt) || stepSpinner(run, e, dt) || stepRingBeast(run, e, dt);
+  return (e) => stepSpirit(run, e, dt) || stepNest(run, e, dt) || stepAlpha(run, e, dt) || stepSpinner(run, e, dt) || stepEnat(run, e, dt) || stepRingBeast(run, e, dt);
 }
 
 /** One fixed step; `move` is the normalised walk direction. */
@@ -137,6 +142,8 @@ export function stepRun(run: Run, dt: number, move: Vec): void {
   stepBeastShots(run, dt);
   run.shots = run.shots.filter((s) => s.life > 0);
   stepWebs(run, dt);
+  stepHazards(run, dt);
+  run.ghost = Math.max(0, run.ghost - dt);
   // The location is won: nothing more to pick up or choose; the path leads on.
   if (run.phase === 'won') {
     const p = run.path;

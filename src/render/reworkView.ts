@@ -26,7 +26,7 @@ import { DodgeFx } from './dodgeFx';
 import { BEAST_ANIM } from '../data/beastAnim';
 import { drawGround } from './forestArt';
 import { beastSheet, beastSize, type Corpse, corpseLife, drawCorpse, lastSide } from './beastAnim';
-import { CROWN_FADE, crownBox, obstacleLayers, drawAltar, drawBossWarning, drawChest, drawCoin, drawEnemy, drawEnemyWarning, drawGem, drawHerb, drawHeroFigure, drawLumberjack, drawPath, drawPull, drawRingWall, drawThreads, drawWebPatch, drawWrap, drawShadow, drawShot, drawShrine, drawSpirit, drawTaskGround, drawTrap, drawZone } from './reworkDraw';
+import { CROWN_FADE, crownBox, obstacleLayers, drawAltar, drawBossWarning, drawChest, drawCoin, drawEnemy, drawEnemyWarning, drawGem, drawHerb, drawHeroFigure, drawLumberjack, drawBranch, drawGhost, drawHazard, drawShade, drawPath, drawPull, drawRingWall, drawThreads, drawWebPatch, drawWrap, drawShadow, drawShot, drawShrine, drawSpirit, drawTaskGround, drawTrap, drawZone } from './reworkDraw';
 import { THEME, font } from './theme';
 import { Button, ButtonGroup, drawPanel, drawText, drawWrapped } from './ui';
 
@@ -312,6 +312,8 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       corpses = corpses.filter((c) => c.age < corpseLife(c));
       for (const e of r.enemies) if (onScreen(e.pos.x, e.pos.y, 200)) drawEnemyWarning(ctx, e);
       for (const e of r.enemies) if (e.boss) drawBossWarning(ctx, e, h.pos);
+      if (r.shade) drawShade(ctx, r.shade.pos, REWORK_BOSS.enat.shade.radius, animTime);
+      for (const z of r.hazards) drawHazard(ctx, z);
       drawThreads(ctx, r.threads, r.pull);
       if (r.pull) drawPull(ctx, pullSegments(r), pullSegments(r, true), r.pull.time < 0);
       drawSwings(ctx, paused ? 0 : dt);
@@ -357,6 +359,16 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       items.sort((a, b) => a.y - b.y);
       for (const it of items) it.draw();
       for (const s of r.shots) if (onScreen(s.pos.x, s.pos.y, 20)) drawShot(ctx, s, r.time);
+      for (const e of r.enemies) if (e.def === 'enat') drawBranch(ctx, e, h.pos);
+      // Before the lair's fight: the Old Enat's ghost by the hero, asking for help.
+      if (r.ghost > 0) {
+        const a = Math.min(1, r.ghost / 1, (REWORK_BOSS.enat.ghostTime - r.ghost) / 0.8);
+        drawGhost(ctx, { x: h.pos.x + 170, y: h.pos.y - 20 }, a);
+        ctx.save();
+        ctx.globalAlpha = a;
+        outlinedText(ctx, `«${REWORK_BOSS.enat.ghost}»`, h.pos.x + 170, h.pos.y - 205, 16, '#d8f0d0');
+        ctx.restore();
+      }
       dodgeFx.drawOver(ctx);
       drawFlashes(ctx, paused ? 0 : dt);
       ctx.restore();
@@ -486,7 +498,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     const drawn = drawHeroFrames(ctx, anim, h.classId, 2, flash);
     ctx.restore();
     if (!drawn) drawHeroFigure(ctx, h, anim.side, flash);
-    if (h.root > 0) drawWrap(ctx, h.pos, r.time);
+    if (h.root > 0 && REWORK_LOCATIONS[r.location]!.boss !== 'enat') drawWrap(ctx, h.pos, r.time);
   }
 
   function drawSwings(ctx: CanvasRenderingContext2D, dt: number): void {
@@ -657,7 +669,8 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
   /** What the arrows point at: each den, the lumberjack (then the way out), the spirit. */
   function pointers(r: Run): Pointer[] {
     const out: Pointer[] = [];
-    if (r.phase === 'won' && r.path) out.push({ key: 'path', pos: r.path, lift: 20, label: REWORK_PATH.label, color: '#ffe0a0' });
+    const way = REWORK_LOCATIONS[r.location]!.path;
+    if (r.phase === 'won' && r.path && way) out.push({ key: 'path', pos: r.path, lift: 20, label: way.label, color: '#ffe0a0' });
     if (r.phase === 'ring' || r.phase === 'won') return out;
     const t = r.task;
     if (t?.state === 'active') {
@@ -760,10 +773,11 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     const w = 420;
     drawPanel(ctx, { x: W / 2 - w / 2 - 10, y: 64, w: w + 20, h: 40 }, 'rgba(14, 10, 10, 0.85)', '#a03a2a');
     const spinner = boss.def === 'spinner';
-    drawText(ctx, spinner ? REWORK_BOSS.spinner.name : REWORK_BOSS.alpha.name, W / 2, 76, { size: 13, bold: true, align: 'center', color: '#ffb0a0' });
+    const name = boss.def === 'enat' ? `${REWORK_BOSS.enat.name} · фаза ${r.bossPhase + 1} з 3` : spinner ? REWORK_BOSS.spinner.name : REWORK_BOSS.alpha.name;
+    drawText(ctx, name, W / 2, 76, { size: 13, bold: true, align: 'center', color: '#ffb0a0' });
     ctx.fillStyle = '#2a1416';
     ctx.fillRect(W / 2 - w / 2, 86, w, 10);
-    ctx.fillStyle = boss.act.kind === 'rest' ? '#ffd27a' : '#d0453c';
+    ctx.fillStyle = boss.act.kind === 'rest' || (boss.def === 'enat' && r.bossPhase === 2) ? '#ffd27a' : '#d0453c';
     ctx.fillRect(W / 2 - w / 2, 86, w * Math.max(0, boss.hp / boss.maxHp), 10);
     const weak = spinner ? [r.noBrood && 'без павучат', r.rescued && 'лісоруб'].filter(Boolean).join(' · ') : r.noHowl ? 'без зграї' : '';
     if (weak) drawText(ctx, weak, W / 2 + w / 2, 76, { size: 10, align: 'right', color: '#9fd08a' });
@@ -800,7 +814,10 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
   function drawVictory(ctx: CanvasRenderingContext2D, r: Run): void {
     ctx.fillStyle = 'rgba(20, 16, 0, 0.55)';
     ctx.fillRect(0, 0, W, H);
-    drawText(ctx, REWORK_BOSS[REWORK_LOCATIONS[r.location]!.boss].victory, W / 2, H / 2 - 50, { size: 32, bold: true, align: 'center', color: '#ffd27a' });
+    const boss = REWORK_LOCATIONS[r.location]!.boss;
+    drawText(ctx, REWORK_BOSS[boss].victory, W / 2, H / 2 - 50, { size: 32, bold: true, align: 'center', color: '#ffd27a' });
+    // Freed, the Old Enat speaks in his true voice.
+    if (boss === 'enat') drawText(ctx, `«${REWORK_BOSS.enat.freed}»`, W / 2, H / 2 - 100, { size: 18, align: 'center', color: '#d8f0d0' });
     drawText(ctx, `${mmss(r.time)} · рівень ${r.level} · звірів убито: ${r.kills}`, W / 2, H / 2, { size: 16, align: 'center' });
     deathButtons.draw(ctx);
   }

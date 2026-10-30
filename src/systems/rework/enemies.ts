@@ -295,8 +295,9 @@ export function stepBeasts(run: Run, dt: number, special: (e: RunEnemy) => boole
           const min = e.radius + o.radius;
           if (dist >= min || dist === 0) continue;
           // A den stands where it is; the boss is barely moved by the crowd.
-          const we = e.def === 'nest' || e.def === 'cocoon' ? 0 : e.boss ? 0.1 : 1;
-          const wo = o.def === 'nest' || o.def === 'cocoon' ? 0 : o.boss ? 0.1 : 1;
+          // A den and the Old Enat stand where they are; the other bosses are barely moved by the crowd.
+          const we = e.def === 'nest' || e.def === 'cocoon' || e.def === 'enat' ? 0 : e.boss ? 0.1 : 1;
+          const wo = o.def === 'nest' || o.def === 'cocoon' || o.def === 'enat' ? 0 : o.boss ? 0.1 : 1;
           if (we + wo === 0) continue;
           const push = (min - dist) / dist;
           e.pos.x += dx * push * (we / (we + wo));
@@ -310,7 +311,7 @@ export function stepBeasts(run: Run, dt: number, special: (e: RunEnemy) => boole
     const dy = e.pos.y - h.pos.y;
     const dist = Math.hypot(dx, dy);
     const reach = e.radius + h.radius;
-    if (dist < reach && dist > 0 && !h.dead) {
+    if (dist < reach && dist > 0 && !h.dead && e.def !== 'enat') {
       e.pos.x = h.pos.x + (dx / dist) * reach;
       e.pos.y = h.pos.y + (dy / dist) * reach;
     }
