@@ -25,7 +25,7 @@ export function hasHeroFrames(cls: string | null): boolean {
 
 const sheets = new Map<string, HTMLImageElement>();
 
-function sheet(src: string): HTMLImageElement | null {
+export function sheet(src: string): HTMLImageElement | null {
   if (typeof Image === 'undefined') return null;
   let img = sheets.get(src);
   if (!img) {
@@ -50,7 +50,7 @@ const looks = new Map<string, HTMLCanvasElement>();
  * The sheet with a look baked in once: a canvas filter costs about ten times a plain draw
  * (measured 3.2 ms against 0.3 ms per hero), too much to pay on every frame of a crowd fight.
  */
-function lookSheet(img: HTMLImageElement, src: string, look: Exclude<HeroLook, 'plain'>): CanvasImageSource {
+export function lookSheet(img: HTMLImageElement, src: string, look: Exclude<HeroLook, 'plain'>): CanvasImageSource {
   const key = `${src}|${look}`;
   let c = looks.get(key);
   if (!c) {

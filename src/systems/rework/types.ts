@@ -220,7 +220,7 @@ export interface Coin {
 export type RunEvent =
   | { type: 'hit'; pos: Vec; amount: number; byHero: boolean }
   | { type: 'swing'; pos: Vec; angle: number; reach: number; arc: number }
-  | { type: 'kill'; pos: Vec; def: ReworkEnemyId }
+  | { type: 'kill'; pos: Vec; def: ReworkEnemyId; id: number; radius: number; boss: boolean }
   | { type: 'levelUp'; level: number }
   | { type: 'dodge'; from: Vec; to: Vec }
   | { type: 'attack'; angle: number }

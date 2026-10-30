@@ -1,8 +1,10 @@
-// Drawing the rework's Forest (ROADMAP 20.2–20.4) with code figures until the art comes
-// (VISION §10): ground, obstacles, beasts with their warnings, shots, gems. Three-quarter view:
-// every body stands on its foot point, and the caller draws them sorted by it.
+// Drawing the rework's Forest (ROADMAP 20.2–20.4): ground, obstacles, beasts with their warnings,
+// shots, gems. Beasts with a sheet are drawn from frames (beastAnim.ts), the rest with code figures
+// until the art comes (VISION §10). Three-quarter view: every body stands on its foot point, and
+// the caller draws them sorted by it.
 
 import { REWORK_BOSS, REWORK_CLASSES, REWORK_ELITES, REWORK_ENEMIES, REWORK_MAP, REWORK_PICKUPS, REWORK_TASKS } from '../data/rework';
+import { beastSheet, beastSize, drawBeastFrames } from './beastAnim';
 import type { Altar, Chest, Coin, Gem, Herb, Obstacle, RunEnemy, RunHero, Shot, Shrine, Task, Trap, Zone } from '../systems/rework/types';
 
 const OUTLINE = 'rgba(15, 12, 10, 0.85)';
@@ -167,7 +169,9 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, e: RunEnemy, time: numb
   const side = e.vel.x < -1 ? -1 : 1;
   const flash = time - e.hitAt < 0.08;
   const bob = Math.abs(Math.sin(time * 9 + e.id)) * (e.act.kind === 'walk' ? 2 : 0);
-  drawShadow(ctx, e.pos.x, e.pos.y, r);
+  const sh = beastSheet(e.def);
+  const size = beastSize(e.def, r);
+  drawShadow(ctx, e.pos.x, e.pos.y, sh ? sh.shadow * size : r);
   // An elite glows in the colour of its trait.
   if (e.elite) {
     ctx.save();
@@ -175,14 +179,18 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, e: RunEnemy, time: numb
     ctx.strokeStyle = REWORK_ELITES.traits[e.elite].color;
     ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.ellipse(e.pos.x, e.pos.y, r * 1.5, r * 0.8, 0, 0, Math.PI * 2);
+    const ring = sh ? sh.shadow * size * 1.3 : r * 1.5;
+    ctx.ellipse(e.pos.x, e.pos.y, ring, ring * 0.53, 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
   }
+  const drawn = drawBeastFrames(ctx, e, time);
   ctx.save();
   ctx.translate(e.pos.x, e.pos.y - bob);
   ctx.scale(side, 1);
-  if (e.def === 'wolf') {
+  if (drawn) {
+    // Drawn from its frames.
+  } else if (e.def === 'wolf') {
     const crouch = e.act.kind === 'crouch' ? 0.7 : 1;
     const stretch = e.act.kind === 'leap' ? 1.35 : 1;
     ctx.scale(stretch, crouch);
@@ -242,12 +250,13 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, e: RunEnemy, time: numb
   }
   ctx.restore();
   // Skill effects: frozen — an icy shell; stunned — stars over the head; scared — a drop of sweat.
+  const tall = drawn && sh ? sh.height * size : r * 2.2;
   if (e.freeze > 0) {
     ctx.fillStyle = 'rgba(160, 215, 255, 0.45)';
     ctx.strokeStyle = 'rgba(220, 245, 255, 0.9)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.ellipse(e.pos.x, e.pos.y - r * 0.9, r * 1.3, r * 1.2, 0, 0, Math.PI * 2);
+    ctx.ellipse(e.pos.x, e.pos.y - tall * 0.42, Math.max(r * 1.3, tall * 0.75), tall * 0.55, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
   } else if (e.stun > 0) {
@@ -255,17 +264,11 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, e: RunEnemy, time: numb
     for (let i = 0; i < 3; i++) {
       const a = time * 6 + (i * Math.PI * 2) / 3;
       ctx.beginPath();
-      ctx.arc(e.pos.x + Math.cos(a) * r * 0.8, e.pos.y - r * 2.4 + Math.sin(a) * r * 0.25, 2.5, 0, Math.PI * 2);
+      ctx.arc(e.pos.x + Math.cos(a) * r * 0.8, e.pos.y - tall - 6 + Math.sin(a) * r * 0.25, 2.5, 0, Math.PI * 2);
       ctx.fill();
     }
   }
-  if (e.hp < e.maxHp) {
-    const w = r * 2.2;
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(e.pos.x - w / 2 - 1, e.pos.y - r * 2.6 - 1, w + 2, 5);
-    ctx.fillStyle = '#e5534b';
-    ctx.fillRect(e.pos.x - w / 2, e.pos.y - r * 2.6, w * Math.max(0, e.hp / e.maxHp), 3);
-  }
+  hpBar(ctx, e, e.pos.y - tall - 8, r * 2.2);
 }
 
 /** The mage and the archer until their frames come: a cloaked figure in the class colour. */
@@ -659,6 +662,11 @@ export function drawSpirit(ctx: CanvasRenderingContext2D, e: RunEnemy, time: num
   const flash = time - e.hitAt < 0.08;
   const float = Math.sin(time * 2.5 + e.id) * 4;
   const y = e.pos.y - 30 + float;
+  const sh = beastSheet('spirit');
+  if (sh && drawBeastFrames(ctx, e, time, -float)) {
+    hpBar(ctx, e, e.pos.y - float - (sh.hover! + sh.height) * beastSize(e.def, r) - 6, r * 2.6);
+    return;
+  }
   ctx.save();
   if (casting) {
     ctx.globalAlpha = 0.5;
@@ -695,7 +703,12 @@ function drawAlpha(ctx: CanvasRenderingContext2D, e: RunEnemy, time: number): vo
   // Hit all the time in a duel: a short warm flash, not a white body.
   const flash = time - e.hitAt < 0.05;
   const air = e.act.kind === 'leapAir' ? Math.sin((1 - e.act.time / REWORK_BOSS.alpha.leap.time) * Math.PI) * 40 : 0;
-  drawShadow(ctx, e.pos.x, e.pos.y, r * (1 - air / 120));
+  const sh = beastSheet('alpha');
+  drawShadow(ctx, e.pos.x, e.pos.y, (sh ? sh.shadow : r) * (1 - air / 120));
+  if (drawBeastFrames(ctx, e, time, air)) {
+    if (e.act.kind === 'rest') stars(ctx, e.pos.x, e.pos.y - sh!.height - 8, r * 0.9, time);
+    return;
+  }
   ctx.save();
   ctx.translate(e.pos.x, e.pos.y - air);
   ctx.scale(side, 1);
@@ -718,14 +731,17 @@ function drawAlpha(ctx: CanvasRenderingContext2D, e: RunEnemy, time: number): vo
   ctx.fill();
   ctx.restore();
   // Resting after a leap: winded — stars over the head.
-  if (e.act.kind === 'rest') {
-    ctx.fillStyle = '#ffe27a';
-    for (let i = 0; i < 3; i++) {
-      const a = time * 6 + (i * Math.PI * 2) / 3;
-      ctx.beginPath();
-      ctx.arc(e.pos.x + Math.cos(a) * r * 0.9, e.pos.y - r * 2.4 + Math.sin(a) * r * 0.25, 3, 0, Math.PI * 2);
-      ctx.fill();
-    }
+  if (e.act.kind === 'rest') stars(ctx, e.pos.x, e.pos.y - r * 2.4, r * 0.9, time);
+}
+
+/** Stars over a dazed head. */
+function stars(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, time: number): void {
+  ctx.fillStyle = '#ffe27a';
+  for (let i = 0; i < 3; i++) {
+    const a = time * 6 + (i * Math.PI * 2) / 3;
+    ctx.beginPath();
+    ctx.arc(x + Math.cos(a) * w, y + Math.sin(a) * w * 0.28, 3, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 

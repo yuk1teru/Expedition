@@ -38,7 +38,7 @@ export function damageEnemy(run: Run, e: RunEnemy, amount: number): void {
   if (e.hp > 0) return;
   e.dead = true;
   run.kills += 1;
-  run.events.push({ type: 'kill', pos: { x: e.pos.x, y: e.pos.y }, def: e.def });
+  run.events.push({ type: 'kill', pos: { x: e.pos.x, y: e.pos.y }, def: e.def, id: e.id, radius: e.radius, boss: !!e.boss });
   run.gems.push({ pos: { x: e.pos.x, y: e.pos.y }, xp: e.elite ? REWORK_ELITES.xp : REWORK_ENEMIES[e.def].xp, pulled: false });
   if (e.elite) {
     run.chests.push({ pos: { x: e.pos.x, y: e.pos.y } });

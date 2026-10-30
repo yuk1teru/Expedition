@@ -22,6 +22,8 @@ import type { Vec } from '../systems/entities';
 import type { App } from './app';
 import { type HeroAnimState, drawHeroDust, drawHeroFrames, heroAnimAttack, heroAnimCast, heroAnimDodge, newHeroAnim, stepHeroAnim } from './heroAnim';
 import { DodgeFx } from './dodgeFx';
+import { BEAST_ANIM } from '../data/beastAnim';
+import { beastSheet, beastSize, type Corpse, corpseLife, drawCorpse, lastSide } from './beastAnim';
 import { CROWN_FADE, crownBox, drawAltar, drawBossWarning, drawChest, drawCoin, drawEnemy, drawEnemyWarning, drawGem, drawHerb, drawHeroFigure, drawLumberjack, drawObstacle, drawRingWall, drawShadow, drawShot, drawShrine, drawSpirit, drawTaskGround, drawTrap, drawZone } from './reworkDraw';
 import { THEME, font } from './theme';
 import { Button, ButtonGroup, drawPanel, drawText, drawWrapped } from './ui';
@@ -90,6 +92,8 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
   let floaters: Floater[] = [];
   let swings: Swing[] = [];
   let flashes: Flash[] = [];
+  /** Dead beasts lying a moment where they fell. */
+  let corpses: Corpse[] = [];
   /** Effects of the dodge on Space; `dodging` — a dodge was in flight last frame. */
   const dodgeFx = new DodgeFx();
   let dodging = false;
@@ -117,6 +121,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     floaters = [];
     swings = [];
     flashes = [];
+    corpses = [];
     dodgeFx.reset();
     dodging = false;
     zoom = 1;
@@ -144,7 +149,10 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
   const readEvents = (r: Run): void => {
     for (const e of r.events) {
       if (e.type === 'hit') floaters.push({ x: e.pos.x + (r.rng.next() - 0.5) * 10, y: e.pos.y - 30, text: String(Math.max(1, Math.round(e.amount))), color: e.byHero ? '#ffffff' : '#ff6b5e', age: 0 });
-      else if (e.type === 'swing') {
+      else if (e.type === 'kill') {
+        corpses.push({ def: e.def, x: e.pos.x, y: e.pos.y, side: lastSide(e.id), size: beastSize(e.def, e.radius), boss: e.boss, age: 0 });
+        if (corpses.length > BEAST_ANIM.maxCorpses) corpses.shift();
+      } else if (e.type === 'swing') {
         swings.push({ x: e.pos.x, y: e.pos.y, angle: e.angle, reach: e.reach, arc: e.arc, age: 0 });
       } else if (e.type === 'attack') heroAnimAttack(anim, r.hero.classId);
       else if (e.type === 'dodge') {
@@ -261,6 +269,11 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       for (const c of r.coins) if (onScreen(c.pos.x, c.pos.y, 10)) drawCoin(ctx, c);
       for (const z of r.zones) if (onScreen(z.pos.x, z.pos.y, z.radius)) drawZone(ctx, z, r.time);
       for (const t of r.traps) if (onScreen(t.pos.x, t.pos.y, 20)) drawTrap(ctx, t);
+      for (const c of corpses) {
+        c.age += paused ? 0 : dt;
+        if (onScreen(c.x, c.y, 60)) drawCorpse(ctx, c);
+      }
+      corpses = corpses.filter((c) => c.age < corpseLife(c));
       for (const e of r.enemies) if (onScreen(e.pos.x, e.pos.y, 200)) drawEnemyWarning(ctx, e);
       for (const e of r.enemies) if (e.boss) drawBossWarning(ctx, e);
       drawSwings(ctx, paused ? 0 : dt);
@@ -286,7 +299,11 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       const items: { y: number; draw: () => void }[] = [];
       // Who could stand hidden behind a tree: the hero and the beasts on screen (foot and height).
       const bodies = [{ x: h.pos.x, y: h.pos.y, tall: 70 }];
-      for (const e of r.enemies) if (onScreen(e.pos.x, e.pos.y, 40)) bodies.push({ x: e.pos.x, y: e.pos.y, tall: e.radius * 2.6 });
+      for (const e of r.enemies) {
+        if (!onScreen(e.pos.x, e.pos.y, 40)) continue;
+        const sh = beastSheet(e.def);
+        bodies.push({ x: e.pos.x, y: e.pos.y, tall: sh ? sh.height * beastSize(e.def, e.radius) : e.radius * 2.6 });
+      }
       for (const o of r.obstacles) if (onScreen(o.pos.x, o.pos.y, o.height + 80)) items.push({ y: o.pos.y, draw: () => drawObstacle(ctx, o, treeAlpha(o, bodies)) });
       for (const e of r.enemies) if (onScreen(e.pos.x, e.pos.y, 40)) items.push({ y: e.pos.y, draw: () => drawEnemy(ctx, e, r.time) });
       for (const c of r.chests) if (onScreen(c.pos.x, c.pos.y, 30)) items.push({ y: c.pos.y, draw: () => drawChest(ctx, c, r.time) });
