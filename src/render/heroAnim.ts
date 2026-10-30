@@ -190,7 +190,7 @@ export function drawHeroDust(ctx: CanvasRenderingContext2D, s: HeroAnimState): v
  */
 export function drawWarrior(ctx: CanvasRenderingContext2D, s: HeroAnimState, feet: number, flash: boolean): boolean {
   const { anim, frame } = currentFrame(s);
-  const sh = A.sheets[A.sheetOf[anim] ?? 'main'];
+  const sh = A.sheets[anim === 'walk' ? A.walkStyles[walkStyle]!.sheet : (A.sheetOf[anim] ?? 'main')];
   const main = sheet(A.sheets.main.src);
   const img = sheet(sh.src);
   if (!main || !img) return false;
