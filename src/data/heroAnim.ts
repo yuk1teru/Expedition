@@ -63,8 +63,8 @@ export const HERO_SHEETS: Record<string, HeroSheet> = {
     chest: [4, -90],
   },
   // Rows: standing, walk, cast forward, cast overhead, channel, blink. The standing row was drawn
-  // with longer legs than every move, so the mage stands in the walk's legs-together frame — the
-  // same proportions as the moves, no scaling needed.
+  // larger than every move (and its first frames carry a crystal tip of the row below), so the
+  // clean third standing frame is shrunk to the moves' size.
   mage: {
     src: 'sprites/anim/mage.png',
     columns: 3,
@@ -72,19 +72,20 @@ export const HERO_SHEETS: Record<string, HeroSheet> = {
     anchor: [82, 142],
     frameHeight: 120,
     frames: {
-      idle: [4],
+      idle: [2],
       walk: [3, 4, 5, 4],
       moveA: [6, 7, 8],
       moveB: [9, 10, 11],
       moveC: [12, 13, 14],
       cast: [9, 9],
       dash: [15, 16, 17],
-      hurt: [4],
+      hurt: [2],
     },
     durations: { moveA: [0.12, 0.08, 0.16], moveB: STRIKE, moveC: [0.12, 0.1, 0.2], cast: [0.12, 0.3], dash: [0.05, 0.07, 0.12], hurt: [0.18] },
     attacks: ['moveA'],
     skillAnim: { fireball: 'moveA', magicMissiles: 'moveA', frostRing: 'moveB', chainLightning: 'moveC' },
     chest: [4, -80],
+    frameScale: { 2: 0.92 },
   },
   // Rows: standing, walk, shoot forward, shoot upward, fan shot, vault back.
   archer: {
