@@ -1,5 +1,5 @@
 // The heroes' frame animation (rework, VISION §10). Each class has one sheet generated as one
-// picture (docs/art/<class>-full.png: 3 columns × 6 rows — standing, walk and four moves of the
+// picture (docs/art/heroes/<class>/poses.png: 3 columns × 6 rows — standing, walk and four moves of the
 // class), cut, aligned by the feet and packed into a grid of equal cells by
 // scripts/pack-frames.py (COLS=3 "0-2:xy,3-5:xy75"; GRID=3x6 when figures of neighbouring rows
 // touch). Every cell has the feet of the figure at `anchor`; the figure faces right.

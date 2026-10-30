@@ -1,7 +1,8 @@
 // The Forest's beasts drawn from generated frames (rework, VISION §10), like the heroes: each sheet
-// was generated as one picture (docs/art/<beast>-full.png), cut, aligned by the feet and packed into
-// a grid of equal cells by scripts/pack-frames.py (GRID=3x3, the alpha 3x4, the spirit 3x2). Every
-// cell has the feet at `anchor`; the beast faces right.
+// was generated as one picture (docs/art/mobs/<beast>/poses.png, the boss's in docs/art/bosses/),
+// cut, aligned by the feet and packed into a grid of equal cells by scripts/pack-frames.py
+// (GRID=3x3, the alpha 3x4, the spirit 3x2). Every cell has the feet at `anchor`; the beast faces
+// right.
 
 import type { ReworkEnemyId } from './rework';
 

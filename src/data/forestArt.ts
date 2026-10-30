@@ -1,6 +1,6 @@
 // The Forest's ground and props from generated pictures (rework, VISION §10). The ground is a
-// seamless texture (docs/art/forest-ground.png, shrunk to one 640 px tile = 640 world px). The
-// props were generated as one sheet (docs/art/forest-obstacles.png) and cut into an atlas by
+// seamless texture (docs/art/locations/forest/ground.png, shrunk to one 640 px tile = 640 world px). The
+// props were generated as one sheet (docs/art/locations/forest/obstacles.png) and cut into an atlas by
 // scripts/cut-props.py (SCALE=0.65); `pieces` is its output: a rect in the atlas and the foot
 // point inside it. Sizes below turn atlas px into world px.
 
