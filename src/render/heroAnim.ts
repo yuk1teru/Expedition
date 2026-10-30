@@ -45,6 +45,8 @@ export interface HeroAnimState {
   side: number;
   last: { x: number; y: number } | null;
   moving: boolean;
+  /** Seconds since the hero last had speed (walking holds a moment after a stop). */
+  still: number;
   /** Walk cycle 0…1 and time at rest. */
   cycle: number;
   rest: number;
@@ -59,7 +61,7 @@ export interface HeroAnimState {
 }
 
 export function newHeroAnim(): HeroAnimState {
-  return { side: 1, last: null, moving: false, cycle: 0, rest: 0, shot: null, time: 0, lastHitAt: -Infinity, lastHurt: -Infinity, clock: 0, dustTimer: 0, puffs: [] };
+  return { side: 1, last: null, moving: false, still: 0, cycle: 0, rest: 0, shot: null, time: 0, lastHitAt: -Infinity, lastHurt: -Infinity, clock: 0, dustTimer: 0, puffs: [] };
 }
 
 /** Higher plays over lower. */
@@ -86,7 +88,11 @@ export function stepHeroAnim(s: HeroAnimState, h: AnimBody, dt: number, hitAt: n
   s.clock += dt;
   const moved = s.last ? Math.hypot(h.pos.x - s.last.x, h.pos.y - s.last.y) : 0;
   s.last = { x: h.pos.x, y: h.pos.y };
-  s.moving = dt > 0 && moved / dt > 20;
+  // Walking is read from the hero's speed, not from how far it moved since the last frame: the
+  // logic steps 60 times a second and a faster screen draws frames with no step between them,
+  // which looked like a stop and flashed the idle frame. A short hold covers a quick release.
+  s.still = Math.hypot(h.vel.x, h.vel.y) > 20 ? 0 : s.still + dt;
+  s.moving = s.still < 0.08;
   s.cycle = (s.cycle + moved / A.stride) % 1;
   s.rest = s.moving ? 0 : s.rest + dt;
   // Faces where it walks (no walking backwards); while striking or casting — where it strikes.
