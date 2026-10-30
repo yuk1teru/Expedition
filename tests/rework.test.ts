@@ -8,6 +8,8 @@ import { dodge, heroStats } from '../src/systems/rework/hero';
 import { isFree, resolveBody } from '../src/systems/rework/map';
 import { chooseCard, gainXp, reroll, rerollPrice, xpToNext } from '../src/systems/rework/progress';
 import { createRun, runPaused, stepRun, stressSpawn } from '../src/systems/rework/run';
+import { castSkill } from '../src/systems/rework/skills';
+import { CLASS_SKILLS, REWORK_SKILLS, type ReworkSkillId, SKILL_SLOTS, skillParams } from '../src/data/reworkSkills';
 
 const still = { x: 0, y: 0 };
 
@@ -151,7 +153,7 @@ describe('rework experience and cards (20.5)', () => {
     const hp = heroStats(run).maxHp;
     run.cards.health = 0;
     gainXp(run, xpToNext(1));
-    run.offer = [{ id: 'health', rank: 1 }];
+    run.offer = [{ kind: 'passive', id: 'health', rank: 1 }];
     chooseCard(run, 0);
     expect(run.cards.health).toBe(1);
     expect(run.hero.maxHp).toBeGreaterThan(hp);
@@ -162,6 +164,10 @@ describe('rework experience and cards (20.5)', () => {
     const run = createRun(43, 'warrior');
     for (const id of Object.keys(REWORK_CARDS) as (keyof typeof REWORK_CARDS)[]) if (id !== 'magnet') run.cards[id] = REWORK_CARDS[id].ranks;
     gainXp(run, xpToNext(1));
+    run.skills = (['whirlwind', 'groundSlam', 'axeThrow', 'battleCry'] as const).map((id) => ({ id, rank: 5, cooldown: 0 }));
+    run.offer = null;
+    run.pendingLevels = 0;
+    gainXp(run, xpToNext(run.level));
     expect(run.offer!.map((c) => c.id)).toEqual(['magnet']);
   });
 
@@ -183,5 +189,97 @@ describe('rework experience and cards (20.5)', () => {
     for (let i = 0; i < 60; i++) stepRun(run, 1 / 60, still);
     expect(run.gems.length).toBe(0);
     expect(run.xp).toBe(1);
+  });
+});
+
+describe('rework skills (20.6)', () => {
+  it('the first choice is three new skills of the class', () => {
+    const run = createRun(51, 'mage');
+    gainXp(run, xpToNext(1));
+    expect(run.offer!.length).toBe(3);
+    for (const c of run.offer!) {
+      expect(c.kind).toBe('skill');
+      expect(c.rank).toBe(1);
+      expect(CLASS_SKILLS.mage).toContain(c.id);
+    }
+  });
+
+  it('no more than four skills; then only their ranks and passives', () => {
+    const run = createRun(52, 'archer');
+    run.skills = CLASS_SKILLS.archer.map((id) => ({ id, rank: 1, cooldown: 0 }));
+    gainXp(run, xpToNext(1));
+    for (const c of run.offer!) if (c.kind === 'skill') expect(c.rank).toBeGreaterThan(1);
+    expect(run.skills.length).toBe(SKILL_SLOTS);
+  });
+
+  it('every rank says what it changes and changes a number', () => {
+    for (const id of Object.keys(REWORK_SKILLS) as ReworkSkillId[]) {
+      const d = REWORK_SKILLS[id];
+      d.ranks.forEach((r, i) => {
+        expect(r.text.length, id).toBeGreaterThan(3);
+        expect(JSON.stringify(skillParams(id, i + 2)), `${id} rank ${i + 2}`).not.toBe(JSON.stringify(skillParams(id, i + 1)));
+      });
+    }
+  });
+
+  it('a skill waits for its cooldown', () => {
+    const run = createRun(53, 'warrior');
+    run.skills = [{ id: 'groundSlam', rank: 1, cooldown: 0 }];
+    expect(castSkill(run, 0, null)).toBe(true);
+    expect(castSkill(run, 0, null)).toBe(false);
+    expect(castSkill(run, 1, null)).toBe(false);
+  });
+
+  it('every skill hurts a beast standing where it is aimed', () => {
+    for (const cls of ['warrior', 'mage', 'archer'] as const) {
+      for (const id of CLASS_SKILLS[cls]) {
+        if (id === 'battleCry') continue;
+        const run = createRun(54, cls);
+        run.spawnTimer = 1e9;
+        run.hero.immortal = true;
+        run.hero.attackTimer = 1e9;
+        const e = spawnBeast(run, 'stump', run.hero.pos)!;
+        e.pos = { x: run.hero.pos.x + 80, y: run.hero.pos.y };
+        e.traitTimer = 1e9;
+        const hp = e.hp;
+        run.skills = [{ id, rank: 1, cooldown: 0 }];
+        castSkill(run, 0, { x: e.pos.x, y: e.pos.y });
+        // A trap waits for the beast to step on it.
+        if (id === 'hunterTrap') run.traps[0]!.pos = { x: e.pos.x, y: e.pos.y };
+        for (let i = 0; i < 90; i++) {
+          stepRun(run, 1 / 60, still);
+          run.hero.attackTimer = 1e9;
+        }
+        expect(e.hp, id).toBeLessThan(hp);
+      }
+    }
+  });
+
+  it('a frozen or stunned beast stands still', () => {
+    const run = createRun(55, 'mage');
+    run.spawnTimer = 1e9;
+    run.hero.immortal = true;
+    run.hero.attackTimer = 1e9;
+    const e = spawnBeast(run, 'wolf', run.hero.pos)!;
+    e.pos = { x: run.hero.pos.x + 90, y: run.hero.pos.y };
+    run.skills = [{ id: 'frostRing', rank: 1, cooldown: 0 }];
+    castSkill(run, 0, null);
+    const at = { x: e.pos.x, y: e.pos.y };
+    for (let i = 0; i < 30; i++) {
+      stepRun(run, 1 / 60, still);
+      run.hero.attackTimer = 1e9;
+    }
+    expect(e.freeze).toBeGreaterThan(0);
+    expect(Math.hypot(e.pos.x - at.x, e.pos.y - at.y)).toBeLessThan(1);
+  });
+
+  it('the battle cry speeds the attack and takes damage off', () => {
+    const run = createRun(56, 'warrior');
+    run.skills = [{ id: 'battleCry', rank: 1, cooldown: 0 }];
+    castSkill(run, 0, null);
+    expect(run.buff).not.toBeNull();
+    const hp = run.hero.hp;
+    damageHero(run, 10);
+    expect(hp - run.hero.hp).toBeCloseTo(10 * (1 - run.buff!.guard));
   });
 });

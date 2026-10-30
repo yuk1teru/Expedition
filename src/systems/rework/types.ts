@@ -3,6 +3,7 @@
 
 import type { Rng } from '../../core/rng';
 import type { ReworkCardId, ReworkClassId, ReworkEnemyId } from '../../data/rework';
+import type { ReworkSkillId } from '../../data/reworkSkills';
 import type { Vec } from '../entities';
 
 export type ObstacleKind = 'tree' | 'bush' | 'stone' | 'oak' | 'stoneRing' | 'log';
@@ -72,6 +73,12 @@ export interface RunEnemy {
   shots: number;
   hitAt: number;
   dead: boolean;
+  /** Skill effects (20.6): stunned or frozen — stands still; slowed; running away. */
+  stun: number;
+  freeze: number;
+  slowMult: number;
+  slowTime: number;
+  fear: number;
 }
 
 export interface Shot {
@@ -83,10 +90,47 @@ export interface Shot {
   life: number;
   /** Hero shots hit beasts; beast shots hit the hero. */
   byHero: boolean;
-  kind: 'bolt' | 'arrow' | 'spore';
+  kind: 'bolt' | 'arrow' | 'spore' | 'axe' | 'fireball' | 'missile' | 'pierceArrow';
   /** Beasts it may still pass through (arrows) and the ones already hit. */
   pierce: number;
   hit: number[];
+  /** Skill shots (20.6). Bursts at its target point or on the first beast. */
+  blast?: { radius: number; burn: number };
+  target?: Vec;
+  /** Flies after the nearest beast; may jump on to another after a hit. */
+  homing?: boolean;
+  bounce?: number;
+  /** Comes back to the hero once (the axe). */
+  returns?: boolean;
+  stun?: number;
+  /** Damage grows with each beast pierced. */
+  grow?: number;
+}
+
+/** A patch of ground that hurts (burning ground, a rain of arrows). */
+export interface Zone {
+  kind: 'fire' | 'rain';
+  pos: Vec;
+  radius: number;
+  time: number;
+  damage: number;
+  /** Seconds to the next hurt. */
+  tick: number;
+  slow: number;
+}
+
+export interface Trap {
+  pos: Vec;
+  radius: number;
+  damage: number;
+  stun: number;
+}
+
+export interface HeroSkill {
+  id: ReworkSkillId;
+  rank: number;
+  /** Seconds until it can be pressed again. */
+  cooldown: number;
 }
 
 export interface Gem {
@@ -107,13 +151,13 @@ export type RunEvent =
   | { type: 'swing'; pos: Vec; angle: number; reach: number; arc: number }
   | { type: 'kill'; pos: Vec; def: ReworkEnemyId }
   | { type: 'levelUp'; level: number }
-  | { type: 'dodge'; from: Vec; to: Vec };
+  | { type: 'dodge'; from: Vec; to: Vec }
+  | { type: 'cast'; skill: ReworkSkillId }
+  | { type: 'blast'; pos: Vec; radius: number; color: string }
+  | { type: 'chain'; points: Vec[] };
 
-export interface CardOffer {
-  id: ReworkCardId;
-  /** The rank the card gives (1…ranks). */
-  rank: number;
-}
+/** A card: a passive's next rank, a new skill or a skill's next rank. */
+export type CardOffer = { kind: 'passive'; id: ReworkCardId; rank: number } | { kind: 'skill'; id: ReworkSkillId; rank: number };
 
 export interface Run {
   width: number;
@@ -137,6 +181,16 @@ export interface Run {
   kills: number;
   /** Card id → rank taken. */
   cards: Partial<Record<ReworkCardId, number>>;
+  /** Skills in their slots (keys 1–4), in the order they came. */
+  skills: HeroSkill[];
+  /** Battle cry and the like: faster attacks, less damage taken. */
+  buff: { attackSpeed: number; guard: number; time: number } | null;
+  /** The whirlwind turning around the hero. */
+  spin: { time: number; tick: number; radius: number; damage: number; pull: boolean } | null;
+  zones: Zone[];
+  traps: Trap[];
+  /** A skill effect that comes a little later (the second frost wave). */
+  delayed: { time: number; pos: Vec; radius: number; damage: number; freeze: number }[];
   /** Level-ups not chosen yet and the cards on the table. */
   pendingLevels: number;
   offer: CardOffer[] | null;

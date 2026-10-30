@@ -63,6 +63,11 @@ export function spawnBeast(run: Run, def: ReworkEnemyId, near?: Vec): RunEnemy |
       shots: 0,
       hitAt: -Infinity,
       dead: false,
+      stun: 0,
+      freeze: 0,
+      slowMult: 1,
+      slowTime: 0,
+      fear: 0,
     };
     run.enemies.push(e);
     return e;
@@ -92,6 +97,23 @@ function stepBeast(run: Run, e: RunEnemy, dt: number): void {
   const dir = norm(to);
   e.traitTimer -= dt;
   e.touchTimer -= dt;
+  // Skill effects: stunned or frozen — stands; scared — runs; slowed — walks slower.
+  e.stun = Math.max(0, e.stun - dt);
+  e.freeze = Math.max(0, e.freeze - dt);
+  e.fear = Math.max(0, e.fear - dt);
+  e.slowTime = Math.max(0, e.slowTime - dt);
+  if (e.slowTime <= 0) e.slowMult = 1;
+  if (e.stun > 0 || e.freeze > 0) {
+    e.vel = { x: 0, y: 0 };
+    return;
+  }
+  if (e.fear > 0) {
+    e.act = { kind: 'walk' };
+    e.vel = { x: -dir.x * d.speed * e.slowMult, y: -dir.y * d.speed * e.slowMult };
+    e.pos.x += e.vel.x * dt;
+    e.pos.y += e.vel.y * dt;
+    return;
+  }
   let speed = d.speed;
   let move = dir;
   const act = e.act;
@@ -140,7 +162,7 @@ function stepBeast(run: Run, e: RunEnemy, dt: number): void {
       speed = d.speed * 0.6;
     }
   }
-  e.vel = { x: move.x * speed, y: move.y * speed };
+  e.vel = { x: move.x * speed * e.slowMult, y: move.y * speed * e.slowMult };
   e.pos.x += e.vel.x * dt;
   e.pos.y += e.vel.y * dt;
   // A bite on touch.

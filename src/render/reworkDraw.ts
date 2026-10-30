@@ -3,7 +3,7 @@
 // every body stands on its foot point, and the caller draws them sorted by it.
 
 import { REWORK_CLASSES, REWORK_ENEMIES, REWORK_MAP } from '../data/rework';
-import type { Gem, Coin, Obstacle, RunEnemy, RunHero, Shot } from '../systems/rework/types';
+import type { Gem, Coin, Obstacle, RunEnemy, RunHero, Shot, Trap, Zone } from '../systems/rework/types';
 
 const OUTLINE = 'rgba(15, 12, 10, 0.85)';
 
@@ -199,6 +199,24 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, e: RunEnemy, time: numb
     ctx.fillRect(r * 0.22, -r * 1.05, r * 0.18, r * 0.12);
   }
   ctx.restore();
+  // Skill effects: frozen — an icy shell; stunned — stars over the head; scared — a drop of sweat.
+  if (e.freeze > 0) {
+    ctx.fillStyle = 'rgba(160, 215, 255, 0.45)';
+    ctx.strokeStyle = 'rgba(220, 245, 255, 0.9)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(e.pos.x, e.pos.y - r * 0.9, r * 1.3, r * 1.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  } else if (e.stun > 0) {
+    ctx.fillStyle = '#ffe27a';
+    for (let i = 0; i < 3; i++) {
+      const a = time * 6 + (i * Math.PI * 2) / 3;
+      ctx.beginPath();
+      ctx.arc(e.pos.x + Math.cos(a) * r * 0.8, e.pos.y - r * 2.4 + Math.sin(a) * r * 0.25, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
   if (e.hp < e.maxHp) {
     const w = r * 2.2;
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -245,7 +263,61 @@ export function drawHeroFigure(ctx: CanvasRenderingContext2D, h: RunHero, side: 
   ctx.restore();
 }
 
-export function drawShot(ctx: CanvasRenderingContext2D, s: Shot): void {
+export function drawShot(ctx: CanvasRenderingContext2D, s: Shot, time = 0): void {
+  if (s.kind === 'axe') {
+    ctx.save();
+    ctx.translate(s.pos.x, s.pos.y - 18);
+    ctx.rotate(time * 18);
+    ctx.strokeStyle = '#6b4a2a';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(-10, 0);
+    ctx.lineTo(10, 0);
+    ctx.stroke();
+    ctx.fillStyle = '#c9ccd4';
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(6, -9);
+    ctx.quadraticCurveTo(16, 0, 6, 9);
+    ctx.lineTo(4, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+  if (s.kind === 'pierceArrow') {
+    const a = Math.atan2(s.vel.y, s.vel.x);
+    ctx.save();
+    ctx.translate(s.pos.x, s.pos.y - 16);
+    ctx.rotate(a);
+    ctx.strokeStyle = 'rgba(255, 240, 180, 0.5)';
+    ctx.lineWidth = Math.max(4, s.radius * 2);
+    ctx.beginPath();
+    ctx.moveTo(-60, 0);
+    ctx.lineTo(10, 0);
+    ctx.stroke();
+    ctx.strokeStyle = '#fff2c0';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-20, 0);
+    ctx.lineTo(12, 0);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+  if (s.kind === 'fireball' || s.kind === 'missile') {
+    const fire = s.kind === 'fireball';
+    ctx.fillStyle = fire ? '#ff7a2a' : '#b98cff';
+    ctx.strokeStyle = fire ? '#ffe08a' : '#efe0ff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(s.pos.x, s.pos.y - 18, s.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    return;
+  }
   if (s.kind === 'arrow') {
     const a = Math.atan2(s.vel.y, s.vel.x);
     ctx.save();
@@ -295,6 +367,50 @@ export function drawCoin(ctx: CanvasRenderingContext2D, c: Coin): void {
   ctx.ellipse(c.pos.x, c.pos.y - 3, 5, 4, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
+}
+
+/** Burning ground and rains of arrows, on the ground under the bodies. */
+export function drawZone(ctx: CanvasRenderingContext2D, z: Zone, time: number): void {
+  const fire = z.kind === 'fire';
+  ctx.fillStyle = fire ? 'rgba(255, 110, 40, 0.28)' : 'rgba(230, 220, 190, 0.18)';
+  ctx.strokeStyle = fire ? 'rgba(255, 170, 80, 0.7)' : 'rgba(240, 230, 200, 0.6)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(z.pos.x, z.pos.y, z.radius, z.radius * 0.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  if (!fire) {
+    // Falling arrows: short strokes that move down.
+    ctx.strokeStyle = 'rgba(245, 235, 210, 0.8)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 10; i++) {
+      const a = i * 2.39996 + z.pos.x;
+      const rr = ((i * 37) % 10) / 10;
+      const x = z.pos.x + Math.cos(a) * z.radius * rr;
+      const y = z.pos.y + Math.sin(a) * z.radius * 0.6 * rr - 40 + ((time * 160 + i * 23) % 40);
+      ctx.beginPath();
+      ctx.moveTo(x, y - 10);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    }
+  }
+}
+
+export function drawTrap(ctx: CanvasRenderingContext2D, t: Trap): void {
+  ctx.strokeStyle = '#c9c3b6';
+  ctx.fillStyle = 'rgba(60, 50, 40, 0.8)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(t.pos.x, t.pos.y, 12, 7, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(t.pos.x + Math.cos(a) * 8, t.pos.y + Math.sin(a) * 5);
+    ctx.lineTo(t.pos.x + Math.cos(a) * 14, t.pos.y + Math.sin(a) * 8 - 3);
+    ctx.stroke();
+  }
 }
 
 /** Re-export for the screen: how strongly a crown fades. */

@@ -1,7 +1,8 @@
 // The hero in the rework's run (ROADMAP 20.4): walks around obstacles, attacks the nearest beast
 // on its own (the warrior's arc, the mage's fire bolt, the archer's piercing arrow) and dodges on
 // Space — the warrior's shield dash, the mage's blink, the archer's vault back — with a short
-// invulnerability and no damage. The cards (20.5) change the numbers through `heroStats`.
+// invulnerability and no damage. The cards (20.5) change the numbers through `heroStats`; the
+// hero's shots fly in shots.ts.
 
 import { REWORK_CARDS, REWORK_CLASSES, REWORK_PROGRESS, type ReworkClassId } from '../../data/rework';
 import type { Vec } from '../entities';
@@ -91,7 +92,7 @@ function attack(run: Run): void {
   const range = a.kind === 'arc' ? a.reach * st.area : a.range;
   const target = nearest(run, h.pos, range);
   if (!target) return;
-  h.attackTimer = a.every;
+  h.attackTimer = a.every / (1 + (run.buff?.attackSpeed ?? 0));
   const angle = Math.atan2(target.pos.y - h.pos.y, target.pos.x - h.pos.x);
   h.facing = angle;
   if (a.kind === 'arc') {
@@ -149,31 +150,4 @@ export function dodge(run: Run, move: Vec): boolean {
   }
   h.dash = { from, to, time: 0, duration: d.time };
   return true;
-}
-
-/** Hero bolts and arrows: the bolt bursts on the first beast, the arrow pierces. */
-export function stepHeroShots(run: Run, dt: number): void {
-  const st = heroStats(run);
-  for (const s of run.shots) {
-    if (!s.byHero) continue;
-    s.pos.x += s.vel.x * dt;
-    s.pos.y += s.vel.y * dt;
-    s.life -= dt;
-    for (const e of run.enemies) {
-      if (e.dead || s.life <= 0 || s.hit.includes(e.id)) continue;
-      if (Math.hypot(e.pos.x - s.pos.x, e.pos.y - s.pos.y) > e.radius + s.radius) continue;
-      s.hit.push(e.id);
-      damageEnemy(run, e, s.damage);
-      const a = REWORK_CLASSES[run.hero.classId].attack;
-      if (s.kind === 'bolt' && a.kind === 'bolt') {
-        const r = a.splash * st.area;
-        for (const o of run.enemies) {
-          if (o === e || o.dead) continue;
-          if (Math.hypot(o.pos.x - s.pos.x, o.pos.y - s.pos.y) <= r + o.radius) damageEnemy(run, o, s.damage * a.splashShare);
-        }
-        s.life = 0;
-      } else if (s.pierce > 0) s.pierce -= 1;
-      else s.life = 0;
-    }
-  }
 }

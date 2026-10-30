@@ -1,8 +1,11 @@
-// Experience, gold and the level-up choice in the rework's run (ROADMAP 20.5). Gems and coins
-// lie where beasts fell and fly to the hero inside the magnet radius. A level-up stops the run
-// for a choice of 1 of 3 cards; the cards can be re-rolled for gold, dearer each time.
+// Experience, gold and the level-up choice in the rework's run (ROADMAP 20.5–20.6). Gems and
+// coins lie where beasts fell and fly to the hero inside the magnet radius. A level-up stops the
+// run for a choice of 1 of 3 cards: a new skill while a slot is free, a skill's next rank, a
+// passive's next rank. The first choice is always three skills — the hero starts with none. The
+// cards can be re-rolled for gold, dearer each time.
 
 import { REWORK_CARDS, REWORK_PROGRESS, type ReworkCardId } from '../../data/rework';
+import { CLASS_SKILLS, REWORK_SKILLS, SKILL_SLOTS } from '../../data/reworkSkills';
 import { heroStats } from './hero';
 import type { CardOffer, Run } from './types';
 
@@ -63,15 +66,24 @@ export function gainXp(run: Run, xp: number): void {
   }
 }
 
-/** Up to three different cards that are not at their last rank. */
+/** Every card that could come now. */
+function openCards(run: Run): CardOffer[] {
+  const owned = new Map(run.skills.map((s) => [s.id, s.rank]));
+  const newSkills: CardOffer[] = run.skills.length < SKILL_SLOTS ? CLASS_SKILLS[run.hero.classId].filter((id) => !owned.has(id)).map((id) => ({ kind: 'skill', id, rank: 1 })) : [];
+  // The hero starts with the basic attack only: the first choice is a skill.
+  if (run.skills.length === 0 && newSkills.length > 0) return newSkills;
+  const ranks: CardOffer[] = run.skills.filter((s) => s.rank < REWORK_SKILLS[s.id].ranks.length + 1).map((s) => ({ kind: 'skill', id: s.id, rank: s.rank + 1 }));
+  const passives: CardOffer[] = (Object.keys(REWORK_CARDS) as ReworkCardId[])
+    .filter((id) => (run.cards[id] ?? 0) < REWORK_CARDS[id].ranks)
+    .map((id) => ({ kind: 'passive', id, rank: (run.cards[id] ?? 0) + 1 }));
+  return [...newSkills, ...ranks, ...passives];
+}
+
+/** Up to three different cards. */
 export function makeOffer(run: Run): CardOffer[] {
-  const open = (Object.keys(REWORK_CARDS) as ReworkCardId[]).filter((id) => (run.cards[id] ?? 0) < REWORK_CARDS[id].ranks);
+  const open = openCards(run);
   const picks: CardOffer[] = [];
-  while (picks.length < 3 && open.length > 0) {
-    const i = Math.floor(run.rng.next() * open.length);
-    const id = open.splice(i, 1)[0]!;
-    picks.push({ id, rank: (run.cards[id] ?? 0) + 1 });
-  }
+  while (picks.length < 3 && open.length > 0) picks.push(open.splice(Math.floor(run.rng.next() * open.length), 1)[0]!);
   return picks;
 }
 
@@ -80,7 +92,12 @@ export function chooseCard(run: Run, index: number): boolean {
   const card = run.offer?.[index];
   if (!card) return false;
   const before = heroStats(run).maxHp;
-  run.cards[card.id] = card.rank;
+  if (card.kind === 'passive') run.cards[card.id] = card.rank;
+  else {
+    const have = run.skills.find((s) => s.id === card.id);
+    if (have) have.rank = card.rank;
+    else run.skills.push({ id: card.id, rank: 1, cooldown: 0 });
+  }
   const after = heroStats(run).maxHp;
   // Health: the new HP comes filled.
   run.hero.maxHp = after;

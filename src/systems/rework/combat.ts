@@ -7,6 +7,8 @@ import type { Run, RunEnemy } from './types';
 export function damageHero(run: Run, amount: number): void {
   const h = run.hero;
   if (h.dead || h.invuln > 0 || h.immortal || amount <= 0) return;
+  // The battle cry takes a share off.
+  amount *= 1 - (run.buff?.guard ?? 0);
   h.hp -= amount;
   h.hitAt = run.time;
   run.events.push({ type: 'hit', pos: { x: h.pos.x, y: h.pos.y }, amount, byHero: false });

@@ -1,14 +1,16 @@
-// One run of a rework location (ROADMAP 20.1–20.5): the Forest map, the hero of the chosen
-// class, the flood of beasts, experience and the level-up choice. The run stops while a card is
-// being chosen and when the hero dies. No DOM here: it steps the same in the browser and in Node.
+// One run of a rework location (ROADMAP 20.1–20.6): the Forest map, the hero of the chosen
+// class with its skills, the flood of beasts, experience and the level-up choice. The run stops
+// while a card is being chosen and when the hero dies. No DOM here: it steps the same in the browser and in Node.
 
 import { Rng } from '../../core/rng';
 import { REWORK_ENEMIES, REWORK_FIELD, type ReworkClassId, type ReworkEnemyId } from '../../data/rework';
 import type { Vec } from '../entities';
 import { spawnBeast, stepBeastShots, stepBeasts, stepFlood } from './enemies';
-import { newHero, stepHero, stepHeroShots } from './hero';
+import { newHero, stepHero } from './hero';
 import { buildGrid, makeForest } from './map';
 import { stepPickups } from './progress';
+import { stepHeroShots } from './shots';
+import { stepSkills } from './skills';
 import type { Run } from './types';
 
 export function createRun(seed: number, classId: ReworkClassId): Run {
@@ -35,6 +37,12 @@ export function createRun(seed: number, classId: ReworkClassId): Run {
     gold: 0,
     kills: 0,
     cards: {},
+    skills: [],
+    buff: null,
+    spin: null,
+    zones: [],
+    traps: [],
+    delayed: [],
     pendingLevels: 0,
     offer: null,
     rerolls: 0,
@@ -52,6 +60,7 @@ export function stepRun(run: Run, dt: number, move: Vec): void {
   if (runPaused(run)) return;
   run.time += dt;
   stepHero(run, dt, move);
+  stepSkills(run, dt);
   stepFlood(run, dt);
   stepBeasts(run, dt);
   stepHeroShots(run, dt);

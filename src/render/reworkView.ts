@@ -1,18 +1,22 @@
-// The "Реворк: Ліс" mode (ROADMAP 20.1–20.5, dev only): the new core grows here next to the old
+// The "Реворк: Ліс" mode (ROADMAP 20.1–20.6, dev only): the new core grows here next to the old
 // game. A class is chosen, then the run: the Forest map, the flood of beasts, the automatic
-// attack, the dodge on Space, experience and the choice of 1 of 3 cards, death and a restart.
+// attack, skills on keys 1–4 aimed at the cursor, the dodge on Space, experience and the choice
+// of 1 of 3 cards, death and a restart.
 // A small panel keeps the stress test of 20.1 and the frame rate.
 
 import type { Screen } from '../core/screens';
 import { Rng } from '../core/rng';
 import { REWORK_CARDS, REWORK_CLASSES, REWORK_FLOOD, REWORK_STRESS, type ReworkClassId } from '../data/rework';
+import { REWORK_SKILLS, SKILL_SLOTS, skillParams } from '../data/reworkSkills';
 import { dodge } from '../systems/rework/hero';
 import { chooseCard, reroll, rerollPrice, xpToNext } from '../systems/rework/progress';
 import { createRun, runPaused, stepRun, stressSpawn } from '../systems/rework/run';
-import type { Obstacle, Run } from '../systems/rework/types';
+import { castSkill } from '../systems/rework/skills';
+import type { CardOffer, Obstacle, Run } from '../systems/rework/types';
+import type { Vec } from '../systems/entities';
 import type { App } from './app';
-import { type HeroAnimState, drawHeroDust, drawWarrior, heroAnimAttack, newHeroAnim, stepHeroAnim } from './heroAnim';
-import { CROWN_FADE, crownBox, drawCoin, drawEnemy, drawEnemyWarning, drawGem, drawHeroFigure, drawObstacle, drawShadow, drawShot } from './reworkDraw';
+import { type HeroAnimState, drawHeroDust, drawWarrior, heroAnimAttack, heroAnimCast, newHeroAnim, stepHeroAnim } from './heroAnim';
+import { CROWN_FADE, crownBox, drawCoin, drawEnemy, drawEnemyWarning, drawGem, drawHeroFigure, drawObstacle, drawShadow, drawShot, drawTrap, drawZone } from './reworkDraw';
 import { THEME, font } from './theme';
 import { Button, ButtonGroup, drawPanel, drawText, drawWrapped } from './ui';
 
@@ -31,6 +35,15 @@ interface Floater {
   age: number;
 }
 
+/** A flash of a skill: a ring that grows and fades, or a lightning chain. */
+interface Flash {
+  kind: 'ring' | 'chain';
+  points: Vec[];
+  radius: number;
+  color: string;
+  age: number;
+}
+
 interface Swing {
   x: number;
   y: number;
@@ -42,6 +55,18 @@ interface Swing {
 
 const PATCH_SHADES = ['#3c5232', '#41583a', '#36492c', '#46603c'];
 const CLASS_ORDER: ReworkClassId[] = ['warrior', 'mage', 'archer'];
+
+/**
+ * The rework's cursor: a gold pointer with a dark outline in the game's style (the colour of the
+ * sign on the hero's chest). A browser cursor, not drawn on the field, so it never lags behind the
+ * mouse — skills fly to its tip.
+ */
+const CURSOR_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28">' +
+  '<path d="M3 2 L3 22 L8.5 16.5 L12.5 25 L16 23.5 L12 15 L20 15 Z" fill="#f2c14e" stroke="#1a1410" stroke-width="2" stroke-linejoin="round"/>' +
+  '<path d="M5.5 6.5 L5.5 16 L8.5 13 Z" fill="#fff3c4" opacity="0.7"/>' +
+  '</svg>';
+const CURSOR = `url("data:image/svg+xml;utf8,${encodeURIComponent(CURSOR_SVG)}") 3 2, auto`;
 
 const mmss = (t: number): string => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 
@@ -55,7 +80,10 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
   let patches: Patch[] = [];
   let floaters: Floater[] = [];
   let swings: Swing[] = [];
+  let flashes: Flash[] = [];
   let seed = 1;
+  /** The camera of the last frame: the cursor's world point is read through it. */
+  let cam = { x: 0, y: 0 };
   // Frame rate and the cost of one logic step, averaged over half a second.
   let frames = 0;
   let frameClock = 0;
@@ -69,9 +97,12 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     seed += 1;
     const r = createRun(app.state.seed + seed, id);
     run = r;
+    // Dev: the run is reachable from the console as window.__rework.
+    if (app.debug && typeof window !== 'undefined') (window as unknown as { __rework?: Run }).__rework = r;
     anim = newHeroAnim();
     floaters = [];
     swings = [];
+    flashes = [];
     const g = new Rng(app.state.seed).fork('reworkGround');
     patches = Array.from({ length: 900 }, () => ({ x: g.next() * r.width, y: g.next() * r.height, r: 18 + g.next() * 60, shade: PATCH_SHADES[Math.floor(g.next() * PATCH_SHADES.length)]! }));
   };
@@ -96,7 +127,10 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       else if (e.type === 'swing') {
         swings.push({ x: e.pos.x, y: e.pos.y, angle: e.angle, reach: e.reach, arc: e.arc, age: 0 });
         heroAnimAttack(anim);
-      } else if (e.type === 'levelUp') floaters.push({ x: r.hero.pos.x, y: r.hero.pos.y - 80, text: `Рівень ${e.level}!`, color: THEME.accent, age: -0.2 });
+      } else if (e.type === 'cast') heroAnimCast(anim);
+      else if (e.type === 'blast') flashes.push({ kind: 'ring', points: [e.pos], radius: e.radius, color: e.color, age: 0 });
+      else if (e.type === 'chain') flashes.push({ kind: 'chain', points: e.points, radius: 0, color: '#bfe3ff', age: 0 });
+      else if (e.type === 'levelUp') floaters.push({ x: r.hero.pos.x, y: r.hero.pos.y - 80, text: `Рівень ${e.level}!`, color: THEME.accent, age: -0.2 });
     }
     r.events = [];
   };
@@ -105,6 +139,11 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     enter() {
       run = null;
       animTime = app.time;
+      app.view.canvas.style.cursor = CURSOR;
+    },
+
+    exit() {
+      app.view.canvas.style.cursor = '';
     },
 
     update(dt) {
@@ -139,6 +178,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
         return;
       }
       if (e.type === 'key' && e.code === 'Space') dodge(run, app.input.moveVector());
+      if (e.type === 'key' && /^Digit[1-4]$/.test(e.code)) castSkill(run, Number(e.code.slice(5)) - 1, cursorWorld());
     },
 
     render(ctx) {
@@ -163,7 +203,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       readEvents(r);
       const paused = runPaused(r);
       const h = r.hero;
-      const cam = { x: clampCam(h.pos.x - W / 2, r.width - W), y: clampCam(h.pos.y - H / 2 - 30, r.height - H) };
+      cam = { x: clampCam(h.pos.x - W / 2, r.width - W), y: clampCam(h.pos.y - H / 2 - 30, r.height - H) };
       ctx.save();
       ctx.translate(-cam.x, -cam.y);
       const onScreen = (x: number, y: number, m: number): boolean => x > cam.x - m && x < cam.x + W + m && y > cam.y - m && y < cam.y + H + m * 2;
@@ -180,8 +220,11 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       ctx.strokeRect(0, 0, r.width, r.height);
       for (const g of r.gems) if (onScreen(g.pos.x, g.pos.y, 10)) drawGem(ctx, g, r.time);
       for (const c of r.coins) if (onScreen(c.pos.x, c.pos.y, 10)) drawCoin(ctx, c);
+      for (const z of r.zones) if (onScreen(z.pos.x, z.pos.y, z.radius)) drawZone(ctx, z, r.time);
+      for (const t of r.traps) if (onScreen(t.pos.x, t.pos.y, 20)) drawTrap(ctx, t);
       for (const e of r.enemies) if (onScreen(e.pos.x, e.pos.y, 200)) drawEnemyWarning(ctx, e);
       drawSwings(ctx, paused ? 0 : dt);
+      if (r.spin) drawSpin(ctx, r);
       if (h.classId === 'warrior') drawHeroDust(ctx, anim);
 
       // Bodies and obstacles sorted by their foot: lower on the screen is in front.
@@ -191,7 +234,8 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       items.push({ y: h.pos.y, draw: () => drawHero(ctx, r, paused ? 0 : dt) });
       items.sort((a, b) => a.y - b.y);
       for (const it of items) it.draw();
-      for (const s of r.shots) if (onScreen(s.pos.x, s.pos.y, 20)) drawShot(ctx, s);
+      for (const s of r.shots) if (onScreen(s.pos.x, s.pos.y, 20)) drawShot(ctx, s, r.time);
+      drawFlashes(ctx, paused ? 0 : dt);
       drawFloaters(ctx, paused ? 0 : dt);
       ctx.restore();
 
@@ -203,6 +247,54 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       exitBtn.draw(ctx);
     },
   };
+
+  /** The cursor on the field, or null when it is off the canvas. */
+  function cursorWorld(): Vec | null {
+    const m = app.input.mouse;
+    if (m.x < 0 || m.y < 0) return null;
+    return { x: m.x + cam.x, y: m.y + cam.y };
+  }
+
+  function drawSpin(ctx: CanvasRenderingContext2D, r: Run): void {
+    const sp = r.spin!;
+    const h = r.hero;
+    ctx.strokeStyle = 'rgba(235, 240, 255, 0.55)';
+    ctx.lineWidth = 4;
+    for (let i = 0; i < 3; i++) {
+      const a = r.time * 14 + (i * Math.PI * 2) / 3;
+      ctx.beginPath();
+      ctx.ellipse(h.pos.x, h.pos.y - 10, sp.radius, sp.radius * 0.6, 0, a, a + 1.2);
+      ctx.stroke();
+    }
+  }
+
+  function drawFlashes(ctx: CanvasRenderingContext2D, dt: number): void {
+    for (const f of flashes) {
+      f.age += dt;
+      const k = f.age / 0.3;
+      ctx.strokeStyle = f.color;
+      if (f.kind === 'ring') {
+        const p = f.points[0]!;
+        const rr = f.radius * (0.6 + 0.4 * Math.min(1, k * 2));
+        ctx.lineWidth = 4;
+        ctx.fillStyle = f.color;
+        ctx.globalAlpha = Math.max(0, 0.25 * (1 - k));
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y, rr, rr * 0.6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = Math.max(0, 1 - k);
+        ctx.stroke();
+      } else {
+        ctx.globalAlpha = Math.max(0, 1 - k);
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        f.points.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x + (i % 2 ? 4 : -4), p.y)));
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+    flashes = flashes.filter((f) => f.age < 0.3);
+  }
 
   /** A tree crown the hero walks behind fades, so the hero stays visible. */
   function crownAlpha(o: Obstacle, hero: { x: number; y: number }): number {
@@ -274,6 +366,37 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     ctx.fillRect(0, H - 10, W, 10);
     ctx.fillStyle = '#5fb3e0';
     ctx.fillRect(0, H - 10, W * Math.min(1, r.xp / need), 10);
+    // Skills — bottom centre, keys 1–4.
+    const size = 64;
+    const x0 = W / 2 - (SKILL_SLOTS * (size + 8) - 8) / 2;
+    for (let i = 0; i < SKILL_SLOTS; i++) {
+      const x = x0 + i * (size + 8);
+      const y = H - size - 18;
+      const sk = r.skills[i];
+      drawPanel(ctx, { x, y, w: size, h: size }, sk ? 'rgba(30, 34, 48, 0.9)' : 'rgba(14, 16, 24, 0.55)');
+      drawText(ctx, String(i + 1), x + 7, y + 10, { size: 11, bold: true, color: THEME.textMuted });
+      if (!sk) continue;
+      // The name fits the slot (shrinks if long) and dims while the skill recharges.
+      const words = REWORK_SKILLS[sk.id].name.split(' ');
+      ctx.globalAlpha = sk.cooldown > 0 ? 0.35 : 1;
+      words.forEach((w, j) => {
+        ctx.font = font(11, 'bold');
+        const fit = Math.min(11, (11 * (size - 8)) / ctx.measureText(w).width);
+        drawText(ctx, w, x + size / 2, y + 30 + j * 13 - (words.length - 1) * 6, { size: fit, bold: true, align: 'center' });
+      });
+      ctx.globalAlpha = 1;
+      for (let k = 0; k < 5; k++) {
+        ctx.fillStyle = k < sk.rank ? THEME.accent : 'rgba(255,255,255,0.15)';
+        ctx.fillRect(x + 9 + k * 10, y + size - 10, 7, 4);
+      }
+      if (sk.cooldown > 0) {
+        const full = Math.max(0.5, skillParams(sk.id, sk.rank).cooldown);
+        const hgt = size * Math.min(1, sk.cooldown / full);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillRect(x, y + size - hgt, size, hgt);
+        drawText(ctx, sk.cooldown.toFixed(1), x + size / 2, y + size / 2, { size: 15, bold: true, align: 'center' });
+      }
+    }
     // The dodge — bottom left.
     const d = REWORK_CLASSES[h.classId].dodge;
     const ready = h.dodgeTimer <= 0;
@@ -291,18 +414,30 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     drawText(ctx, 'Новий рівень: оберіть одне', W / 2, H / 2 - 140, { size: 22, bold: true, align: 'center', color: THEME.accent });
     r.offer!.forEach((c, i) => {
       const rect = cardRect(i);
-      const def = REWORK_CARDS[c.id];
-      drawPanel(ctx, rect, 'rgba(24, 28, 40, 0.95)');
+      const card = cardText(c);
+      drawPanel(ctx, rect, card.isNew ? 'rgba(40, 34, 18, 0.96)' : 'rgba(24, 28, 40, 0.95)', card.isNew ? THEME.accent : undefined);
       drawText(ctx, `[${i + 1}]`, rect.x + 12, rect.y + 20, { size: 12, color: THEME.textMuted });
-      drawText(ctx, def.name, rect.x + rect.w / 2, rect.y + 50, { size: 20, bold: true, align: 'center' });
-      drawText(ctx, `ранг ${c.rank} з ${def.ranks}`, rect.x + rect.w / 2, rect.y + 76, { size: 12, align: 'center', color: THEME.textDim });
+      drawText(ctx, card.kind, rect.x + rect.w - 12, rect.y + 20, { size: 11, align: 'right', color: card.isNew ? THEME.accent : THEME.textMuted });
+      drawText(ctx, card.name, rect.x + rect.w / 2, rect.y + 52, { size: 20, bold: true, align: 'center' });
+      drawText(ctx, card.rank, rect.x + rect.w / 2, rect.y + 78, { size: 12, align: 'center', color: THEME.textDim });
       ctx.font = font(13);
       ctx.fillStyle = THEME.text;
       ctx.textAlign = 'center';
-      drawWrapped(ctx, def.text.replace('{v}', String(def.value)), rect.x + rect.w / 2, rect.y + 108, rect.w - 28, 18);
+      drawWrapped(ctx, card.text, rect.x + rect.w / 2, rect.y + 104, rect.w - 28, 18);
     });
     const price = rerollPrice(r);
     drawText(ctx, `R — перекинути за ${price} зол. (є ${r.gold})`, W / 2, H / 2 + 120, { size: 14, align: 'center', color: r.gold >= price ? THEME.text : THEME.textMuted });
+  }
+
+  /** What a card says: a new skill, a skill's next rank or a passive's next rank. */
+  function cardText(c: CardOffer): { kind: string; name: string; rank: string; text: string; isNew: boolean } {
+    if (c.kind === 'passive') {
+      const d = REWORK_CARDS[c.id];
+      return { kind: 'пасивка', name: d.name, rank: `ранг ${c.rank} з ${d.ranks}`, text: d.text.replace('{v}', String(d.value)), isNew: false };
+    }
+    const d = REWORK_SKILLS[c.id];
+    if (c.rank === 1) return { kind: 'новий скіл', name: d.name, rank: `перезарядка ${skillParams(c.id, 1).cooldown} с`, text: d.text, isNew: true };
+    return { kind: 'скіл', name: d.name, rank: `ранг ${c.rank} з ${d.ranks.length + 1}`, text: `${d.name}: ${d.ranks[c.rank - 2]!.text}`, isNew: false };
   }
 
   function drawDeath(ctx: CanvasRenderingContext2D, r: Run): void {
@@ -323,7 +458,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       drawText(ctx, `ухил: ${c.dodge.name}`, W / 2 - 225 + i * 225, H / 2 + 74, { size: 12, align: 'center', color: THEME.textDim });
     });
     classButtons.draw(ctx);
-    drawText(ctx, 'WASD — ходити · атака сама · Пробіл — ухил · 1–3 — картка, R — перекинути', W / 2, H - 30, { size: 12, align: 'center', color: THEME.textMuted });
+    drawText(ctx, 'WASD — ходити · атака сама · 1–4 — скіли (цілять у курсор) · Пробіл — ухил · у виборі: 1–3, R — перекинути', W / 2, H - 30, { size: 12, align: 'center', color: THEME.textMuted });
   }
 }
 
