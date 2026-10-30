@@ -313,15 +313,13 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     stepHeroAnim(anim, h, dt, -Infinity);
     const flash = r.time - h.hitAt < 0.1;
     drawShadow(ctx, h.pos.x, h.pos.y, h.radius);
-    // Invulnerable after a dodge: a faint blink.
-    ctx.globalAlpha = h.invuln > 0 && Math.floor(r.time * 30) % 2 === 0 ? 0.55 : 1;
+    // The dodge shows only its own frames and dust: no blinking for the invulnerability.
     if (h.classId === 'warrior') {
       ctx.save();
       ctx.translate(h.pos.x, h.pos.y);
       drawWarrior(ctx, anim, 2, flash);
       ctx.restore();
     } else drawHeroFigure(ctx, h, anim.side, flash);
-    ctx.globalAlpha = 1;
   }
 
   function drawSwings(ctx: CanvasRenderingContext2D, dt: number): void {
