@@ -202,16 +202,11 @@ export class DodgeFx {
     ctx.globalAlpha = 1;
   }
 
-  /**
-   * The mage's after-images: `drawFigure` draws the hero at a point (the current frame), here
-   * see-through and tinted warm.
-   */
+  /** The mage's after-images: `drawFigure` draws the hero's warm-tinted look at a point. */
   drawGhosts(ctx: CanvasRenderingContext2D, drawFigure: (x: number, y: number) => void): void {
     if (this.ghosts.length === 0) return;
     ctx.save();
     for (const g of this.ghosts) {
-      // Set each time: drawing the figure resets the filter.
-      ctx.filter = 'sepia(1) saturate(4) hue-rotate(-25deg) brightness(1.3)';
       ctx.globalAlpha = 0.6 * (1 - g.age / g.life);
       drawFigure(g.x, g.y);
     }

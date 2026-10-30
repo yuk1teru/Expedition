@@ -253,7 +253,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       dodgeFx.drawGhosts(ctx, (x, y) => {
         ctx.save();
         ctx.translate(x, y);
-        drawHeroFrames(ctx, anim, h.classId, 2, false);
+        drawHeroFrames(ctx, anim, h.classId, 2, false, 'ghost');
         ctx.restore();
       });
 

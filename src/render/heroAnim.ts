@@ -36,6 +36,35 @@ function sheet(src: string): HTMLImageElement | null {
   return img.complete && img.naturalWidth > 0 ? img : null;
 }
 
+/** How a hero is drawn: as is, flashing white from a hit, or as a warm see-through after-image. */
+export type HeroLook = 'plain' | 'flash' | 'ghost';
+
+const LOOK_FILTER: Record<Exclude<HeroLook, 'plain'>, string> = {
+  flash: 'brightness(1.6)',
+  ghost: 'sepia(1) saturate(4) hue-rotate(-25deg) brightness(1.3)',
+};
+
+const looks = new Map<string, HTMLCanvasElement>();
+
+/**
+ * The sheet with a look baked in once: a canvas filter costs about ten times a plain draw
+ * (measured 3.2 ms against 0.3 ms per hero), too much to pay on every frame of a crowd fight.
+ */
+function lookSheet(img: HTMLImageElement, src: string, look: Exclude<HeroLook, 'plain'>): CanvasImageSource {
+  const key = `${src}|${look}`;
+  let c = looks.get(key);
+  if (!c) {
+    c = document.createElement('canvas');
+    c.width = img.naturalWidth;
+    c.height = img.naturalHeight;
+    const g = c.getContext('2d')!;
+    g.filter = LOOK_FILTER[look];
+    g.drawImage(img, 0, 0);
+    looks.set(key, c);
+  }
+  return c;
+}
+
 interface Puff {
   x: number;
   y: number;
@@ -196,11 +225,12 @@ export function drawHeroDust(ctx: CanvasRenderingContext2D, s: HeroAnimState): v
  * Draws the hero of class `cls` with its feet at (0, `feet`) of the current transform; false if
  * the class has no frames or they are not loaded yet (the caller draws a figure).
  */
-export function drawHeroFrames(ctx: CanvasRenderingContext2D, s: HeroAnimState, cls: string | null, feet: number, flash: boolean): boolean {
+export function drawHeroFrames(ctx: CanvasRenderingContext2D, s: HeroAnimState, cls: string | null, feet: number, flash: boolean, look: HeroLook = flash ? 'flash' : 'plain'): boolean {
   const sh = cls ? HERO_SHEETS[cls] : undefined;
   if (!sh) return false;
   const img = sheet(sh.src);
   if (!img) return false;
+  const pic = look === 'plain' ? img : lookSheet(img, sh.src, look);
   const { anim, frame } = currentFrame(s, sh);
   const [cw, ch] = sh.cell;
   const [ax, ay] = sh.anchor;
@@ -220,13 +250,10 @@ export function drawHeroFrames(ctx: CanvasRenderingContext2D, s: HeroAnimState, 
   ctx.rotate(tilt);
   ctx.translate(0, -lift);
   ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-  if (flash) ctx.filter = 'brightness(1.6)';
-  ctx.drawImage(img, sx, sy, cw, ch, -ax, -ay, cw, ch);
-  ctx.filter = 'none';
+  ctx.drawImage(pic, sx, sy, cw, ch, -ax, -ay, cw, ch);
   // A skill: the sign on the chest flares while the sword is raised.
   const fx = sheet(A.fxSheet);
-  if (fx && s.shot === 'cast') {
+  if (fx && s.shot === 'cast' && look !== 'ghost') {
     const k = Math.max(0, 1 - Math.abs(s.time - sh.durations.cast[0]! - 0.08) / 0.2);
     if (k > 0) {
       ctx.globalCompositeOperation = 'lighter';
