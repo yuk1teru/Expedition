@@ -84,8 +84,8 @@ export const HERO_SHEETS: Record<string, HeroSheet> = {
     attacks: ['moveA'],
     skillAnim: { fireball: 'moveA', magicMissiles: 'moveA', frostRing: 'moveB', chainLightning: 'moveC' },
     chest: [4, -80],
-    /** The walk was drawn about 12% smaller than the standing mage. */
-    frameScale: { 3: 1.12, 4: 1.12, 5: 1.12 },
+    /** Every move but standing was drawn 12–15% smaller (the chest sign: 13 px against 15). */
+    frameScale: Object.fromEntries(Array.from({ length: 15 }, (_, i) => [i + 3, 1.13])),
   },
   // Rows: standing, walk, shoot forward, shoot upward, fan shot, vault back.
   archer: {
