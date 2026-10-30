@@ -17,6 +17,19 @@ export interface AnimBody {
 
 const A = WARRIOR_ANIM;
 
+/** The walk style in use (an index of `walkStyles`; the rework mode switches it on V). */
+let walkStyle = 0;
+
+/** Switches to the next walk style; returns its name. */
+export function nextWalkStyle(): string {
+  walkStyle = (walkStyle + 1) % A.walkStyles.length;
+  return A.walkStyles[walkStyle]!.name;
+}
+
+export function walkStyleName(): string {
+  return A.walkStyles[walkStyle]!.name;
+}
+
 const sheets = new Map<string, HTMLImageElement>();
 
 function sheet(src: string): HTMLImageElement | null {
@@ -93,7 +106,7 @@ export function stepHeroAnim(s: HeroAnimState, h: AnimBody, dt: number, hitAt: n
   // which looked like a stop and flashed the idle frame. A short hold covers a quick release.
   s.still = Math.hypot(h.vel.x, h.vel.y) > 20 ? 0 : s.still + dt;
   s.moving = s.still < 0.08;
-  s.cycle = (s.cycle + moved / A.stride) % 1;
+  s.cycle = (s.cycle + moved / A.walkStyles[walkStyle]!.stride) % 1;
   s.rest = s.moving ? 0 : s.rest + dt;
   // Faces where it walks (no walking backwards); while striking or casting — where it strikes.
   // Mirror only on a clear turn, so moving or aiming straight up or down does not flicker.
@@ -138,7 +151,10 @@ function currentFrame(s: HeroAnimState): { anim: HeroAnimId; frame: number } {
       t -= durations[i]!;
     }
   }
-  if (s.moving) return { anim: 'walk', frame: A.frames.walk[Math.floor(s.cycle * A.frames.walk.length) % A.frames.walk.length]! };
+  if (s.moving) {
+    const frames = A.walkStyles[walkStyle]!.frames;
+    return { anim: 'walk', frame: frames[Math.floor(s.cycle * frames.length) % frames.length]! };
+  }
   return { anim: 'idle', frame: A.frames.idle[Math.floor(s.rest / A.breath) % A.frames.idle.length]! };
 }
 
@@ -183,9 +199,14 @@ export function drawWarrior(ctx: CanvasRenderingContext2D, s: HeroAnimState, fee
   const sx = (frame % sh.columns) * cw;
   const sy = Math.floor(frame / sh.columns) * ch;
   const scale = A.height / sh.frameHeight;
+  // Walking: the body lifts between steps (the lift of the walk style in use).
+  const style = A.walkStyles[walkStyle]!;
+  const step = (s.cycle * style.frames.length) % 1;
+  const lift = anim === 'walk' ? style.bob * Math.sin(Math.PI * step) : 0;
   ctx.save();
   ctx.translate(0, feet);
   ctx.scale(s.side * scale, scale);
+  ctx.translate(0, -lift);
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
   if (flash) ctx.filter = 'brightness(1.6)';

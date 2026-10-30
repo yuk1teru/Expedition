@@ -15,7 +15,7 @@ import { castSkill } from '../systems/rework/skills';
 import type { CardOffer, Obstacle, Run } from '../systems/rework/types';
 import type { Vec } from '../systems/entities';
 import type { App } from './app';
-import { type HeroAnimState, drawHeroDust, drawWarrior, heroAnimAttack, heroAnimCast, newHeroAnim, stepHeroAnim } from './heroAnim';
+import { type HeroAnimState, drawHeroDust, drawWarrior, heroAnimAttack, heroAnimCast, newHeroAnim, nextWalkStyle, stepHeroAnim, walkStyleName } from './heroAnim';
 import { CROWN_FADE, crownBox, drawCoin, drawEnemy, drawEnemyWarning, drawGem, drawHeroFigure, drawObstacle, drawShadow, drawShot, drawTrap, drawZone } from './reworkDraw';
 import { THEME, font } from './theme';
 import { Button, ButtonGroup, drawPanel, drawText, drawWrapped } from './ui';
@@ -178,6 +178,8 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
         return;
       }
       if (e.type === 'key' && e.code === 'Space') dodge(run, app.input.moveVector());
+      // Dev: compare the ways the warrior walks.
+      if (e.type === 'key' && e.code === 'KeyV') floaters.push({ x: run.hero.pos.x, y: run.hero.pos.y - 90, text: `Ходьба: ${nextWalkStyle()}`, color: THEME.accent, age: -0.6 });
       if (e.type === 'key' && /^Digit[1-4]$/.test(e.code)) castSkill(run, Number(e.code.slice(5)) - 1, cursorWorld());
     },
 
@@ -246,7 +248,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       if (r.offer) drawOffer(ctx, r);
       if (h.dead) drawDeath(ctx, r);
       debug.draw(ctx);
-      drawText(ctx, `${Math.round(fps)} к/с · ${r.enemies.length} звірів · логіка ${stepMs.toFixed(2)} мс${h.immortal ? ' · безсмертя' : ''}`, W - 16, H - 56, { size: 11, align: 'right', color: fps >= 55 ? THEME.good : THEME.bad });
+      drawText(ctx, `${Math.round(fps)} к/с · ${r.enemies.length} звірів · логіка ${stepMs.toFixed(2)} мс${h.immortal ? ' · безсмертя' : ''} · V — ходьба: ${walkStyleName()}`, W - 16, H - 56, { size: 11, align: 'right', color: fps >= 55 ? THEME.good : THEME.bad });
       exitBtn.draw(ctx);
     },
   };
