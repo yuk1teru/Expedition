@@ -7,7 +7,7 @@ _31.10.2026 · Усе, що потрібно Лісу (Ліс → Глибина
 ## Як генерувати
 
 1. **Один персонаж — один чат.** Спершу фігура цілком, потім у тому самому чаті — аркуш поз.
-2. **Прикріплюй еталон** `heroes/warrior/reference.png` до кожного першого промпта в чаті.
+2. **Прикріплюй еталон** `heroes/warrior/reference.png` до кожного першого промпта в чаті. Для **звірів і босів** — ще й аркуш гриба `mobs/mushroom/poses.png`: найкраще намальований звір (чіткий силует, яскраві очі, кожна поза — окрема дія); у промптах про це вже сказано.
 3. **Аркуш — одна картинка:** сітка, фігури не торкаються, між рядами порожньо, ноги в рядку на одній лінії. Так персонаж однаковий у всіх кадрах.
 4. **Ходьба й біг — кадр за кадром:** яка нога попереду, яка позаду, яка піднята. Інакше генератор малює однакові кадри. Але **крок звичайний**, не шпагат (ноги не ширше плечей), і **обидві ноги однакові** — колір, обмотки, довжина не міняються від кадру до кадру, лише положення. Якщо кадри однакові — промпт «Виправити ходьбу» в кінці.
 5. **Куди класти:** `heroes/<клас>/`, `mobs/<звір>/`, `bosses/<бос>/`, `npc/<хто>/`, `locations/<локація>/` — `reference.png` (фігура) і `poses.png` (аркуш). Скинь у чат — я поріжу й поставлю в гру.
@@ -170,7 +170,9 @@ Row 6 — VAULT BACK: 1) crouched to jump; 2) leaping backwards, body arched; 3)
 ### Вовк ✓ → `mobs/wolf/poses.png`
 
 ```
-[Прикріпи heroes/warrior/reference.png]
+[Прикріпи heroes/warrior/reference.png і mobs/mushroom/poses.png]
+Match the attached mushroom sheet in quality: one clear silhouette readable at a glance, one bright
+focal detail (the eyes), every pose a distinct readable action, light texture without clutter.
 2D game sprite sheet, same style as the reference: bold even dark outlines, large simple
 shapes, flat colours with one shadow tone, very light painted texture, dark muted Slavic
 folk-fantasy mood, readable at 100 px. Three-quarter view, facing right. Transparent
@@ -207,7 +209,9 @@ Row 3 — hit; collapsing, the cap breaking; a heap of cap pieces.
 ### Пеньок ✓ → `mobs/stump/poses.png`
 
 ```
-[Прикріпи heroes/warrior/reference.png]
+[Прикріпи heroes/warrior/reference.png і mobs/mushroom/poses.png]
+Match the attached mushroom sheet in quality: one clear silhouette readable at a glance, one bright
+focal detail (the eyes), every pose a distinct readable action, light texture without clutter.
 2D game sprite sheet, same style as the reference (bold dark outlines, simple shapes, flat
 colours, one shadow tone, dark muted folk-fantasy mood, readable at 100 px). Three-quarter view,
 facing right, transparent background, no text. Grid 3 columns x 3 rows, figures never touch,
@@ -225,7 +229,9 @@ Row 3 — hit; splitting apart; a heap of splinters and moss.
 ### Дух занепаду ✓ → `mobs/spirit/poses.png`
 
 ```
-[Прикріпи heroes/warrior/reference.png]
+[Прикріпи heroes/warrior/reference.png і mobs/mushroom/poses.png]
+Match the attached mushroom sheet in quality: one clear silhouette readable at a glance, one bright
+focal detail (the eyes), every pose a distinct readable action, light texture without clutter.
 2D game sprite sheet, same style as the reference (bold dark outlines, simple shapes, dark muted
 folk-fantasy mood, readable at 100 px). Three-quarter view, facing right, transparent background,
 no text. Grid 3 columns x 2 rows, figures never touch.
@@ -239,7 +245,9 @@ fog around itself; fleeing to the left, looking back.
 ### Ватажок зграї (бос) ✓ → `bosses/alpha/poses.png`
 
 ```
-[Прикріпи heroes/warrior/reference.png і mobs/wolf/poses.png]
+[Прикріпи heroes/warrior/reference.png, mobs/wolf/poses.png і mobs/mushroom/poses.png]
+Match the attached mushroom sheet in quality: one clear silhouette readable at a glance, one bright
+focal detail (the eyes), every pose a distinct readable action, light texture without clutter.
 2D game sprite sheet, same style and wolf design as the attached wolf, but the pack leader:
 half again as big, heavier, a thick pale mane, old scars, red eyes, darker brown-grey fur.
 Three-quarter view, facing right, transparent background, no text. Grid 3 columns x 4 rows,
@@ -256,7 +264,9 @@ Row 4 — howling, head raised; winded, tongue out, panting; hit, recoiling.
 ### Лісоруб (завдання «Порятунок») ✗ → `npc/lumberjack/poses.png`
 
 ```
-[Прикріпи heroes/warrior/reference.png]
+[Прикріпи heroes/warrior/reference.png і mobs/mushroom/poses.png]
+Match the attached mushroom sheet in quality: one clear silhouette readable at a glance, one bright
+focal detail (the eyes), every pose a distinct readable action, light texture without clutter.
 2D game sprite sheet, same style as the reference (bold dark outlines, simple shapes, flat
 colours, one shadow tone, dark muted folk-fantasy mood, readable at 100 px). Three-quarter view,
 facing right, transparent background, no text. Grid 3 columns x 2 rows, figures never touch,
@@ -323,7 +333,9 @@ mushroom creatures. Bold outlines, flat colours, muted palette, the hero the war
 ### Павук ✗ → `mobs/spider/poses.png`
 
 ```
-[Прикріпи heroes/warrior/reference.png]
+[Прикріпи heroes/warrior/reference.png і mobs/mushroom/poses.png]
+Match the attached mushroom sheet in quality: one clear silhouette readable at a glance, one bright
+focal detail (the eyes), every pose a distinct readable action, light texture without clutter.
 2D game sprite sheet, same style as the reference (bold dark outlines, simple shapes, flat
 colours, one shadow tone, dark muted folk-fantasy mood, readable at 100 px). Three-quarter view,
 facing right, transparent background, no text. Grid 3 columns x 3 rows, figures never touch,
@@ -342,7 +354,9 @@ Row 3 — hit, recoiling; flipped on its back, legs curling; dead, legs curled u
 ### Прядуха (бос) ✗ → `bosses/spinner/poses.png`
 
 ```
-[Прикріпи heroes/warrior/reference.png і mobs/spider/poses.png]
+[Прикріпи heroes/warrior/reference.png, mobs/spider/poses.png і mobs/mushroom/poses.png]
+Match the attached mushroom sheet in quality: one clear silhouette readable at a glance, one bright
+focal detail (the eyes), every pose a distinct readable action, light texture without clutter.
 2D game sprite sheet, same style as the attached spider, but the boss: a giant spinner spider
 three times bigger — long thin legs, a heavy dark body with a pale bone-coloured spindle mark on
 the back, a crown of red eyes, silk threads trailing from her. The eyes and the back mark are the
@@ -389,7 +403,9 @@ shadows, seamless on all four sides. Square image.
 ### Старий Енат (бос біому) ✗ → `bosses/enat/poses.png`
 
 ```
-[Прикріпи heroes/warrior/reference.png і locations/forest/obstacles.png]
+[Прикріпи heroes/warrior/reference.png, locations/forest/obstacles.png і mobs/mushroom/poses.png]
+Match the attached mushroom sheet in quality: one clear silhouette readable at a glance, one bright
+focal detail (the eyes), every pose a distinct readable action, light texture without clutter.
 2D game sprite sheet, same style as the attached props (bold dark outlines, simple shapes, flat
 colours, one shadow tone, dark muted folk-fantasy mood). Three-quarter view, facing right,
 transparent background, no text. Grid 3 columns x 4 rows, figures never touch, the base of every
