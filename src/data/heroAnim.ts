@@ -49,7 +49,7 @@ export const WARRIOR_ANIM = {
     hurt: [0.1, 0.12],
   },
   /** World px walked per full walk cycle (two steps). */
-  stride: 80,
+  stride: 120,
   /** Seconds per breath frame. */
   breath: 0.7,
   /** A hit shows the recoil at most this often (s): contact hits come many per second. */
