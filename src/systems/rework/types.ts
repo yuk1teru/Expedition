@@ -24,6 +24,8 @@ export interface Dodge {
   to: Vec;
   time: number;
   duration: number;
+  /** A blink: flies through obstacles and lands on a free point. */
+  through?: boolean;
 }
 
 export interface RunHero {

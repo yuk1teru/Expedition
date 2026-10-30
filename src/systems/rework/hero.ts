@@ -73,8 +73,13 @@ export function stepHero(run: Run, dt: number, move: Vec): void {
     h.pos.x = d.from.x + (d.to.x - d.from.x) * k;
     h.pos.y = d.from.y + (d.to.y - d.from.y) * k;
     h.vel = { x: (h.pos.x - prev.x) / dt, y: (h.pos.y - prev.y) / dt };
-    // A dash stops at the first obstacle.
-    if (resolveBody(run.grid, h.pos, h.radius, run.width, run.height) || k >= 1) h.dash = null;
+    // A dash stops at the first obstacle; a blink flies through and is settled on landing.
+    if (d.through) {
+      if (k >= 1) {
+        resolveBody(run.grid, h.pos, h.radius, run.width, run.height);
+        h.dash = null;
+      }
+    } else if (resolveBody(run.grid, h.pos, h.radius, run.width, run.height) || k >= 1) h.dash = null;
   } else {
     h.vel = { x: move.x * st.speed, y: move.y * st.speed };
     h.pos.x += h.vel.x * dt;
@@ -140,14 +145,14 @@ export function dodge(run: Run, move: Vec, aim: Vec | null = null): boolean {
   h.invuln = Math.max(h.invuln, d.invuln);
   run.events.push({ type: 'dodge', from, to });
   if (d.kind === 'blink') {
-    // A blink lands on the farthest free point along the way.
+    // A blink flies fast to the farthest free point along the way, through what stands between.
     for (let k = 1; k >= 0; k -= 0.1) {
       to = { x: from.x + dir.x * st.dodgeDistance * k, y: from.y + dir.y * st.dodgeDistance * k };
       if (isFree(run.grid, to, h.radius)) break;
     }
-    h.pos.x = to.x;
-    h.pos.y = to.y;
-    resolveBody(run.grid, h.pos, h.radius, run.width, run.height);
+    to.x = Math.max(h.radius, Math.min(run.width - h.radius, to.x));
+    to.y = Math.max(h.radius, Math.min(run.height - h.radius, to.y));
+    h.dash = { from, to, time: 0, duration: d.time, through: true };
     return true;
   }
   h.dash = { from, to, time: 0, duration: d.time };

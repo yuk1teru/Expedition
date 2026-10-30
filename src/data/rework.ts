@@ -153,7 +153,7 @@ export const REWORK_CLASSES: Record<ReworkClassId, ReworkClassDef> = {
     speed: 118,
     color: '#5b7fd6',
     attack: { kind: 'bolt', damage: 14, every: 0.9, range: 380, speed: 430, splash: 50, splashShare: 0.5 },
-    dodge: { name: 'Блимання', kind: 'blink', distance: 130, time: 0, invuln: 0.2, cooldown: 3 },
+    dodge: { name: 'Блимання', kind: 'blink', distance: 130, time: 0.14, invuln: 0.2, cooldown: 3 },
   },
   archer: {
     id: 'archer',
