@@ -1,7 +1,9 @@
 // The warrior's frame animation (rework, VISION §10). Each sheet is generated as one picture,
 // cut, aligned by the feet and packed into a grid of equal cells by scripts/pack-frames.py:
-// - the main sheet (docs/art/warrior-anim.png, 6 × 3; "0-5:xy,6-7:x") — idle, attack, skill,
-//   dash, hit (its first row, an older walk, is not used);
+// - the main sheet (docs/art/warrior-anim.png, 6 × 3; "0-5:xy,6-7:x") — attack, skill, dash,
+//   hit (its first row, an older walk, and the idle frames are not used);
+// - the idle (docs/art/warrior-idle.png, 4 in a row, COLS=4; "0-3:xy") — drawn to the walk's
+//   proportions; one frame, the breathing is done by code (the four frames came out alike);
 // - the walk (docs/art/warrior-walk.png, 4 × 2, COLS=4; "0-7:xy75" — the generator drew the
 //   body rising and dipping up to 20 px, which shakes; three quarters of it are taken out). The
 //   boots are told apart by colour (near — light, far — dark); two of the eight frames repeat
@@ -31,6 +33,13 @@ export const WARRIOR_ANIM = {
       anchor: [89, 206] as [number, number],
       frameHeight: 198,
     },
+    idle: {
+      src: 'sprites/anim/warrior-idle.png',
+      columns: 4,
+      cell: [281, 339] as [number, number],
+      anchor: [155, 336] as [number, number],
+      frameHeight: 331,
+    },
     /** The earlier walk with both boots alike (docs/art/warrior-walk-plain.png, packed the same way). */
     walkPlain: {
       src: 'sprites/anim/warrior-walk-plain.png',
@@ -41,12 +50,12 @@ export const WARRIOR_ANIM = {
     },
   },
   /** The sheet of each animation (the main one if not listed). */
-  sheetOf: { walk: 'walk' } as Partial<Record<HeroAnimId, 'main' | 'walk' | 'walkPlain'>>,
+  sheetOf: { walk: 'walk', idle: 'idle' } as Partial<Record<HeroAnimId, 'main' | 'walk' | 'walkPlain' | 'idle'>>,
   /** Frames of each animation (cell numbers on its sheet, row by row). */
   frames: {
     /** Light boot ahead → it carries → the dark one passes → dark ahead → it carries → the light one passes. */
     walk: [0, 1, 2, 3, 5, 6],
-    idle: [6, 7],
+    idle: [0],
     attack: [8, 9, 10, 11],
     cast: [12, 13],
     dash: [14, 15],
@@ -76,8 +85,11 @@ export const WARRIOR_ANIM = {
     { name: '4 кадри, без задраного коліна', sheet: 'walk', frames: [0, 1, 3, 5], stride: 96, bob: 3 },
     { name: '2 кадри + підстрибування', sheet: 'walk', frames: [0, 3], stride: 84, bob: 6 },
   ] as { name: string; sheet: 'walk' | 'walkPlain'; frames: number[]; stride: number; bob: number }[],
-  /** Seconds per breath frame. */
+  /** Seconds per breath frame (with one idle frame — unused) and the breathing done by code:
+   *  the chest rises by this share of the height over this many seconds. */
   breath: 0.7,
+  breathScale: 0.018,
+  breathPeriod: 2.6,
   /** A hit shows the recoil at most this often (s): contact hits come many per second. */
   hurtEvery: 0.9,
   /** The sign on the chest relative to the feet, sheet px (for the skill flare). */

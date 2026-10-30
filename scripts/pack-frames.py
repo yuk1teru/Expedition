@@ -99,6 +99,6 @@ for i, f in enumerate(frames):
     pd.text((col * cw + 4, row * ch + 4), str(i), fill=(255, 255, 255, 255))
 atlas.save(out_png, optimize=True)
 prev.convert('RGB').resize((cw * COLS // 2, ch * ROWS // 2)).save(preview)
-json.dump({'cell': [cwS, chS], 'anchor': [round(L * SCALE), round(U * SCALE)], 'frameHeight': round(sum(f['box'][3] - f['box'][1] for f in frames[:6]) / 6 * SCALE)}, open(out_json, 'w'))
+json.dump({'cell': [cwS, chS], 'anchor': [round(L * SCALE), round(U * SCALE)], 'frameHeight': round(sum(f['box'][3] - f['box'][1] for f in frames[:6]) / min(6, len(frames)) * SCALE)}, open(out_json, 'w'))
 print('cells', cw, ch, '->', cwS, chS, 'anchor', L, U)
 print(json.load(open(out_json)))

@@ -203,9 +203,11 @@ export function drawWarrior(ctx: CanvasRenderingContext2D, s: HeroAnimState, fee
   const style = A.walkStyles[walkStyle]!;
   const step = (s.cycle * style.frames.length) % 1;
   const lift = anim === 'walk' ? style.bob * Math.sin(Math.PI * step) : 0;
+  // Standing: the chest rises and falls (a slight stretch up from the feet).
+  const breath = anim === 'idle' ? 1 + A.breathScale * (0.5 + 0.5 * Math.sin((s.rest / A.breathPeriod) * Math.PI * 2)) : 1;
   ctx.save();
   ctx.translate(0, feet);
-  ctx.scale(s.side * scale, scale);
+  ctx.scale(s.side * scale, scale * breath);
   ctx.translate(0, -lift);
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
