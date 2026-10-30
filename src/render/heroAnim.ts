@@ -1,0 +1,184 @@
+// The warrior drawn from generated frames (rework, VISION §10): walking steps through the walk
+// cycle by the distance covered, a basic attack and a skill play their frames once, a dash leans
+// behind the shield with dust behind, a hit recoils. Three-quarter view: the figure never
+// rotates, it only mirrors to face left or right.
+
+import { type HeroAnimId, WARRIOR_ANIM } from '../data/heroAnim';
+import type { Hero } from '../systems/entities';
+
+const A = WARRIOR_ANIM;
+
+const sheets = new Map<string, HTMLImageElement>();
+
+function sheet(src: string): HTMLImageElement | null {
+  if (typeof Image === 'undefined') return null;
+  let img = sheets.get(src);
+  if (!img) {
+    img = new Image();
+    img.src = src;
+    sheets.set(src, img);
+  }
+  return img.complete && img.naturalWidth > 0 ? img : null;
+}
+
+interface Puff {
+  x: number;
+  y: number;
+  age: number;
+  side: number;
+}
+
+type OneShot = Exclude<HeroAnimId, 'walk' | 'idle'>;
+
+/** What the warrior is doing; one per battle. */
+export interface HeroAnimState {
+  /** 1 — facing right, −1 — left. */
+  side: number;
+  last: { x: number; y: number } | null;
+  moving: boolean;
+  /** Walk cycle 0…1 and time at rest. */
+  cycle: number;
+  rest: number;
+  /** The one-shot animation playing and its time. */
+  shot: OneShot | null;
+  time: number;
+  lastHitAt: number;
+  lastHurt: number;
+  clock: number;
+  dustTimer: number;
+  puffs: Puff[];
+}
+
+export function newHeroAnim(): HeroAnimState {
+  return { side: 1, last: null, moving: false, cycle: 0, rest: 0, shot: null, time: 0, lastHitAt: -Infinity, lastHurt: -Infinity, clock: 0, dustTimer: 0, puffs: [] };
+}
+
+/** Higher plays over lower. */
+const PRIORITY: Record<OneShot, number> = { hurt: 1, dash: 2, attack: 3, cast: 4 };
+
+function play(s: HeroAnimState, anim: OneShot): void {
+  if (s.shot && PRIORITY[s.shot] > PRIORITY[anim]) return;
+  s.shot = anim;
+  s.time = 0;
+}
+
+export function heroAnimAttack(s: HeroAnimState): void {
+  play(s, 'attack');
+}
+
+export function heroAnimCast(s: HeroAnimState): void {
+  play(s, 'cast');
+}
+
+const total = (anim: OneShot): number => A.durations[anim].reduce((a, b) => a + b, 0);
+
+/** Moves the state on by `dt` (render time) from what the hero does. */
+export function stepHeroAnim(s: HeroAnimState, h: Hero, dt: number, hitAt: number): void {
+  s.clock += dt;
+  const moved = s.last ? Math.hypot(h.pos.x - s.last.x, h.pos.y - s.last.y) : 0;
+  s.last = { x: h.pos.x, y: h.pos.y };
+  s.moving = dt > 0 && moved / dt > 20;
+  s.cycle = (s.cycle + moved / A.stride) % 1;
+  s.rest = s.moving ? 0 : s.rest + dt;
+  // Mirror only on a clear turn, so aiming straight up or down does not flicker.
+  const c = Math.cos(h.facing);
+  if (c > 0.2) s.side = 1;
+  else if (c < -0.2) s.side = -1;
+  if (hitAt > s.lastHitAt) {
+    s.lastHitAt = hitAt;
+    if (s.clock - s.lastHurt > A.hurtEvery) {
+      s.lastHurt = s.clock;
+      play(s, 'hurt');
+    }
+  }
+  if (h.dash && s.shot !== 'dash') play(s, 'dash');
+  if (s.shot) {
+    s.time += dt;
+    // A dash holds its last frame while the hero is still dashing.
+    const done = s.shot === 'dash' ? !h.dash && s.time > total('dash') * 0.5 : s.time >= total(s.shot);
+    if (done) s.shot = null;
+  }
+  if (h.dash) {
+    s.dustTimer -= dt;
+    if (s.dustTimer <= 0) {
+      s.dustTimer = A.dustEvery;
+      s.puffs.push({ x: h.pos.x, y: h.pos.y + h.radius * 0.6, age: 0, side: s.side });
+    }
+  }
+  for (const p of s.puffs) p.age += dt;
+  s.puffs = s.puffs.filter((p) => p.age < A.dustLife);
+}
+
+function currentFrame(s: HeroAnimState): number {
+  if (s.shot) {
+    const durations = A.durations[s.shot];
+    let t = s.time;
+    for (let i = 0; i < durations.length; i++) {
+      if (t < durations[i]! || i === durations.length - 1) return A.frames[s.shot][i]!;
+      t -= durations[i]!;
+    }
+  }
+  if (s.moving) return A.frames.walk[Math.floor(s.cycle * A.frames.walk.length) % A.frames.walk.length]!;
+  return A.frames.idle[Math.floor(s.rest / A.breath) % A.frames.idle.length]!;
+}
+
+function drawFx(ctx: CanvasRenderingContext2D, img: HTMLImageElement, rect: number[], x: number, y: number, size: number, alpha: number): void {
+  const [x0, y0, x1, y1] = rect as [number, number, number, number];
+  const k = A.fxScale;
+  const w = x1 - x0;
+  const h = y1 - y0;
+  const scale = size / Math.max(w, h);
+  ctx.save();
+  ctx.globalAlpha *= alpha;
+  ctx.drawImage(img, x0 * k, y0 * k, w * k, h * k, x - (w / 2) * scale, y - (h / 2) * scale, w * scale, h * scale);
+  ctx.restore();
+}
+
+/** Dust behind a dash, drawn under the hero in world coordinates. */
+export function drawHeroDust(ctx: CanvasRenderingContext2D, s: HeroAnimState): void {
+  const fx = sheet(A.fxSheet);
+  if (!fx) return;
+  for (const p of s.puffs) {
+    const k = p.age / A.dustLife;
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.scale(-p.side, 1);
+    drawFx(ctx, fx, A.fx.dust, 0, 0, 30 + 16 * k, 0.75 * (1 - k));
+    ctx.restore();
+  }
+}
+
+/**
+ * Draws the warrior with its feet at (0, `feet`) of the current transform; false if the
+ * frames are not loaded yet (the caller draws the old figure).
+ */
+export function drawWarrior(ctx: CanvasRenderingContext2D, s: HeroAnimState, feet: number, flash: boolean): boolean {
+  const img = sheet(A.sheet);
+  if (!img) return false;
+  const frame = currentFrame(s);
+  const [cw, ch] = A.cell;
+  const [ax, ay] = A.anchor;
+  const sx = (frame % A.columns) * cw;
+  const sy = Math.floor(frame / A.columns) * ch;
+  const scale = A.height / A.frameHeight;
+  ctx.save();
+  ctx.translate(0, feet);
+  ctx.scale(s.side * scale, scale);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  if (flash) ctx.filter = 'brightness(1.6)';
+  ctx.drawImage(img, sx, sy, cw, ch, -ax, -ay, cw, ch);
+  ctx.filter = 'none';
+  // A skill: the sign on the chest flares while the sword is raised.
+  const fx = sheet(A.fxSheet);
+  if (fx && s.shot === 'cast') {
+    const k = Math.max(0, 1 - Math.abs(s.time - A.durations.cast[0]! - 0.08) / 0.2);
+    if (k > 0) {
+      ctx.globalCompositeOperation = 'lighter';
+      drawFx(ctx, fx, A.fx.signFlare, A.chest[0], A.chest[1], 40 + 60 * k, k);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+  }
+  ctx.restore();
+  return true;
+}

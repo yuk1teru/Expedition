@@ -11,11 +11,31 @@ _30.10.2026 · VISION §10. Арт у грі з'являється, коли к�
 | Файл | Що це |
 |---|---|
 | `hero-reference.png` | еталон стилю (Воїн цілий) |
-| `warrior-parts.png` | частини Воїна для анімації — оригінал; у грі — `public/sprites/rig/warrior.png` (удвічі менший) |
-| `warrior-poses.png` | ключові пози — орієнтир для анімації, у грі не використовується |
-| `fx.png` | ефекти (слід удару, сяйво леза, спалах знака, іскра, кільце, пилюка) — оригінал; у грі — `public/sprites/rig/fx.png` |
+| `warrior-anim.png` | 18 кадрів анімації Воїна однією генерацією (сітка 6×3) — оригінал |
+| `warrior-poses.png` | ключові пози — перша спроба, у грі не використовується |
+| `fx.png` | ефекти (слід удару, сяйво леза, спалах знака, іскра, кільце, пилюка) — оригінал; у грі — `public/sprites/anim/fx.png` |
 
-Координати частин і суглобів — у `src/data/heroRig.ts`, у пікселях оригінальних аркушів. Новий аркуш частин — нові координати.
+**Анімація — покадрова.** Кадри генеруються **однією картинкою** (так персонаж однаковий у всіх кадрах). Скрипт вирізає кожен кадр за його контуром, вирівнює по ногах і центру тулуба й пакує в сітку однакових клітинок: `public/sprites/anim/warrior.png`. Які кадри — які рухи і скільки триває кожен — `src/data/heroAnim.ts`.
+
+Промпт аркуша Воїна (сітка 6×3, прикріпити `hero-reference.png`):
+
+```
+Using exactly this character and style, draw one animation sprite sheet:
+a grid of 6 columns × 3 rows, 18 frames, landscape image.
+Rules for every frame: facing right, three-quarter view, the same size and scale,
+one figure per cell, centred, figures never touch or overlap,
+feet on the same ground line within each row, identical design, colours and outlines.
+No motion blur, no effects, no text, no grid lines, fully transparent background.
+
+Row 1 — walk cycle, 6 frames: right foot forward, down, passing, left foot forward, down, passing.
+Row 2 — 1) idle, breathing in; 2) idle, breathing out; 3) ready stance; 4) wind-up, sword raised
+behind the shoulder; 5) strike — sword swung horizontally forward; 6) follow-through.
+Row 3 — 1) charging, sword low, knees bent; 2) sword raised high overhead, chest sign glowing;
+3) dash start behind the shield; 4) low lunge forward, cloak flying back;
+5) hit reaction, recoiling; 6) staggered, recovering.
+```
+
+Ряди «ходьба / спокій і удар / скіл, ривок, влучання» — шаблон і для інших персонажів (для ворогів — свої рухи).
 
 ## Правила стилю
 
