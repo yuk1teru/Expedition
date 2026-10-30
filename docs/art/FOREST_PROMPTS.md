@@ -9,7 +9,7 @@ _31.10.2026 · Усе, що потрібно Лісу (Ліс → Глибина
 1. **Один персонаж — один чат.** Спершу фігура цілком, потім у тому самому чаті — аркуш поз.
 2. **Прикріплюй еталон** `heroes/warrior/reference.png` до кожного першого промпта в чаті.
 3. **Аркуш — одна картинка:** сітка, фігури не торкаються, між рядами порожньо, ноги в рядку на одній лінії. Так персонаж однаковий у всіх кадрах.
-4. **Ходьба й біг — кадр за кадром:** яка нога попереду, яка позаду, яка піднята. Інакше генератор малює однакові кадри. Якщо однакові — промпт «Виправити ходьбу» в кінці.
+4. **Ходьба й біг — кадр за кадром:** яка нога попереду, яка позаду, яка піднята. Інакше генератор малює однакові кадри. Але **крок звичайний**, не шпагат (ноги не ширше плечей), і **обидві ноги однакові** — колір, обмотки, довжина не міняються від кадру до кадру, лише положення. Якщо кадри однакові — промпт «Виправити ходьбу» в кінці.
 5. **Куди класти:** `heroes/<клас>/`, `mobs/<звір>/`, `bosses/<бос>/`, `npc/<хто>/`, `locations/<локація>/` — `reference.png` (фігура) і `poses.png` (аркуш). Скинь у чат — я поріжу й поставлю в гру.
 
 | Що | Позначка | Розділ |
@@ -58,8 +58,17 @@ within each row, identical design, colours and outlines. Sword in the right hand
 left arm. No motion blur, no speed lines, no effects, no text, no grid lines, transparent background.
 Row 1 — STANDING: 1) ready stance, feet a little apart, sword low pointing down-forward;
 2) the same, chest slightly raised (breathing in); 3) the same, shoulders slightly lower.
-Row 2 — WALK: 1) left leg far forward heel down, right leg far behind on its toes; 2) passing —
-legs together, the right foot lifted and bent; 3) right leg far forward, left leg far behind.
+Row 2 — WALK, 3 frames of a calm natural walk (not a run, not a lunge). The stride is
+moderate: the feet at most about one shoulder-width apart, never a split or a wide V.
+Both legs and both boots look exactly the same in every frame — the same colours, wraps,
+length and thickness; only their position changes. (The far leg may be a touch darker as a
+natural shadow — the same in every frame.)
+1) CONTACT, left leg in front: the front leg almost straight, heel on the ground, toes up;
+   the back leg slightly bent, only its toes on the ground; the opposite arm swings a little forward.
+2) PASSING: one leg straight under the body carrying the weight; the other bent at the knee
+   and passing it, its foot lifted just above the ground; the head a little higher than in 1 and 3.
+3) CONTACT, right leg in front: the mirror of frame 1.
+The three frames must be clearly different even at 100 px, but stay a normal walk.
 Row 3 — VERTICAL SLASH: 1) sword raised high above the head, leaning back; 2) sword coming down
 at shoulder height in front; 3) sword low in front near the ground, leaning forward.
 Row 4 — HORIZONTAL SLASH: 1) sword pulled back behind the body at waist height; 2) sword
@@ -92,8 +101,18 @@ image. Every frame facing right, the same size and scale, one figure per cell, f
 (keep the staff inside its cell), feet on one line in each row, transparent background, no effects,
 no text. Staff always in the right hand.
 Row 1 — STANDING: 1) staff upright, feet together; 2) breathing in; 3) breathing out.
-Row 2 — WALK: 1) left leg far forward, right far back; 2) passing, right foot lifted;
-3) right leg far forward, left far back. Robe swings with the legs.
+Row 2 — WALK, 3 frames of a calm natural walk (not a run, not a lunge). The stride is
+moderate: the feet at most about one shoulder-width apart, never a split or a wide V.
+Both legs and both boots look exactly the same in every frame — the same colours, wraps,
+length and thickness; only their position changes. (The far leg may be a touch darker as a
+natural shadow — the same in every frame.)
+1) CONTACT, left leg in front: the front leg almost straight, heel on the ground, toes up;
+   the back leg slightly bent, only its toes on the ground; the opposite arm swings a little forward.
+2) PASSING: one leg straight under the body carrying the weight; the other bent at the knee
+   and passing it, its foot lifted just above the ground; the head a little higher than in 1 and 3.
+3) CONTACT, right leg in front: the mirror of frame 1.
+The three frames must be clearly different even at 100 px, but stay a normal walk.
+The robe hem swings with the legs; the boots peek out under it, the same in every frame.
 Row 3 — CAST FORWARD: 1) staff pulled back; 2) staff thrust forward, free hand open forward;
 3) follow-through, leaning forward.
 Row 4 — CAST OVERHEAD: 1) staff raised in both hands; 2) staff high above the head, crystal up;
@@ -124,8 +143,17 @@ image. Every frame facing right, the same size and scale, one figure per cell, f
 touch (keep bow and arrows inside the cell), feet on one line in each row, transparent
 background, no effects, no text. Bow in the left hand.
 Row 1 — STANDING: 1) bow lowered; 2) breathing in; 3) breathing out.
-Row 2 — WALK: 1) left leg far forward, right far back; 2) passing, right foot lifted;
-3) right leg far forward, left far back.
+Row 2 — WALK, 3 frames of a calm natural walk (not a run, not a lunge). The stride is
+moderate: the feet at most about one shoulder-width apart, never a split or a wide V.
+Both legs and both boots look exactly the same in every frame — the same colours, wraps,
+length and thickness; only their position changes. (The far leg may be a touch darker as a
+natural shadow — the same in every frame.)
+1) CONTACT, left leg in front: the front leg almost straight, heel on the ground, toes up;
+   the back leg slightly bent, only its toes on the ground; the opposite arm swings a little forward.
+2) PASSING: one leg straight under the body carrying the weight; the other bent at the knee
+   and passing it, its foot lifted just above the ground; the head a little higher than in 1 and 3.
+3) CONTACT, right leg in front: the mirror of frame 1.
+The three frames must be clearly different even at 100 px, but stay a normal walk.
 Row 3 — SHOOT FORWARD: 1) arrow nocked, bow raised; 2) full draw, aiming straight ahead;
 3) release, bowstring hand flung back.
 Row 4 — SHOOT UP: 1) nocking, looking up; 2) full draw aiming high into the sky; 3) release upward.
@@ -149,8 +177,10 @@ folk-fantasy mood, readable at 100 px. Three-quarter view, facing right. Transpa
 background, no ground shadow, no text. A grid of 3 columns x 3 rows; one figure per cell,
 figures never touch, feet of a row on one line.
 Enemy: a lean grey forest wolf, ragged fur, yellow eyes, cold grey and dark brown colours.
-Row 1 — RUN, three different frames: legs stretched wide; legs gathered under the body;
-the other pair stretched wide.
+Row 1 — RUN, a light trot-gallop, three clearly different frames: 1) front legs reaching
+forward, back legs pushing behind; 2) all four legs gathered under the body; 3) front legs
+pushing back, back legs reaching forward. Moderate reach — the legs never stretched flat like a
+split. All four legs the same colour and fur in every frame; only their position changes.
 Row 2 — LEAP: crouched low before a jump; in the air, body stretched; landing with a bite, jaws open.
 Row 3 — hit, recoiling; falling on its side; dead, lying still.
 ```
@@ -165,7 +195,10 @@ facing right, transparent background, no text. Grid 3 columns x 3 rows, figures 
 feet of a row on one line.
 Enemy: a walking toadstool spitter — a red cap with pale spots, a pale fibrous stem body with
 short legs, small glowing yellow eyes under the cap.
-Row 1 — WALK, three different frames: left foot forward; feet together; right foot forward.
+Row 1 — WALK, a short waddle, three clearly different frames: 1) left foot a small step
+forward, body leaning a little right; 2) feet together, body upright and a little higher;
+3) right foot a small step forward, leaning a little left. Small steps — the short legs never
+spread wide. Both legs the same colour in every frame.
 Row 2 — SPIT: the cap swelling and glowing pink; spitting a glowing pink-red spore ball forward
 (the ball in the same cell); recoiling back.
 Row 3 — hit; collapsing, the cap breaking; a heap of cap pieces.
@@ -181,7 +214,10 @@ facing right, transparent background, no text. Grid 3 columns x 3 rows, figures 
 feet of a row on one line.
 Enemy: a living tree stump — a short cut trunk with a flat top and broken twigs, root legs,
 two branch arms with twig claws, moss patches, small glowing amber eyes and a dark mouth.
-Row 1 — WALK, three different frames: left root forward; roots together; right root forward.
+Row 1 — WALK, a heavy shuffle, three clearly different frames: 1) left root leg a short step
+forward, the trunk tilted slightly; 2) roots together, the trunk upright; 3) right root leg a
+short step forward, tilted the other way. Short steps, roots never spread wide; both root legs
+the same wood colour in every frame.
 Row 2 — STOMP: arms raised high; slamming the ground (a few earth chips); standing in a crack of the ground.
 Row 3 — hit; splitting apart; a heap of splinters and moss.
 ```
@@ -208,7 +244,10 @@ fog around itself; fleeing to the left, looking back.
 half again as big, heavier, a thick pale mane, old scars, red eyes, darker brown-grey fur.
 Three-quarter view, facing right, transparent background, no text. Grid 3 columns x 4 rows,
 figures never touch, feet of a row on one line.
-Row 1 — RUN, three different frames (legs wide; gathered; the other pair wide).
+Row 1 — RUN, a heavy gallop, three clearly different frames: 1) front legs reaching forward,
+back legs pushing behind; 2) all four legs gathered under the body; 3) front legs pushing back,
+back legs reaching forward. Moderate reach, never stretched flat; all legs the same fur colour
+in every frame.
 Row 2 — DASH: crouched low before a dash; lunging forward low and long; skidding to a stop, claws in the earth.
 Row 3 — LEAP: crouched before a leap; high in the air; slamming down, front paws hitting the ground.
 Row 4 — howling, head raised; winded, tongue out, panting; hit, recoiling.
@@ -225,11 +264,17 @@ feet of a row on one line.
 Character: a frightened village woodcutter, middle-aged, bearded, simple linen shirt, dark vest,
 wrapped boots, an axe. Warm muted colours (a friend, not an enemy) but less bright than the hero.
 Row 1 — standing scared, looking around; waving one arm high to call for help; crouched with the axe ready.
-Row 2 — WALK with the axe on the shoulder, three CLEARLY DIFFERENT frames, long stride
-(left boot wrapping dark brown, right boot wrapping pale linen):
-1) left leg far forward heel down, right leg far back on its toes, right arm forward;
-2) legs together, right leg lifted and bent passing the straight left leg, body higher;
-3) right leg far forward, left leg far back, left arm forward.
+Row 2 — WALK with the axe on the shoulder, 3 frames of a calm natural walk (not a run, not a lunge). The stride is
+moderate: the feet at most about one shoulder-width apart, never a split or a wide V.
+Both legs and both boots look exactly the same in every frame — the same colours, wraps,
+length and thickness; only their position changes. (The far leg may be a touch darker as a
+natural shadow — the same in every frame.)
+1) CONTACT, left leg in front: the front leg almost straight, heel on the ground, toes up;
+   the back leg slightly bent, only its toes on the ground; the opposite arm swings a little forward.
+2) PASSING: one leg straight under the body carrying the weight; the other bent at the knee
+   and passing it, its foot lifted just above the ground; the head a little higher than in 1 and 3.
+3) CONTACT, right leg in front: the mirror of frame 1.
+The three frames must be clearly different even at 100 px, but stay a normal walk.
 ```
 
 ### Земля Лісу ✓ → `locations/forest/ground.png`
@@ -285,8 +330,10 @@ facing right, transparent background, no text. Grid 3 columns x 3 rows, figures 
 feet of a row on one line.
 Enemy: a forest spider the size of a dog — round dark purple-grey body, eight long bent legs,
 a small head with a cluster of glowing red eyes, a few pale hairs. Cold dark colours.
-Row 1 — RUN, three CLEARLY DIFFERENT frames: legs stretched wide; legs gathered under the body;
-the other pair of legs stretched wide.
+Row 1 — RUN, three clearly different frames of the leg cycle: 1) the front pairs reaching
+forward, the back pairs pushing behind; 2) all eight legs gathered close around the body;
+3) the front pairs pushing back, the back pairs reaching forward. Legs stay bent like a real
+spider's, never spread flat; all legs the same colour in every frame.
 Row 2 — rearing up, front legs raised; spitting a white web blob forward (the blob in the same
 cell); landing back down.
 Row 3 — hit, recoiling; flipped on its back, legs curling; dead, legs curled up.
@@ -301,7 +348,9 @@ three times bigger — long thin legs, a heavy dark body with a pale bone-colour
 the back, a crown of red eyes, silk threads trailing from her. The eyes and the back mark are the
 brightest spots. Three-quarter view, facing right, transparent background, no text.
 Grid 3 columns x 4 rows, figures never touch, feet of a row on one line.
-Row 1 — SKITTER sideways, three CLEARLY DIFFERENT frames of the leg cycle.
+Row 1 — SKITTER sideways, three clearly different frames of the leg cycle: 1) the near legs
+reaching forward, the far legs back; 2) legs gathered close around the body; 3) the near legs
+back, the far legs forward. Legs stay bent, never spread flat; all legs the same colour in every frame.
 Row 2 — rearing up before a spit; spitting a big white cocoon blob forward; pulling threads
 towards herself with the front legs (a few short thread lines).
 Row 3 — exhausted, sagging low with legs spread (open to attack); raising her abdomen to release
@@ -450,12 +499,14 @@ swiftness (winged boot); magnet (horseshoe magnet).
 ```
 Keep exactly the same character, the same style and every other row.
 Redraw ONLY the walk row. The three frames are currently identical; they must be clearly
-different poses, readable even when the image is shrunk to 100 px tall. A long exaggerated stride:
-frame 1: left leg stretched far forward, heel on the ground; right leg stretched far back, only
-its toes touching; right arm forward, left arm back.
-frame 2: legs together under the body — the right leg lifted and bent at the knee, passing the
-straight left leg; the body a little higher.
-frame 3: the mirror of frame 1 — right leg far forward, left leg far back; left arm forward.
-Left boot wrapping dark, right boot wrapping light, so the legs are told apart.
+different poses, readable even when the image is shrunk to 100 px tall — but still a calm
+normal walk: the feet at most about one shoulder-width apart, never a split.
+Both legs and both boots look exactly the same in every frame — the same colours, wraps, length
+and thickness; only their position changes.
+frame 1: CONTACT — the left leg in front almost straight, heel on the ground, toes up; the right
+leg behind slightly bent, only its toes on the ground; the right arm a little forward.
+frame 2: PASSING — the left leg straight under the body carrying the weight; the right leg bent
+at the knee passing it, its foot just above the ground; the head a little higher.
+frame 3: CONTACT — the mirror of frame 1: right leg in front, left leg behind.
 Same height, size and feet baseline in all three frames. Transparent background, no text.
 ```

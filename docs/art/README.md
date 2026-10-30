@@ -77,9 +77,10 @@ fully transparent background.
 
 Row 1 — STANDING: 1) relaxed ready stance, feet a little apart, sword held low pointing
 down-forward; 2) the same, chest slightly raised (breathing in); 3) the same, shoulders slightly lower.
-Row 2 — WALK (3 frames): 1) one leg far forward, heel down, the other far behind;
-2) passing — legs close together, the back foot slightly lifted; 3) the OTHER leg far forward,
-the first leg far behind (the mirror of frame 1 — clearly the other leg in front).
+Row 2 — WALK (3 frames, a calm walk, feet at most a shoulder-width apart; both legs look the
+same in every frame): 1) one leg in front, heel down, the other behind on its toes;
+2) passing — one leg straight under the body, the other bent and passing it, foot just above the
+ground; 3) the OTHER leg in front (the mirror of frame 1).
 Row 3 — VERTICAL SLASH: 1) start — the sword raised high above the head, body leaning slightly
 back; 2) middle — the sword coming down at shoulder height in front; 3) end — the sword low in
 front near the ground, body leaning forward.
