@@ -74,6 +74,17 @@ function artPicture(o: Obstacle, img: HTMLImageElement): ObstaclePicture {
 }
 
 /**
+ * What an obstacle is drawn as, each layer sorted by its own foot: the Stone Ring drawn from the
+ * atlas is a ring of separate stones (the hero by it is in front of the back ones and behind the
+ * front ones), anything else is one picture.
+ */
+export function obstacleLayers(o: Obstacle): { y: number; draw: (ctx: CanvasRenderingContext2D, alpha: number) => void }[] {
+  const img = propsAtlas();
+  if (o.kind !== 'stoneRing' || !img) return [{ y: o.pos.y, draw: (ctx, alpha) => drawObstacle(ctx, o, alpha) }];
+  return obstacleParts(o).map((p) => ({ y: o.pos.y + p.dy, draw: (ctx) => drawPart(ctx, img, p, o.pos.x, o.pos.y) }));
+}
+
+/**
  * `alpha` — how solid an obstacle is drawn (a tree fades when someone stands behind it). Each
  * obstacle is painted once into a picture of its own (scaling a big piece of the atlas, or a
  * dozen outlined shapes, on every frame for dozens of trees is costly); a code picture is painted

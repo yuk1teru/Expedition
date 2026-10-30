@@ -63,13 +63,23 @@ export const FOREST_ART = {
     { piece: 10, upTo: Infinity },
   ],
   stoneWidth: 4,
-  /** The Stone Ring: three, two and one standing stones around its foot. */
+  /**
+   * The Stone Ring: standing stones (and two boulders) on an oval around its foot, each drawn on
+   * its own so the hero stands in front of the back ones and behind the front ones. Angle 0° is
+   * right, 90° — towards the viewer. The sheet's groups of two and three stones overlap and do not
+   * cut apart cleanly, so the ring is built of its one single stone, mirrored and sized.
+   */
   stoneRing: [
-    { piece: 14, dx: -46, dy: -14 },
-    { piece: 17, dx: 50, dy: -8 },
-    { piece: 13, dx: 4, dy: 24 },
+    { piece: 13, angle: -165, scale: 0.85, mirror: false },
+    { piece: 13, angle: -118, scale: 1.0, mirror: true },
+    { piece: 12, angle: -90, scale: 0.55, mirror: false },
+    { piece: 13, angle: -62, scale: 0.9, mirror: false },
+    { piece: 13, angle: -15, scale: 0.8, mirror: true },
+    { piece: 13, angle: 35, scale: 0.95, mirror: false },
+    { piece: 11, angle: 82, scale: 0.5, mirror: true },
+    { piece: 13, angle: 128, scale: 0.85, mirror: true },
   ],
-  stoneRingScale: 0.75,
+  stoneRingOval: [64, 38] as [number, number],
   log: 15,
   logScale: 0.69,
   den: 16,

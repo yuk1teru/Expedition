@@ -25,7 +25,7 @@ import { DodgeFx } from './dodgeFx';
 import { BEAST_ANIM } from '../data/beastAnim';
 import { drawGround } from './forestArt';
 import { beastSheet, beastSize, type Corpse, corpseLife, drawCorpse, lastSide } from './beastAnim';
-import { CROWN_FADE, crownBox, drawAltar, drawBossWarning, drawChest, drawCoin, drawEnemy, drawEnemyWarning, drawGem, drawHerb, drawHeroFigure, drawLumberjack, drawObstacle, drawRingWall, drawShadow, drawShot, drawShrine, drawSpirit, drawTaskGround, drawTrap, drawZone } from './reworkDraw';
+import { CROWN_FADE, crownBox, obstacleLayers, drawAltar, drawBossWarning, drawChest, drawCoin, drawEnemy, drawEnemyWarning, drawGem, drawHerb, drawHeroFigure, drawLumberjack, drawRingWall, drawShadow, drawShot, drawShrine, drawSpirit, drawTaskGround, drawTrap, drawZone } from './reworkDraw';
 import { THEME, font } from './theme';
 import { Button, ButtonGroup, drawPanel, drawText, drawWrapped } from './ui';
 
@@ -306,7 +306,10 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
         const sh = beastSheet(e.def);
         bodies.push({ x: e.pos.x, y: e.pos.y, tall: sh ? sh.height * beastSize(e.def, e.radius) : e.radius * 2.6 });
       }
-      for (const o of r.obstacles) if (onScreen(o.pos.x, o.pos.y, o.height + 80)) items.push({ y: o.pos.y, draw: () => drawObstacle(ctx, o, treeAlpha(o, bodies)) });
+      for (const o of r.obstacles) {
+        if (!onScreen(o.pos.x, o.pos.y, o.height + 80)) continue;
+        for (const l of obstacleLayers(o)) items.push({ y: l.y, draw: () => l.draw(ctx, treeAlpha(o, bodies)) });
+      }
       for (const e of r.enemies) if (onScreen(e.pos.x, e.pos.y, 40)) items.push({ y: e.pos.y, draw: () => drawEnemy(ctx, e, r.time) });
       for (const c of r.chests) if (onScreen(c.pos.x, c.pos.y, 30)) items.push({ y: c.pos.y, draw: () => drawChest(ctx, c, r.time) });
       for (const s of r.shrines) if (onScreen(s.pos.x, s.pos.y, 60)) items.push({ y: s.pos.y, draw: () => drawShrine(ctx, s, r.time) });

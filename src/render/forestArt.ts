@@ -49,8 +49,10 @@ export function obstacleParts(o: Obstacle): PropPart[] {
       const p = F.stones.find((s) => o.radius <= s.upTo)!.piece;
       return [part(p, width(p, F.stoneWidth), mirrored(o))];
     }
-    case 'stoneRing':
-      return F.stoneRing.map((s) => part(s.piece, F.stoneRingScale, false, s.dx, s.dy));
+    case 'stoneRing': {
+      const [rx, ry] = F.stoneRingOval;
+      return F.stoneRing.map((s) => part(s.piece, s.scale, s.mirror, Math.cos((s.angle * Math.PI) / 180) * rx, Math.sin((s.angle * Math.PI) / 180) * ry));
+    }
     case 'log':
       return [part(F.log, F.logScale, mirrored(o))];
   }
