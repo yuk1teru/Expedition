@@ -100,6 +100,17 @@ describe('rework combat (20.4)', () => {
     }
   });
 
+  it('every class dodges towards the cursor', () => {
+    for (const cls of ['warrior', 'mage', 'archer'] as const) {
+      const run = createRun(35, cls);
+      const from = { x: run.hero.pos.x, y: run.hero.pos.y };
+      dodge(run, { x: 1, y: 0 }, { x: from.x, y: from.y + 300 });
+      for (let i = 0; i < 30; i++) stepRun(run, 1 / 60, still);
+      expect(run.hero.pos.y - from.y, cls).toBeGreaterThan(40);
+      expect(Math.abs(run.hero.pos.x - from.x), cls).toBeLessThan(20);
+    }
+  });
+
   it('a dodge gives invulnerability and waits for its cooldown', () => {
     const run = createRun(32, 'warrior');
     expect(dodge(run, { x: 1, y: 0 })).toBe(true);

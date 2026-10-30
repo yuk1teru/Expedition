@@ -1,6 +1,6 @@
 // The hero in the rework's run (ROADMAP 20.4): walks around obstacles, attacks the nearest beast
 // on its own (the warrior's arc, the mage's fire bolt, the archer's piercing arrow) and dodges on
-// Space — the warrior's shield dash, the mage's blink, the archer's vault back — with a short
+// Space towards the cursor — the warrior's shield dash, the mage's blink, the archer's vault — with a short
 // invulnerability and no damage. The cards (20.5) change the numbers through `heroStats`; the
 // hero's shots fly in shots.ts.
 
@@ -125,14 +125,15 @@ function attack(run: Run): void {
   });
 }
 
-/** Space: the class's dodge, along the walk (the archer — back from where it looks). */
-export function dodge(run: Run, move: Vec): boolean {
+/** Space: the class's dodge towards the cursor (without one — along the walk, else ahead). */
+export function dodge(run: Run, move: Vec, aim: Vec | null = null): boolean {
   const h = run.hero;
   if (h.dead || h.dash || h.dodgeTimer > 0) return false;
   const d = REWORK_CLASSES[h.classId].dodge;
   const st = heroStats(run);
   let dir = move.x !== 0 || move.y !== 0 ? move : { x: Math.cos(h.facing), y: Math.sin(h.facing) };
-  if (d.kind === 'vault') dir = { x: -Math.cos(h.facing), y: -Math.sin(h.facing) };
+  const toAim = aim ? Math.hypot(aim.x - h.pos.x, aim.y - h.pos.y) : 0;
+  if (aim && toAim > 1) dir = { x: (aim.x - h.pos.x) / toAim, y: (aim.y - h.pos.y) / toAim };
   const from = { x: h.pos.x, y: h.pos.y };
   let to = { x: from.x + dir.x * st.dodgeDistance, y: from.y + dir.y * st.dodgeDistance };
   h.dodgeTimer = d.cooldown;

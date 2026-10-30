@@ -178,7 +178,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
         }
         return;
       }
-      if (e.type === 'key' && e.code === 'Space') dodge(run, app.input.moveVector());
+      if (e.type === 'key' && e.code === 'Space') dodge(run, app.input.moveVector(), cursorWorld());
       if (e.type === 'key' && /^Digit[1-4]$/.test(e.code)) castSkill(run, Number(e.code.slice(5)) - 1, cursorWorld());
     },
 
