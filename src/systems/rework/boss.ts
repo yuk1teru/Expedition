@@ -96,9 +96,12 @@ export function formRing(run: Run): void {
   ring = ring.slice(0, B.ringMax);
   // Places on the circle, in the order of their angle (nobody crosses the arena to get there).
   ring.sort((a, b) => Math.atan2(a.pos.y - h.pos.y, a.pos.x - h.pos.x) - Math.atan2(b.pos.y - h.pos.y, b.pos.x - h.pos.x));
+  // Not in a neat line: each a little off its even place along the ring, some a step further out.
+  const step = (Math.PI * 2) / Math.max(1, ring.length);
   ring.forEach((e, i) => {
-    const a = (i / ring.length) * Math.PI * 2 + Math.PI;
-    e.act = { kind: 'ring', slot: { x: run.ringCenter.x + Math.cos(a) * (B.ringRadius + e.radius), y: run.ringCenter.y + Math.sin(a) * (B.ringRadius + e.radius) * 0.62 } };
+    const a = i * step + Math.PI + (run.rng.next() - 0.5) * step * B.ringScatter.along;
+    const out = B.ringRadius + e.radius + run.rng.next() ** 2 * B.ringScatter.out;
+    e.act = { kind: 'ring', slot: { x: run.ringCenter.x + Math.cos(a) * out, y: run.ringCenter.y + Math.sin(a) * out * 0.62 } };
     e.stun = 0;
     e.freeze = 0;
     e.fear = 0;

@@ -519,6 +519,8 @@ export const REWORK_BOSS = {
    * stir now and then and lean in when he comes near. The spinner's ring is sticky too.
    */
   ringBite: { reach: 34, lunge: 14, time: 0.25 },
+  /** The ring is ragged: a beast stands up to `along` of its share off its place along the ring, up to `out` px further out. */
+  ringScatter: { along: 1.3, out: 46 },
   /** The ring needs at least this many beasts (wolves come to fill it) and holds at most this many. */
   ringMin: 34,
   ringMax: 90,
