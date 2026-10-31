@@ -135,3 +135,31 @@ export const HERO_ANIM = {
   dustEvery: 0.05,
   dustLife: 0.35,
 };
+
+/**
+ * Effects on the hero (docs/art/fx/common.png, cut along a grid by scripts/cut-grid.py): rows of
+ * three frames — appearing, full, fading. Healing leaves while a herb heals, the golden shell
+ * while a shrine's shield holds, the pillar of light on a new level. `anchor` — the hero's feet
+ * in a frame (atlas px); `scale` — atlas px to world px.
+ */
+export const HERO_FX = {
+  src: 'sprites/anim/fx-common.png',
+  frames: [
+    [0, 0, 202, 225],
+    [202, 0, 208, 225],
+    [410, 0, 217, 225],
+    [0, 225, 202, 192],
+    [202, 225, 208, 192],
+    [410, 225, 217, 192],
+    [0, 417, 202, 210],
+    [202, 417, 208, 210],
+    [410, 417, 217, 210],
+  ] as [number, number, number, number][],
+  heal: { frames: [0, 1, 2], anchor: [112, 215] as [number, number], scale: 0.52, alpha: 0.9 },
+  shield: { frames: [3, 4, 5], anchor: [112, 188] as [number, number], scale: 0.56, alpha: 0.6 },
+  level: { frames: [6, 7, 8], anchor: [112, 160] as [number, number], scale: 0.7, alpha: 0.9 },
+  /** The level-up pillar: each frame this long. */
+  levelTimes: [0.15, 0.5, 0.3],
+  /** The shell appears and breaks over this long. */
+  shieldEdge: 0.3,
+};

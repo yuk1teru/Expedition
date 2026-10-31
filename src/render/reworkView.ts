@@ -7,7 +7,7 @@
 
 import type { Screen } from '../core/screens';
 import { Rng } from '../core/rng';
-import { PASSIVE_SLOTS, REWORK_BOSS, REWORK_LIVES, REWORK_LOCATIONS, REWORK_PATH, REWORK_POINTERS, REWORK_SPIRIT, REWORK_TASKS, REWORK_CARDS, REWORK_CLASSES, REWORK_STRESS, type ReworkClassId } from '../data/rework';
+import { PASSIVE_SLOTS, REWORK_BOSS, REWORK_LIVES, REWORK_LOCATIONS, REWORK_PICKUPS, REWORK_PATH, REWORK_POINTERS, REWORK_SPIRIT, REWORK_TASKS, REWORK_CARDS, REWORK_CLASSES, REWORK_STRESS, type ReworkClassId } from '../data/rework';
 import { EVOLUTIONS, REWORK_SKILLS, SKILL_SLOTS, skillParams } from '../data/reworkSkills';
 import { bossIn } from '../systems/rework/boss';
 import { altarNear, altarPrice, useAltar } from '../systems/rework/pickups';
@@ -22,9 +22,10 @@ import { castSkill, effectiveParams, evolutionReady, passiveNotes } from '../sys
 import type { CardOffer, Obstacle, Run } from '../systems/rework/types';
 import type { Vec } from '../systems/entities';
 import type { App } from './app';
-import { type HeroAnimState, drawHeroDust, drawHeroFrames, heroAnimAttack, heroAnimCast, heroAnimDodge, newHeroAnim, stepHeroAnim } from './heroAnim';
+import { type HeroAnimState, drawHeroDust, drawHeroFx, drawHeroFrames, heroAnimAttack, heroAnimCast, heroAnimDodge, newHeroAnim, stepHeroAnim } from './heroAnim';
 import { DodgeFx } from './dodgeFx';
 import { BEAST_ANIM } from '../data/beastAnim';
+import { HERO_FX } from '../data/heroAnim';
 import { drawGround, propSet } from './forestArt';
 import { beastSheet, beastSize, type Corpse, corpseLife, drawCorpse, lastSide } from './beastAnim';
 import { CROWN_FADE, crownBox, obstacleLayers, drawAltar, drawBossWarning, drawChest, drawCoin, drawEnemy, drawEnemyWarning, drawGem, drawHerb, drawHeroFigure, drawLumberjack, drawBranch, drawCocoonRemains, drawGhost, drawHazard, drawShade, drawPath, drawPull, drawRingWall, drawThreads, drawWebPatch, drawWrap, drawShadow, drawShot, drawShrine, drawSpirit, drawTaskGround, drawTrap, drawZone } from './reworkDraw';
@@ -109,6 +110,8 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
   let flashes: Flash[] = [];
   /** Dead beasts lying a moment where they fell. */
   let corpses: Corpse[] = [];
+  /** Seconds since the last level-up's pillar of light began (negative — none). */
+  let levelFx = -1;
   /** The new location's name over the screen for a moment. */
   let banner: { text: string; age: number } | null = null;
   /** When each arrow first showed (screen time, so it settles while the run is still): a new one pulses. */
@@ -167,6 +170,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     corpses = [];
     banner = { text: REWORK_LOCATIONS[0]!.name, age: 0 };
     pointerSeen.clear();
+    levelFx = -1;
     dodgeFx.reset();
     dodging = false;
     zoom = 1;
@@ -227,7 +231,10 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       else if (e.type === 'cast') heroAnimCast(anim, r.hero.classId, e.skill);
       else if (e.type === 'blast') flashes.push({ kind: 'ring', points: [e.pos], radius: e.radius, color: e.color, age: 0 });
       else if (e.type === 'chain') flashes.push({ kind: 'chain', points: e.points, radius: 0, color: '#bfe3ff', age: 0 });
-      else if (e.type === 'levelUp') floaters.push({ x: r.hero.pos.x, y: r.hero.pos.y - 80, text: `Рівень ${e.level}!`, color: THEME.accent, age: -0.2 });
+      else if (e.type === 'levelUp') {
+        floaters.push({ x: r.hero.pos.x, y: r.hero.pos.y - 80, text: `Рівень ${e.level}!`, color: THEME.accent, age: -0.2 });
+        levelFx = 0;
+      }
       else if (e.type === 'note') floaters.push({ x: e.pos.x, y: e.pos.y, text: e.text, color: e.color, age: 0, size: 16, life: 2.2 });
       else if (e.type === 'evolve') floaters.push({ x: r.hero.pos.x, y: r.hero.pos.y - 100, text: `Еволюція: ${EVOLUTIONS[e.skill]!.name}!`, color: '#ffd27a', age: 0, size: 20, life: 2.5 });
     }
@@ -550,6 +557,25 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     ctx.restore();
     if (!drawn) drawHeroFigure(ctx, h, anim.side, flash);
     if (h.root > 0 && REWORK_LOCATIONS[r.location]!.boss !== 'enat') drawWrap(ctx, h.pos, r.time);
+    drawHeroEffects(ctx, r, dt);
+  }
+
+  /** On the hero: healing leaves while a herb heals, the golden shell while a shrine's shield holds, the pillar of a new level. */
+  function drawHeroEffects(ctx: CanvasRenderingContext2D, r: Run, dt: number): void {
+    const h = r.hero;
+    const stage = (k: number, edge: number): number => (k < edge ? 0 : k > 1 - edge ? 2 : 1);
+    if (h.regen) drawHeroFx(ctx, 'heal', stage(1 - h.regen.time / REWORK_PICKUPS.herbTime, 0.15), h.pos.x, h.pos.y);
+    if (h.shield > 0 && h.shrine?.kind === 'shield') {
+      const t = h.shrine.time;
+      const s = t > REWORK_PICKUPS.shrineBuff - HERO_FX.shieldEdge ? 0 : t < HERO_FX.shieldEdge ? 2 : 1;
+      drawHeroFx(ctx, 'shield', s, h.pos.x, h.pos.y, 0.85 + 0.15 * Math.sin(animTime * 4));
+    }
+    if (levelFx >= 0) {
+      levelFx += dt;
+      const [a, b, c] = HERO_FX.levelTimes as [number, number, number];
+      if (levelFx >= a + b + c) levelFx = -1;
+      else drawHeroFx(ctx, 'level', levelFx < a ? 0 : levelFx < a + b ? 1 : 2, h.pos.x, h.pos.y);
+    }
   }
 
   function drawSwings(ctx: CanvasRenderingContext2D, dt: number): void {

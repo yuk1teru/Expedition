@@ -4,7 +4,7 @@
 // the class's dash (with dust behind while moving), a hit recoils. Three-quarter view: the figure
 // never rotates, it only mirrors to face left or right.
 
-import { HERO_ANIM, HERO_SHEETS, type HeroAnimId, type HeroSheet } from '../data/heroAnim';
+import { HERO_ANIM, HERO_FX, HERO_SHEETS, type HeroAnimId, type HeroSheet } from '../data/heroAnim';
 import type { Vec } from '../systems/entities';
 
 /** What the animation reads from the hero (the old game's hero or the rework's): only whether a dash is on. */
@@ -261,6 +261,22 @@ export function drawHeroFrames(ctx: CanvasRenderingContext2D, s: HeroAnimState, 
       ctx.globalCompositeOperation = 'source-over';
     }
   }
+  ctx.restore();
+  return true;
+}
+
+/** One frame of an effect on the hero (healing leaves, the shield's shell, the level-up pillar) with the hero's feet at (x, y); false while it loads. */
+export function drawHeroFx(ctx: CanvasRenderingContext2D, kind: 'heal' | 'shield' | 'level', stage: number, x: number, y: number, alpha = 1): boolean {
+  const img = sheet(HERO_FX.src);
+  if (!img) return false;
+  const fx = HERO_FX[kind];
+  const [sx, sy, w, h] = HERO_FX.frames[fx.frames[Math.max(0, Math.min(2, stage))]!]!;
+  const [ax, ay] = fx.anchor;
+  ctx.save();
+  ctx.globalAlpha *= fx.alpha * alpha;
+  ctx.translate(x, y);
+  ctx.scale(fx.scale, fx.scale);
+  ctx.drawImage(img, sx, sy, w, h, -ax, -ay, w, h);
   ctx.restore();
   return true;
 }

@@ -611,7 +611,7 @@ Row 4 — HUNTER TRAP, a small iron jaw trap on the ground: closed; open and set
 with a burst of sparks.
 ```
 
-### Спільні → `fx/common.png`
+### Спільні ✓ → `fx/common.png`
 
 **Що має вийти:** 3 × 3. Ряд 1 — лікування (зелені листочки й іскри піднімаються вгору), ряд 2 — щит святилища (золотий мерехтливий овал довкола героя), ряд 3 — новий рівень (золотий стовп світла).
 
