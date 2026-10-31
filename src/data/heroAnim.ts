@@ -199,10 +199,12 @@ export const ATTACK_FX = {
   castFlash: { sheet: 'mage', frames: [6, 7, 8], size: 40, offset: [26, -66], delay: 0.05, times: [0.04, 0.06, 0.1] },
   /** The archer's arrow in flight (loops) and the ring of air at the bow. */
   arrow: { sheet: 'archer', frames: [0, 1, 2], size: 30, offset: [0, 0], delay: 0, times: [0.06, 0.06, 0.06] },
+  /** An arrow of the rain stuck in the ground (dust, clods) — the arrow rain's hits. */
+  arrowHit: { sheet: 'archer', frames: [3, 4, 5], size: 42, offset: [0, -16], delay: 0, times: [0.07, 0.12, 0.2] },
   release: { sheet: 'archer', frames: [6, 7, 8], size: 40, offset: [22, -48], delay: 0.26, times: [0.04, 0.06, 0.1] },
   /** The explosion's frame height per world px of the blast radius; at most this many hit sparks at once. */
   explosionSize: 2.1,
   maxSparks: 24,
 } as const;
 
-export type AttackFxId = 'slashV' | 'slashH' | 'spark' | 'fireball' | 'explosion' | 'castFlash' | 'arrow' | 'release';
+export type AttackFxId = 'slashV' | 'slashH' | 'spark' | 'fireball' | 'explosion' | 'castFlash' | 'arrow' | 'arrowHit' | 'release';

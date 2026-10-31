@@ -551,6 +551,42 @@ export function drawCoin(ctx: CanvasRenderingContext2D, c: Coin): void {
 }
 
 /** Burning ground and rains of arrows, on the ground under the bodies. */
+/**
+ * The arrow rain from the archer's art: arrows fall steeply into the zone one after another, each
+ * at its own spot, stick in the ground with a burst of clods and dust, and the next one comes. The
+ * spots follow from the time alone (the logic has no arrows). False while the art loads.
+ */
+function drawRain(ctx: CanvasRenderingContext2D, z: Zone, time: number): boolean {
+  const ARROWS = 9;
+  const PERIOD = 0.6;
+  const FALL = 0.16;
+  const hitTime = ATTACK_FX.arrowHit.times.reduce((a, b) => a + b, 0);
+  let ok = true;
+  for (let i = 0; i < ARROWS && ok; i++) {
+    const t = time + (i / ARROWS) * PERIOD;
+    const n = Math.floor(t / PERIOD);
+    const age = t - n * PERIOD;
+    // A spot in the zone for this arrow and this round.
+    const h1 = Math.sin(i * 12.9898 + n * 78.233) * 43758.5453;
+    const h2 = Math.sin(i * 39.346 + n * 11.135) * 24634.6345;
+    const a = (h1 - Math.floor(h1)) * Math.PI * 2;
+    const rr = Math.sqrt(h2 - Math.floor(h2)) * 0.85;
+    const x = z.pos.x + Math.cos(a) * z.radius * rr;
+    const y = z.pos.y + Math.sin(a) * z.radius * 0.6 * rr;
+    const side = (h1 - Math.floor(h1)) > 0.5 ? 1 : -1;
+    if (age < FALL) {
+      const k = age / FALL;
+      ok = drawAttackFx(ctx, 'arrow', 0, x - side * 30 * (1 - k), y - 26 - 130 * (1 - k), { angle: side > 0 ? 1.25 : Math.PI - 1.25, size: 26 });
+    } else if (age < FALL + hitTime) {
+      let f = 0;
+      let left = age - FALL;
+      while (f < 2 && left >= ATTACK_FX.arrowHit.times[f]!) left -= ATTACK_FX.arrowHit.times[f++]!;
+      ok = drawAttackFx(ctx, 'arrowHit', f, x, y + ATTACK_FX.arrowHit.offset[1], { side });
+    }
+  }
+  return ok;
+}
+
 export function drawZone(ctx: CanvasRenderingContext2D, z: Zone, time: number): void {
   const fire = z.kind === 'fire';
   ctx.fillStyle = fire ? 'rgba(255, 110, 40, 0.28)' : 'rgba(230, 220, 190, 0.18)';
@@ -560,6 +596,7 @@ export function drawZone(ctx: CanvasRenderingContext2D, z: Zone, time: number): 
   ctx.ellipse(z.pos.x, z.pos.y, z.radius, z.radius * 0.6, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
+  if (!fire && drawRain(ctx, z, time)) return;
   if (!fire) {
     // Falling arrows: short strokes that move down.
     ctx.strokeStyle = 'rgba(245, 235, 210, 0.8)';
