@@ -17,6 +17,7 @@ import { taskLine } from '../systems/rework/task';
 import { type DeathOutcome, type Expedition, loseLife, newExpedition, reachCheckpoint } from '../systems/rework/expedition';
 import { dodge } from '../systems/rework/hero';
 import { chooseCard, gainXp, passivesTaken, reroll, rerollPrice, xpToNext } from '../systems/rework/progress';
+import { duelZoom } from '../systems/rework/view';
 import { createRun, enterNextLocation, runPaused, stepRun, stressSpawn } from '../systems/rework/run';
 import { spawnElite } from '../systems/rework/enemies';
 import { preloadProgress, preloadSprites } from './preload';
@@ -394,7 +395,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       // The duel: the camera eases back and holds the ring; otherwise (and once the boss is beaten
       // and a path leads on) it follows the hero.
       const duel = r.phase === 'ring' || (r.phase === 'won' && !r.path);
-      zoom += ((duel ? REWORK_BOSS.zoom : 1) - zoom) * Math.min(1, dt * 3);
+      zoom += ((duel ? duelZoom(r) : 1) - zoom) * Math.min(1, dt * 3);
       const vw = W / zoom;
       const vh = H / zoom;
       const focus = duel ? r.ringCenter : h.pos;

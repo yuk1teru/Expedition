@@ -168,12 +168,9 @@ export function stepRingBeast(run: Run, e: RunEnemy, dt: number): boolean {
     damageHero(run, REWORK_ENEMIES[e.def].damage * e.power);
   }
   // Its place: shifting along the ring now and then; leaning towards the hero while it bites.
-  const cx = act.slot.x - run.ringCenter.x;
-  const cy = act.slot.y - run.ringCenter.y;
-  const cl = Math.hypot(cx, cy) || 1;
-  const sway = Math.sin(run.time * 0.9 + e.id * 1.7) * B.ringSway;
+  // Its place; leaning towards the hero while it bites.
   const lean = (act.bite / R.time) * R.lunge;
-  const to = { x: act.slot.x + (-cy / cl) * sway + (toH.x / dh) * lean, y: act.slot.y + (cx / cl) * sway * 0.62 + (toH.y / dh) * lean };
+  const to = { x: act.slot.x + (toH.x / dh) * lean, y: act.slot.y + (toH.y / dh) * lean };
   const dx = to.x - e.pos.x;
   const dy = to.y - e.pos.y;
   const d = Math.hypot(dx, dy);

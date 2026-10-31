@@ -1262,7 +1262,7 @@ function paintCobweb(ctx: CanvasRenderingContext2D, x: number, y: number, r: num
 
 /** The Old Enat's look in each phase: living wood, stone, cracked stone; a hit flashes. */
 const ENAT_LOOK = ['saturate(0.8) brightness(0.85)', 'grayscale(1) brightness(0.95) contrast(1.1)', 'grayscale(0.85) sepia(0.25) brightness(0.8)'];
-const ENAT_SCALE = 1.05;
+const ENAT_SCALE = 0.8;
 
 /**
  * The Old Enat: the Old Oak's picture come alive — eyes glowing in the bark; turned to stone in

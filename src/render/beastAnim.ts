@@ -73,9 +73,9 @@ function poseOf(e: RunEnemy, sh: BeastSheet, time: number): BeastPose {
     case 'rest':
       return REWORK_BOSS.alpha.rest - act.time < A.slamTime ? 'slam' : 'rest';
     case 'ring':
-      // In the ring: bites when the hero comes close, else shifts about or stands.
+      // In the ring: bites when the hero comes close; else stands, now and then stirring (ringFrame).
       if ((act.bite ?? 0) > 0) return sh.frames.land ? 'land' : sh.frames.stomp ? 'stomp' : sh.frames.spit ? 'spit' : 'stand';
-      return Math.hypot(e.vel.x, e.vel.y) > 8 ? 'walk' : 'stand';
+      return 'stand';
   }
   if (e.def === 'spirit' && e.hp < e.maxHp * REWORK_SPIRIT.fleeAt) return 'flee';
   // The pack leader's howl, the spinner calling her spiderlings.
@@ -91,6 +91,12 @@ function poseOf(e: RunEnemy, sh: BeastSheet, time: number): BeastPose {
 function frameOf(e: RunEnemy, sh: BeastSheet, time: number): number {
   const pose = poseOf(e, sh, time);
   const walk = sh.frames.walk!;
+  // A beast of the ring stands; once in a few seconds it stirs — one other frame held a moment —
+  // each at its own time, so the ring is alive but nothing flickers.
+  if (e.act.kind === 'ring' && pose === 'stand') {
+    const cycle = (time / A.ringStir.every + e.id * 0.618) % 1;
+    return cycle < A.ringStir.share ? walk[1 % walk.length]! : (sh.frames.stand ?? walk)[0]!;
+  }
   if (pose !== 'walk') return (sh.frames[pose] ?? walk)[0]!;
   // Frozen or stunned — stands as it was; standing still — the standing frame.
   if (e.freeze > 0 || e.stun > 0) return walk[e.id % walk.length]!;

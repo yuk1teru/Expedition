@@ -4,7 +4,7 @@
 // off screen before it ever comes. The view (reworkView.ts) draws from the same rect.
 
 import { VIEW } from '../../data/balance';
-import { REWORK_BOSS, REWORK_FIELD } from '../../data/rework';
+import { REWORK_BOSS, REWORK_FIELD, REWORK_LOCATIONS } from '../../data/rework';
 import type { Vec } from '../entities';
 import type { Run } from './types';
 
@@ -13,8 +13,11 @@ const clamp = (v: number, max: number): number => Math.max(0, Math.min(Math.max(
 /** The camera holds the ring: in the duel, and after the biome's last boss (no path on). */
 export const duel = (run: Run): boolean => run.phase === 'ring' || (run.phase === 'won' && !run.path);
 
-/** The world rect on screen at `zoom` (1 — the flood, `REWORK_BOSS.zoom` — the duel). */
-export function viewRect(run: Run, zoom = duel(run) ? REWORK_BOSS.zoom : 1): { x: number; y: number; w: number; h: number } {
+/** The duel's zoom: pulled back for the ring, further for the Old Enat. */
+export const duelZoom = (run: Run): number => (REWORK_LOCATIONS[run.location]!.boss === 'enat' ? REWORK_BOSS.enat.zoom : REWORK_BOSS.zoom);
+
+/** The world rect on screen at `zoom` (1 — the flood, `duelZoom` — the duel). */
+export function viewRect(run: Run, zoom = duel(run) ? duelZoom(run) : 1): { x: number; y: number; w: number; h: number } {
   const w = VIEW.width / zoom;
   const h = VIEW.height / zoom;
   const f = duel(run) ? run.ringCenter : run.hero.pos;

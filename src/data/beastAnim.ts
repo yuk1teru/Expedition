@@ -115,11 +115,11 @@ export const BEAST_SHEETS: Partial<Record<ReworkEnemyId, BeastSheet>> = {
     columns: 3,
     cell: [539, 347],
     anchor: [284, 341],
-    scale: 0.9,
+    scale: 0.68,
     frames: { walk: [0, 1, 2, 1], stand: [0], die: [9, 10, 11] },
     walkFps: 1.5,
-    shadow: 110,
-    height: 280,
+    shadow: 84,
+    height: 212,
     dieFrame: 0.5,
     corpseTime: 30,
   },
@@ -182,6 +182,8 @@ export const BEAST_ANIM = {
   skidAt: 0.7,
   slamTime: 0.22,
   howlTime: 0.9,
+  /** A beast of the living ring stirs (another frame) once per `every` s for `share` of it. */
+  ringStir: { every: 5, share: 0.12 },
   /** A dead beast: each death frame this long, the last one lies and fades. */
   dieFrame: 0.14,
   corpseTime: 0.9,

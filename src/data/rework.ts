@@ -515,11 +515,10 @@ export const REWORK_BOSS = {
   ringRadius: 340,
   /**
    * The ring is a wall of living beasts: it pushes the hero back, and a beast he comes close to
-   * bites him (its own bite, at most once per its `touchEvery`). The beasts shift about their
-   * places, face the hero and lean in when he comes near. The spinner's ring is sticky instead.
+   * bites him (its own bite, at most once per its `touchEvery`). The beasts stand facing the hero,
+   * stir now and then and lean in when he comes near. The spinner's ring is sticky too.
    */
   ringBite: { reach: 34, lunge: 14, time: 0.25 },
-  ringSway: 12,
   /** The ring needs at least this many beasts (wolves come to fill it) and holds at most this many. */
   ringMin: 34,
   ringMax: 90,
@@ -606,6 +605,8 @@ export const REWORK_BOSS = {
     shade: { radius: 70, speed: 55, every: 1.6 },
     sapTake: 1.5,
     touch: 8,
+    /** The camera pulls back further for him (he is tall). */
+    zoom: 0.75,
     /** He walks after the hero this fast (phases 1–2), stopping this far from him. */
     walk: { speed: 40, keep: 130 },
   },
