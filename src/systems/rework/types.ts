@@ -184,6 +184,8 @@ export interface Zone {
   pos: Vec;
   /** The evolved rain follows the hero. */
   follow?: boolean;
+  /** The rain: where the archer stood when he shot it (its arrows come from there). */
+  from?: Vec;
   radius: number;
   time: number;
   damage: number;

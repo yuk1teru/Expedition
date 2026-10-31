@@ -552,20 +552,30 @@ export function drawCoin(ctx: CanvasRenderingContext2D, c: Coin): void {
 
 /** Burning ground and rains of arrows, on the ground under the bodies. */
 /**
- * The arrow rain from the archer's art: arrows fall steeply into the zone one after another, each
- * at its own spot, stick in the ground with a burst of clods and dust, and the next one comes. The
+ * The arrow rain from the archer's art: a few arrows at a time fall into the zone, all at one slant —
+ * flying from where the archer stood when he shot it (the evolved rain, which follows him, from
+ * behind his back) — and stick in the ground with clods and dust; each next one at a new spot. The
  * spots follow from the time alone (the logic has no arrows). False while the art loads.
  */
+const RAIN = { arrows: 5, period: 1.1, fall: 0.3, drop: 150, reach: 90 };
+
 function drawRain(ctx: CanvasRenderingContext2D, z: Zone, time: number): boolean {
-  const ARROWS = 9;
-  const PERIOD = 0.6;
-  const FALL = 0.16;
   const hitTime = ATTACK_FX.arrowHit.times.reduce((a, b) => a + b, 0);
+  // The way the arrows fly on the ground: from the archer to the zone.
+  const from = z.from && !z.follow ? z.from : { x: z.pos.x - 1, y: z.pos.y };
+  const dl = Math.hypot(z.pos.x - from.x, z.pos.y - from.y) || 1;
+  const dx = (z.pos.x - from.x) / dl;
+  const dy = (z.pos.y - from.y) / dl;
+  const side = dx >= 0 ? 1 : -1;
+  // Each arrow travels this much in the air: back along the ground way, and down from the sky.
+  const tx = dx * RAIN.reach;
+  const ty = dy * RAIN.reach * 0.6 + RAIN.drop;
+  const angle = Math.atan2(ty, tx);
   let ok = true;
-  for (let i = 0; i < ARROWS && ok; i++) {
-    const t = time + (i / ARROWS) * PERIOD;
-    const n = Math.floor(t / PERIOD);
-    const age = t - n * PERIOD;
+  for (let i = 0; i < RAIN.arrows && ok; i++) {
+    const t = time + (i / RAIN.arrows) * RAIN.period;
+    const n = Math.floor(t / RAIN.period);
+    const age = t - n * RAIN.period;
     // A spot in the zone for this arrow and this round.
     const h1 = Math.sin(i * 12.9898 + n * 78.233) * 43758.5453;
     const h2 = Math.sin(i * 39.346 + n * 11.135) * 24634.6345;
@@ -573,13 +583,12 @@ function drawRain(ctx: CanvasRenderingContext2D, z: Zone, time: number): boolean
     const rr = Math.sqrt(h2 - Math.floor(h2)) * 0.85;
     const x = z.pos.x + Math.cos(a) * z.radius * rr;
     const y = z.pos.y + Math.sin(a) * z.radius * 0.6 * rr;
-    const side = (h1 - Math.floor(h1)) > 0.5 ? 1 : -1;
-    if (age < FALL) {
-      const k = age / FALL;
-      ok = drawAttackFx(ctx, 'arrow', 0, x - side * 30 * (1 - k), y - 26 - 130 * (1 - k), { angle: side > 0 ? 1.25 : Math.PI - 1.25, size: 26 });
-    } else if (age < FALL + hitTime) {
+    if (age < RAIN.fall) {
+      const k = 1 - age / RAIN.fall;
+      ok = drawAttackFx(ctx, 'arrow', 0, x - tx * k, y - 26 - ty * k, { angle, size: 26 });
+    } else if (age < RAIN.fall + hitTime) {
       let f = 0;
-      let left = age - FALL;
+      let left = age - RAIN.fall;
       while (f < 2 && left >= ATTACK_FX.arrowHit.times[f]!) left -= ATTACK_FX.arrowHit.times[f++]!;
       ok = drawAttackFx(ctx, 'arrowHit', f, x, y + ATTACK_FX.arrowHit.offset[1], { side });
     }

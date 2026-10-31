@@ -253,7 +253,7 @@ const CASTS: Record<ReworkSkillId, (run: Run, p: SkillParams, to: Vec, angle: nu
     if (evolved) for (let i = 1; i <= 2; i++) run.volleys.push({ time: i * 0.15, angle, count: p.count, spread: p.angle, range: p.range, damage: p.damage, pierce: p.pierce });
   },
   arrowRain: (run, p, to, _angle, evolved) => {
-    run.zones.push({ kind: 'rain', pos: evolved ? { x: run.hero.pos.x, y: run.hero.pos.y } : to, radius: p.radius, time: p.duration, damage: p.damage, tick: 0, slow: p.slow, follow: evolved });
+    run.zones.push({ kind: 'rain', pos: evolved ? { x: run.hero.pos.x, y: run.hero.pos.y } : to, radius: p.radius, time: p.duration, damage: p.damage, tick: 0, slow: p.slow, follow: evolved, from: { x: run.hero.pos.x, y: run.hero.pos.y } });
   },
   piercingShot: (run, p, _to, angle) => {
     shoot(run, 'pierceArrow', angle, p.range, p.damage, { pierce: 999, radius: p.width / 2, grow: p.grow, returns: p.returns > 0 });
