@@ -5,7 +5,7 @@ import { PASSIVE_SLOTS, REWORK_BOSS, REWORK_CARDS, REWORK_ELITES, REWORK_ENEMIES
 import { damageEnemy as damageEnemyHit, damageHero } from '../src/systems/rework/combat';
 import { layWeb, pickBeast, powerAt, spawnBeast, spawnInterval } from '../src/systems/rework/enemies';
 import { dodge, heroStats } from '../src/systems/rework/hero';
-import { isFree, resolveBody } from '../src/systems/rework/map';
+import { buildGrid, isFree, resolveBody } from '../src/systems/rework/map';
 import { chooseCard, gainXp, reroll, rerollPrice, xpToNext } from '../src/systems/rework/progress';
 import { createRun, runPaused, stepRun, stressSpawn } from '../src/systems/rework/run';
 import { castSkill, effectiveParams, evolutionReady } from '../src/systems/rework/skills';
@@ -915,6 +915,31 @@ describe('rework dens and shooters', () => {
       stepRun(run, 1 / 60, still);
       run.hero.attackTimer = 1e9;
       for (const e of run.enemies) if (e.act.kind === 'aim') expect(e.act.fan).toBe(false);
+    }
+  });
+});
+
+describe('rework beasts go round obstacles', () => {
+  it('a beast with a stone between it and the hero walks round it and comes close', () => {
+    for (const def of ['wolf', 'mushroom', 'stump'] as const) {
+      const run = createRun(201, 'warrior');
+      run.spawnTimer = 1e9;
+      run.hero.immortal = true;
+      run.hero.attackTimer = 1e9;
+      const h = run.hero.pos;
+      // A big stone right on the way, nothing else near.
+      run.obstacles = [{ kind: 'stone', pos: { x: h.x - 150, y: h.y }, radius: 30, height: 0, seed: 0.5 }];
+      run.grid = buildGrid(run.obstacles);
+      const b = spawnBeast(run, def)!;
+      b.pos = { x: h.x - 300, y: h.y };
+      b.traitTimer = 1e9;
+      for (let i = 0; i < 60 * 8; i++) {
+        stepRun(run, 1 / 60, still);
+        run.hero.attackTimer = 1e9;
+      }
+      // The mushroom keeps its distance; the others come to bite.
+      const d = Math.hypot(b.pos.x - h.x, b.pos.y - h.y);
+      expect(d).toBeLessThan(def === 'mushroom' ? REWORK_ENEMIES.mushroom.spit!.keep + 40 : 60);
     }
   });
 });

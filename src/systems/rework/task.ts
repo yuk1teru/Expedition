@@ -123,6 +123,8 @@ export function stepTask(run: Run, dt: number): void {
       const dx = h.x - t.man.x;
       const dy = h.y - t.man.y;
       const d = Math.hypot(dx, dy);
+      // He walks while the hero is a few steps ahead, and a moment more to catch up.
+      t.walking = d > 50;
       if (d > 50) {
         const step = Math.min(d - 50, T.rescue.speed * dt);
         t.man.x += (dx / d) * step;

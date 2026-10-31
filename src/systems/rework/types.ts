@@ -136,6 +136,8 @@ export interface RunEnemy {
   slowMult: number;
   slowTime: number;
   fear: number;
+  /** Going round an obstacle: which one and on which side (1 — left of the way, −1 — right). */
+  avoid?: { obstacle: Obstacle; side: number };
   /** Wolves: how bold (0–1) and from which side it comes (−1…1 of the widest angle). */
   temper?: number;
   flank?: number;
@@ -242,6 +244,8 @@ export interface Task {
   denCount: number;
   man: Vec;
   following: boolean;
+  /** He is walking now (following and not yet by the hero) — for his walk frames. */
+  walking?: boolean;
   exit: Vec;
 }
 

@@ -828,7 +828,7 @@ export function drawLumberjack(ctx: CanvasRenderingContext2D, t: Task, time: num
   const r = 13;
   const L = LUMBERJACK_SHEET;
   const side = hero.x >= x ? 1 : -1;
-  const walking = t.following && Math.hypot(hero.x - x, hero.y - y) > 52;
+  const walking = t.following && !!t.walking;
   const frame = walking ? L.frames.walk![Math.floor(time * L.walkFps) % L.frames.walk!.length]! : t.following ? L.frames.ready![0]! : time % 3 < 1.1 ? L.frames.call![0]! : L.frames.stand![0]!;
   drawShadow(ctx, x, y, L.shadow);
   if (drawSheetFrame(ctx, L, frame, x, y, side)) {

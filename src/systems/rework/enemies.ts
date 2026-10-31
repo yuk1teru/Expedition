@@ -9,8 +9,8 @@
 import { type EliteTrait, REWORK_BOSS, REWORK_ELITES, REWORK_ENEMIES, REWORK_FLOOD, REWORK_LOCATIONS, REWORK_WEB, type ReworkEnemyId } from '../../data/rework';
 import type { Vec } from '../entities';
 import { damageHero } from './combat';
-import { blocksShot, isFree, resolveBody } from './map';
-import type { Run, RunEnemy } from './types';
+import { blocksShot, isFree, obstaclesNear, resolveBody } from './map';
+import type { Obstacle, Run, RunEnemy } from './types';
 
 const F = REWORK_FLOOD;
 
@@ -118,6 +118,44 @@ export function stepFlood(run: Run, dt: number): void {
   run.spawnTimer += spawnInterval(run.time);
   const group = 1 + Math.floor(Math.min(1, run.time / F.rampTime) * (F.groupEnd - 1) + run.rng.next() * 0.5);
   for (let i = 0; i < group && run.enemies.length < F.maxAlive; i++) spawnBeast(run, pickBeast(run));
+}
+
+/**
+ * Turns a beast's way around an obstacle ahead: looking `look` px along its way, the nearest tree,
+ * bush or stone that its body would hit makes it go round — along the obstacle's edge, on the side
+ * nearer to its way, keeping that side while it passes (so it does not dither when the hero stands
+ * right behind the obstacle). The closer the obstacle, the harder the turn.
+ */
+const AVOID = { look: 80, margin: 6 };
+
+function steer(run: Run, e: RunEnemy, move: Vec): Vec {
+  const ahead = { x: e.pos.x + move.x * AVOID.look, y: e.pos.y + move.y * AVOID.look };
+  let best: { o: Obstacle; t: number } | null = null;
+  for (const list of [obstaclesNear(run.grid, e.pos), obstaclesNear(run.grid, ahead)]) {
+    for (const o of list) {
+      const cx = o.pos.x - e.pos.x;
+      const cy = o.pos.y - e.pos.y;
+      const t = cx * move.x + cy * move.y;
+      if (t < -o.radius || t > AVOID.look + o.radius) continue;
+      const side = Math.abs(cx * move.y - cy * move.x);
+      if (side >= o.radius + e.radius + AVOID.margin) continue;
+      if (!best || t < best.t) best = { o, t };
+    }
+  }
+  if (!best) {
+    e.avoid = undefined;
+    return move;
+  }
+  const o = best.o;
+  const cx = o.pos.x - e.pos.x;
+  const cy = o.pos.y - e.pos.y;
+  const d = Math.hypot(cx, cy) || 1;
+  // The side to pass on: kept while passing the same obstacle, else the one nearer the way.
+  let side = e.avoid?.obstacle === o ? e.avoid.side : cx * move.y - cy * move.x > 0 ? 1 : -1;
+  e.avoid = { obstacle: o, side };
+  const tangent = { x: (-cy / d) * side, y: (cx / d) * side };
+  const k = Math.min(1, Math.max(0.35, 1 - best.t / (AVOID.look + o.radius)));
+  return norm({ x: move.x * (1 - k) + tangent.x * k, y: move.y * (1 - k) + tangent.y * k });
 }
 
 const norm = (v: Vec): Vec => {
@@ -239,6 +277,8 @@ function stepBeast(run: Run, e: RunEnemy, dt: number): void {
       speed = d.speed * 0.6;
     }
   }
+  // Around a tree or a stone in the way, not into it (a leap flies straight).
+  if (speed > 0 && e.act.kind !== 'leap') move = steer(run, e, move);
   e.vel = { x: move.x * speed * e.slowMult, y: move.y * speed * e.slowMult };
   e.pos.x += e.vel.x * dt;
   e.pos.y += e.vel.y * dt;
