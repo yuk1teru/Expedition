@@ -20,7 +20,8 @@ npc/        lumberjack/
 locations/  forest/   ground.png  obstacles.png  concept.png
             deep-forest/  webs.png
             lair/     ground.png  obstacles.png
-fx/         fx.png  common.png
+fx/         fx.png  common.png  items.png  telegraphs.png  spore.png
+ui/         signs.png
 ```
 
 | Файл | Що це |
@@ -49,6 +50,9 @@ fx/         fx.png  common.png
 | `locations/forest/scene.png` | сцена точки Лісу на карті: біженці виходять з лісу, герой спиною. У грі — `public/sprites/forest-scene.jpg` (1400 px), фон екрана точки Лісу |
 | `fx/common.png` | ефекти на героєві, 3 × 3 (з'являється / на повну / тане): лікування листочками, золотий щит, стовп світла нового рівня. У грі — `public/sprites/anim/fx-common.png`, нарізка звичайною сіткою: `python scripts/cut-grid.py <аркуш> <атлас> <json> "0,450,834,1254" "0,405,821,1254"` (ефекти — розсип окремих шматків, контуром їх не ріжуть) |
 | `fx/items.png` | кристал досвіду, монета, спора гриба. У грі — `public/sprites/anim/items.png` (`cut-grid.py`, `SCALE=0.2`, стовпці `0,740,1400,2172`); спора крутиться в польоті |
+| `fx/telegraphs.png` | підказки атак на землі: смуга (подряпини-початок, середина, вістря) і коло — порожні й повні; зелене безпечне коло. У грі — `public/sprites/anim/telegraphs.png` (аркуш, зменшений удвічі); координати шматків — `TELEGRAPH_ART` (`src/data/forestArt.ts`) |
+| `fx/spore.png` | спора гриба, 3 кадри пульсу. У грі — `public/sprites/anim/spore.png` (`cut-grid.py`, `SCALE=0.2`) |
+| `ui/signs.png` | знак Берегині (життя): горить, згас, 3 кадри згасання. У грі — `public/sprites/ui-signs.png` (`cut-grid.py`, `SCALE=0.25`) |
 | `fx/fx.png` | ефекти (слід удару, сяйво леза, спалах знака, іскра, кільце, пилюка) — оригінал; у грі — `public/sprites/anim/fx.png` |
 
 Новий арт клади так само: герой — `heroes/<клас>/`, звір — `mobs/<звір>/`, бос — `bosses/<бос>/`, мирний персонаж — `npc/<хто>/`, земля й предмети — `locations/<локація>/`.

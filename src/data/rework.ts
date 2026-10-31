@@ -55,8 +55,9 @@ export interface ReworkEnemyDef {
   speed: number;
   radius: number;
   xp: number;
-  /** Share in the spawn mix. */
+  /** Share in the spawn mix; at most this many alive at once (the shooters). */
   weight: number;
+  maxAlive?: number;
   /**
    * Wolf: crouches (the line shows), then leaps along it. Not every wolf leaps alike: each has its
    * temper (0 — timid, 1 — bold) — the timid never leap; the bolder try more often and aim where
@@ -81,7 +82,7 @@ export interface ReworkEnemyDef {
     flank: number;
     flankFrom: number;
   };
-  /** Mushroom: keeps away and spits spores; every N-th shot is a fan. */
+  /** Mushroom: keeps away and spits spores; an elite one — every N-th shot a fan. */
   spit?: { every: number; keep: number; range: number; windup: number; speed: number; damage: number; fanEvery: number; fanCount: number; fanDeg: number };
   /** Spider: stops and spits a web at the hero's place; where it lands, a sticky patch slows him. */
   web?: { every: number; trigger: number; windup: number; speed: number; range: number };
@@ -112,7 +113,8 @@ export const REWORK_ENEMIES: Record<ReworkEnemyId, ReworkEnemyDef> = {
     speed: 55,
     radius: 12,
     xp: 3,
-    weight: 2,
+    weight: 1,
+    maxAlive: 6,
     spit: { every: 3.5, keep: 230, range: 420, windup: 0.45, speed: 230, damage: 4, fanEvery: 3, fanCount: 3, fanDeg: 22 },
   },
   stump: {
@@ -137,6 +139,7 @@ export const REWORK_ENEMIES: Record<ReworkEnemyId, ReworkEnemyDef> = {
     radius: 11,
     xp: 3,
     weight: 3,
+    maxAlive: 8,
     web: { every: 5, trigger: 340, windup: 0.4, speed: 320, range: 380 },
   },
   // The special ones walk by their own code (spirit.ts, task.ts, boss.ts, spinner.ts); these are their bodies.

@@ -867,6 +867,36 @@ describe('rework aiming on screen', () => {
   });
 });
 
+describe('rework dens and shooters', () => {
+  it('the hero cannot push a den', () => {
+    const run = createRun(191, 'warrior');
+    run.spawnTimer = 1e9;
+    run.hero.immortal = true;
+    const den = spawnBeast(run, 'nest')!;
+    den.pos = { x: run.hero.pos.x + 60, y: run.hero.pos.y };
+    const at = { ...den.pos };
+    for (let i = 0; i < 60; i++) stepRun(run, 1 / 60, { x: 1, y: 0 });
+    expect(Math.hypot(den.pos.x - at.x, den.pos.y - at.y)).toBeLessThan(0.5);
+  });
+
+  it('mushrooms are few: capped alive, plain ones never spit a fan', () => {
+    const run = createRun(192, 'warrior');
+    run.time = 200;
+    for (let i = 0; i < 400; i++) {
+      const id = pickBeast(run);
+      if (id === 'mushroom') spawnBeast(run, 'mushroom');
+    }
+    expect(run.enemies.filter((e) => e.def === 'mushroom').length).toBeLessThanOrEqual(REWORK_ENEMIES.mushroom.maxAlive!);
+    run.hero.immortal = true;
+    run.spawnTimer = 1e9;
+    for (let i = 0; i < 60 * 12; i++) {
+      stepRun(run, 1 / 60, still);
+      run.hero.attackTimer = 1e9;
+      for (const e of run.enemies) if (e.act.kind === 'aim') expect(e.act.fan).toBe(false);
+    }
+  });
+});
+
 /** Hits a beast until it dies (a shield or a resting boss take less). */
 function killFully(run: ReturnType<typeof createRun>, e: Parameters<typeof damageEnemyHit>[1]): void {
   for (let i = 0; i < 50 && !e.dead; i++) damageEnemyHit(run, e, 1e6);

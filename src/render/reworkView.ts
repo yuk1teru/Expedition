@@ -26,6 +26,7 @@ import { type HeroAnimState, drawHeroDust, drawHeroFx, drawHeroFrames, heroAnimA
 import { DodgeFx } from './dodgeFx';
 import { BEAST_ANIM } from '../data/beastAnim';
 import { HERO_FX } from '../data/heroAnim';
+import { SIGN_ART } from '../data/forestArt';
 import { drawGround, propSet } from './forestArt';
 import { beastSheet, beastSize, type Corpse, corpseLife, drawCorpse, lastSide } from './beastAnim';
 import { CROWN_FADE, crownBox, obstacleLayers, drawAltar, drawBossWarning, drawChest, drawCoin, drawEnemy, drawEnemyWarning, drawGem, drawHerb, drawHeroFigure, drawLumberjack, drawBranch, drawCocoonRemains, drawGhost, drawHazard, drawShade, drawPath, drawPull, drawRingWall, drawThreads, drawWebPatch, drawWrap, drawShadow, drawShot, drawShrine, drawSpirit, drawTaskGround, drawTrap, drawZone } from './reworkDraw';
@@ -139,6 +140,8 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
   let expedition: Expedition | null = null;
   let atPoint = false;
   let death: DeathOutcome | null = null;
+  /** Screen time the last sign went out (its going-out frames play once); negative — none. */
+  let signOutAt = -1;
   let checkpoint: string | null = null;
 
   /** A new expedition with the class: to the Forest's point on the map. */
@@ -318,7 +321,10 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       }
       const r = run;
       // A death costs a sign once; beating the biome's boss is a checkpoint once.
-      if (expedition && r.hero.dead && !death) death = loseLife(expedition);
+      if (expedition && r.hero.dead && !death) {
+        death = loseLife(expedition);
+        signOutAt = animTime;
+      }
       if (expedition && r.phase === 'won' && !r.path && !checkpoint) checkpoint = reachCheckpoint(expedition);
       readEvents(r);
       const paused = runPaused(r);
@@ -628,7 +634,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     ctx.fillRect(24, 40, 236 * (h.hp / h.maxHp), 16);
     drawText(ctx, `${Math.ceil(h.hp)} / ${h.maxHp}`, 142, 49, { size: 12, bold: true, align: 'center' });
     // The Berehynia's signs — the lives — under the HP.
-    if (expedition) drawSigns(ctx, 30, 84, death ? death.lives : expedition.lives, 9);
+    if (expedition) drawSigns(ctx, 30, 86, death ? death.lives : expedition.lives, 11);
     // Timer — top centre.
     const toBoss = bossIn(r);
     const warn = r.phase === 'warning';
@@ -932,7 +938,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     drawText(ctx, `${mmss(r.time)} · рівень ${r.level} · звірів убито: ${r.kills}`, W / 2, H / 2 - 70, { size: 14, align: 'center', color: THEME.textDim });
     if (death) {
       drawText(ctx, `«${death.line}»`, W / 2, H / 2 - 22, { size: 20, align: 'center', color: SIGN_VOICE });
-      drawSigns(ctx, W / 2 - 30, H / 2 + 14, death.lives, 10);
+      drawSigns(ctx, W / 2 - 40, H / 2 + 14, death.lives, 14);
       const what = death.rollback
         ? 'Знаки згасли: назад до останнього чекпоінта — початку експедиції. На кладовищі — надгробок.'
         : `Лишилось знаків: ${death.lives}. Біом — з першої локації, з 1-го рівня; здобуте в цій спробі втрачено.`;
@@ -943,8 +949,19 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
 
   /** The Berehynia's signs in a row: lit — lives left, dim — lost. */
   function drawSigns(ctx: CanvasRenderingContext2D, x: number, y: number, lit: number, r: number): void {
+    const img = sheet(SIGN_ART.src);
     for (let i = 0; i < REWORK_LIVES.max; i++) {
       const cx = x + i * r * 3;
+      if (img) {
+        // The sign that just went out plays its going-out frames once.
+        let f = i < lit ? SIGN_ART.lit : SIGN_ART.out;
+        const age = animTime - signOutAt;
+        if (i === lit && signOutAt >= 0 && age < SIGN_ART.fadeTime) f = SIGN_ART.fading[Math.floor((age / SIGN_ART.fadeTime) * SIGN_ART.fading.length)]!;
+        const [sx, sy, w, h] = SIGN_ART.frames[f]!;
+        const k = (r * 2.8) / 130;
+        ctx.drawImage(img, sx, sy, w, h, cx - (w / 2) * k, y - (h / 2) * k, w * k, h * k);
+        continue;
+      }
       ctx.save();
       ctx.translate(cx, y);
       ctx.rotate(Math.PI / 4);
@@ -957,7 +974,6 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     }
   }
 
-  /** The biome's point on the map (a stand-in for the scene): the Forest, the signs, what the last death cost. */
   /** The biome's point on the map: the Forest's scene (refugees leaving it), the signs, what the last death cost. */
   function drawPoint(ctx: CanvasRenderingContext2D, exp: Expedition): void {
     // The scene fills the screen (cut to fit); the text sits on a dark band at the bottom.

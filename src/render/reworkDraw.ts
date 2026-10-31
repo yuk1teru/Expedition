@@ -4,7 +4,7 @@
 // the caller draws them sorted by it.
 
 import { REWORK_BOSS, REWORK_CLASSES, REWORK_ELITES, REWORK_ENEMIES, REWORK_MAP, REWORK_PICKUPS, REWORK_TASKS, REWORK_WEB } from '../data/rework';
-import { ENAT_FX, FOREST_ART, ITEM_ART, WEB_ART } from '../data/forestArt';
+import { ENAT_FX, FOREST_ART, ITEM_ART, TELEGRAPH_ART, WEB_ART } from '../data/forestArt';
 import { beastSheet, beastSize, drawBeastFrames, drawSheetFrame } from './beastAnim';
 import { BEAST_SHEETS, LUMBERJACK_SHEET } from '../data/beastAnim';
 import { artCrown, drawEnatFx, drawPart, drawProp, drawWebPiece, obstacleParts, partsBox, propSet, propsAtlas, tintedPiece, webAtlas } from './forestArt';
@@ -430,7 +430,7 @@ export function drawShot(ctx: CanvasRenderingContext2D, s: Shot, time = 0): void
     ctx.restore();
     return;
   }
-  if (s.kind === 'spore') return drawSpore(ctx, s);
+  if (s.kind === 'spore') return drawSpore(ctx, s, time);
   if (s.kind === 'web' || s.kind === 'cocoon') {
     const big = s.kind === 'cocoon';
     const angle = Math.atan2(s.vel.y, s.vel.x);
@@ -449,10 +449,23 @@ export function drawShot(ctx: CanvasRenderingContext2D, s: Shot, time = 0): void
 }
 
 /** A mushroom's spore: a glowing pink-red ball with a trail of sparks, as on its spit frame. */
-function drawSpore(ctx: CanvasRenderingContext2D, s: Shot): void {
+function drawSpore(ctx: CanvasRenderingContext2D, s: Shot, time: number): void {
   const y = s.pos.y - 24;
   // It rolls as it flies.
-  if (drawItem(ctx, ITEM_ART.spore.rect, s.pos.x, y, ITEM_ART.spore.size, (s.pos.x + s.pos.y) * 0.03)) return;
+  // The spore from its art, pulsing, its tail behind it.
+  const sp = ITEM_ART.spore;
+  const img = sheet(sp.src);
+  if (img) {
+    const [sx, sy, w, h] = sp.frames[Math.floor(time * sp.fps) % sp.frames.length]!;
+    const k = sp.height / h;
+    ctx.save();
+    ctx.translate(s.pos.x, y);
+    ctx.rotate(Math.atan2(s.vel.y, s.vel.x));
+    // Its ball is near the nose; the tail trails behind.
+    ctx.drawImage(img, sx, sy, w, h, -w * k * 0.75, (-h / 2) * k, w * k, h * k);
+    ctx.restore();
+    return;
+  }
   const speed = Math.hypot(s.vel.x, s.vel.y) || 1;
   const bx = -s.vel.x / speed;
   const by = -s.vel.y / speed;
@@ -1347,6 +1360,7 @@ export function drawHazard(ctx: CanvasRenderingContext2D, z: Hazard): void {
 
 /** The shade of his crown (phase 3): the one place the thorns do not reach. */
 export function drawShade(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, radius: number, time: number): void {
+  if (teleAreaArt(ctx, p, radius, 0.75 + 0.25 * Math.sin(time * 3), true)) return;
   ctx.save();
   ctx.fillStyle = 'rgba(10, 30, 16, 0.55)';
   ctx.beginPath();
@@ -1417,6 +1431,7 @@ const TELE = {
 };
 
 export function telegraphLine(ctx: CanvasRenderingContext2D, from: { x: number; y: number }, dir: { x: number; y: number }, length: number, width: number, k: number): void {
+  if (teleLineArt(ctx, from, dir, length, width, k)) return;
   const half = width / 2;
   const strip = (len: number): void => {
     ctx.beginPath();
@@ -1462,6 +1477,7 @@ export function telegraphLine(ctx: CanvasRenderingContext2D, from: { x: number; 
 }
 
 export function telegraphArea(ctx: CanvasRenderingContext2D, at: { x: number; y: number }, radius: number, k: number): void {
+  if (teleAreaArt(ctx, at, radius, k)) return;
   const ry = radius * 0.62;
   ctx.save();
   ctx.beginPath();
@@ -1484,4 +1500,61 @@ export function telegraphArea(ctx: CanvasRenderingContext2D, at: { x: number; y:
     ctx.stroke();
   }
   ctx.restore();
+}
+
+/** A piece of the telegraph sheet (full-sheet coords) with its point `at` at (0, 0), scaled. */
+function telePiece(ctx: CanvasRenderingContext2D, img: HTMLImageElement, r: number[], at: number[], x: number, y: number, s: number): void {
+  const k = TELEGRAPH_ART.sheetScale;
+  const [x0, y0, x1, y1] = r as [number, number, number, number];
+  ctx.drawImage(img, x0 * k, y0 * k, (x1 - x0) * k, (y1 - y0) * k, x + (x0 - at[0]!) * s, y + (y0 - at[1]!) * s, (x1 - x0) * s, (y1 - y0) * s);
+}
+
+/** A strip from the sheet: the band repeated, scratches at the start, the arrowhead at the end. */
+function teleStrip(ctx: CanvasRenderingContext2D, img: HTMLImageElement, st: (typeof TELEGRAPH_ART.strips)[number], length: number, width: number): void {
+  const s = width / st.band[1]!;
+  const cy = st.band[0]!;
+  const endW = (st.end[2]! - st.end[0]!) * s;
+  const midW = (st.mid[2]! - st.mid[0]!) * s;
+  const stop = Math.max(0, length - endW);
+  for (let x = 0; x < stop; x += midW) {
+    const w = Math.min(midW, stop - x);
+    const r = [st.mid[0]!, st.mid[1]!, st.mid[0]! + w / s, st.mid[3]!];
+    telePiece(ctx, img, r, [st.mid[0]!, cy], x, 0, s);
+  }
+  telePiece(ctx, img, st.end, [st.end[0]!, cy], stop, 0, s);
+  telePiece(ctx, img, st.start, st.startAt, 0, 0, s);
+}
+
+/** The strip from the art: empty, and the full one over it from the start to `k` of the way; false while it loads. */
+function teleLineArt(ctx: CanvasRenderingContext2D, from: { x: number; y: number }, dir: { x: number; y: number }, length: number, width: number, k: number): boolean {
+  const img = sheet(TELEGRAPH_ART.src);
+  if (!img) return false;
+  const [empty, full] = TELEGRAPH_ART.strips as [(typeof TELEGRAPH_ART.strips)[number], (typeof TELEGRAPH_ART.strips)[number]];
+  ctx.save();
+  ctx.translate(from.x, from.y);
+  ctx.rotate(Math.atan2(dir.y, dir.x));
+  ctx.globalAlpha *= 0.9;
+  teleStrip(ctx, img, empty, length, width);
+  ctx.beginPath();
+  ctx.rect(-width * 2, -width * 2, width * 2 + length * k, width * 4);
+  ctx.clip();
+  teleStrip(ctx, img, full, length, width);
+  ctx.restore();
+  return true;
+}
+
+/** The circle from the art: empty, and the full one over it growing from the centre; false while it loads. */
+function teleAreaArt(ctx: CanvasRenderingContext2D, at: { x: number; y: number }, radius: number, k: number, safe = false): boolean {
+  const img = sheet(TELEGRAPH_ART.src);
+  if (!img) return false;
+  const [empty, full] = (safe ? TELEGRAPH_ART.safe : TELEGRAPH_ART.circles) as [(typeof TELEGRAPH_ART.circles)[number], (typeof TELEGRAPH_ART.circles)[number]];
+  ctx.save();
+  ctx.globalAlpha *= 0.9;
+  telePiece(ctx, img, empty.rect, empty.at, at.x, at.y, radius / empty.rx);
+  ctx.beginPath();
+  ctx.ellipse(at.x, at.y, radius * 1.15 * k, radius * 0.75 * k, 0, 0, Math.PI * 2);
+  ctx.clip();
+  telePiece(ctx, img, full.rect, full.at, at.x, at.y, radius / full.rx);
+  ctx.restore();
+  return true;
 }

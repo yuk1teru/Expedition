@@ -226,6 +226,41 @@ export const ITEM_ART = {
   src: 'sprites/anim/items.png',
   gem: { rect: [0, 0, 148, 145] as [number, number, number, number], size: 26, bigSize: 36 },
   coin: { rect: [148, 0, 132, 145] as [number, number, number, number], size: 21 },
-  spore: { rect: [280, 0, 154, 145] as [number, number, number, number], size: 34 },
+  /** The mushroom's spore in flight (docs/art/fx/spore.png, SCALE=0.2): three pulsing frames, nose right. */
+  spore: { src: 'sprites/anim/spore.png', frames: [[12, 46, 112, 72], [124, 46, 134, 72], [258, 46, 166, 72]] as [number, number, number, number][], height: 26, fps: 10 },
+};
+
+/**
+ * Warnings on the ground (docs/art/fx/telegraphs.png, shrunk to half: 768 × 512). Coordinates
+ * below are of the full sheet. A strip is laid from three pieces — claw scratches where the beast
+ * pushes off (under its paws), the band repeated along the way, the arrowhead at the end — each in
+ * an empty version (the warning) and a full one (laid over it as the blow comes). `band` — the
+ * band's centre line and its height in the sheet. Circles: centre and the ring's half-width.
+ */
+export const TELEGRAPH_ART = {
+  src: 'sprites/anim/telegraphs.png',
+  sheetScale: 0.5,
+  strips: [
+    { start: [0, 100, 382, 380], startAt: [200, 255], mid: [420, 150, 790, 380], end: [845, 150, 1131, 380], band: [265, 100] },
+    { start: [0, 385, 385, 691], startAt: [200, 552], mid: [420, 440, 790, 690], end: [843, 440, 1128, 690], band: [562, 112] },
+  ] as { start: number[]; startAt: number[]; mid: number[]; end: number[]; band: number[] }[],
+  circles: [
+    { rect: [1131, 100, 1536, 380], at: [1324, 253], rx: 175 },
+    { rect: [1128, 385, 1536, 691], at: [1324, 551], rx: 185 },
+  ] as { rect: number[]; at: number[]; rx: number }[],
+  safe: [
+    { rect: [0, 691, 718, 1024], at: [476, 842], rx: 237 },
+    { rect: [718, 691, 1536, 1024], at: [981, 845], rx: 241 },
+  ] as { rect: number[]; at: number[]; rx: number }[],
+};
+
+/** The Berehynia's sign, a life (docs/art/ui/signs.png, cut along a grid with SCALE=0.25): lit, out, then three frames of going out. */
+export const SIGN_ART = {
+  src: 'sprites/ui-signs.png',
+  frames: [[0, 10, 102, 130], [102, 10, 99, 130], [201, 10, 120, 130], [321, 10, 104, 130], [425, 10, 135, 130]] as [number, number, number, number][],
+  lit: 0,
+  out: 1,
+  fading: [2, 3, 4],
+  fadeTime: 0.9,
 };
 

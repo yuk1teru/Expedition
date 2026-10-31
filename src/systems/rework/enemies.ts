@@ -27,12 +27,16 @@ export function powerAt(t: number): { hp: number; damage: number } {
   return { hp: 1 + F.hpPerMinute * min, damage: 1 + F.damagePerMinute * min };
 }
 
+/** How many beasts of a kind are alive (shooters are capped, so a melee hero is not buried in spores). */
+const alive = (run: Run, id: ReworkEnemyId): number => run.enemies.reduce((n, e) => n + (e.def === id ? 1 : 0), 0);
+
 export function pickBeast(run: Run): ReworkEnemyId {
   const from = REWORK_LOCATIONS[run.location]!.from;
   const pool: ReworkEnemyId[] = ['wolf'];
-  if (run.time >= from.mushroom) pool.push('mushroom');
+  const room = (id: ReworkEnemyId): boolean => alive(run, id) < (REWORK_ENEMIES[id].maxAlive ?? Infinity);
+  if (run.time >= from.mushroom && room('mushroom')) pool.push('mushroom');
   if (run.time >= from.stump) pool.push('stump');
-  if (run.time >= from.spider) pool.push('spider');
+  if (run.time >= from.spider && room('spider')) pool.push('spider');
   const total = pool.reduce((s, id) => s + REWORK_ENEMIES[id].weight, 0);
   let r = run.rng.next() * total;
   for (const id of pool) {
@@ -218,7 +222,8 @@ function stepBeast(run: Run, e: RunEnemy, dt: number): void {
     } else if (d.spit && e.traitTimer <= 0 && dist < d.spit.range) {
       e.traitTimer = d.spit.every;
       e.shots += 1;
-      e.act = { kind: 'aim', time: d.spit.windup, dir, fan: e.shots % d.spit.fanEvery === 0 };
+      // Only an elite mushroom spits a fan now and then; a plain one spits single spores.
+      e.act = { kind: 'aim', time: d.spit.windup, dir, fan: !!e.elite && e.shots % d.spit.fanEvery === 0 };
       speed = 0;
     } else if (d.web && e.traitTimer <= 0 && dist < d.web.trigger) {
       e.traitTimer = d.web.every;
@@ -337,8 +342,14 @@ export function stepBeasts(run: Run, dt: number, special: (e: RunEnemy) => boole
     const dist = Math.hypot(dx, dy);
     const reach = e.radius + h.radius;
     if (dist < reach && dist > 0 && !h.dead && e.def !== 'enat') {
-      e.pos.x = h.pos.x + (dx / dist) * reach;
-      e.pos.y = h.pos.y + (dy / dist) * reach;
+      if (e.def === 'nest' || e.def === 'cocoon') {
+        // A den or a cocoon stands where it is: the hero is pushed off it instead.
+        h.pos.x = e.pos.x - (dx / dist) * reach;
+        h.pos.y = e.pos.y - (dy / dist) * reach;
+      } else {
+        e.pos.x = h.pos.x + (dx / dist) * reach;
+        e.pos.y = h.pos.y + (dy / dist) * reach;
+      }
     }
     resolveBody(run.grid, e.pos, e.radius, run.width, run.height);
   }
