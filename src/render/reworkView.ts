@@ -293,7 +293,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
         else classButtons.handle(e);
         return;
       }
-      if (debug.handle(e)) return;
+      if (app.debug && debug.handle(e)) return;
       if (run.hero.dead) {
         deathButtons.handle(e);
         return;
@@ -512,8 +512,9 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       // The location's name waits for the card choice to close.
       if (banner && !r.offer && !h.dead) drawBanner(ctx, dt);
       drawSkillTooltip(ctx, r);
-      debug.draw(ctx);
-      drawText(ctx, `${Math.round(fps)} к/с · ${r.enemies.length} звірів · логіка ${stepMs.toFixed(2)} мс${h.immortal ? ' · безсмертя' : ''}`, W - 16, H - 56, { size: 11, align: 'right', color: fps >= 55 ? THEME.good : THEME.bad });
+      // The stress buttons, immortality and the frame counter — for the developer only.
+      if (app.debug) debug.draw(ctx);
+      if (app.debug) drawText(ctx, `${Math.round(fps)} к/с · ${r.enemies.length} звірів · логіка ${stepMs.toFixed(2)} мс${h.immortal ? ' · безсмертя' : ''}`, W - 16, H - 56, { size: 11, align: 'right', color: fps >= 55 ? THEME.good : THEME.bad });
       exitBtn.draw(ctx);
     },
   };
@@ -1051,7 +1052,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
   }
 
   function drawClassChoice(ctx: CanvasRenderingContext2D): void {
-    drawText(ctx, 'Реворк: Ліс', W / 2, H / 2 - 120, { size: 32, bold: true, align: 'center', color: THEME.accent });
+    drawText(ctx, 'Експедиція в Ліс', W / 2, H / 2 - 120, { size: 32, bold: true, align: 'center', color: THEME.accent });
     drawText(ctx, 'Оберіть клас', W / 2, H / 2 - 80, { size: 16, align: 'center', color: THEME.textDim });
     CLASS_ORDER.forEach((id, i) => {
       const c = REWORK_CLASSES[id];

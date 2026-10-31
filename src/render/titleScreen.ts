@@ -1,5 +1,6 @@
-// Title screen (ROADMAP 9.2–9.3): continue the saved hero or start a new one with a name;
-// the save can be exported to a file and imported from one (to pass a hero to a friend).
+// Title screen. The game is the rework now (ROADMAP 20, VISION): «Почати» opens the Forest. The
+// old game (ROADMAP 9.2–9.3: continue the saved hero or start a new one, export and import the
+// save) is hidden, not deleted — it shows only in `npm run dev`, as «Стара гра».
 
 import type { Screen } from '../core/screens';
 import { GAME_VERSION } from '../data/changelog';
@@ -46,12 +47,16 @@ export function createTitleScreen(app: App): Screen<CanvasRenderingContext2D> {
     menu.clear();
     const x = panel.x + 60;
     const w = panel.w - 120;
-    let y = panel.y + (save ? 112 : 60);
+    // The game: the expedition into the Forest.
+    menu.add(new Button({ label: 'Почати', rect: { x, y: panel.y + 150, w, h: 52 }, fontSize: 20, hotkey: 'Enter', onClick: () => app.screens.go('rework') }));
+    if (!app.debug) return;
+    // The old game, for the developer only.
+    let y = panel.y + panel.h + 50 + (save ? 52 : 0);
     if (save) {
-      menu.add(new Button({ label: 'Продовжити', rect: { x, y: panel.y + 60, w, h: 46 }, hotkey: 'Enter', onClick: () => app.continueGame() }));
+      menu.add(new Button({ label: 'Стара гра: продовжити', rect: { x, y: panel.y + panel.h + 50, w, h: 40 }, fontSize: 14, onClick: () => app.continueGame() }));
     }
-    menu.add(new Button({ label: 'Нова гра', rect: { x, y, w, h: 42 }, fontSize: 16, hotkey: save ? undefined : 'Enter', onClick: openName }));
-    y += 54;
+    menu.add(new Button({ label: 'Стара гра: нова', rect: { x, y, w, h: 34 }, fontSize: 13, onClick: openName }));
+    y += 44;
     const half = (w - 12) / 2;
     menu.add(
       new Button({
@@ -71,10 +76,6 @@ export function createTitleScreen(app: App): Screen<CanvasRenderingContext2D> {
     y += 44;
     if (app.meta.battles.length > 0) {
       menu.add(new Button({ label: `Статистика боїв (${app.meta.battles.length}) — для розробника`, rect: { x, y, w, h: 30 }, fontSize: 12, onClick: () => app.exportStats() }));
-    }
-    // The new core of the rework grows in its own mode (ROADMAP 20), only in `npm run dev`.
-    if (app.debug) {
-      menu.add(new Button({ label: 'Реворк: Ліс', rect: { x: W - 196, y: H - 92, w: 180, h: 34 }, fontSize: 14, onClick: () => app.screens.go('rework') }));
     }
   };
   entry.add(new Button({ label: 'Почати пригоду', rect: { x: panel.x + 60, y: panel.y + 190, w: panel.w - 120, h: 46 }, hotkey: 'Enter', onClick: start }));
@@ -113,14 +114,15 @@ export function createTitleScreen(app: App): Screen<CanvasRenderingContext2D> {
       drawText(ctx, fillNames('Над {name:kingdom:with} — тінь {name:lord:of}. Хтось має піти за браму.'), W / 2, 112, { size: 15, align: 'center', color: THEME.textDim });
       drawPanel(ctx, panel);
       if (mode === 'menu') {
-        if (save) {
+        drawText(ctx, 'Ліс', W / 2, panel.y + 40, { size: 26, bold: true, align: 'center', color: '#cfe8c4' });
+        const about = ['Перший край: дві локації й лігво Старого Ената.', 'Три знаки Берегині — три життя на весь Ліс.', 'Рання версія: інші краї, карта й Столиця — згодом.'];
+        about.forEach((l, i) => drawText(ctx, l, W / 2, panel.y + 76 + i * 20, { size: 13, align: 'center', color: THEME.textDim }));
+        drawText(ctx, 'WASD — ходити · атака сама · 1–4 — скіли (у курсор) · Пробіл — ухил · E — вівтар', W / 2, panel.y + panel.h - 30, { size: 11, align: 'center', color: THEME.textMuted });
+        if (app.debug && save) {
           const town = WORLD_NODES.find((n) => n.id === save!.homeTown)?.name ?? '';
-          const who = `${save.heroName} · ${className(save.hero.classId, save.hero.promotion)} · рівень ${save.hero.level}`;
-          drawText(ctx, who, W / 2, panel.y + 26, { size: 16, bold: true, align: 'center' });
-          drawText(ctx, `${town} · день ${save.day} · життів ${save.lives}`, W / 2, panel.y + 46, { size: 13, align: 'center', color: THEME.textDim });
-        } else drawText(ctx, 'Збереженого героя немає', W / 2, panel.y + 32, { size: 15, align: 'center', color: THEME.textDim });
+          drawText(ctx, `Стара гра: ${save.heroName} · ${className(save.hero.classId, save.hero.promotion)} · рівень ${save.hero.level} · ${town}`, W / 2, panel.y + panel.h + 32, { size: 12, align: 'center', color: THEME.textMuted });
+        }
         menu.draw(ctx);
-        if (save) drawText(ctx, 'Гра зберігається сама: у місті, на виході з нього й після боса.', W / 2, panel.y + panel.h - 22, { size: 12, align: 'center', color: THEME.textMuted });
       } else {
         drawText(ctx, 'Як звати героя?', W / 2, panel.y + 36, { size: 20, bold: true, align: 'center' });
         const field = { x: panel.x + 60, y: panel.y + 70, w: panel.w - 120, h: 48 };
