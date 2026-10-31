@@ -22,7 +22,7 @@ import { castSkill, effectiveParams, evolutionReady, passiveNotes } from '../sys
 import type { CardOffer, Obstacle, Run } from '../systems/rework/types';
 import type { Vec } from '../systems/entities';
 import type { App } from './app';
-import { type HeroAnimState, drawHeroDust, drawHeroFx, drawHeroFrames, heroAnimAttack, heroAnimCast, heroAnimDodge, newHeroAnim, stepHeroAnim } from './heroAnim';
+import { type HeroAnimState, drawHeroDust, drawHeroFx, drawHeroFrames, heroAnimAttack, heroAnimCast, heroAnimDodge, newHeroAnim, sheet, stepHeroAnim } from './heroAnim';
 import { DodgeFx } from './dodgeFx';
 import { BEAST_ANIM } from '../data/beastAnim';
 import { HERO_FX } from '../data/heroAnim';
@@ -47,6 +47,9 @@ interface Pointer {
   label: string;
   color: string;
 }
+
+/** The Forest's point on the map (docs/art/locations/forest/scene.png). */
+const FOREST_SCENE = 'sprites/forest-scene.jpg';
 
 /** The Berehynia's voice from the sign. */
 const SIGN_VOICE = '#e8dcae';
@@ -181,7 +184,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
   const classButtons = new ButtonGroup(
     CLASS_ORDER.map((id, i) => new Button({ label: `${REWORK_CLASSES[id].name} [${i + 1}]`, rect: { x: W / 2 - 330 + i * 225, y: H / 2 - 10, w: 210, h: 46 }, fontSize: 17, hotkey: `Digit${i + 1}`, onClick: () => begin(id) })),
   );
-  const newExpeditionButton = (): Button => new Button({ label: 'Нова експедиція [C]', rect: { x: W / 2 + 10, y: H / 2 + 90, w: 220, h: 44 }, fontSize: 16, hotkey: 'KeyC', onClick: () => ((expedition = null), (run = null), (atPoint = false)) });
+  const newExpeditionButton = (y = H / 2 + 90): Button => new Button({ label: 'Нова експедиція [C]', rect: { x: W / 2 + 10, y, w: 220, h: 44 }, fontSize: 16, hotkey: 'KeyC', onClick: () => ((expedition = null), (run = null), (atPoint = false)) });
   const deathButtons = new ButtonGroup([
     new Button({ label: 'До точки Лісу [Enter]', rect: { x: W / 2 - 230, y: H / 2 + 90, w: 220, h: 44 }, fontSize: 16, hotkey: 'Enter', onClick: toPoint }),
     newExpeditionButton(),
@@ -191,8 +194,8 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     newExpeditionButton(),
   ]);
   const pointButtons = new ButtonGroup([
-    new Button({ label: 'Увійти в Ліс [Enter]', rect: { x: W / 2 - 230, y: H / 2 + 90, w: 220, h: 44 }, fontSize: 16, hotkey: 'Enter', onClick: () => start(classId) }),
-    newExpeditionButton(),
+    new Button({ label: 'Увійти в Ліс [Enter]', rect: { x: W / 2 - 230, y: H - 70, w: 220, h: 44 }, fontSize: 16, hotkey: 'Enter', onClick: () => start(classId) }),
+    newExpeditionButton(H - 70),
   ]);
   const cardRect = (i: number): { x: number; y: number; w: number; h: number } => ({ x: W / 2 - 375 + i * 255, y: H / 2 - 110, w: 240, h: 200 });
   const debug = new ButtonGroup([
@@ -955,15 +958,28 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
   }
 
   /** The biome's point on the map (a stand-in for the scene): the Forest, the signs, what the last death cost. */
+  /** The biome's point on the map: the Forest's scene (refugees leaving it), the signs, what the last death cost. */
   function drawPoint(ctx: CanvasRenderingContext2D, exp: Expedition): void {
-    drawText(ctx, 'Ліс', W / 2, H / 2 - 140, { size: 36, bold: true, align: 'center', color: '#cfe8c4' });
-    drawText(ctx, 'Точка біому на карті · сцена буде тут (етап 21)', W / 2, H / 2 - 104, { size: 13, align: 'center', color: THEME.textMuted });
-    drawText(ctx, `${REWORK_CLASSES[exp.classId].name} · знаки Берегині:`, W / 2 - 60, H / 2 - 50, { size: 15, align: 'right', color: THEME.text });
-    drawSigns(ctx, W / 2 - 40, H / 2 - 50, exp.lives, 10);
+    // The scene fills the screen (cut to fit); the text sits on a dark band at the bottom.
+    const pic = sheet(FOREST_SCENE);
+    if (pic) {
+      const k = Math.max(W / pic.naturalWidth, H / pic.naturalHeight);
+      ctx.drawImage(pic, (W - pic.naturalWidth * k) / 2, (H - pic.naturalHeight * k) / 2, pic.naturalWidth * k, pic.naturalHeight * k);
+    }
+    const band = ctx.createLinearGradient(0, H - 300, 0, H);
+    band.addColorStop(0, 'rgba(8, 8, 12, 0)');
+    band.addColorStop(0.35, 'rgba(8, 8, 12, 0.8)');
+    band.addColorStop(1, 'rgba(8, 8, 12, 0.95)');
+    ctx.fillStyle = band;
+    ctx.fillRect(0, H - 300, W, 300);
+    outlinedText(ctx, 'Ліс', W / 2, 60, 40, '#e8dcae');
+    const y = H - 190;
+    drawText(ctx, `${REWORK_CLASSES[exp.classId].name} · знаки Берегині:`, W / 2 - 60, y, { size: 15, align: 'right', color: THEME.text });
+    drawSigns(ctx, W / 2 - 40, y, exp.lives, 10);
     const lines = ['Біом — один забіг: Ліс → Глибина лісу → Лігво Ената.', 'Загинув — знак гасне, біом з початку. Знаки згасли — назад до чекпоінта.'];
-    lines.forEach((l, i) => drawText(ctx, l, W / 2, H / 2 - 4 + i * 22, { size: 14, align: 'center', color: THEME.textDim }));
-    if (death) drawText(ctx, `«${death.line}»`, W / 2, H / 2 + 60, { size: 16, align: 'center', color: SIGN_VOICE });
-    if (exp.tombstones > 0) drawText(ctx, `Надгробків на кладовищі: ${exp.tombstones}`, W / 2, H / 2 + 150, { size: 12, align: 'center', color: THEME.textMuted });
+    lines.forEach((l, i) => drawText(ctx, l, W / 2, y + 30 + i * 20, { size: 13, align: 'center', color: THEME.textDim }));
+    if (death) drawText(ctx, `«${death.line}»`, W / 2, y + 80, { size: 16, align: 'center', color: SIGN_VOICE });
+    if (exp.tombstones > 0) drawText(ctx, `Надгробків на кладовищі: ${exp.tombstones}`, W - 20, H - 16, { size: 12, align: 'right', color: THEME.textMuted });
     pointButtons.draw(ctx);
   }
 
