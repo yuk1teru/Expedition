@@ -194,7 +194,7 @@ export const ATTACK_FX = {
   spark: { sheet: 'warrior', frames: [9, 10, 11], size: 46, offset: [0, -26], delay: 0, times: [0.04, 0.06, 0.1] },
   /** The mage's fireball in flight (loops), its explosion (sized by the blast), the flash at the staff. */
   fireball: { sheet: 'mage', frames: [0, 1, 2], size: 34, offset: [0, 0], delay: 0, times: [0.07, 0.07, 0.07] },
-  explosion: { sheet: 'mage', frames: [3, 4, 5], size: 0, offset: [0, -18], delay: 0, times: [0.05, 0.1, 0.22] },
+  explosion: { sheet: 'mage', frames: [3, 4, 5], size: 0, offset: [0, -40], delay: 0, times: [0.05, 0.1, 0.22] },
   castFlash: { sheet: 'mage', frames: [6, 7, 8], size: 40, offset: [26, -66], delay: 0.05, times: [0.04, 0.06, 0.1] },
   /** The archer's arrow in flight (loops) and the ring of air at the bow. */
   arrow: { sheet: 'archer', frames: [0, 1, 2], size: 30, offset: [0, 0], delay: 0, times: [0.06, 0.06, 0.06] },

@@ -362,6 +362,13 @@ export function drawHeroFigure(ctx: CanvasRenderingContext2D, h: RunHero, side: 
   ctx.restore();
 }
 
+/**
+ * How high over the ground a hero's shot flies (world px; its place in the logic is on the ground,
+ * under it): arrows at the bow, fire at the staff's hand — so they leave the weapon, not the feet,
+ * and strike the beasts' bodies.
+ */
+const SHOT_LIFT = { arrow: 46, fire: 50 };
+
 export function drawShot(ctx: CanvasRenderingContext2D, s: Shot, time = 0): void {
   if (s.kind === 'axe') {
     ctx.save();
@@ -389,7 +396,7 @@ export function drawShot(ctx: CanvasRenderingContext2D, s: Shot, time = 0): void
   if (s.kind === 'pierceArrow') {
     const a = Math.atan2(s.vel.y, s.vel.x);
     ctx.save();
-    ctx.translate(s.pos.x, s.pos.y - 16);
+    ctx.translate(s.pos.x, s.pos.y - SHOT_LIFT.arrow);
     ctx.rotate(a);
     ctx.strokeStyle = 'rgba(255, 240, 180, 0.5)';
     ctx.lineWidth = Math.max(4, s.radius * 2);
@@ -406,23 +413,23 @@ export function drawShot(ctx: CanvasRenderingContext2D, s: Shot, time = 0): void
     ctx.restore();
     return;
   }
-  if (s.kind === 'fireball' && drawAttackFx(ctx, 'fireball', Math.floor(time * 14) % 3, s.pos.x, s.pos.y - 18, { angle: Math.atan2(s.vel.y, s.vel.x), size: ATTACK_FX.fireball.size * 1.5 })) return;
+  if (s.kind === 'fireball' && drawAttackFx(ctx, 'fireball', Math.floor(time * 14) % 3, s.pos.x, s.pos.y - SHOT_LIFT.fire, { angle: Math.atan2(s.vel.y, s.vel.x), size: ATTACK_FX.fireball.size * 1.5 })) return;
   if (s.kind === 'fireball' || s.kind === 'missile') {
     const fire = s.kind === 'fireball';
     ctx.fillStyle = fire ? '#ff7a2a' : '#b98cff';
     ctx.strokeStyle = fire ? '#ffe08a' : '#efe0ff';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(s.pos.x, s.pos.y - 18, s.radius, 0, Math.PI * 2);
+    ctx.arc(s.pos.x, s.pos.y - SHOT_LIFT.fire, s.radius, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     return;
   }
   if (s.kind === 'arrow') {
     const a = Math.atan2(s.vel.y, s.vel.x);
-    if (drawAttackFx(ctx, 'arrow', Math.floor(time * 16) % 3, s.pos.x, s.pos.y - 16, { angle: a })) return;
+    if (drawAttackFx(ctx, 'arrow', Math.floor(time * 16) % 3, s.pos.x, s.pos.y - SHOT_LIFT.arrow, { angle: a })) return;
     ctx.save();
-    ctx.translate(s.pos.x, s.pos.y - 16);
+    ctx.translate(s.pos.x, s.pos.y - SHOT_LIFT.arrow);
     ctx.rotate(a);
     ctx.strokeStyle = '#e8dcc0';
     ctx.lineWidth = 3;
@@ -434,7 +441,7 @@ export function drawShot(ctx: CanvasRenderingContext2D, s: Shot, time = 0): void
     return;
   }
   if (s.kind === 'spore') return drawSpore(ctx, s, time);
-  if (s.kind === 'bolt' && drawAttackFx(ctx, 'fireball', Math.floor(time * 14) % 3, s.pos.x, s.pos.y - 18, { angle: Math.atan2(s.vel.y, s.vel.x) })) return;
+  if (s.kind === 'bolt' && drawAttackFx(ctx, 'fireball', Math.floor(time * 14) % 3, s.pos.x, s.pos.y - SHOT_LIFT.fire, { angle: Math.atan2(s.vel.y, s.vel.x) })) return;
   if (s.kind === 'web' || s.kind === 'cocoon') {
     const big = s.kind === 'cocoon';
     const angle = Math.atan2(s.vel.y, s.vel.x);
@@ -442,7 +449,7 @@ export function drawShot(ctx: CanvasRenderingContext2D, s: Shot, time = 0): void
     blob(ctx, s.pos.x, s.pos.y - (big ? 26 : 16), s.radius * (big ? 1.1 : 0.9), s.radius * (big ? 1.4 : 0.9), big ? '#f0ece4' : '#e6e6ee');
     return;
   }
-  const y = s.pos.y - 18;
+  const y = s.pos.y - SHOT_LIFT.fire;
   ctx.fillStyle = '#ff9d3a';
   ctx.strokeStyle = '#fff0b0';
   ctx.lineWidth = 2;
