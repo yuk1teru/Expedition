@@ -216,3 +216,16 @@ export const ENAT_FX: PropSet & { roots: number[]; spike: number[]; thorns: numb
   ],
   stoneWidth: 4.6,
 };
+
+/**
+ * Small things on the field (docs/art/fx/items.png, cut along a grid with SCALE=0.2): the experience
+ * crystal, the coin, the mushroom's spore. Each frame's centre is the thing's centre; `size` — how
+ * many world px the frame's height becomes (the glow included).
+ */
+export const ITEM_ART = {
+  src: 'sprites/anim/items.png',
+  gem: { rect: [0, 0, 148, 145] as [number, number, number, number], size: 22, bigSize: 30 },
+  coin: { rect: [148, 0, 132, 145] as [number, number, number, number], size: 18 },
+  spore: { rect: [280, 0, 154, 145] as [number, number, number, number], size: 34 },
+};
+

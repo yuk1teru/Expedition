@@ -633,7 +633,7 @@ Row 3 — LEVEL UP: a column of golden light rising from a flat glowing ring on 
 
 ## 7. За бажанням ○
 
-### Кристал, монета, спора → `fx/items.png`
+### Кристал, монета, спора ✓ → `fx/items.png`
 
 ```
 [Прикріпи heroes/warrior/reference.png]

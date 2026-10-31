@@ -4,7 +4,7 @@
 // the caller draws them sorted by it.
 
 import { REWORK_BOSS, REWORK_CLASSES, REWORK_ELITES, REWORK_ENEMIES, REWORK_MAP, REWORK_PICKUPS, REWORK_TASKS, REWORK_WEB } from '../data/rework';
-import { ENAT_FX, FOREST_ART, WEB_ART } from '../data/forestArt';
+import { ENAT_FX, FOREST_ART, ITEM_ART, WEB_ART } from '../data/forestArt';
 import { beastSheet, beastSize, drawBeastFrames, drawSheetFrame } from './beastAnim';
 import { BEAST_SHEETS, LUMBERJACK_SHEET } from '../data/beastAnim';
 import { artCrown, drawEnatFx, drawPart, drawProp, drawWebPiece, obstacleParts, partsBox, propSet, propsAtlas, tintedPiece, webAtlas } from './forestArt';
@@ -469,6 +469,8 @@ export function drawShot(ctx: CanvasRenderingContext2D, s: Shot, time = 0): void
 /** A mushroom's spore: a glowing pink-red ball with a trail of sparks, as on its spit frame. */
 function drawSpore(ctx: CanvasRenderingContext2D, s: Shot): void {
   const y = s.pos.y - 24;
+  // It rolls as it flies.
+  if (drawItem(ctx, ITEM_ART.spore.rect, s.pos.x, y, ITEM_ART.spore.size, (s.pos.x + s.pos.y) * 0.03)) return;
   const speed = Math.hypot(s.vel.x, s.vel.y) || 1;
   const bx = -s.vel.x / speed;
   const by = -s.vel.y / speed;
@@ -499,10 +501,25 @@ function drawSpore(ctx: CanvasRenderingContext2D, s: Shot): void {
   ctx.fill();
 }
 
+/** One of the small things (crystal, coin, spore) centred at (x, y), `size` world px tall; false while it loads. */
+function drawItem(ctx: CanvasRenderingContext2D, rect: [number, number, number, number], x: number, y: number, size: number, angle = 0): boolean {
+  const img = sheet(ITEM_ART.src);
+  if (!img) return false;
+  const [sx, sy, w, h] = rect;
+  const k = size / h;
+  ctx.save();
+  ctx.translate(x, y);
+  if (angle) ctx.rotate(angle);
+  ctx.drawImage(img, sx, sy, w, h, (-w / 2) * k, (-h / 2) * k, w * k, h * k);
+  ctx.restore();
+  return true;
+}
+
 export function drawGem(ctx: CanvasRenderingContext2D, g: Gem, time: number): void {
   const big = g.xp >= 5;
   const s = big ? 7 : 5;
   const y = g.pos.y - 4 - Math.sin(time * 4 + g.pos.x) * 1.5;
+  if (drawItem(ctx, ITEM_ART.gem.rect, g.pos.x, y - 4, big ? ITEM_ART.gem.bigSize : ITEM_ART.gem.size)) return;
   ctx.fillStyle = big ? '#7ad1ff' : '#5fe0a0';
   ctx.strokeStyle = 'rgba(10, 30, 40, 0.8)';
   ctx.lineWidth = 1.5;
@@ -517,6 +534,7 @@ export function drawGem(ctx: CanvasRenderingContext2D, g: Gem, time: number): vo
 }
 
 export function drawCoin(ctx: CanvasRenderingContext2D, c: Coin): void {
+  if (drawItem(ctx, ITEM_ART.coin.rect, c.pos.x, c.pos.y - 5, ITEM_ART.coin.size)) return;
   ctx.fillStyle = '#f2c14e';
   ctx.strokeStyle = '#7a5a12';
   ctx.lineWidth = 1.5;
