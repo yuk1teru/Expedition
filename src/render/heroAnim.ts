@@ -25,7 +25,8 @@ export function hasHeroFrames(cls: string | null): boolean {
 
 const sheets = new Map<string, HTMLImageElement>();
 
-export function sheet(src: string): HTMLImageElement | null {
+/** The picture of `src` from the cache, loading it the first time (null in Node). */
+export function loadSheet(src: string): HTMLImageElement | null {
   if (typeof Image === 'undefined') return null;
   let img = sheets.get(src);
   if (!img) {
@@ -33,7 +34,13 @@ export function sheet(src: string): HTMLImageElement | null {
     img.src = src;
     sheets.set(src, img);
   }
-  return img.complete && img.naturalWidth > 0 ? img : null;
+  return img;
+}
+
+/** The picture of `src` once it is loaded, else null (the caller draws a figure meanwhile). */
+export function sheet(src: string): HTMLImageElement | null {
+  const img = loadSheet(src);
+  return img && img.complete && img.naturalWidth > 0 ? img : null;
 }
 
 /** How a hero is drawn: as is, flashing white from a hit, or as a warm see-through after-image. */

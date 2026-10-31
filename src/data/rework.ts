@@ -265,6 +265,14 @@ export const REWORK_LIVES = {
   checkpoint: 'Він вільний. А десь глибоко щось ворухнулось.',
 };
 
+/**
+ * TEMPORARY, for testing by the author and friends (31.10.2026): in the published game the run
+ * shows test buttons — immortality, a level, an elite, the spirit, the task, the boss, the next
+ * location. Set to false (or delete the buttons) before the real release. In `npm run dev` they show
+ * anyway, with the stress buttons.
+ */
+export const REWORK_TEST_TOOLS = true;
+
 export type ReworkClassId = 'warrior' | 'mage' | 'archer';
 
 export interface ReworkClassDef {

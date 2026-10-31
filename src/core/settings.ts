@@ -13,7 +13,7 @@ export interface GameSettings {
   dodgeToCursor: boolean;
 }
 
-export const DEFAULT_SETTINGS: GameSettings = { volume: 0.7, music: 0.5, shake: true, damageNumbers: true, dodgeToCursor: true };
+export const DEFAULT_SETTINGS: GameSettings = { volume: 0.7, music: 0.5, shake: true, damageNumbers: true, dodgeToCursor: false };
 
 /** Settings from storage; unknown or broken values fall back to the defaults. */
 export function readSettings(text: string | null): GameSettings {

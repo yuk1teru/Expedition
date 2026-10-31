@@ -7,7 +7,7 @@
 
 import type { Screen } from '../core/screens';
 import { Rng } from '../core/rng';
-import { PASSIVE_SLOTS, REWORK_BOSS, REWORK_FIELD, REWORK_LIVES, REWORK_LOCATIONS, REWORK_PICKUPS, REWORK_PATH, REWORK_POINTERS, REWORK_SPIRIT, REWORK_TASKS, REWORK_CARDS, REWORK_CLASSES, REWORK_STRESS, type ReworkClassId } from '../data/rework';
+import { PASSIVE_SLOTS, REWORK_BOSS, REWORK_FIELD, REWORK_LIVES, REWORK_LOCATIONS, REWORK_PICKUPS, REWORK_PATH, REWORK_POINTERS, REWORK_SPIRIT, REWORK_TASKS, REWORK_CARDS, REWORK_CLASSES, REWORK_STRESS, REWORK_TEST_TOOLS, type ReworkClassId } from '../data/rework';
 import { EVOLUTIONS, REWORK_SKILLS, SKILL_SLOTS, skillParams } from '../data/reworkSkills';
 import { bossIn } from '../systems/rework/boss';
 import { altarNear, altarPrice, useAltar } from '../systems/rework/pickups';
@@ -16,8 +16,10 @@ import { pullSegments } from '../systems/rework/spinner';
 import { taskLine } from '../systems/rework/task';
 import { type DeathOutcome, type Expedition, loseLife, newExpedition, reachCheckpoint } from '../systems/rework/expedition';
 import { dodge } from '../systems/rework/hero';
-import { chooseCard, passivesTaken, reroll, rerollPrice, xpToNext } from '../systems/rework/progress';
-import { createRun, runPaused, stepRun, stressSpawn } from '../systems/rework/run';
+import { chooseCard, gainXp, passivesTaken, reroll, rerollPrice, xpToNext } from '../systems/rework/progress';
+import { createRun, enterNextLocation, runPaused, stepRun, stressSpawn } from '../systems/rework/run';
+import { spawnElite } from '../systems/rework/enemies';
+import { preloadProgress, preloadSprites } from './preload';
 import { castSkill, effectiveParams, evolutionReady, passiveNotes } from '../systems/rework/skills';
 import type { CardOffer, Obstacle, Run } from '../systems/rework/types';
 import type { Vec } from '../systems/entities';
@@ -207,8 +209,37 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
   const cardRect = (i: number): { x: number; y: number; w: number; h: number } => ({ x: W / 2 - 375 + i * 255, y: H / 2 - 110, w: 240, h: 200 });
   const debug = new ButtonGroup([
     ...REWORK_STRESS.counts.map((n, i) => new Button({ label: `+${n}`, rect: { x: W - 316 + i * 62, y: H - 46, w: 56, h: 28 }, fontSize: 12, onClick: () => run && stressSpawn(run, n) })),
-    new Button({ label: 'Безсмертя', rect: { x: W - 126, y: H - 46, w: 110, h: 28 }, fontSize: 12, onClick: () => run && (run.hero.immortal = !run.hero.immortal) }),
   ]);
+  /**
+   * TEMPORARY test buttons (REWORK_TEST_TOOLS — remove before the release): a column at the right
+   * edge — immortality (kept across deaths and locations), a level, an elite, the spirit, the next
+   * task, the boss, the next location. Jumps move the run's clock.
+   */
+  let godMode = false;
+  const testBtn = (i: number, label: string, onClick: (r: Run) => void): Button =>
+    new Button({ label, rect: { x: W - 112, y: 50 + i * 30, w: 100, h: 26 }, fontSize: 11, onClick: () => run && onClick(run) });
+  const testTools = new ButtonGroup([
+    testBtn(0, 'Безсмертя', () => (godMode = !godMode)),
+    testBtn(1, '+ рівень', (r) => gainXp(r, xpToNext(r.level) - r.xp)),
+    testBtn(2, 'Еліт', (r) => void spawnElite(r)),
+    testBtn(3, 'Дух', (r) => {
+      if (r.phase === 'flood' && !r.spiritCame) r.time = Math.max(r.time, REWORK_SPIRIT.appearAt);
+    }),
+    testBtn(4, 'Завдання', (r) => {
+      const next = REWORK_LOCATIONS[r.location]!.tasks[r.tasksGiven];
+      if (next && r.phase === 'flood') {
+        if (r.task?.state === 'active') r.task.time = 0;
+        r.time = Math.max(r.time, next.at);
+      }
+    }),
+    testBtn(5, 'Бос', (r) => {
+      if (r.phase === 'flood') r.time = Math.max(r.time, REWORK_LOCATIONS[r.location]!.bossAt);
+    }),
+    testBtn(6, 'Наст. локація', (r) => {
+      if (r.location < REWORK_LOCATIONS.length - 1) enterNextLocation(r);
+    }),
+  ]);
+  const showTests = (): boolean => REWORK_TEST_TOOLS || !!app.debug;
   const exitBtn = new ButtonGroup([
     new Button({ label: 'Вийти [Esc]', rect: { x: W - 126, y: 12, w: 110, h: 30 }, fontSize: 13, hotkey: 'Escape', onClick: () => app.screens.go('title') }),
     new Button({ label: 'Налаштування', rect: { x: W - 252, y: 12, w: 120, h: 30 }, fontSize: 13, onClick: () => app.openSettings() }),
@@ -289,11 +320,14 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     onInput(e) {
       if (exitBtn.handle(e)) return;
       if (!run) {
+        // Pictures still loading: nothing to choose yet.
+        if (preloadProgress() < 1) return;
         if (expedition && atPoint) pointButtons.handle(e);
         else classButtons.handle(e);
         return;
       }
       if (app.debug && debug.handle(e)) return;
+      if (showTests() && testTools.handle(e)) return;
       if (run.hero.dead) {
         deathButtons.handle(e);
         return;
@@ -334,12 +368,14 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       ctx.fillStyle = '#3a4f30';
       ctx.fillRect(0, 0, W, H);
       if (!run) {
-        if (expedition && atPoint) drawPoint(ctx, expedition);
+        if (preloadProgress() < 1) drawLoading(ctx);
+        else if (expedition && atPoint) drawPoint(ctx, expedition);
         else drawClassChoice(ctx);
         exitBtn.draw(ctx);
         return;
       }
       const r = run;
+      if (godMode) r.hero.immortal = true;
       // A death costs a sign once; beating the biome's boss is a checkpoint once.
       if (expedition && r.hero.dead && !death) {
         death = loseLife(expedition);
@@ -512,8 +548,12 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       // The location's name waits for the card choice to close.
       if (banner && !r.offer && !h.dead) drawBanner(ctx, dt);
       drawSkillTooltip(ctx, r);
-      // The stress buttons, immortality and the frame counter — for the developer only.
+      // The stress buttons and the frame counter — for the developer only; the test buttons — while testing.
       if (app.debug) debug.draw(ctx);
+      if (showTests()) {
+        testTools.buttons[0]!.label = godMode ? 'Безсмертя ✓' : 'Безсмертя';
+        testTools.draw(ctx);
+      }
       if (app.debug) drawText(ctx, `${Math.round(fps)} к/с · ${r.enemies.length} звірів · логіка ${stepMs.toFixed(2)} мс${h.immortal ? ' · безсмертя' : ''}`, W - 16, H - 56, { size: 11, align: 'right', color: fps >= 55 ? THEME.good : THEME.bad });
       exitBtn.draw(ctx);
     },
@@ -1049,6 +1089,19 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     if (death) drawText(ctx, `«${death.line}»`, W / 2, y + 80, { size: 16, align: 'center', color: SIGN_VOICE });
     if (exp.tombstones > 0) drawText(ctx, `Надгробків на кладовищі: ${exp.tombstones}`, W - 20, H - 16, { size: 12, align: 'right', color: THEME.textMuted });
     pointButtons.draw(ctx);
+  }
+
+  /** The pictures load: a bar instead of the old code figures flashing on screen. */
+  function drawLoading(ctx: CanvasRenderingContext2D): void {
+    preloadSprites();
+    const k = preloadProgress();
+    drawText(ctx, 'Експедиція в Ліс', W / 2, H / 2 - 60, { size: 30, bold: true, align: 'center', color: THEME.accent });
+    const w = 360;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    ctx.fillRect(W / 2 - w / 2, H / 2, w, 12);
+    ctx.fillStyle = '#e8dcae';
+    ctx.fillRect(W / 2 - w / 2, H / 2, w * k, 12);
+    drawText(ctx, `Завантаження… ${Math.round(k * 100)}%`, W / 2, H / 2 + 34, { size: 14, align: 'center', color: THEME.textDim });
   }
 
   function drawClassChoice(ctx: CanvasRenderingContext2D): void {

@@ -10,6 +10,7 @@ import { DEFAULT_HERO_NAME } from '../systems/run';
 import type { SaveData } from '../systems/save';
 import type { App } from './app';
 import { className } from './names';
+import { preloadSprites } from './preload';
 import { THEME, font } from './theme';
 import { Button, ButtonGroup, drawPanel, drawText, roundRect } from './ui';
 
@@ -88,6 +89,8 @@ export function createTitleScreen(app: App): Screen<CanvasRenderingContext2D> {
 
   return {
     enter() {
+      // The Forest's pictures start loading now, so they are ready by «Почати».
+      preloadSprites();
       refresh();
       mode = app.titleStartsWithName ? 'name' : 'menu';
       app.titleStartsWithName = false;
