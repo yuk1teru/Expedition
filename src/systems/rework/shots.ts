@@ -7,12 +7,13 @@ import { damageEnemy } from './combat';
 import { heroStats } from './hero';
 import { affect, burst } from './skills';
 import type { Run, RunEnemy, Shot } from './types';
+import { onScreen } from './view';
 
 function nearestFree(run: Run, s: Shot): RunEnemy | null {
   let best: RunEnemy | null = null;
   let bd = 500;
   for (const e of run.enemies) {
-    if (e.dead || e.act.kind === 'ring' || s.hit.includes(e.id)) continue;
+    if (e.dead || e.act.kind === 'ring' || s.hit.includes(e.id) || !onScreen(run, e.pos)) continue;
     const d = Math.hypot(e.pos.x - s.pos.x, e.pos.y - s.pos.y);
     if (d < bd) {
       bd = d;

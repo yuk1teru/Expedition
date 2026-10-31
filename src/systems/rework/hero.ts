@@ -9,6 +9,7 @@ import type { Vec } from '../entities';
 import { damageEnemy } from './combat';
 import { isFree, resolveBody } from './map';
 import type { Run, RunEnemy, RunHero } from './types';
+import { onScreen } from './view';
 
 /** The hero's numbers with the passives taken and a shrine's buff. */
 export function heroStats(run: Run): { maxHp: number; speed: number; dodgeDistance: number; magnet: number; area: number } {
@@ -49,11 +50,12 @@ export function newHero(classId: ReworkClassId, pos: Vec, radius: number): RunHe
   };
 }
 
+/** The nearest beast in reach that the player can see. */
 function nearest(run: Run, from: Vec, range: number): RunEnemy | null {
   let best: RunEnemy | null = null;
   let bestD = range;
   for (const e of run.enemies) {
-    if (e.dead || e.act.kind === 'ring') continue;
+    if (e.dead || e.act.kind === 'ring' || !onScreen(run, e.pos)) continue;
     const d = Math.hypot(e.pos.x - from.x, e.pos.y - from.y) - e.radius;
     if (d < bestD) {
       bestD = d;

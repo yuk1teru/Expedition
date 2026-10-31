@@ -9,6 +9,7 @@ import { EVOLUTIONS, REWORK_SKILLS, type ReworkSkillId, type SkillParams, skillP
 import type { Vec } from '../entities';
 import { damageEnemy } from './combat';
 import type { HeroSkill, Run, RunEnemy } from './types';
+import { onScreen } from './view';
 
 const SHOT_SPEED = { axe: 520, fireball: 480, missile: 420, arrow: 640, pierceArrow: 900 } as const;
 
@@ -68,11 +69,12 @@ export function evolutionReady(run: Run, sk: HeroSkill): boolean {
   return !!evo && !sk.evolved && sk.rank >= REWORK_SKILLS[sk.id].ranks.length + 1 && (run.cards[evo.needs] ?? 0) > 0;
 }
 
+/** The nearest beast to a point that the player can see (skills never aim off screen). */
 function nearestTo(run: Run, p: Vec, range: number, skip: number[] = []): RunEnemy | null {
   let best: RunEnemy | null = null;
   let bd = range;
   for (const e of run.enemies) {
-    if (e.dead || e.act.kind === 'ring' || skip.includes(e.id)) continue;
+    if (e.dead || e.act.kind === 'ring' || skip.includes(e.id) || !onScreen(run, e.pos)) continue;
     const d = dist(e.pos, p) - e.radius;
     if (d < bd) {
       bd = d;

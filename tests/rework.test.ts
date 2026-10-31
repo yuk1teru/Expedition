@@ -846,6 +846,27 @@ describe('rework wolves (pack)', () => {
   });
 });
 
+describe('rework aiming on screen', () => {
+  it('ranged heroes do not shoot beasts the player cannot see', () => {
+    for (const cls of ['archer', 'mage'] as const) {
+      const run = createRun(181, cls);
+      run.spawnTimer = 1e9;
+      run.hero.immortal = true;
+      const off = spawnBeast(run, 'wolf')!;
+      // In reach, but below the screen's bottom edge.
+      off.pos = { x: run.hero.pos.x, y: run.hero.pos.y + 300 };
+      off.traitTimer = 1e9;
+      run.hero.attackTimer = 0;
+      stepRun(run, 1 / 60, still);
+      expect(run.shots.filter((s) => s.byHero).length).toBe(0);
+      off.pos = { x: run.hero.pos.x + 200, y: run.hero.pos.y };
+      run.hero.attackTimer = 0;
+      stepRun(run, 1 / 60, still);
+      expect(run.shots.filter((s) => s.byHero).length).toBeGreaterThan(0);
+    }
+  });
+});
+
 /** Hits a beast until it dies (a shield or a resting boss take less). */
 function killFully(run: ReturnType<typeof createRun>, e: Parameters<typeof damageEnemyHit>[1]): void {
   for (let i = 0; i < 50 && !e.dead; i++) damageEnemyHit(run, e, 1e6);

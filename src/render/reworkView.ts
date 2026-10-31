@@ -7,7 +7,7 @@
 
 import type { Screen } from '../core/screens';
 import { Rng } from '../core/rng';
-import { PASSIVE_SLOTS, REWORK_BOSS, REWORK_LIVES, REWORK_LOCATIONS, REWORK_PICKUPS, REWORK_PATH, REWORK_POINTERS, REWORK_SPIRIT, REWORK_TASKS, REWORK_CARDS, REWORK_CLASSES, REWORK_STRESS, type ReworkClassId } from '../data/rework';
+import { PASSIVE_SLOTS, REWORK_BOSS, REWORK_FIELD, REWORK_LIVES, REWORK_LOCATIONS, REWORK_PICKUPS, REWORK_PATH, REWORK_POINTERS, REWORK_SPIRIT, REWORK_TASKS, REWORK_CARDS, REWORK_CLASSES, REWORK_STRESS, type ReworkClassId } from '../data/rework';
 import { EVOLUTIONS, REWORK_SKILLS, SKILL_SLOTS, skillParams } from '../data/reworkSkills';
 import { bossIn } from '../systems/rework/boss';
 import { altarNear, altarPrice, useAltar } from '../systems/rework/pickups';
@@ -329,7 +329,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       const vw = W / zoom;
       const vh = H / zoom;
       const focus = duel ? r.ringCenter : h.pos;
-      cam = { x: clampCam(focus.x - vw / 2, r.width - vw), y: clampCam(focus.y - vh / 2 - 30, r.height - vh) };
+      cam = { x: clampCam(focus.x - vw / 2, r.width - vw), y: clampCam(focus.y - vh / 2 - REWORK_FIELD.camLift, r.height - vh) };
       ctx.save();
       ctx.scale(zoom, zoom);
       ctx.translate(-cam.x, -cam.y);

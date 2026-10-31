@@ -10,6 +10,10 @@ export const REWORK_FIELD = {
   hero: {
     radius: 14,
   },
+  /** The camera sits this far above the hero (he stands a little low on screen). */
+  camLift: 30,
+  /** The hero and his skills aim only at beasts this far inside the screen's edges. */
+  aimInset: 24,
 };
 
 /** 20.2 — what stands in the Forest. Every obstacle is a circle on the ground (its foot). */
@@ -292,7 +296,7 @@ export const REWORK_CLASSES: Record<ReworkClassId, ReworkClassDef> = {
     hp: 110,
     speed: 118,
     color: '#5b7fd6',
-    attack: { kind: 'bolt', damage: 14, every: 0.9, range: 380, speed: 430, splash: 50, splashShare: 0.5 },
+    attack: { kind: 'bolt', damage: 14, every: 0.9, range: 320, speed: 430, splash: 50, splashShare: 0.5 },
     dodge: { name: 'Блимання', kind: 'blink', distance: 130, time: 0.22, invuln: 0.26, cooldown: 3 },
   },
   archer: {
@@ -301,7 +305,7 @@ export const REWORK_CLASSES: Record<ReworkClassId, ReworkClassDef> = {
     hp: 120,
     speed: 128,
     color: '#5f9a4a',
-    attack: { kind: 'arrow', damage: 10, every: 0.55, range: 430, speed: 620, pierce: 2 },
+    attack: { kind: 'arrow', damage: 10, every: 0.55, range: 350, speed: 620, pierce: 2 },
     dodge: { name: 'Відскок', kind: 'vault', distance: 110, time: 0.24, invuln: 0.28, cooldown: 3 },
   },
 };
