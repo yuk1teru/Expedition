@@ -27,6 +27,7 @@ _31.10.2026 · Усе, що потрібно Лісу (Ліс → Глибина
 | Сцена точки Лісу на карті | ✓ | 5 |
 | Ефекти ударів і скілів (Воїн, Маг, Лучник, спільні) | ✗ | 6 |
 | Кристал, монета, спора, іконки скілів | ○ | 7 |
+| Підказки атак на землі, спора, знаки Берегині | ✗ | 8 |
 
 ---
 
@@ -627,6 +628,74 @@ centre.
 Row 2 — SHIELD: a warm golden shimmering oval shell around an empty centre, like a bubble seen
 at an angle, thin lines of light across it.
 Row 3 — LEVEL UP: a column of golden light rising from a flat glowing ring on the ground.
+```
+
+---
+
+## 8. Підказки атак, спора, знаки Берегині ✗
+
+### Підказки атак на землі → `fx/telegraphs.png`
+
+**Що має вийти:** мітки, які малюються на землі, поки звір чи бос замахується: куди прийде удар. Гра заповнює мітку від початку до кінця, поки йде замах, тож потрібні **дві версії кожної мітки — порожня (контур) і повна (яскрава)**; гра накладає повну на порожню частинами. Мітки **пласкі, на землі, видні згори під кутом**, напівпрозорі по краях, щоб не закривати звірів.
+
+- **Смуга** (стрибок вовка, ривок Ватажка, колючки Ената): ріжеться на три шматки, щоб гра розтягувала її на будь-яку довжину — **початок** (подряпини від кігтів, звідси стартує звір — гра ставить його під лапи), **середина** (повторюється), **кінець** (вістря-стрілка).
+- **Коло** (тупіт пенька, приземлення Ватажка, удар і коріння Ената): пласкі овали.
+- **Безпечне місце** (проміжок у стягуванні Прядухи, тінь крони Ената): те саме коло, але зелене.
+
+```
+[Прикріпи heroes/warrior/reference.png і mobs/mushroom/poses.png]
+A sheet of flat GROUND DECALS for a top-down three-quarter view action game: warning marks
+painted on the ground where an enemy attack will land. Same painted style as the attached
+images (bold dark outlines, flat colours, light painted texture, dark folk-fantasy mood).
+Everything lies FLAT on the ground, seen from above at an angle — circles are wide flat
+ellipses (about twice as wide as tall). Soft translucent edges, glowing, no characters, no
+weapons, no text. Transparent background. Every piece alone with wide empty space around it.
+
+Colours: warning marks — dark blood red with a hot orange-red glowing rim and a few embers;
+safe marks — calm green with a soft pale-green rim.
+
+Row 1 — the EMPTY versions (outline only, dim inside, like a mark just appearing):
+  a) the START of a strip, horizontal, pointing right: three deep claw scratches in the earth
+     with flicked dirt, where a beast pushes off;
+  b) a MIDDLE piece of the strip: a straight band of glowing scorched earth with a faint
+     chevron arrow pointing right, both ends cut straight so it can repeat seamlessly;
+  c) the END of the strip: the band ending in a sharp arrowhead pointing right;
+  d) a round warning circle — a flat ellipse ring of cracks and glowing runic scratches.
+Row 2 — the SAME four pieces FULL (bright, filled with hot glowing red-orange, about to strike),
+  exactly the same shapes and sizes as row 1 so they line up when laid on top.
+Row 3 — SAFE: a flat green ellipse ring (empty) and the same filled (bright calm green glow),
+  same size as the red circle.
+```
+
+### Спора гриба → `fx/spore.png`
+
+**Що має вийти:** снаряд гриба в польоті, як кулька на кадрі плювка гриба: рожево-червона, з сяйвом і хвостиком спор. Три кадри — пульсує. Носом праворуч (хвіст ліворуч), гра повертає за напрямком. На екрані ≈ 30 px, тож проста форма.
+
+```
+[Прикріпи mobs/mushroom/poses.png]
+A small game projectile in exactly the same style and colours as the glowing spore ball the
+attached mushroom spits (frame of the spit): a round pink-red glowing spore ball with a bold
+dark outline, a bright core, and a short trail of tiny spores and pink sparks behind it to the
+LEFT (it flies to the right). Simple and readable at 30 pixels. Three frames side by side in
+one row, the ball pulsing: 1) slightly smaller; 2) full and brightest; 3) slightly squashed
+with the trail longer. Transparent background, no text, frames never touching.
+```
+
+### Знаки Берегині (життя) → `ui/signs.png`
+
+**Що має вийти:** значок життя в кутку екрана — той самий знак, що світиться на грудях героя. Три стани: **горить** (є життя), **згас** (втрачене), і **гасне** — 3 кадри, коли знак тріскає й темніє (гра програє їх при смерті). На екрані ≈ 24–32 px, тож проста сильна форма, без дрібниць.
+
+```
+[Прикріпи heroes/warrior/reference.png]
+A small UI icon sheet: the glowing rune-like sign of the goddess Berehynia, the SAME sign as on
+the chest of the attached hero — copy its shape. Bold dark outline, simple strong shape,
+readable at 24 pixels. Each icon alone with wide empty space around it, transparent background,
+no text.
+1) LIT: the sign glowing pale warm gold, a soft golden halo around it, the brightest thing.
+2) OUT: the same sign dark and cold — grey-brown stone colour, no glow, a thin crack across it.
+3–5) FADING, three frames from lit to out: the glow flickering and dimming; a crack appearing
+   with a few golden sparks falling away; almost dark, last embers in the crack.
+All five the same size and position, in one row.
 ```
 
 ---
