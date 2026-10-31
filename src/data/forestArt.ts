@@ -224,8 +224,8 @@ export const ENAT_FX: PropSet & { roots: number[]; spike: number[]; thorns: numb
  */
 export const ITEM_ART = {
   src: 'sprites/anim/items.png',
-  gem: { rect: [0, 0, 148, 145] as [number, number, number, number], size: 22, bigSize: 30 },
-  coin: { rect: [148, 0, 132, 145] as [number, number, number, number], size: 18 },
+  gem: { rect: [0, 0, 148, 145] as [number, number, number, number], size: 26, bigSize: 36 },
+  coin: { rect: [148, 0, 132, 145] as [number, number, number, number], size: 21 },
   spore: { rect: [280, 0, 154, 145] as [number, number, number, number], size: 34 },
 };
 

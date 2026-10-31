@@ -1,7 +1,7 @@
 // The rework's core (ROADMAP 20.2–20.5): rules, not numbers — the numbers live in
 // src/data/rework.ts and change in play.
 import { describe, expect, it } from 'vitest';
-import { PASSIVE_SLOTS, REWORK_BOSS, REWORK_CARDS, REWORK_ELITES, REWORK_FLOOD, REWORK_LIVES, REWORK_LOCATIONS, REWORK_MAP, REWORK_PICKUPS, REWORK_PROGRESS, REWORK_SPIRIT, REWORK_TASKS } from '../src/data/rework';
+import { PASSIVE_SLOTS, REWORK_BOSS, REWORK_CARDS, REWORK_ELITES, REWORK_ENEMIES, REWORK_FLOOD, REWORK_LIVES, REWORK_LOCATIONS, REWORK_MAP, REWORK_PICKUPS, REWORK_PROGRESS, REWORK_SPIRIT, REWORK_TASKS } from '../src/data/rework';
 import { damageEnemy as damageEnemyHit, damageHero } from '../src/systems/rework/combat';
 import { layWeb, pickBeast, powerAt, spawnBeast, spawnInterval } from '../src/systems/rework/enemies';
 import { dodge, heroStats } from '../src/systems/rework/hero';
@@ -208,8 +208,12 @@ describe('rework experience and cards (20.5)', () => {
     const run = createRun(45, 'warrior');
     run.spawnTimer = 1e9;
     run.gems.push({ pos: { x: run.hero.pos.x + 50, y: run.hero.pos.y }, xp: 1, pulled: false });
+    run.gems.push({ pos: { x: run.hero.pos.x + REWORK_PROGRESS.magnet + 40, y: run.hero.pos.y }, xp: 1, pulled: false });
+    // It flies for a moment (seen), not snapped up at once.
+    stepRun(run, 1 / 60, still);
+    expect(run.gems.length).toBe(2);
     for (let i = 0; i < 60; i++) stepRun(run, 1 / 60, still);
-    expect(run.gems.length).toBe(0);
+    expect(run.gems.length).toBe(1);
     expect(run.xp).toBe(1);
   });
 });
@@ -810,6 +814,35 @@ describe('rework biome structure (20.16)', () => {
     expect(reachCheckpoint(exp)).toBe(REWORK_LIVES.checkpoint);
     expect(exp.lives).toBe(REWORK_LIVES.max);
     expect(exp.checkpoint).toBe('forest');
+  });
+});
+
+describe('rework wolves (pack)', () => {
+  it('wolves differ: the timid never leap, the pack never leaps all at once', () => {
+    const run = createRun(171, 'warrior');
+    run.spawnTimer = 1e9;
+    run.hero.immortal = true;
+    run.hero.attackTimer = 1e9;
+    const L = REWORK_ENEMIES.wolf.leap!;
+    const wolves = Array.from({ length: 14 }, (_, i) => {
+      const w = spawnBeast(run, 'wolf')!;
+      const a = (i / 14) * Math.PI * 2;
+      w.pos = { x: run.hero.pos.x + Math.cos(a) * 160, y: run.hero.pos.y + Math.sin(a) * 160 };
+      return w;
+    });
+    expect(new Set(wolves.map((w) => w.temper!.toFixed(2))).size).toBeGreaterThan(5);
+    const leapt = new Set<number>();
+    let most = 0;
+    for (let i = 0; i < 60 * 15; i++) {
+      stepRun(run, 1 / 60, still);
+      run.hero.attackTimer = 1e9;
+      const busy = run.enemies.filter((e) => e.act.kind === 'crouch' || e.act.kind === 'leap');
+      most = Math.max(most, busy.length);
+      for (const e of busy) leapt.add(e.id);
+    }
+    expect(most).toBeLessThanOrEqual(L.atOnce);
+    for (const w of wolves) if (w.temper! < L.timid) expect(leapt.has(w.id)).toBe(false);
+    expect(leapt.size).toBeGreaterThan(0);
   });
 });
 

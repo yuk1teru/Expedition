@@ -53,8 +53,30 @@ export interface ReworkEnemyDef {
   xp: number;
   /** Share in the spawn mix. */
   weight: number;
-  /** Wolf: crouches (the line shows), then leaps along it. */
-  leap?: { every: number; trigger: number; windup: number; speedMult: number; time: number };
+  /**
+   * Wolf: crouches (the line shows), then leaps along it. Not every wolf leaps alike: each has its
+   * temper (0 — timid, 1 — bold) — the timid never leap; the bolder try more often and aim where
+   * the hero is going. When ready and in reach a wolf leaps only with `chance` (higher for bolder),
+   * else waits `retry` s; the pack has at most `atOnce` wolves crouching or leaping, `gap` s apart.
+   * The cooldown varies by ±`jitter`. Away from the hero wolves come from the side (`flank` — the
+   * widest angle off the straight way), so a pack spreads around the hero instead of a line.
+   */
+  leap?: {
+    every: number;
+    trigger: number;
+    windup: number;
+    speedMult: number;
+    time: number;
+    timid: number;
+    chance: [number, number];
+    retry: [number, number];
+    atOnce: number;
+    gap: number;
+    jitter: number;
+    lead: number;
+    flank: number;
+    flankFrom: number;
+  };
   /** Mushroom: keeps away and spits spores; every N-th shot is a fan. */
   spit?: { every: number; keep: number; range: number; windup: number; speed: number; damage: number; fanEvery: number; fanCount: number; fanDeg: number };
   /** Spider: stops and spits a web at the hero's place; where it lands, a sticky patch slows him. */
@@ -75,7 +97,7 @@ export const REWORK_ENEMIES: Record<ReworkEnemyId, ReworkEnemyDef> = {
     radius: 11,
     xp: 2,
     weight: 5,
-    leap: { every: 4, trigger: 220, windup: 0.45, speedMult: 3.2, time: 0.32 },
+    leap: { every: 4.5, trigger: 220, windup: 0.45, speedMult: 3.2, time: 0.32, timid: 0.3, chance: [0.25, 0.7], retry: [0.5, 1.4], atOnce: 2, gap: 0.6, jitter: 0.35, lead: 0.35, flank: 55, flankFrom: 150 },
   },
   mushroom: {
     id: 'mushroom',
@@ -290,10 +312,15 @@ export const REWORK_PROGRESS = {
   xpBase: 5,
   xpPerLevel: 4,
   xpSquare: 0.6,
-  /** Gems fly to the hero inside this radius (world px) and are picked up on touch. */
-  magnet: 110,
-  pickup: 18,
-  gemSpeed: 420,
+  /**
+   * Gems and coins start flying to the hero inside this radius (world px) and are picked up on
+   * touch. They start slow and speed up, so the flight is seen.
+   */
+  magnet: 70,
+  pickup: 10,
+  gemSpeed: 120,
+  gemAccel: 700,
+  gemMaxSpeed: 560,
   /** A beast drops gold with this chance (1 coin each). */
   goldChance: 0.25,
   /** Re-rolling the cards: first price, then this much dearer each time in the run. */

@@ -22,19 +22,21 @@ export function rerollPrice(run: Run): number {
   return P.rerollCost + P.rerollStep * run.rerolls;
 }
 
-/** Gems and coins: pulled inside the magnet, picked up on touch. */
+/** Gems and coins: pulled inside the magnet (slow, then faster), picked up on touch. */
 export function stepPickups(run: Run, dt: number): void {
   const h = run.hero;
   if (h.dead) return;
   const magnet = heroStats(run).magnet;
-  const fly = (p: { pos: { x: number; y: number }; pulled: boolean }): boolean => {
+  const fly = (p: { pos: { x: number; y: number }; pulled: boolean; speed?: number }): boolean => {
     const dx = h.pos.x - p.pos.x;
     const dy = h.pos.y - p.pos.y;
     const d = Math.hypot(dx, dy);
     if (d < P.pickup + h.radius) return true;
     if (d < magnet) p.pulled = true;
     if (p.pulled) {
-      const step = Math.min(d, P.gemSpeed * dt);
+      // Slow at first, faster and faster: the flight is seen.
+      p.speed = Math.min(P.gemMaxSpeed, (p.speed ?? P.gemSpeed) + P.gemAccel * dt);
+      const step = Math.min(d, p.speed * dt);
       p.pos.x += (dx / d) * step;
       p.pos.y += (dy / d) * step;
     }

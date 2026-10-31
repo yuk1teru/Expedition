@@ -194,14 +194,7 @@ export function drawEnemyWarning(ctx: CanvasRenderingContext2D, e: RunEnemy): vo
   const act = e.act;
   if (act.kind === 'crouch' && d.leap) {
     const len = d.speed * d.leap.speedMult * d.leap.time + e.radius;
-    const k = 1 - act.time / d.leap.windup;
-    ctx.strokeStyle = `rgba(230, 70, 60, ${0.35 + 0.45 * k})`;
-    ctx.lineWidth = e.radius * 1.4;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(e.pos.x, e.pos.y);
-    ctx.lineTo(e.pos.x + act.dir.x * len, e.pos.y + act.dir.y * len);
-    ctx.stroke();
+    telegraphLine(ctx, e.pos, act.dir, len, e.radius * 2, 1 - act.time / d.leap.windup);
   } else if (act.kind === 'weave') {
     ctx.strokeStyle = 'rgba(235, 235, 245, 0.7)';
     ctx.setLineDash([5, 5]);
@@ -211,18 +204,7 @@ export function drawEnemyWarning(ctx: CanvasRenderingContext2D, e: RunEnemy): vo
     ctx.stroke();
     ctx.setLineDash([]);
   } else if (act.kind === 'stomp' && d.stomp) {
-    const k = 1 - act.time / d.stomp.delay;
-    const reach = d.stomp.reach + e.radius;
-    ctx.fillStyle = `rgba(230, 70, 60, ${0.12 + 0.25 * k})`;
-    ctx.strokeStyle = 'rgba(230, 70, 60, 0.85)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.ellipse(e.pos.x, e.pos.y, reach, reach * 0.6, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.ellipse(e.pos.x, e.pos.y, reach * k, reach * 0.6 * k, 0, 0, Math.PI * 2);
-    ctx.stroke();
+    telegraphArea(ctx, e.pos, d.stomp.reach + e.radius, 1 - act.time / d.stomp.delay);
   }
 }
 
@@ -952,31 +934,9 @@ export function drawBossWarning(ctx: CanvasRenderingContext2D, e: RunEnemy, hero
     return;
   }
   if (act.kind === 'dashWind') {
-    const k = 1 - act.time / A.dash.windup;
-    ctx.save();
-    ctx.translate(e.pos.x, e.pos.y);
-    ctx.rotate(Math.atan2(act.dir.y, act.dir.x));
-    ctx.fillStyle = `rgba(230, 70, 60, ${0.15 + 0.25 * k})`;
-    ctx.strokeStyle = 'rgba(230, 70, 60, 0.9)';
-    ctx.lineWidth = 2;
-    ctx.fillRect(0, -A.dash.width / 2, A.dash.length, A.dash.width);
-    ctx.strokeRect(0, -A.dash.width / 2, A.dash.length, A.dash.width);
-    ctx.fillStyle = 'rgba(230, 70, 60, 0.5)';
-    ctx.fillRect(0, -A.dash.width / 2, A.dash.length * k, A.dash.width);
-    ctx.restore();
+    telegraphLine(ctx, e.pos, act.dir, A.dash.length, A.dash.width, 1 - act.time / A.dash.windup);
   } else if (act.kind === 'leapWind' || act.kind === 'leapAir') {
-    const R = A.leap.radius;
-    const k = act.kind === 'leapWind' ? 1 - act.time / A.leap.windup : 1;
-    ctx.fillStyle = `rgba(230, 70, 60, ${0.15 + 0.2 * k})`;
-    ctx.strokeStyle = 'rgba(230, 70, 60, 0.9)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.ellipse(act.to.x, act.to.y, R, R * 0.6, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.ellipse(act.to.x, act.to.y, R * k, R * 0.6 * k, 0, 0, Math.PI * 2);
-    ctx.stroke();
+    telegraphArea(ctx, act.to, A.leap.radius, act.kind === 'leapWind' ? 1 - act.time / A.leap.windup : 1);
   }
 }
 
@@ -1333,23 +1293,9 @@ export function drawHazard(ctx: CanvasRenderingContext2D, z: Hazard): void {
   ctx.save();
   if (!z.struck) {
     const k = 1 - z.warn / z.total;
-    ctx.fillStyle = `rgba(230, 70, 60, ${0.12 + 0.25 * k})`;
-    ctx.strokeStyle = 'rgba(230, 70, 60, 0.85)';
-    ctx.lineWidth = 2;
-    if (z.dir) {
-      ctx.translate(z.pos.x, z.pos.y);
-      ctx.rotate(Math.atan2(z.dir.y, z.dir.x));
-      ctx.fillRect(0, -z.radius / 2, z.length!, z.radius);
-      ctx.fillStyle = 'rgba(230, 70, 60, 0.35)';
-      ctx.fillRect(0, -z.radius / 2, z.length! * k, z.radius);
-    } else {
-      ctx.beginPath();
-      ctx.ellipse(z.pos.x, z.pos.y, z.radius, z.radius * 0.62, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.ellipse(z.pos.x, z.pos.y, z.radius * k, z.radius * 0.62 * k, 0, 0, Math.PI * 2);
-      ctx.stroke();
+    if (z.dir) telegraphLine(ctx, z.pos, z.dir, z.length!, z.radius, k);
+    else {
+      telegraphArea(ctx, z.pos, z.radius, k);
       // The ground cracks where it will burst.
       if (z.kind === 'root' || z.kind === 'spike') {
         const crack = z.kind === 'root' ? ENAT_FX.roots[0]! : ENAT_FX.spike[0]!;
@@ -1455,4 +1401,87 @@ export function drawGhost(ctx: CanvasRenderingContext2D, p: { x: number; y: numb
 /** A destroyed cocoon: its torn shell lies on the ground and fades at the end. */
 export function drawCocoonRemains(ctx: CanvasRenderingContext2D, c: { x: number; y: number; age: number }, life: number): void {
   drawWebPiece(ctx, WEB_ART.torn, c.x, c.y, WEB_ART.cocoonScale, { alpha: Math.min(1, (life - c.age) / 1.5) });
+}
+
+/**
+ * Warnings on the ground, one look for every beast and boss (VISION §10: telegraphs as shapes on
+ * the ground): a faint dark-red shape with a thin bright edge, filled from where the blow starts
+ * as it comes (`k` 0 → 1), the last moment flashing. A line is a rounded strip with arrowheads
+ * pointing where the blow goes; an area is a flat ellipse filling from its centre.
+ */
+const TELE = {
+  base: 'rgba(120, 20, 16, 0.22)',
+  edge: 'rgba(255, 120, 90, 0.75)',
+  fill: (k: number): string => `rgba(235, 70, 45, ${0.18 + 0.22 * k})`,
+  flash: 'rgba(255, 210, 170, 0.9)',
+};
+
+export function telegraphLine(ctx: CanvasRenderingContext2D, from: { x: number; y: number }, dir: { x: number; y: number }, length: number, width: number, k: number): void {
+  const half = width / 2;
+  const strip = (len: number): void => {
+    ctx.beginPath();
+    ctx.moveTo(0, -half);
+    ctx.lineTo(Math.max(0, len - half), -half);
+    ctx.arc(Math.max(0, len - half), 0, half, -Math.PI / 2, Math.PI / 2);
+    ctx.lineTo(0, half);
+    ctx.arc(0, 0, half, Math.PI / 2, -Math.PI / 2);
+    ctx.closePath();
+  };
+  ctx.save();
+  ctx.translate(from.x, from.y);
+  ctx.rotate(Math.atan2(dir.y, dir.x));
+  strip(length);
+  ctx.fillStyle = TELE.base;
+  ctx.fill();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = TELE.edge;
+  ctx.stroke();
+  strip(length * k);
+  ctx.fillStyle = TELE.fill(k);
+  ctx.fill();
+  // Arrowheads along the way, brighter ahead of the fill.
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  const step = Math.max(26, width * 1.1);
+  for (let d = step; d < length - half * 0.5; d += step) {
+    ctx.strokeStyle = d < length * k ? 'rgba(255, 190, 150, 0.55)' : 'rgba(255, 120, 90, 0.4)';
+    ctx.beginPath();
+    ctx.moveTo(d - half * 0.45, -half * 0.5);
+    ctx.lineTo(d, 0);
+    ctx.lineTo(d - half * 0.45, half * 0.5);
+    ctx.stroke();
+  }
+  if (k > 0.85) {
+    strip(length);
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = TELE.flash;
+    ctx.globalAlpha = (k - 0.85) / 0.15;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+export function telegraphArea(ctx: CanvasRenderingContext2D, at: { x: number; y: number }, radius: number, k: number): void {
+  const ry = radius * 0.62;
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(at.x, at.y, radius, ry, 0, 0, Math.PI * 2);
+  ctx.fillStyle = TELE.base;
+  ctx.fill();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = TELE.edge;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(at.x, at.y, radius * k, ry * k, 0, 0, Math.PI * 2);
+  ctx.fillStyle = TELE.fill(k);
+  ctx.fill();
+  if (k > 0.85) {
+    ctx.beginPath();
+    ctx.ellipse(at.x, at.y, radius, ry, 0, 0, Math.PI * 2);
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = TELE.flash;
+    ctx.globalAlpha = (k - 0.85) / 0.15;
+    ctx.stroke();
+  }
+  ctx.restore();
 }

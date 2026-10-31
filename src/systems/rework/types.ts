@@ -134,6 +134,9 @@ export interface RunEnemy {
   slowMult: number;
   slowTime: number;
   fear: number;
+  /** Wolves: how bold (0–1) and from which side it comes (−1…1 of the widest angle). */
+  temper?: number;
+  flank?: number;
   /** 20.9: an elite's trait; 20.12: the boss. */
   elite?: EliteTrait;
   boss?: boolean;
@@ -244,13 +247,15 @@ export type RunPhase = 'flood' | 'warning' | 'ring' | 'won';
 export interface Gem {
   pos: Vec;
   xp: number;
-  /** Flying to the hero. */
+  /** Flying to the hero, and how fast now (it speeds up). */
   pulled: boolean;
+  speed?: number;
 }
 
 export interface Coin {
   pos: Vec;
   pulled: boolean;
+  speed?: number;
 }
 
 /** Something the screen shows once: numbers, swings, deaths. */
@@ -348,6 +353,8 @@ export interface Run {
   noHowl: boolean;
   /** Seconds the ring wall has hurt from (touch damage is per second). */
   wallTimer: number;
+  /** Seconds until the pack may start another leap. */
+  leapGap: number;
   /** Level-ups not chosen yet and the cards on the table. */
   pendingLevels: number;
   offer: CardOffer[] | null;

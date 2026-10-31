@@ -81,6 +81,7 @@ export function createRun(seed: number, classId: ReworkClassId, location = 0): R
     ringCenter: { x: start.x, y: start.y },
     noHowl: false,
     wallTimer: 0,
+    leapGap: 0,
     pendingLevels: 0,
     offer: null,
     rerolls: 0,

@@ -1,6 +1,7 @@
 // The flood and the Forest's beasts (ROADMAP 20.3, 20.9). Beasts come without a break from just
 // outside the view: few at first, ever more often, each a bit stronger than the one before.
-// The wolf crouches and leaps along a shown line, the mushroom keeps away and spits spores
+// The wolf crouches and leaps along a shown line — each wolf in its own way (bold, hesitant,
+// timid), never the whole pack at once, coming from the sides — the mushroom keeps away and spits spores
 // (every third time a fan), the stump stomps a ring around itself, the spider (the deeper forest)
 // spits webs that stick the ground. Elites come on a timer, larger and with a trait. The special beasts (the spirit, dens, the boss) and the beasts standing in
 // the living ring are stepped by their own code, passed in as `special`.
@@ -76,6 +77,11 @@ export function spawnBeast(run: Run, def: ReworkEnemyId, near?: Vec): RunEnemy |
       slowTime: 0,
       fear: 0,
     };
+    if (d.leap) {
+      e.temper = run.rng.next();
+      e.flank = run.rng.next() * 2 - 1;
+      e.traitTimer = 1 + run.rng.next() * d.leap.every;
+    }
     run.enemies.push(e);
     return e;
   }
@@ -153,6 +159,11 @@ function stepBeast(run: Run, e: RunEnemy, dt: number): void {
   }
   let speed = d.speed * (e.elite === 'swift' ? 1.5 : 1);
   let move = dir;
+  // A wolf away from the hero comes from its own side, so the pack spreads around him.
+  if (d.leap && e.flank && dist > d.leap.flankFrom && e.act.kind === 'walk') {
+    const a = Math.atan2(dir.y, dir.x) + ((e.flank * d.leap.flank * Math.PI) / 180) * Math.min(1, (dist - d.leap.flankFrom) / 200);
+    move = { x: Math.cos(a), y: Math.sin(a) };
+  }
   const act = e.act;
   if (act.kind === 'crouch') {
     act.time -= dt;
@@ -187,10 +198,23 @@ function stepBeast(run: Run, e: RunEnemy, dt: number): void {
     }
   } else {
     // Walking: start a trait when it is ready and the hero is in reach.
-    if (d.leap && e.traitTimer <= 0 && dist < d.leap.trigger) {
-      e.traitTimer = d.leap.every;
-      e.act = { kind: 'crouch', time: d.leap.windup, dir };
-      speed = 0;
+    if (d.leap && e.traitTimer <= 0 && dist < d.leap.trigger && (e.temper ?? 1) >= d.leap.timid) {
+      const L = d.leap;
+      const t = e.temper ?? 1;
+      const busy = run.enemies.filter((o) => o.act.kind === 'crouch' || o.act.kind === 'leap').length;
+      const between = (r: [number, number]): number => r[0] + run.rng.next() * (r[1] - r[0]);
+      if (busy >= L.atOnce || run.leapGap > 0 || run.rng.next() > L.chance[0] + (L.chance[1] - L.chance[0]) * t) {
+        // Not now: the pack is busy or it hesitates — tries again a little later.
+        e.traitTimer = between(L.retry);
+      } else {
+        e.traitTimer = L.every * (1 + (run.rng.next() * 2 - 1) * L.jitter);
+        run.leapGap = L.gap;
+        // A bold wolf aims where the hero is going.
+        const lead = L.lead * t;
+        const aim = norm({ x: to.x + h.vel.x * lead, y: to.y + h.vel.y * lead });
+        e.act = { kind: 'crouch', time: L.windup, dir: aim };
+        speed = 0;
+      }
     } else if (d.spit && e.traitTimer <= 0 && dist < d.spit.range) {
       e.traitTimer = d.spit.every;
       e.shots += 1;
@@ -267,6 +291,7 @@ export function layWeb(run: Run, pos: Vec): void {
 const cellKey = (cx: number, cy: number): number => cx * 100003 + cy;
 
 export function stepBeasts(run: Run, dt: number, special: (e: RunEnemy) => boolean = () => false): void {
+  run.leapGap = Math.max(0, run.leapGap - dt);
   for (const e of run.enemies) if (!e.dead && !special(e)) stepBeast(run, e, dt);
   // Push apart through a grid of cells, then out of obstacles and the hero.
   const C = 32;
