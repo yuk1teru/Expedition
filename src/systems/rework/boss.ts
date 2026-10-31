@@ -8,7 +8,7 @@
 // a path to the next location opens at the field's edge. In the deeper forest the spinner comes
 // out instead (spinner.ts), and her ring is sticky: touching it holds the hero.
 
-import { REWORK_BOSS, REWORK_LOCATIONS, REWORK_PATH, REWORK_TASKS } from '../../data/rework';
+import { REWORK_BOSS, REWORK_ENEMIES, REWORK_LOCATIONS, REWORK_PATH, REWORK_TASKS } from '../../data/rework';
 import type { Vec } from '../entities';
 import { damageHero } from './combat';
 import { spawnBeast } from './enemies';
@@ -36,6 +36,7 @@ export function stepBossPhase(run: Run, dt: number): void {
     // The ring scatters and is gone.
     for (const e of run.enemies) {
       if (e.boss) continue;
+      if (e.act.kind === 'ring') e.act = { kind: 'walk' };
       e.fear = 99;
       if (Math.hypot(e.pos.x - run.ringCenter.x, e.pos.y - run.ringCenter.y) > B.ringRadius + 500) e.dead = true;
     }
@@ -123,7 +124,7 @@ export function outsideRing(run: Run, p: Vec, margin = 0): boolean {
   return dx * dx + dy * dy > 1;
 }
 
-/** The wall: the hero is pushed back inside and hurt while touching it. */
+/** The wall: the hero is pushed back inside (the beasts there bite — stepRingBeast); the spinner's ring holds him. */
 function stepRingWall(run: Run, dt: number): void {
   const h = run.hero;
   run.wallTimer = Math.max(0, run.wallTimer - dt);
@@ -137,20 +138,40 @@ function stepRingWall(run: Run, dt: number): void {
   if (h.dash && !h.dash.through) h.dash = null;
   if (run.wallTimer > 0) return;
   run.wallTimer = 1;
-  // The spinner's ring is sticky: it holds the hero instead of hurting.
+  // The spinner's ring is sticky: it holds the hero.
   if (REWORK_LOCATIONS[run.location]!.boss === 'spinner') h.root = Math.max(h.root, B.spinner.stick);
-  else damageHero(run, B.wallDamage);
 }
 
 /** A beast in the ring walks to its place and stands there, facing in. */
 export function stepRingBeast(run: Run, e: RunEnemy, dt: number): boolean {
-  if (e.act.kind !== 'ring' || e.boss) return false;
-  const slot = e.act.slot;
-  const dx = slot.x - e.pos.x;
-  const dy = slot.y - e.pos.y;
+  const act = e.act;
+  if (act.kind !== 'ring' || e.boss) return false;
+  const h = run.hero;
+  const R = B.ringBite;
+  const toH = { x: h.pos.x - e.pos.x, y: h.pos.y - e.pos.y };
+  const dh = Math.hypot(toH.x, toH.y) || 1;
+  e.touchTimer -= dt;
+  act.bite = Math.max(0, (act.bite ?? 0) - dt);
+  act.face = toH.x >= 0 ? 1 : -1;
+  // The hero came close: it bites (and leans in for the bite).
+  if (!h.dead && dh < e.radius + h.radius + R.reach && e.touchTimer <= 0 && run.phase === 'ring') {
+    e.touchTimer = REWORK_ENEMIES[e.def].touchEvery;
+    act.bite = R.time;
+    damageHero(run, REWORK_ENEMIES[e.def].damage * e.power);
+  }
+  // Its place: shifting along the ring now and then; leaning towards the hero while it bites.
+  const cx = act.slot.x - run.ringCenter.x;
+  const cy = act.slot.y - run.ringCenter.y;
+  const cl = Math.hypot(cx, cy) || 1;
+  const sway = Math.sin(run.time * 0.9 + e.id * 1.7) * B.ringSway;
+  const lean = (act.bite / R.time) * R.lunge;
+  const to = { x: act.slot.x + (-cy / cl) * sway + (toH.x / dh) * lean, y: act.slot.y + (cx / cl) * sway * 0.62 + (toH.y / dh) * lean };
+  const dx = to.x - e.pos.x;
+  const dy = to.y - e.pos.y;
   const d = Math.hypot(dx, dy);
-  const step = Math.min(d, 220 * dt);
-  e.vel = d > 1 ? { x: (dx / d) * 220, y: (dy / d) * 220 } : { x: run.ringCenter.x - e.pos.x > 0 ? 0.01 : -0.01, y: 0 };
+  const speed = d > 30 ? 220 : 60 + 400 * (act.bite / R.time);
+  const step = Math.min(d, speed * dt);
+  e.vel = d > 0.5 ? { x: (dx / d) * Math.min(speed, d / dt), y: (dy / d) * Math.min(speed, d / dt) } : { x: 0, y: 0 };
   if (d > 0.5) {
     e.pos.x += (dx / d) * step;
     e.pos.y += (dy / d) * step;

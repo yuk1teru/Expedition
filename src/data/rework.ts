@@ -508,9 +508,14 @@ export const REWORK_BOSS = {
   /** Run seconds: the warning, then the ring and the boss. */
   warnAt: 390,
   warnTime: 5,
-  ringRadius: 300,
-  /** The ring is a wall: it pushes back and hurts this much per second of touch. */
-  wallDamage: 6,
+  ringRadius: 340,
+  /**
+   * The ring is a wall of living beasts: it pushes the hero back, and a beast he comes close to
+   * bites him (its own bite, at most once per its `touchEvery`). The beasts shift about their
+   * places, face the hero and lean in when he comes near. The spinner's ring is sticky instead.
+   */
+  ringBite: { reach: 34, lunge: 14, time: 0.25 },
+  ringSway: 12,
   /** The ring needs at least this many beasts (wolves come to fill it) and holds at most this many. */
   ringMin: 34,
   ringMax: 90,

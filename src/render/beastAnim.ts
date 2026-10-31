@@ -25,7 +25,8 @@ const sides = new Map<number, number>();
 function faceOf(e: RunEnemy): number {
   const act = e.act;
   let x = 0;
-  if ('dir' in act) x = act.dir.x;
+  if (act.kind === 'ring' && act.face) x = act.face;
+  else if ('dir' in act) x = act.dir.x;
   else if (act.kind === 'leapWind' || act.kind === 'leapAir') x = act.to.x - e.pos.x;
   else if (Math.abs(e.vel.x) > 1) x = e.vel.x;
   let side = sides.get(e.id) ?? 1;
@@ -72,7 +73,9 @@ function poseOf(e: RunEnemy, sh: BeastSheet, time: number): BeastPose {
     case 'rest':
       return REWORK_BOSS.alpha.rest - act.time < A.slamTime ? 'slam' : 'rest';
     case 'ring':
-      return 'stand';
+      // In the ring: bites when the hero comes close, else shifts about or stands.
+      if ((act.bite ?? 0) > 0) return sh.frames.land ? 'land' : sh.frames.stomp ? 'stomp' : sh.frames.spit ? 'spit' : 'stand';
+      return Math.hypot(e.vel.x, e.vel.y) > 8 ? 'walk' : 'stand';
   }
   if (e.def === 'spirit' && e.hp < e.maxHp * REWORK_SPIRIT.fleeAt) return 'flee';
   // The pack leader's howl, the spinner calling her spiderlings.

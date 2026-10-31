@@ -78,8 +78,8 @@ export type EnemyAct =
   | { kind: 'leapWind'; time: number; to: Vec; from: Vec }
   | { kind: 'leapAir'; time: number; to: Vec; from: Vec }
   | { kind: 'rest'; time: number }
-  /** A beast standing in the living ring (20.12) at its place. */
-  | { kind: 'ring'; slot: Vec }
+  /** A beast standing in the living ring (20.12) at its place: which way it faces, a bite showing. */
+  | { kind: 'ring'; slot: Vec; face?: number; bite?: number }
   /** The spirit gathers its fog (20.10). */
   | { kind: 'cast'; time: number }
   /** A spider stops and spits a web at a point; the spinner rears before her cocoon (20.14). */

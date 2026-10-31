@@ -944,6 +944,34 @@ describe('rework beasts go round obstacles', () => {
   });
 });
 
+describe('rework living ring', () => {
+  it('ring beasts bite the hero who comes close and scatter after the boss', () => {
+    const run = createRun(211, 'warrior');
+    run.spawnTimer = 1e9;
+    run.time = REWORK_BOSS.warnAt + REWORK_BOSS.warnTime;
+    stepRun(run, 1 / 60, still);
+    expect(run.phase).toBe('ring');
+    for (let i = 0; i < 60 * 3; i++) stepRun(run, 1 / 60, still);
+    run.hero.invuln = 0;
+    run.hero.attackTimer = 1e9;
+    // The boss stands stunned: only the ring can hurt.
+    const alpha = run.enemies.find((e) => e.boss)!;
+    alpha.stun = 1e9;
+    alpha.pos = { x: run.ringCenter.x - 200, y: run.ringCenter.y };
+    // Walk into the ring's edge (right side).
+    const hp = run.hero.hp;
+    for (let i = 0; i < 60 * 3; i++) {
+      stepRun(run, 1 / 60, { x: 1, y: 0 });
+      run.hero.attackTimer = 1e9;
+    }
+    expect(run.hero.hp).toBeLessThan(hp);
+    const boss = run.enemies.find((e) => e.boss)!;
+    killFully(run, boss);
+    for (let i = 0; i < 60; i++) stepRun(run, 1 / 60, still);
+    expect(run.enemies.some((e) => e.act.kind === 'ring')).toBe(false);
+  });
+});
+
 /** Hits a beast until it dies (a shield or a resting boss take less). */
 function killFully(run: ReturnType<typeof createRun>, e: Parameters<typeof damageEnemyHit>[1]): void {
   for (let i = 0; i < 50 && !e.dead; i++) damageEnemyHit(run, e, 1e6);
