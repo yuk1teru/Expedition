@@ -62,6 +62,8 @@ export interface RunHero {
   /** 20.14: wrapped in a cocoon or stuck to the web ring — can't walk (a dodge breaks free); walks at this share of speed (webs). */
   root: number;
   slow: number;
+  /** The archer drawing the bow: seconds until the arrow leaves, and where it was aimed. */
+  draw: { time: number; angle: number } | null;
 }
 
 export type EnemyAct =

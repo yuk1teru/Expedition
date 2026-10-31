@@ -47,6 +47,7 @@ export function newHero(classId: ReworkClassId, pos: Vec, radius: number): RunHe
     shield: 0,
     root: 0,
     slow: 1,
+    draw: null,
   };
 }
 
@@ -111,7 +112,18 @@ export function stepHero(run: Run, dt: number, move: Vec): void {
     resolveBody(run.grid, h.pos, h.radius, run.width, run.height);
     if (move.x !== 0 || move.y !== 0) h.facing = Math.atan2(move.y, move.x);
   }
-  if (h.attackTimer <= 0) attack(run);
+  if (h.draw) {
+    // The bow drawn: the arrow leaves at the nearest beast now (or where it was aimed).
+    h.draw.time -= dt;
+    if (h.draw.time <= 0) {
+      const a = REWORK_CLASSES[h.classId].attack;
+      const t = nearest(run, h.pos, a.kind === 'arc' ? 0 : a.range * 1.2);
+      const angle = t ? Math.atan2(t.pos.y - h.pos.y, t.pos.x - h.pos.x) : h.draw.angle;
+      h.draw = null;
+      h.facing = angle;
+      shoot(run, angle);
+    }
+  } else if (h.attackTimer <= 0) attack(run);
 }
 
 function attack(run: Run): void {
@@ -125,6 +137,11 @@ function attack(run: Run): void {
   const angle = Math.atan2(target.pos.y - h.pos.y, target.pos.x - h.pos.x);
   h.facing = angle;
   run.events.push({ type: 'attack', angle });
+  // The archer draws the bow first: the arrow leaves a moment later, at the beast then nearest.
+  if (a.kind === 'arrow' && a.windup > 0) {
+    h.draw = { time: a.windup, angle };
+    return;
+  }
   if (a.kind === 'arc') {
     const reach = a.reach * st.area;
     const half = (a.arcDeg * Math.PI) / 360;
@@ -141,6 +158,15 @@ function attack(run: Run): void {
     }
     return;
   }
+  shoot(run, angle);
+}
+
+/** The basic shot leaves the hero along `angle` (the mage's bolt, the archer's arrow). */
+function shoot(run: Run, angle: number): void {
+  const h = run.hero;
+  const a = REWORK_CLASSES[h.classId].attack;
+  if (a.kind === 'arc') return;
+  const st = heroStats(run);
   run.shots.push({
     pos: { x: h.pos.x + Math.cos(angle) * h.radius, y: h.pos.y + Math.sin(angle) * h.radius },
     vel: { x: Math.cos(angle) * a.speed, y: Math.sin(angle) * a.speed },

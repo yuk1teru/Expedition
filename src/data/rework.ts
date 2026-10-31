@@ -277,7 +277,7 @@ export interface ReworkClassDef {
   attack:
     | { kind: 'arc'; damage: number; every: number; reach: number; arcDeg: number }
     | { kind: 'bolt'; damage: number; every: number; range: number; speed: number; splash: number; splashShare: number }
-    | { kind: 'arrow'; damage: number; every: number; range: number; speed: number; pierce: number };
+    | { kind: 'arrow'; damage: number; every: number; range: number; speed: number; pierce: number; windup: number };
   /** The dodge on Space: no damage, a short invulnerability. */
   dodge: { name: string; kind: 'dash' | 'blink' | 'vault'; distance: number; time: number; invuln: number; cooldown: number };
 }
@@ -308,7 +308,8 @@ export const REWORK_CLASSES: Record<ReworkClassId, ReworkClassDef> = {
     hp: 120,
     speed: 128,
     color: '#5f9a4a',
-    attack: { kind: 'arrow', damage: 10, every: 0.55, range: 350, speed: 620, pierce: 2 },
+    /** He draws the bow `windup` s before the arrow leaves (the animation's nock and draw). */
+    attack: { kind: 'arrow', damage: 10, every: 0.55, range: 350, speed: 620, pierce: 2, windup: 0.26 },
     dodge: { name: 'Відскок', kind: 'vault', distance: 110, time: 0.24, invuln: 0.28, cooldown: 3 },
   },
 };

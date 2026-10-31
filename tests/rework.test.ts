@@ -861,11 +861,33 @@ describe('rework aiming on screen', () => {
       expect(run.shots.filter((s) => s.byHero).length).toBe(0);
       off.pos = { x: run.hero.pos.x + 200, y: run.hero.pos.y };
       run.hero.attackTimer = 0;
-      stepRun(run, 1 / 60, still);
-      expect(run.shots.filter((s) => s.byHero).length).toBeGreaterThan(0);
+      // The archer draws the bow first.
+      let shot = false;
+      for (let i = 0; i < 20 && !shot; i++) {
+        stepRun(run, 1 / 60, still);
+        shot = run.shots.some((s) => s.byHero);
+      }
+      expect(shot).toBe(true);
     }
   });
 });
+describe('rework archer draw', () => {
+  it('the arrow leaves after the bow is drawn, not at once', () => {
+    const run = createRun(183, 'archer');
+    run.spawnTimer = 1e9;
+    run.hero.immortal = true;
+    const w = spawnBeast(run, 'wolf')!;
+    w.pos = { x: run.hero.pos.x + 200, y: run.hero.pos.y };
+    w.traitTimer = 1e9;
+    run.hero.attackTimer = 0;
+    stepRun(run, 1 / 60, still);
+    expect(run.hero.draw).not.toBeNull();
+    expect(run.shots.filter((s) => s.byHero).length).toBe(0);
+    for (let i = 0; i < 20; i++) stepRun(run, 1 / 60, still);
+    expect(run.shots.filter((s) => s.byHero).length).toBe(1);
+  });
+});
+
 
 describe('rework dens and shooters', () => {
   it('the hero cannot push a den', () => {

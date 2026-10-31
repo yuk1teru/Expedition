@@ -104,7 +104,8 @@ export const HERO_SHEETS: Record<string, HeroSheet> = {
       dash: [15, 16, 17],
       hurt: [0],
     },
-    durations: { moveA: [0.1, 0.08, 0.12], moveB: [0.12, 0.08, 0.14], moveC: [0.1, 0.07, 0.14], cast: [0.12, 0.3], dash: [0.05, 0.07, 0.12], hurt: [0.18] },
+    // The shot: nock and draw (0.26 s — the arrow leaves when the release frame shows), the release held.
+    durations: { moveA: [0.13, 0.13, 0.24], moveB: [0.12, 0.08, 0.14], moveC: [0.1, 0.07, 0.14], cast: [0.12, 0.3], dash: [0.05, 0.07, 0.12], hurt: [0.18] },
     attacks: ['moveA'],
     skillAnim: { piercingShot: 'moveA', hunterTrap: 'moveA', arrowRain: 'moveB', multishot: 'moveC' },
     chest: [0, -78],
@@ -198,7 +199,7 @@ export const ATTACK_FX = {
   castFlash: { sheet: 'mage', frames: [6, 7, 8], size: 40, offset: [26, -66], delay: 0.05, times: [0.04, 0.06, 0.1] },
   /** The archer's arrow in flight (loops) and the ring of air at the bow. */
   arrow: { sheet: 'archer', frames: [0, 1, 2], size: 30, offset: [0, 0], delay: 0, times: [0.06, 0.06, 0.06] },
-  release: { sheet: 'archer', frames: [6, 7, 8], size: 40, offset: [22, -48], delay: 0, times: [0.04, 0.06, 0.1] },
+  release: { sheet: 'archer', frames: [6, 7, 8], size: 40, offset: [22, -48], delay: 0.26, times: [0.04, 0.06, 0.1] },
   /** The explosion's frame height per world px of the blast radius; at most this many hit sparks at once. */
   explosionSize: 2.1,
   maxSparks: 24,
