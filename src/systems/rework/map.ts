@@ -35,7 +35,7 @@ export function makeForest(rng: Rng, width: number, height: number, start: Vec, 
       break;
     }
   });
-  for (let i = 0; i < L.trees; i++) place('tree', between(rng, M.tree.radius), between(rng, M.tree.height));
+  for (let i = 0; i < L.trees; i++) place('tree', between(rng, L.treeRadius ?? M.tree.radius), between(rng, M.tree.height));
   for (let i = 0; i < L.bushes; i++) place('bush', between(rng, M.bush.radius), 0);
   for (let i = 0; i < L.stones; i++) place('stone', between(rng, M.stone.radius), 0);
   return out;

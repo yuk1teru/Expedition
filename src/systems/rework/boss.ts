@@ -12,7 +12,7 @@ import { REWORK_BOSS, REWORK_ENEMIES, REWORK_LOCATIONS, REWORK_PATH, REWORK_TASK
 import type { Vec } from '../entities';
 import { damageHero } from './combat';
 import { spawnBeast } from './enemies';
-import { isFree } from './map';
+import { buildGrid, isFree } from './map';
 import type { Run, RunEnemy } from './types';
 
 const B = REWORK_BOSS;
@@ -71,6 +71,14 @@ export function formRing(run: Run): void {
   run.phase = 'ring';
   run.ringCenter = { x: h.pos.x, y: h.pos.y };
   h.invuln = Math.max(h.invuln, B.invuln);
+  // The arena is cleared: trees, bushes and stones inside the ring (and under it) give way; the
+  // screen fades them out.
+  const inside = run.obstacles.filter((o) => !outsideRing(run, o.pos, -(o.radius + 40)));
+  if (inside.length > 0) {
+    run.obstacles = run.obstacles.filter((o) => !inside.includes(o));
+    run.grid = buildGrid(run.obstacles);
+    run.cleared = inside;
+  }
   // The spirit, the dens, cocoons, webs and spores have no place in the duel.
   run.shots = run.shots.filter((s) => s.byHero);
   for (const e of run.enemies) if (e.def === 'spirit' || e.def === 'nest' || e.def === 'cocoon') e.dead = true;

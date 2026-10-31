@@ -610,10 +610,11 @@ describe('rework second location and the spinner (20.14)', () => {
     expect(run.obstacles.some((o) => o.webbed)).toBe(true);
   });
 
-  it('the deeper forest: denser, stronger beasts, spiders, two tasks one after another', () => {
+  it('the deeper forest: more trees, stronger beasts, spiders, two tasks one after another', () => {
     const first = createRun(142, 'mage');
     const deep = createRun(142, 'mage', 1);
-    expect(deep.obstacles.length).toBeGreaterThan(first.obstacles.length);
+    const trees = (r: typeof first): number => r.obstacles.filter((o) => o.kind === 'tree').length;
+    expect(trees(deep)).toBeGreaterThan(trees(first));
     const a = spawnBeast(first, 'wolf')!;
     const b = spawnBeast(deep, 'wolf')!;
     expect(b.maxHp).toBeGreaterThan(a.maxHp);
@@ -725,7 +726,7 @@ describe('rework lair and the Old Enat (20.15)', () => {
     expect(lair.phase).toBe('ring');
   });
 
-  it('he stands; roots burst under the hero and hurt', () => {
+  it('he walks after the hero, slow; roots burst under the hero and hurt', () => {
     const { run, enat } = lairBoss(153);
     const at = { ...enat.pos };
     run.hero.invuln = 0;
@@ -734,7 +735,10 @@ describe('rework lair and the Old Enat (20.15)', () => {
     const hp = run.hero.hp;
     for (let i = 0; i < 60 * 2; i++) stepRun(run, 1 / 60, still);
     expect(run.hero.hp).toBeLessThan(hp);
-    expect(Math.hypot(enat.pos.x - at.x, enat.pos.y - at.y)).toBeLessThan(1);
+    // Slow and heavy: he came closer, but not far in 2 s.
+    const moved = Math.hypot(enat.pos.x - at.x, enat.pos.y - at.y);
+    expect(moved).toBeGreaterThan(10);
+    expect(moved).toBeLessThan(REWORK_BOSS.enat.walk.speed * 2 + 1);
   });
 
   it('the combo: the branch catches and pulls the hero in; a dodge in the charge breaks free', () => {
@@ -965,6 +969,8 @@ describe('rework living ring', () => {
       run.hero.attackTimer = 1e9;
     }
     expect(run.hero.hp).toBeLessThan(hp);
+    // The arena is clear of trees and stones.
+    for (const o of run.obstacles) expect(outsideRing(run, o.pos, -o.radius)).toBe(true);
     const boss = run.enemies.find((e) => e.boss)!;
     killFully(run, boss);
     for (let i = 0; i < 60; i++) stepRun(run, 1 / 60, still);

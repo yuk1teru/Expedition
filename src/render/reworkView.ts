@@ -51,6 +51,9 @@ interface Pointer {
   color: string;
 }
 
+/** The trees and stones the ring clears fade out this long. */
+const CLEAR_FADE = 0.8;
+
 /** The Forest's point on the map (docs/art/locations/forest/scene.png). */
 const FOREST_SCENE = 'sprites/forest-scene.jpg';
 
@@ -119,6 +122,9 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
   /** Attack effects playing (slashes, sparks, explosions, flashes); an attack's swing that comes next is the basic one. */
   let attackFx: { id: AttackFxId; x: number; y: number; side: number; angle: number; size: number; age: number; follow: boolean }[] = [];
   let basicSwing = false;
+  /** The obstacles the ring cleared and when the fading began (screen time). */
+  let clearedFrom: Obstacle[] | null = null;
+  let clearedAt = 0;
   /** Seconds since the last level-up's pillar of light began (negative — none). */
   let levelFx = -1;
   /** The new location's name over the screen for a moment. */
@@ -470,6 +476,15 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       for (const o of r.obstacles) {
         if (!onScreen(o.pos.x, o.pos.y, o.height + 80)) continue;
         for (const l of obstacleLayers(o)) items.push({ y: l.y, draw: () => l.draw(ctx, treeAlpha(o, bodies)) });
+      }
+      // What the ring cleared from the arena fades out.
+      if (r.cleared) {
+        if (clearedFrom !== r.cleared) {
+          clearedFrom = r.cleared;
+          clearedAt = animTime;
+        }
+        const fade = 1 - (animTime - clearedAt) / CLEAR_FADE;
+        if (fade > 0) for (const o of r.cleared) for (const l of obstacleLayers(o)) items.push({ y: l.y, draw: () => l.draw(ctx, fade) });
       }
       for (const e of r.enemies) if (onScreen(e.pos.x, e.pos.y, 40)) items.push({ y: e.pos.y, draw: () => drawEnemy(ctx, e, r.time) });
       for (const c of r.chests) if (onScreen(c.pos.x, c.pos.y, 30)) items.push({ y: c.pos.y, draw: () => drawChest(ctx, c, r.time) });

@@ -28,7 +28,7 @@ export const REWORK_MAP = {
   landmarks: [
     { kind: 'oak', radius: 46, name: 'Старий дуб' },
     { kind: 'stoneRing', radius: 70, name: 'Кам’яне коло' },
-    { kind: 'log', radius: 40, name: 'Повалена сосна' },
+    { kind: 'log', radius: 56, name: 'Повалена сосна' },
   ],
   /** A tree crown fades when the hero walks behind it. */
   crownFade: 0.45,
@@ -187,8 +187,12 @@ export const REWORK_FLOOD = {
  */
 export interface ReworkLocation {
   name: string;
-  /** Obstacles of each kind; trees with cobwebs (share); another set of props and ground than the Forest's. */
-  map: { trees: number; bushes: number; stones: number; webbed: number; art?: 'lair' };
+  /**
+   * Obstacles of each kind; trees with cobwebs (share); another set of props and ground than the
+   * Forest's; the trees' blocking radius if not the Forest's (the lair's dead trees and root arches
+   * are wide, a thin trunk's circle would let the hero walk through them).
+   */
+  map: { trees: number; bushes: number; stones: number; webbed: number; art?: 'lair'; treeRadius?: [number, number] };
   /** Darker ground (0 — as is). */
   dark: number;
   /** Beasts from this many seconds (Infinity — not here); beasts this much stronger from the start. */
@@ -217,7 +221,7 @@ export const REWORK_LOCATIONS: ReworkLocation[] = [
   },
   {
     name: 'Глибина лісу',
-    map: { trees: 150, bushes: 80, stones: 40, webbed: 0.35 },
+    map: { trees: 120, bushes: 60, stones: 35, webbed: 0.35 },
     dark: 0.3,
     from: { mushroom: 20, stump: 60, spider: 15 },
     power: 1.6,
@@ -232,7 +236,7 @@ export const REWORK_LOCATIONS: ReworkLocation[] = [
   {
     // 20.15 — the lair: a short strong flood, then the Old Enat.
     name: 'Лігво Ената',
-    map: { trees: 100, bushes: 40, stones: 50, webbed: 0, art: 'lair' },
+    map: { trees: 80, bushes: 40, stones: 50, webbed: 0, art: 'lair', treeRadius: [34, 46] },
     dark: 0.4,
     from: { mushroom: 0, stump: 0, spider: 0 },
     power: 2.2,
@@ -573,8 +577,8 @@ export const REWORK_BOSS = {
     stick: 0.5,
   },
   /**
-   * 20.15 — the Old Enat, the biome's boss (docs/BOSSES.md). He stands in the arena and does not
-   * move. Phase 1: roots burst under the hero one after another, a slam around himself, roots push
+   * 20.15 — the Old Enat, the biome's boss (docs/BOSSES.md). He walks after the hero, slow and
+   * heavy (in phase 3 he stands). Phase 1: roots burst under the hero one after another, a slam around himself, roots push
    * ring beasts at the hero; the combo — a grab (always catches), the pull to him, a charged slam
    * (a dodge in the charge saves). Phase 2 (60%): the forest turns to stone (boulders in the
    * arena), thorns in 8 lines across it and a spike under the hero at once. Phase 3 (25%): his
@@ -602,6 +606,8 @@ export const REWORK_BOSS = {
     shade: { radius: 70, speed: 55, every: 1.6 },
     sapTake: 1.5,
     touch: 8,
+    /** He walks after the hero this fast (phases 1–2), stopping this far from him. */
+    walk: { speed: 40, keep: 130 },
   },
 };
 

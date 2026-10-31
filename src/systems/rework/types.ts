@@ -299,6 +299,8 @@ export interface Run {
   time: number;
   hero: RunHero;
   obstacles: Obstacle[];
+  /** Obstacles the ring cleared from the arena (the screen fades them out). */
+  cleared?: Obstacle[];
   /** Static lookup: cell key → obstacles touching that cell. */
   grid: Map<number, Obstacle[]>;
   enemies: RunEnemy[];

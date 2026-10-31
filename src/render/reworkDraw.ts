@@ -96,7 +96,14 @@ function artPicture(o: Obstacle, img: HTMLImageElement): ObstaclePicture {
 export function obstacleLayers(o: Obstacle): { y: number; draw: (ctx: CanvasRenderingContext2D, alpha: number) => void }[] {
   const img = propsAtlas(o);
   if (o.kind !== 'stoneRing' || !img || o.art) return [{ y: o.pos.y, draw: (ctx, alpha) => drawObstacle(ctx, o, alpha) }];
-  return obstacleParts(o).map((p) => ({ y: o.pos.y + p.dy, draw: (ctx) => drawPart(ctx, img, p, o.pos.x, o.pos.y) }));
+  return obstacleParts(o).map((p) => ({
+    y: o.pos.y + p.dy,
+    draw: (ctx, alpha) => {
+      ctx.globalAlpha = alpha;
+      drawPart(ctx, img, p, o.pos.x, o.pos.y);
+      ctx.globalAlpha = 1;
+    },
+  }));
 }
 
 /**
@@ -1271,7 +1278,16 @@ function drawEnat(ctx: CanvasRenderingContext2D, e: RunEnemy, time: number): voi
   const k = ENAT_SCALE;
   // The crown sways a little; the slam's wind-up lifts him.
   const charge = e.act.kind === 'charge' ? 1 - e.act.time / E.grab.charge : 0;
-  if (drawSheetFrame(ctx, BEAST_SHEETS.enat!, enatFrame(e, phase, time), x, y, 1, flash ? 0.4 : 0)) return;
+  // Walking: the whole tree rocks from root to root and lifts a little at each step.
+  const walking = Math.hypot(e.vel.x, e.vel.y) > 5;
+  const rock = walking ? Math.sin(time * 2.6) * 0.035 : 0;
+  const lift = walking ? Math.abs(Math.sin(time * 2.6)) * 4 : 0;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rock);
+  const drawn = drawSheetFrame(ctx, BEAST_SHEETS.enat!, enatFrame(e, phase, time), 0, -lift, 1, flash ? 0.4 : 0);
+  ctx.restore();
+  if (drawn) return;
   if (body) {
     const [ax, ay] = body.anchor;
     ctx.save();

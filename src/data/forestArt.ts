@@ -171,7 +171,8 @@ export const LAIR_ART: PropSet = {
   ],
   /** The dead tree twice as often as each root arch. */
   trees: [7, 7, 0, 1, 2],
-  treeScale: 0.0062,
+  /** Drawn a little smaller than the Forest's; their blocking circle is wider (REWORK_LOCATIONS: treeRadius). */
+  treeScale: 0.0052,
   oak: 6,
   oakScale: 0.85,
   bushes: [10],
@@ -184,7 +185,7 @@ export const LAIR_ART: PropSet = {
   stoneRing: [{ piece: 5, angle: 90, scale: 0.75, mirror: false }],
   stoneRingOval: [0, 0],
   log: 3,
-  logScale: 0.6,
+  logScale: 0.5,
 };
 
 /**

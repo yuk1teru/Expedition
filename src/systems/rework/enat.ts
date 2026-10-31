@@ -1,17 +1,17 @@
 // The Old Enat, the Forest's boss (ROADMAP 20.15, docs/BOSSES.md), and the strikes on the ground
-// he makes. He stands where he came out and does not move. Phase 1: roots burst under the hero
+// he makes. He walks after the hero, slow and heavy, and stops near him. Phase 1: roots burst under the hero
 // one after another, he slams the ground around himself, and roots shove the ring's beasts at the
 // hero; the combo — his branch always catches the hero, pulls him in and he charges a slam (a
 // dodge in the charge breaks free). Phase 2 (60%): the forest turns to stone — boulders in the
-// arena — and thorns run in eight lines across it with a spike under the hero. Phase 3 (25%): his
-// bark cracks (he takes more damage), thorns never stop, and only the moving shade of his crown
-// keeps them off.
+// arena — and thorns run in eight lines across it with a spike under the hero. Phase 3 (25%): he
+// stands, his bark cracks (he takes more damage), thorns never stop, and only the moving shade of
+// his crown keeps them off.
 
 import { REWORK_BOSS } from '../../data/rework';
 import type { Vec } from '../entities';
 import { outsideRing } from './boss';
 import { damageHero } from './combat';
-import { buildGrid, isFree } from './map';
+import { buildGrid, isFree, resolveBody } from './map';
 import type { Hazard, Run, RunEnemy } from './types';
 
 const E = REWORK_BOSS.enat;
@@ -180,6 +180,16 @@ export function stepEnat(run: Run, e: RunEnemy, dt: number): boolean {
     act.time -= dt;
     if (act.time <= 0) e.act = { kind: 'walk' };
     return true;
+  }
+  // He walks after the hero — slow and heavy — and stops near him; never out of the ring.
+  if (d > E.walk.keep) {
+    const step = { x: (dx / d) * E.walk.speed * dt, y: (dy / d) * E.walk.speed * dt };
+    const next = { x: e.pos.x + step.x, y: e.pos.y + step.y };
+    if (!outsideRing(run, next, e.radius + 10)) {
+      e.pos = next;
+      resolveBody(run.grid, e.pos, e.radius, run.width, run.height);
+      e.vel = { x: step.x / dt, y: step.y / dt };
+    }
   }
   // Roots under the hero, one after another.
   e.moveTimer = (e.moveTimer ?? E.roots.every) - dt;
