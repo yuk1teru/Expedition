@@ -4,7 +4,7 @@
 // the class's dash (with dust behind while moving), a hit recoils. Three-quarter view: the figure
 // never rotates, it only mirrors to face left or right.
 
-import { HERO_ANIM, HERO_FX, HERO_SHEETS, type HeroAnimId, type HeroSheet } from '../data/heroAnim';
+import { ATTACK_FX, type AttackFxId, HERO_ANIM, HERO_FX, HERO_SHEETS, type HeroAnimId, type HeroSheet } from '../data/heroAnim';
 import type { Vec } from '../systems/entities';
 
 /** What the animation reads from the hero (the old game's hero or the rework's): only whether a dash is on. */
@@ -277,6 +277,27 @@ export function drawHeroFx(ctx: CanvasRenderingContext2D, kind: 'heal' | 'shield
   ctx.translate(x, y);
   ctx.scale(fx.scale, fx.scale);
   ctx.drawImage(img, sx, sy, w, h, -ax, -ay, w, h);
+  ctx.restore();
+  return true;
+}
+
+/**
+ * One frame of a hero's attack effect centred at (x, y): turned by `angle`, mirrored by `side`,
+ * `size` world px tall (the effect's own size unless given); false while its sheet loads.
+ */
+export function drawAttackFx(ctx: CanvasRenderingContext2D, id: AttackFxId, frame: number, x: number, y: number, o: { angle?: number; side?: number; size?: number; alpha?: number } = {}): boolean {
+  const fx = ATTACK_FX[id];
+  const sh = ATTACK_FX.sheets[fx.sheet];
+  const img = sheet(sh.src);
+  if (!img) return false;
+  const [sx, sy, w, h] = sh.frames[fx.frames[Math.max(0, Math.min(fx.frames.length - 1, frame))]!]!;
+  const k = (o.size ?? fx.size) / h;
+  ctx.save();
+  ctx.translate(x, y);
+  if (o.angle) ctx.rotate(o.angle);
+  ctx.scale((o.side ?? 1) * k, k);
+  ctx.globalAlpha *= o.alpha ?? 1;
+  ctx.drawImage(img, sx, sy, w, h, -w / 2, -h / 2, w, h);
   ctx.restore();
   return true;
 }

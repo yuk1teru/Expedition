@@ -22,10 +22,10 @@ import { castSkill, effectiveParams, evolutionReady, passiveNotes } from '../sys
 import type { CardOffer, Obstacle, Run } from '../systems/rework/types';
 import type { Vec } from '../systems/entities';
 import type { App } from './app';
-import { type HeroAnimState, drawHeroDust, drawHeroFx, drawHeroFrames, heroAnimAttack, heroAnimCast, heroAnimDodge, newHeroAnim, sheet, stepHeroAnim } from './heroAnim';
+import { type HeroAnimState, drawAttackFx, drawHeroDust, drawHeroFx, drawHeroFrames, heroAnimAttack, heroAnimCast, heroAnimDodge, newHeroAnim, sheet, stepHeroAnim } from './heroAnim';
 import { DodgeFx } from './dodgeFx';
 import { BEAST_ANIM } from '../data/beastAnim';
-import { HERO_FX } from '../data/heroAnim';
+import { ATTACK_FX, type AttackFxId, HERO_FX } from '../data/heroAnim';
 import { SIGN_ART } from '../data/forestArt';
 import { drawGround, propSet } from './forestArt';
 import { beastSheet, beastSize, type Corpse, corpseLife, drawCorpse, lastSide } from './beastAnim';
@@ -114,6 +114,9 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
   let flashes: Flash[] = [];
   /** Dead beasts lying a moment where they fell. */
   let corpses: Corpse[] = [];
+  /** Attack effects playing (slashes, sparks, explosions, flashes); an attack's swing that comes next is the basic one. */
+  let attackFx: { id: AttackFxId; x: number; y: number; side: number; angle: number; size: number; age: number; follow: boolean }[] = [];
+  let basicSwing = false;
   /** Seconds since the last level-up's pillar of light began (negative — none). */
   let levelFx = -1;
   /** The new location's name over the screen for a moment. */
@@ -174,6 +177,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     swings = [];
     flashes = [];
     corpses = [];
+    attackFx = [];
     banner = { text: REWORK_LOCATIONS[0]!.name, age: 0 };
     pointerSeen.clear();
     levelFx = -1;
@@ -212,6 +216,9 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
 
   const readEvents = (r: Run): void => {
     for (const e of r.events) {
+      if (e.type === 'hit' && e.byHero && r.hero.classId !== 'mage' && attackFx.filter((f) => f.id === 'spark').length < ATTACK_FX.maxSparks) {
+        playFx('spark', { x: e.pos.x + (r.rng.next() - 0.5) * 14, y: e.pos.y + (r.rng.next() - 0.5) * 10 }, r.rng.next() < 0.5 ? -1 : 1, 0, 0, false);
+      }
       if (e.type === 'hit') floaters.push({ x: e.pos.x + (r.rng.next() - 0.5) * 10, y: e.pos.y - 30, text: String(Math.max(1, Math.round(e.amount))), color: e.byHero ? '#ffffff' : '#ff6b5e', age: 0 });
       else if (e.type === 'location') {
         // The next location: its name over the screen; what lay on the old field is gone.
@@ -227,8 +234,21 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
         corpses.push({ def: e.def, x: e.pos.x, y: e.pos.y, side: lastSide(e.id), size: beastSize(e.def, e.radius), boss: e.boss, age: 0 });
         if (corpses.length > BEAST_ANIM.maxCorpses) corpses.shift();
       } else if (e.type === 'swing') {
-        swings.push({ x: e.pos.x, y: e.pos.y, angle: e.angle, reach: e.reach, arc: e.arc, age: 0 });
-      } else if (e.type === 'attack') heroAnimAttack(anim, r.hero.classId);
+        // The warrior's basic strike: the slash of the move he plays (vertical, horizontal); a skill's swing — the old arc.
+        if (basicSwing && hasAttackFx(r.hero.classId)) playFx(anim.shot === 'moveB' ? 'slashH' : 'slashV', r.hero.pos, anim.side, 0, 0, true);
+        else swings.push({ x: e.pos.x, y: e.pos.y, angle: e.angle, reach: e.reach, arc: e.arc, age: 0 });
+        basicSwing = false;
+      } else if (e.type === 'attack') {
+        heroAnimAttack(anim, r.hero.classId);
+        basicSwing = true;
+        const cls = r.hero.classId;
+        if (cls === 'mage') playFx('castFlash', r.hero.pos, anim.side, 0, 0, true);
+        if (cls === 'archer') {
+          // The ring of air faces where the arrow flies (mirrored to the left, then turned).
+          const left = Math.cos(e.angle) < 0;
+          playFx('release', r.hero.pos, left ? -1 : 1, left ? e.angle - Math.PI : e.angle, 0, true);
+        }
+      } else if (e.type === 'impact') playFx('explosion', e.pos, 1, 0, e.radius * ATTACK_FX.explosionSize, false);
       else if (e.type === 'dodge') {
         heroAnimDodge(anim);
         dodgeFx.start(REWORK_CLASSES[r.hero.classId].dodge.kind, e.from, e.to);
@@ -437,6 +457,7 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
         ctx.restore();
       }
       dodgeFx.drawOver(ctx);
+      drawAttackEffects(ctx, r, paused ? 0 : dt);
       drawFlashes(ctx, paused ? 0 : dt);
       ctx.restore();
       // The deeper forest's gloom over everything.
@@ -585,6 +606,36 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       if (levelFx >= a + b + c) levelFx = -1;
       else drawHeroFx(ctx, 'level', levelFx < a ? 0 : levelFx < a + b ? 1 : 2, h.pos.x, h.pos.y);
     }
+  }
+
+  /** Whether the class's attack effects are drawn from art (its sheet is loaded). */
+  function hasAttackFx(cls: ReworkClassId): boolean {
+    return sheet(ATTACK_FX.sheets[cls].src) !== null;
+  }
+
+  /** Starts an effect at a point (on the hero — offset by its spec and following him). */
+  function playFx(id: AttackFxId, at: Vec, side: number, angle: number, size: number, follow: boolean): void {
+    const fx = ATTACK_FX[id];
+    attackFx.push({ id, x: at.x + fx.offset[0] * side, y: at.y + fx.offset[1], side, angle, size: size || fx.size, age: -fx.delay, follow });
+  }
+
+  /** The effects, over the bodies; each plays its three frames once. */
+  function drawAttackEffects(ctx: CanvasRenderingContext2D, r: Run, dt: number): void {
+    for (const f of attackFx) {
+      f.age += dt;
+      const fx = ATTACK_FX[f.id];
+      if (f.follow) {
+        f.x = r.hero.pos.x + fx.offset[0] * f.side;
+        f.y = r.hero.pos.y + fx.offset[1];
+      }
+      if (f.age < 0) continue;
+      let t = f.age;
+      let frame = 0;
+      while (frame < fx.times.length && t >= fx.times[frame]!) t -= fx.times[frame++]!;
+      if (frame >= fx.times.length) continue;
+      drawAttackFx(ctx, f.id, frame, f.x, f.y, { side: f.side, angle: f.angle, size: f.size });
+    }
+    attackFx = attackFx.filter((f) => f.age < ATTACK_FX[f.id].times.reduce((a, b) => a + b, 0));
   }
 
   function drawSwings(ctx: CanvasRenderingContext2D, dt: number): void {

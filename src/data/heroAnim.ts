@@ -163,3 +163,45 @@ export const HERO_FX = {
   /** The shell appears and breaks over this long. */
   shieldEdge: 0.3,
 };
+
+type Rect = [number, number, number, number];
+
+/**
+ * The heroes' attack effects (docs/art/fx/<class>.png, cut along a grid by scripts/cut-grid.py with
+ * CLEAR=40 SCALE=0.5): every effect is three frames — appearing, full, fading. Frames face right;
+ * an effect on the hero mirrors with him, a flying one turns with its flight. `size` — the world
+ * height of a frame's cell; `offset` — from the hero's feet (x mirrored), for effects on him;
+ * `delay` — after the attack, to meet the strike frame of his move; `times` — each frame's time.
+ */
+export const ATTACK_FX = {
+  sheets: {
+    warrior: {
+      src: 'sprites/anim/fx-warrior.png',
+      frames: [[0, 0, 240, 184], [240, 0, 278, 184], [518, 0, 250, 184], [0, 184, 240, 96], [240, 184, 278, 96], [518, 184, 250, 96], [0, 280, 240, 96], [240, 280, 278, 96], [518, 280, 250, 96], [0, 376, 240, 136], [240, 376, 278, 136], [518, 376, 250, 136]] as Rect[],
+    },
+    mage: {
+      src: 'sprites/anim/fx-mage.png',
+      frames: [[0, 0, 238, 156], [238, 0, 268, 156], [506, 0, 262, 156], [0, 156, 238, 211], [238, 156, 268, 211], [506, 156, 262, 211], [0, 367, 238, 145], [238, 367, 268, 145], [506, 367, 262, 145]] as Rect[],
+    },
+    archer: {
+      src: 'sprites/anim/fx-archer.png',
+      frames: [[0, 0, 246, 150], [246, 0, 271, 150], [517, 0, 251, 150], [0, 150, 246, 178], [246, 150, 271, 178], [517, 150, 251, 178], [0, 328, 246, 184], [246, 328, 271, 184], [517, 328, 251, 184]] as Rect[],
+    },
+  },
+  /** The warrior's vertical and horizontal slashes (his two strikes in turn) and the spark of a hit. */
+  slashV: { sheet: 'warrior', frames: [0, 1, 2], size: 78, offset: [36, -44], delay: 0.12, times: [0.05, 0.07, 0.12] },
+  slashH: { sheet: 'warrior', frames: [3, 4, 5], size: 44, offset: [30, -32], delay: 0.11, times: [0.05, 0.07, 0.12] },
+  spark: { sheet: 'warrior', frames: [9, 10, 11], size: 46, offset: [0, -26], delay: 0, times: [0.04, 0.06, 0.1] },
+  /** The mage's fireball in flight (loops), its explosion (sized by the blast), the flash at the staff. */
+  fireball: { sheet: 'mage', frames: [0, 1, 2], size: 34, offset: [0, 0], delay: 0, times: [0.07, 0.07, 0.07] },
+  explosion: { sheet: 'mage', frames: [3, 4, 5], size: 0, offset: [0, -18], delay: 0, times: [0.05, 0.1, 0.22] },
+  castFlash: { sheet: 'mage', frames: [6, 7, 8], size: 40, offset: [26, -66], delay: 0.05, times: [0.04, 0.06, 0.1] },
+  /** The archer's arrow in flight (loops) and the ring of air at the bow. */
+  arrow: { sheet: 'archer', frames: [0, 1, 2], size: 30, offset: [0, 0], delay: 0, times: [0.06, 0.06, 0.06] },
+  release: { sheet: 'archer', frames: [6, 7, 8], size: 40, offset: [22, -48], delay: 0, times: [0.04, 0.06, 0.1] },
+  /** The explosion's frame height per world px of the blast radius; at most this many hit sparks at once. */
+  explosionSize: 2.1,
+  maxSparks: 24,
+} as const;
+
+export type AttackFxId = 'slashV' | 'slashH' | 'spark' | 'fireball' | 'explosion' | 'castFlash' | 'arrow' | 'release';

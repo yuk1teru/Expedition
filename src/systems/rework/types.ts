@@ -264,6 +264,8 @@ export type RunEvent =
   | { type: 'swing'; pos: Vec; angle: number; reach: number; arc: number }
   | { type: 'kill'; pos: Vec; def: ReworkEnemyId; id: number; radius: number; boss: boolean }
   | { type: 'levelUp'; level: number }
+  /** A fire bolt or a fireball burst here (its explosion is drawn), this wide. */
+  | { type: 'impact'; pos: Vec; radius: number }
   /** 20.14: the run went on to the next location. */
   | { type: 'location'; index: number }
   | { type: 'dodge'; from: Vec; to: Vec }

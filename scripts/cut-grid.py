@@ -3,8 +3,9 @@
 # row keeps the same cell, so the frames of one effect line up; the atlas keeps the sheet's layout.
 # Usage: python scripts/cut-grid.py <sheet.png> <atlas.png> <frames.json> <row cuts> <column cuts>
 # Cuts are sheet px, e.g. "0,450,860,1254" "0,418,836,1254" (the emptiest lines between rows).
-# SCALE=0.5 (default) packs at half size. Pixels nearly transparent (alpha < 12) are cleared first:
-# background removal leaves them with stray colours that would bleed into the edges when shrunk.
+# SCALE=0.5 (default) packs at half size. Pixels nearly transparent (alpha < CLEAR, default 12) are
+# cleared first: background removal leaves them with stray colours that would bleed into the edges
+# when shrunk; a sheet with a dull haze around its glows wants more (CLEAR=40).
 # Needs Python 3 with Pillow and NumPy.
 
 import json, os, sys
@@ -16,7 +17,7 @@ rows = [int(v) for v in rows.split(',')]
 cols = [int(v) for v in cols.split(',')]
 scale = float(os.environ.get('SCALE', '0.5'))
 A = np.array(Image.open(src).convert('RGBA'))
-A[A[..., 3] < 12] = 0
+A[A[..., 3] < int(os.environ.get('CLEAR', '12'))] = 0
 im = Image.fromarray(A)
 W = round(im.width * scale)
 H = round(im.height * scale)

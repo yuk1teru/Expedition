@@ -20,7 +20,7 @@ npc/        lumberjack/
 locations/  forest/   ground.png  obstacles.png  concept.png
             deep-forest/  webs.png
             lair/     ground.png  obstacles.png
-fx/         fx.png  common.png  items.png  telegraphs.png  spore.png
+fx/         fx.png  common.png  items.png  telegraphs.png  spore.png  warrior.png  mage.png  archer.png
 ui/         signs.png
 ```
 
@@ -53,6 +53,7 @@ ui/         signs.png
 | `fx/telegraphs.png` | підказки атак на землі: смуга (подряпини-початок, середина, вістря) і коло — порожні й повні; зелене безпечне коло. У грі — `public/sprites/anim/telegraphs.png` (аркуш, зменшений удвічі); координати шматків — `TELEGRAPH_ART` (`src/data/forestArt.ts`) |
 | `fx/spore.png` | спора гриба, 3 кадри пульсу. У грі — `public/sprites/anim/spore.png` (`cut-grid.py`, `SCALE=0.2`) |
 | `ui/signs.png` | знак Берегині (життя): горить, згас, 3 кадри згасання. У грі — `public/sprites/ui-signs.png` (`cut-grid.py`, `SCALE=0.25`) |
+| `fx/warrior.png`, `fx/mage.png`, `fx/archer.png` | автоатака: дуги вертикального й горизонтального удару, випад, іскра влучання; вогняна куля, вибух, спалах на посоху; стріла, стріла в землі, кільце повітря на луці. У грі — `public/sprites/anim/fx-<клас>.png` (`CLEAR=40 SCALE=0.5 cut-grid.py`: прибрано тьмяне сяйво довкола) |
 | `fx/fx.png` | ефекти (слід удару, сяйво леза, спалах знака, іскра, кільце, пилюка) — оригінал; у грі — `public/sprites/anim/fx.png` |
 
 Новий арт клади так само: герой — `heroes/<клас>/`, звір — `mobs/<звір>/`, бос — `bosses/<бос>/`, мирний персонаж — `npc/<хто>/`, земля й предмети — `locations/<локація>/`.

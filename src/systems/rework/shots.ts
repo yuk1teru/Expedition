@@ -28,6 +28,7 @@ function explode(run: Run, s: Shot): void {
   const b = s.blast!;
   s.blast = undefined;
   burst(run, s.pos, b.radius, s.damage);
+  run.events.push({ type: 'impact', pos: { x: s.pos.x, y: s.pos.y }, radius: b.radius });
   if (b.burn > 0) run.zones.push({ kind: 'fire', pos: { x: s.pos.x, y: s.pos.y }, radius: b.radius * 0.8, time: b.burn, damage: s.damage * 0.12, tick: 0.25, slow: 0 });
   if (s.split) {
     const base = Math.atan2(s.vel.y, s.vel.x);
@@ -107,6 +108,7 @@ export function stepHeroShots(run: Run, dt: number): void {
       const a = REWORK_CLASSES[h.classId].attack;
       if (s.kind === 'bolt' && a.kind === 'bolt') {
         const r = a.splash * st.area;
+        run.events.push({ type: 'impact', pos: { x: s.pos.x, y: s.pos.y }, radius: r });
         for (const o of run.enemies) {
           if (o === e || o.dead) continue;
           if (Math.hypot(o.pos.x - s.pos.x, o.pos.y - s.pos.y) <= r + o.radius) damageEnemy(run, o, s.damage * a.splashShare);

@@ -8,7 +8,8 @@ import { ENAT_FX, FOREST_ART, ITEM_ART, TELEGRAPH_ART, WEB_ART } from '../data/f
 import { beastSheet, beastSize, drawBeastFrames, drawSheetFrame } from './beastAnim';
 import { BEAST_SHEETS, LUMBERJACK_SHEET } from '../data/beastAnim';
 import { artCrown, drawEnatFx, drawPart, drawProp, drawWebPiece, obstacleParts, partsBox, propSet, propsAtlas, tintedPiece, webAtlas } from './forestArt';
-import { sheet } from './heroAnim';
+import { drawAttackFx, sheet } from './heroAnim';
+import { ATTACK_FX } from '../data/heroAnim';
 
 const sheetReady = (src: string): boolean => sheet(src) !== null;
 
@@ -405,6 +406,7 @@ export function drawShot(ctx: CanvasRenderingContext2D, s: Shot, time = 0): void
     ctx.restore();
     return;
   }
+  if (s.kind === 'fireball' && drawAttackFx(ctx, 'fireball', Math.floor(time * 14) % 3, s.pos.x, s.pos.y - 18, { angle: Math.atan2(s.vel.y, s.vel.x), size: ATTACK_FX.fireball.size * 1.5 })) return;
   if (s.kind === 'fireball' || s.kind === 'missile') {
     const fire = s.kind === 'fireball';
     ctx.fillStyle = fire ? '#ff7a2a' : '#b98cff';
@@ -418,6 +420,7 @@ export function drawShot(ctx: CanvasRenderingContext2D, s: Shot, time = 0): void
   }
   if (s.kind === 'arrow') {
     const a = Math.atan2(s.vel.y, s.vel.x);
+    if (drawAttackFx(ctx, 'arrow', Math.floor(time * 16) % 3, s.pos.x, s.pos.y - 16, { angle: a })) return;
     ctx.save();
     ctx.translate(s.pos.x, s.pos.y - 16);
     ctx.rotate(a);
@@ -431,6 +434,7 @@ export function drawShot(ctx: CanvasRenderingContext2D, s: Shot, time = 0): void
     return;
   }
   if (s.kind === 'spore') return drawSpore(ctx, s, time);
+  if (s.kind === 'bolt' && drawAttackFx(ctx, 'fireball', Math.floor(time * 14) % 3, s.pos.x, s.pos.y - 18, { angle: Math.atan2(s.vel.y, s.vel.x) })) return;
   if (s.kind === 'web' || s.kind === 'cocoon') {
     const big = s.kind === 'cocoon';
     const angle = Math.atan2(s.vel.y, s.vel.x);
