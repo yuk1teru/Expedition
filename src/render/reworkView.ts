@@ -385,8 +385,9 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
       readEvents(r);
       const paused = runPaused(r);
       const h = r.hero;
-      // The duel: the camera eases back and holds the ring; otherwise it follows the hero.
-      const duel = r.phase === 'ring' || r.phase === 'won';
+      // The duel: the camera eases back and holds the ring; otherwise (and once the boss is beaten
+      // and a path leads on) it follows the hero.
+      const duel = r.phase === 'ring' || (r.phase === 'won' && !r.path);
       zoom += ((duel ? REWORK_BOSS.zoom : 1) - zoom) * Math.min(1, dt * 3);
       const vw = W / zoom;
       const vh = H / zoom;
@@ -950,17 +951,23 @@ export function createReworkScreen(app: App): Screen<CanvasRenderingContext2D> {
     }
     const boss = r.enemies.find((e) => e.boss);
     if (!boss || r.phase !== 'ring') return;
-    const w = 420;
-    drawPanel(ctx, { x: W / 2 - w / 2 - 10, y: 64, w: w + 20, h: 40 }, 'rgba(14, 10, 10, 0.85)', '#a03a2a');
+    // Over the boss's head (not across the top of the screen): his name and HP, kept on screen.
+    const sh = beastSheet(boss.def);
+    const tall = sh ? (sh.height + (sh.hover ?? 0)) * beastSize(boss.def, boss.radius) : boss.radius * 3;
+    const w = boss.def === 'enat' ? 200 : 150;
+    const x = Math.max(w / 2 + 8, Math.min(W - w / 2 - 8, (boss.pos.x - cam.x) * zoom));
+    const y = Math.max(96, Math.min(H - 140, (boss.pos.y - tall - cam.y) * zoom - 6));
     const spinner = boss.def === 'spinner';
-    const name = boss.def === 'enat' ? `${REWORK_BOSS.enat.name} · фаза ${r.bossPhase + 1} з 3` : spinner ? REWORK_BOSS.spinner.name : REWORK_BOSS.alpha.name;
-    drawText(ctx, name, W / 2, 76, { size: 13, bold: true, align: 'center', color: '#ffb0a0' });
+    const name = boss.def === 'enat' ? `${REWORK_BOSS.enat.name} · фаза ${r.bossPhase + 1}/3` : spinner ? REWORK_BOSS.spinner.name : REWORK_BOSS.alpha.name;
+    outlinedText(ctx, name, x, y - 12, 12, '#ffb0a0');
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(x - w / 2 - 2, y - 2, w + 4, 10);
     ctx.fillStyle = '#2a1416';
-    ctx.fillRect(W / 2 - w / 2, 86, w, 10);
+    ctx.fillRect(x - w / 2, y, w, 6);
     ctx.fillStyle = boss.act.kind === 'rest' || (boss.def === 'enat' && r.bossPhase === 2) ? '#ffd27a' : '#d0453c';
-    ctx.fillRect(W / 2 - w / 2, 86, w * Math.max(0, boss.hp / boss.maxHp), 10);
+    ctx.fillRect(x - w / 2, y, w * Math.max(0, boss.hp / boss.maxHp), 6);
     const weak = spinner ? [r.noBrood && 'без павучат', r.rescued && 'лісоруб'].filter(Boolean).join(' · ') : r.noHowl ? 'без зграї' : '';
-    if (weak) drawText(ctx, weak, W / 2 + w / 2, 76, { size: 10, align: 'right', color: '#9fd08a' });
+    if (weak) outlinedText(ctx, weak, x, y + 18, 10, '#9fd08a');
   }
 
   /** Under the cursor over a skill slot: its numbers, what the passives give it, its evolution. */

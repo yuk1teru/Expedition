@@ -10,12 +10,14 @@ import type { Run } from './types';
 
 const clamp = (v: number, max: number): number => Math.max(0, Math.min(Math.max(0, max), v));
 
+/** The camera holds the ring: in the duel, and after the biome's last boss (no path on). */
+export const duel = (run: Run): boolean => run.phase === 'ring' || (run.phase === 'won' && !run.path);
+
 /** The world rect on screen at `zoom` (1 — the flood, `REWORK_BOSS.zoom` — the duel). */
-export function viewRect(run: Run, zoom = run.phase === 'ring' || run.phase === 'won' ? REWORK_BOSS.zoom : 1): { x: number; y: number; w: number; h: number } {
+export function viewRect(run: Run, zoom = duel(run) ? REWORK_BOSS.zoom : 1): { x: number; y: number; w: number; h: number } {
   const w = VIEW.width / zoom;
   const h = VIEW.height / zoom;
-  const duel = run.phase === 'ring' || run.phase === 'won';
-  const f = duel ? run.ringCenter : run.hero.pos;
+  const f = duel(run) ? run.ringCenter : run.hero.pos;
   return { x: clamp(f.x - w / 2, run.width - w), y: clamp(f.y - h / 2 - REWORK_FIELD.camLift, run.height - h), w, h };
 }
 

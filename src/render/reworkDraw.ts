@@ -322,7 +322,8 @@ export function drawEnemy(ctx: CanvasRenderingContext2D, e: RunEnemy, time: numb
       ctx.fill();
     }
   }
-  hpBar(ctx, e, e.pos.y - tall - 8, r * 2.2);
+  // The ring's beasts cannot be hurt: no bar over them.
+  if (e.act.kind !== 'ring') hpBar(ctx, e, e.pos.y - tall - 8, r * 2.2);
 }
 
 /** The mage and the archer until their frames come: a cloaked figure in the class colour. */
